@@ -1,5 +1,5 @@
 # Flame
-A web tool for Functional and Literature Enrichment analysis of multiple sets
+A web tool for Functional and Literature Enrichment analysis of multiple sets.
 
 With Flame one can:<br/>
 * Upload multiple gene/protein lists<br/>
