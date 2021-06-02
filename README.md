@@ -1,2 +1,2 @@
 # Flame
-Flame: A web tool for functional enrichment analysis using multiple gene lists
+Flame: A web tool for functional enrichment analysis using multiple gene lists.
