@@ -12,3 +12,6 @@ With Flame one can:<br/>
 * Perform network analysis and see gene-function, function-function and gene-gene associations<br/>
 * Apply interactive filters on the generated plots<br/>
 * Perform cross-database and cross-species id conversions<br/>
+
+
+Check our publication at https://doi.org/10.1101/2021.06.02.446692 
