@@ -34,7 +34,6 @@ function(input, output, session) {
   
   observeEvent(input$link_to_fileinput, {
     updateTabItems (session, "A", selected ="file_handler")
-    #tags$a(href = "#shiny-tab-189-1")
   })
   
   # File Input - Upload Files ####
@@ -130,8 +129,7 @@ function(input, output, session) {
   })
   
   # Plots ####
-  #
-  #
+  
   observeEvent(event_data("plotly_click"),{
     currentTermID <- event_data("plotly_click")$key
     if (!identical(currentTermID, NULL)) handleManhattanClick(output,currentTermID)  
@@ -149,10 +147,6 @@ function(input, output, session) {
   observeEvent(input$sliderScatter,{
     handleScatterPlot(input$scatterSelect, input$sliderScatter, output, session)
   })
-  
-  # observeEvent(input$barSelect,{
-  #   handleBarSelect(input$barSelect, session)
-  # })
   
   observeEvent(input$barSelect2,{
     handleBarSelect2(input$barSelect2, session)
@@ -210,7 +204,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -236,7 +229,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -266,7 +258,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network (Gene Vs Gene): ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -303,13 +294,6 @@ function(input, output, session) {
     handleaGoScatterPlot(input$aGoScatterSelect, input$aGoSliderScatter, output, session)
   })
   
-  # observeEvent(input$aGoSliderScatter,{
-  #   handleaGoScatterPlot(input$aGoScatterSelect, input$aGoSliderScatter,input$aGoScatterMode, output, session)
-  # })
-  # observeEvent(input$aGoScatterMode,{
-  #   handleaGoScatterPlot(input$aGoScatterSelect, input$aGoSliderScatter,input$aGoScatterMode, output, session)
-  # })
-  
   ### BARPLOT aGO ###
   
   observeEvent(input$aGoBarSelect2,{
@@ -332,14 +316,13 @@ function(input, output, session) {
   
   observeEvent(input$aGoSliderHeatmap,{
     tryCatch({
-    handleaGoHeatMap(input$aGoHeatmapSelect,input$aGoSliderHeatmap, input$aGoHeatmapAxis, input$aGoHeatmapMode, output, session)
+      handleaGoHeatMap(input$aGoHeatmapSelect,input$aGoSliderHeatmap, input$aGoHeatmapAxis, input$aGoHeatmapMode, output, session)
     }, warning = function(w) {
       print(paste("Warning:  ", w))
     }, error = function(e) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing heatmap1: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -357,22 +340,21 @@ function(input, output, session) {
   })
   observeEvent(input$aGoSliderHeatmap2,{
     tryCatch({
-    handleaGoHeatMap2(input$aGoHeatmapSelect2, input$aGoSliderHeatmap2, input$aGoHeatmapMode2, output, session)
+      handleaGoHeatMap2(input$aGoHeatmapSelect2, input$aGoSliderHeatmap2, input$aGoHeatmapMode2, output, session)
     }, warning = function(w) {
       print(paste("Warning:  ", w))
     }, error = function(e) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing heatmap: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
-
+  
   observeEvent(input$aGoHeatmapMode2,{
     handleaGoHeatMap2(input$aGoHeatmapSelect2, input$aGoSliderHeatmap2, input$aGoHeatmapMode2, output, session)
   })
-
+  
   
   ### NETWORK aGO ##
   observeEvent(input$aGoNetworkSelect,{
@@ -382,7 +364,7 @@ function(input, output, session) {
   observeEvent(input$aGoNetworkMode,{
     handleaGoNetwork(input$aGoNetworkSelect, input$aGoSliderNetwork, input$aGoNetworkMode, output, session)
   })
-
+  
   observeEvent(input$aGoSliderNetwork, {
     tryCatch({
       handleaGoNetwork(input$aGoNetworkSelect, input$aGoSliderNetwork, input$aGoNetworkMode, output, session)
@@ -392,7 +374,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -418,7 +399,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -448,7 +428,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network (Gene Vs Gene): ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -456,14 +435,13 @@ function(input, output, session) {
   
   
   #Literature Enrichment####
- # session$sendCustomMessage("handler_disableSourcesTabsaGoTool", T) # disable all source tab panels
   
   observeEvent(input$literature,{
     tryCatch({
-    handleLiteratureEnrich(input$literatureSelect, input$literatureCorrectionMethod, input$literatureOrganism,
+      handleLiteratureEnrich(input$literatureSelect, input$literatureCorrectionMethod, input$literatureOrganism,
                              input$literaturePvalue, input$gconvertTargetLiterature, input$literatureSliderScatter,
-                           input$literatureSliderBarplot, input$literatureSliderHeatmap, input$literatureSliderHeatmap2, 
-                           input$literatureSliderNetwork,input$literatureSliderNetwork2, output, session)
+                             input$literatureSliderBarplot, input$literatureSliderHeatmap, input$literatureSliderHeatmap2, 
+                             input$literatureSliderNetwork,input$literatureSliderNetwork2, output, session)
     }, warning = function(w) {
       print(paste("Warning:  ", w))
     }, error = function(e) {
@@ -471,8 +449,8 @@ function(input, output, session) {
       session$sendCustomMessage("handler_alert", paste("Problem with functional enrichment analysis (Literature Enrichment): ", e, sep=""))
     }, finally = {
       session$sendCustomMessage("handler_finishLoader", 13)
-
-    #   session$sendCustomMessage("handler_enableAllButtons", T)
+      
+      #   session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
   observeEvent(input$literatureSliderScatter,{
@@ -509,7 +487,7 @@ function(input, output, session) {
     handleLiteratureHeatMap(input$literatureSliderHeatmap, input$literatureHeatmapAxis, input$literatureHeatmapMode, output, session)
   })
   
-
+  
   observeEvent(input$literatureSliderHeatmap2,{
     tryCatch({
       handleLiteratureHeatMap2( input$literatureSliderHeatmap2, input$literatureHeatmapMode2, output, session)
@@ -519,7 +497,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing heatmap: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -541,7 +518,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -563,7 +539,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })
@@ -591,8 +566,7 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem while producing network: ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
-      # session$sendCustomMessage("handler_enableAllButtons", T)
+      
     })
   })
   
@@ -606,7 +580,7 @@ function(input, output, session) {
     score=input$STRINGnetworkScore
     
     create_string_network(dataset, organism, type, edges, score, output)
-    session$sendCustomMessage("handler_finishLoader", c(29,100))
+    session$sendCustomMessage("handler_startLoader", c(29,100))
     session$sendCustomMessage("handler_finishLoader", 29)
   })
   
@@ -625,7 +599,6 @@ function(input, output, session) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem with conversion (Orthology Search): ", e, sep=""))
     }, finally = {
-      # TODO loading bar remove, after it has been implemented
       # session$sendCustomMessage("handler_enableAllButtons", T)
     })
   })

@@ -158,17 +158,17 @@ handleSelectView <- function(selectView, output, session){
   session$sendCustomMessage("handler_startLoader", c(1,30))
   gene_tables<- as.data.frame(file_data[file_names == selectView])
   output$contents <- DT::renderDataTable(gene_tables, server = FALSE, 
-                                  extensions = 'Buttons',
-                                  options = list(
-                                    pageLength = 10,
-                                    "dom" = 'T<"clear">lBfrtip',
-                                    buttons = list(list(extend='copy', filename='Gene_Data_Table'),
-                                                   list(extend= 'csv', filename='Gene_Data_Table'), 
-                                                   list(extend='excel', filename='Gene_Data_Table'), 
-                                                   list(extend='pdf', filename='Gene_Data_Table'),
-                                                   list(extend='print', filename='Gene_Data_Table')
-                                    )
-                                  ), rownames= FALSE)
+                                         extensions = 'Buttons',
+                                         options = list(
+                                           pageLength = 10,
+                                           "dom" = 'T<"clear">lBfrtip',
+                                           buttons = list(list(extend='copy', filename='Gene_Data_Table'),
+                                                          list(extend= 'csv', filename='Gene_Data_Table'), 
+                                                          list(extend='excel', filename='Gene_Data_Table'), 
+                                                          list(extend='pdf', filename='Gene_Data_Table'),
+                                                          list(extend='print', filename='Gene_Data_Table')
+                                           )
+                                         ), rownames= FALSE)
   session$sendCustomMessage("handler_startLoader", c(1,100))
   session$sendCustomMessage("handler_finishLoader", 1)
 }
@@ -187,27 +187,27 @@ handleUpsetHover <- function(upsetjs_hover, output){
 handleUpsetClick <- function(mode, upsetjs_click){
   if (!identical(as.character(upsetjs_click$elems), character(0))){
     if (mode == "Intersection"){
-        showModal(modalDialog(
-          title="Intersection Results",
-          paste("Would you like to add :", upsetjs_click$name, " to the input file list? ",  sep=" "),
-          footer = tagList(actionButton("intersection_ok", "OK"),
-                           modalButton("Cancel"))
-        ))
+      showModal(modalDialog(
+        title="Intersection Results",
+        paste("Would you like to add :", upsetjs_click$name, " to the input file list? ",  sep=" "),
+        footer = tagList(actionButton("intersection_ok", "OK"),
+                         modalButton("Cancel"))
+      ))
     }
     else if (mode == "Distinct Intersections"){
-        showModal(modalDialog(
-          title=" Distinct Intersections Results",
-          paste("Would you like to add :", upsetjs_click$name, " to the input file list? ",  sep=" "),
-          footer = tagList(actionButton("distinct_ok", "OK"),
-                           modalButton("Cancel"))
-        ))
+      showModal(modalDialog(
+        title=" Distinct Intersections Results",
+        paste("Would you like to add :", upsetjs_click$name, " to the input file list? ",  sep=" "),
+        footer = tagList(actionButton("distinct_ok", "OK"),
+                         modalButton("Cancel"))
+      ))
     } else if (mode == "Union"){ # Union Mode
-        showModal(modalDialog(
-          title=" Union Results",
-          paste("Would you like to add :", upsetjs_click$name, " to the input file list? ",  sep=" "),
-          footer = tagList(actionButton("union_ok", "OK"),
-                           modalButton("Cancel"))
-        ))
+      showModal(modalDialog(
+        title=" Union Results",
+        paste("Would you like to add :", upsetjs_click$name, " to the input file list? ",  sep=" "),
+        footer = tagList(actionButton("union_ok", "OK"),
+                         modalButton("Cancel"))
+      ))
     } else if (mode == "Distinct per File"){
       showModal(modalDialog(
         title=" Distinct Results per File",
@@ -288,7 +288,7 @@ create_upset <- function(mode, output){
   if(mode =="Distinct Intersections"){
     # upset_listDistinct <- createListForDistinct()
     output$upsetjs <- renderUpsetjs({
-     
+      
       upsetjs()%>% fromList( upset_list, order.by = "cardinality",
                              limit = NULL,
                              shared = NULL,
@@ -304,7 +304,7 @@ create_upset <- function(mode, output){
   }
   else if (mode =="Intersection"){
     output$upsetjs <- renderUpsetjs({
-     
+      
       upsetjs()%>% fromList( upset_list, order.by = "cardinality",
                              limit = NULL,
                              shared = NULL,

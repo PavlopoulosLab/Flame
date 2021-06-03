@@ -102,6 +102,10 @@ footer {
   overflow-y: auto;
 }
 
+#svg_network_image{
+  border: 2px solid orange;
+}
+
 @media only screen and (max-width: 770px) {
   .sidebar-menu, .content-wrapper {
     padding-top: 100px;
@@ -123,8 +127,8 @@ footer {
 }
 
 .box.box-solid.box-primary>.box-header {
-  color:#b56d00;
-  background:#fae4c8
+  color:#ffffff;
+  background:#2998b1;
                     }
 
 .box.box-solid.box-primary{
@@ -145,5 +149,5 @@ border-top-color:#fae4c8;
 .vis-network{
   border: 3px solid orange;
   border-radius: 5px;
-  box-shadow:20px 20px 10px grey; 
+  box-shadow:10px 10px 5px grey; 
 }

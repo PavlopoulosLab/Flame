@@ -54,22 +54,21 @@ handle_gorth <- function(gorth_select, gorth_organism, gorth_target, output){
     gorth_genes <- gorth_genes[-c(1,4)]
     session$sendCustomMessage("handler_startLoader", c(5,80))
     if (!identical(gorth_genes, NULL)){
-    output$gorth_table<- DT::renderDataTable(gorth_genes, server = FALSE, 
-                                             extensions = 'Buttons',
-                                             options = list(
-                                               pageLength = 10,
-                                               "dom" = 'T<"clear">lBfrtip',
-                                               buttons = list(list(extend='excel',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                              list(extend= 'csv',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                              list(extend='copy',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                              list(extend='pdf',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                              list(extend='print',filename=paste('Orthology_Results_', gorth_select, sep="")))
-                                             ),rownames= FALSE, escape = FALSE)
+      output$gorth_table<- DT::renderDataTable(gorth_genes, server = FALSE, 
+                                               extensions = 'Buttons',
+                                               options = list(
+                                                 pageLength = 10,
+                                                 "dom" = 'T<"clear">lBfrtip',
+                                                 buttons = list(list(extend='excel',filename=paste('Orthology_Results_', gorth_select, sep="")),
+                                                                list(extend= 'csv',filename=paste('Orthology_Results_', gorth_select, sep="")),
+                                                                list(extend='copy',filename=paste('Orthology_Results_', gorth_select, sep="")),
+                                                                list(extend='pdf',filename=paste('Orthology_Results_', gorth_select, sep="")),
+                                                                list(extend='print',filename=paste('Orthology_Results_', gorth_select, sep="")))
+                                               ),rownames= FALSE, escape = FALSE)
     }
     else  session$sendCustomMessage("handler_alert", "No results found. Please try another organism (input/target) or list input.")
-    
     session$sendCustomMessage("handler_startLoader", c(5,100))
-     session$sendCustomMessage("handler_finishLoader", 5)
+    session$sendCustomMessage("handler_finishLoader", 5)
     session$sendCustomMessage("handler_enableAllButtons", T) # now enable buttons again
     
   }
@@ -80,8 +79,5 @@ handle_gorth <- function(gorth_select, gorth_organism, gorth_target, output){
 # @return void
 handle_gorthOrganism <- function(gorth_organism, session){
   org_choices <- organismsFromFile$print_name
-  # org_choices <- c("Homo sapiens (Human)"="hsapiens", "Mus musculus (Mouse)"="mmusculus", "Arabidopsis thaliana"="athaliana", "Danio rerio (Zebrafish)"="drerio",
-  #                  "Caenorhabditis elegans"="celegans", "Drosophila melanogaster"="dmelanogaster", "Rattus norvegicus (Rat)"="rnorvegicus", "Pan troglodytes (Chimpanzee)"="ptroglodytes",
-  #                  "Oryctolagus cuniculus (Rabbit) "="ocuniculus", "Saccharomyces cerevisiae"="scerevisiae")
   updateSelectInput(session, "gorth_target", choices = org_choices[org_choices!=gorth_organism])
 }

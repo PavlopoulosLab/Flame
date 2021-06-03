@@ -23,11 +23,8 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
       {
         uniprotIdGenes[i] <- sprintf("%s.%s", taxid, genesForaGotool$target[i])
       }
-      #uniprotIdGenes <- paste(taxid, genesForaGotool$target, sep = "." )
       foreground <- paste(unlist(uniprotIdGenes), sep = "%0d", collapse = "%0d")
       o_or_u_or_both <- "both"  #representation level : over-, underrepresented or both
-     
-      
       if (aGoCorrectionMethod == "P-value"){
         FDR_cutoff <-"1"
         p_value_cutoff <- aGOtoolPvalue
@@ -48,8 +45,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
                         p_value_cutoff = sprintf("%s",p_value_cutoff),#string
                         FDR_cutoff = sprintf("%s",FDR_cutoff)#string
       )
-     
-      
       # API request
       request <- POST("https://agotool.org/api_orig", body = post_args, encode = "json")
       response <- rawToChar(content(request,"raw"))
@@ -72,13 +67,9 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
         names(aGotoolResults)[8] <<- "Intersection Size"
         names(aGotoolResults)[9] <<- "Positive Hits"
         
-        #aGotoolResults$'P-value' <<- formatC( aGotoolResults$`P-value`, format = "e", digits = 2)
-        #aGotoolResults$FDR <<- formatC( aGotoolResults$FDR, format = "e", digits = 2)
         LogPvalue <- format((-log10(as.numeric(as.character(format(aGotoolResults$`P-value`, scientific = F))))),format="e", digit=3)
         LogFDR<- format((-log10(as.numeric(as.character(format(aGotoolResults$FDR , scientific = F))))),format="e", digit=3)
-        #enrScore  <- round(( aGotoolResults$`Intersection Size` /aGotoolResults$`Term Size` ) * 100, 2)
         enrScore <- enrich_score(aGotoolResults$`Intersection Size`,aGotoolResults$`Term Size`)
-        
         aGotoolResults <<- as.data.frame(cbind("Source"=aGotoolResults$Source, "Term_ID"=aGotoolResults$Term_ID, "Function"=aGotoolResults$Function, 
                                                "P-value"= formatC( aGotoolResults$`P-value`, format = "e", digits = 2), "-log10Pvalue"= LogPvalue, 
                                                "FDR"=  formatC( aGotoolResults$FDR, format = "e", digits = 2), "-log10FDR"=LogFDR,"Term Size"=aGotoolResults$`Term Size`,
@@ -91,7 +82,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
         aGotoolResults$`Positive Hits` <<- as.character(aGotoolResults$`Positive Hits`)
         
         clearaGoTables(output) # resetting any previous tables before updating
-        
         sourceParameters<-c()
         for (i in 1:length(aGOtoolDatasources))
         {
@@ -109,22 +99,19 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
         all_aGotool <<- data.frame()
         session$sendCustomMessage("handler_startLoader", c(12,60))
         convertedGenesOutput <- gconvert(unlist(genesForaGotool$target), organism = gProfOrganism, target = gconvertTargetGotool)
-        for (i in 1:nrow(aGotoolResults))
-        {
+        for (i in 1:nrow(aGotoolResults)){
           genesOutput<-c()
           initialSplitGenes <- strsplit(gsub(sprintf("%s.",taxid),"", aGotoolResults[["Positive Hits"]][i]), ";")[[1]]
-          for (j in 1:length(initialSplitGenes))
-          {
+          for (j in 1:length(initialSplitGenes)){
             inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
             genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
           }
-         
           aGotoolResults[["Positive Hits"]][i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
         }
+        
         aGotoolResults <<- aGotoolResults[with(aGotoolResults,order(-`-log10Pvalue`)),]
-       
         session$sendCustomMessage("handler_startLoader", c(12,70))
-         if (aGoCorrectionMethod == "P-value"){
+        if (aGoCorrectionMethod == "P-value"){
           aGotoolResults <<- subset(aGotoolResults, select=-c(`-log10FDR`, FDR)) #remove the FDR and logFDR columns from the table
         }
         else {
@@ -143,17 +130,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
               Uniprot$`Positive Hits`<-  gsub(",", ", ", Uniprot$`Positive Hits`)
               all_aGotool <<- rbind(all_aGotool, Uniprot)
               output$uniprotTable <- renderTableFunc(Uniprot, aGOtoolSelect, 11, "aGotool_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-              # output$uniprotTable <- DT::renderDataTable(Uniprot, server = FALSE, 
-              #                                            extensions = 'Buttons',
-              #                                            options = list(
-              #                                              pageLength = 10,
-              #                                              "dom" = 'T<"clear">lBfrtip',
-              #                                              buttons = list(list(extend='excel',filename=paste('UNIPROT_ Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend= 'csv',filename=paste('UNIPROT_ Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend='copy',filename=paste('UNIPROT_ Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend='pdf',filename=paste('UNIPROT_ Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend='print',filename=paste('UNIPROT_ Enrichment_Results_', aGOtoolSelect, sep="")))
-              #                                            ),rownames= FALSE, escape = FALSE)
             }
             else output$uniprotTable <- DT::renderDataTable(Uniprot)
           } else if (aGOtoolDatasources[i] == "-26"){
@@ -163,17 +139,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
               DiseaseOntology$`Positive Hits`<-  gsub(",", ", ", DiseaseOntology$`Positive Hits`)
               all_aGotool <<- rbind(all_aGotool, DiseaseOntology)
               output$diseaseTable <- renderTableFunc(DiseaseOntology, aGOtoolSelect, 11, "aGotool_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-              # output$diseaseTable <- DT::renderDataTable(DiseaseOntology, server = FALSE, 
-              #                                            extensions = 'Buttons',
-              #                                            options = list(
-              #                                              pageLength = 10,
-              #                                              "dom" = 'T<"clear">lBfrtip',
-              #                                              buttons = list(list(extend='excel',filename=paste('DiseaseOntology_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend= 'csv',filename=paste('DiseaseOntology_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend='copy',filename=paste('DiseaseOntology_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend='pdf',filename=paste('DiseaseOntology_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                             list(extend='print',filename=paste('DiseaseOntology_Enrichment_Results_', aGOtoolSelect, sep="")))
-              #                                            ),rownames= FALSE, escape = FALSE)
             }
             else output$diseaseTable <- DT::renderDataTable(DiseaseOntology)
           }else if (aGOtoolDatasources[i] == "-55"){
@@ -183,17 +148,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
               PFAM$`Positive Hits`<-  gsub(",", ", ", PFAM$`Positive Hits`)
               all_aGotool <<- rbind(all_aGotool, PFAM)
               output$pfamTable <- renderTableFunc(PFAM, aGOtoolSelect, 11, "aGotool_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-              # output$pfamTable <- DT::renderDataTable(PFAM, server = FALSE, 
-              #                                         extensions = 'Buttons',
-              #                                         options = list(
-              #                                           pageLength = 10,
-              #                                           "dom" = 'T<"clear">lBfrtip',
-              #                                           buttons = list(list(extend='excel',filename=paste('PFAM_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                          list(extend= 'csv',filename=paste('PFAM_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                          list(extend='copy',filename=paste('PFAM_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                          list(extend='pdf',filename=paste('PFAM_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                          list(extend='print',filename=paste('PFAM_Enrichment_Results_', aGOtoolSelect, sep="")))
-              #                                         ),rownames= FALSE, escape = FALSE)
             }
             else output$pfamTable <- DT::renderDataTable(PFAM)
           }else if (aGOtoolDatasources[i] == "-54"){
@@ -203,41 +157,15 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
               INTERPRO$`Positive Hits`<-  gsub(",", ", ", INTERPRO$`Positive Hits`)
               all_aGotool <<- rbind(all_aGotool, INTERPRO)
               output$interproTable <- renderTableFunc(INTERPRO, aGOtoolSelect, 11, "aGotool_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-              
-              # output$interproTable <- DT::renderDataTable(INTERPRO, server = FALSE, 
-              #                                             extensions = 'Buttons',
-              #                                             options = list(
-              #                                               pageLength = 10,
-              #                                               "dom" = 'T<"clear">lBfrtip',
-              #                                               buttons = list(list(extend='excel',filename=paste('INTERPRO_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                              list(extend= 'csv',filename=paste('INTERPRO_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                              list(extend='copy',filename=paste('INTERPRO_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                              list(extend='pdf',filename=paste('INTERPRO_Enrichment_Results_', aGOtoolSelect, sep="")),
-              #                                                              list(extend='print',filename=paste('INTERPRO_Enrichment_Results_', aGOtoolSelect, sep="")))
-              #                                             ),rownames= FALSE, escape = FALSE)
             }else output$interproTable <- DT::renderDataTable(INTERPRO)
           }
           if (nrow(all_aGotool) > 0){
             session$sendCustomMessage("handler_enableSourceTabaGoTool", 0)
             all_aGotool <<- all_aGotool[with(all_aGotool,order(-`-log10Pvalue`)),]
             output$aGo_all <- renderTableFunc(all_aGotool, "ALL", 11, "aGotool_Results_", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-            # output$aGo_all <- renderDataTable(all_aGotool, 
-            #                                   server = FALSE, 
-            #                                   extensions = 'Buttons',
-            #                                   options = list(
-            #                                     pageLength = 10,
-            #                                     "dom" = 'T<"clear">lBfrtip',
-            #                                     buttons = list(list(extend='excel',filename=paste('all_aGotool_Results_', aGOtoolSelect, sep="")),
-            #                                                    list(extend= 'csv',filename=paste('all_aGotool_Results_', aGOtoolSelect, sep="")),
-            #                                                    list(extend='copy',filename=paste('all_aGotool_Results_', aGOtoolSelect, sep="")),
-            #                                                    list(extend='pdf',filename=paste('all_aGotool_Results_', aGOtoolSelect, sep="")),
-            #                                                    list(extend='print',filename=paste('all_aGotool_Results_', aGOtoolSelect, sep="")))
-            #                                   ),
-            #                                   rownames= FALSE, escape = FALSE)
           }
-          
         }
-
+        
         updatePlotaGoSources(as.character(unique(aGotoolResults$Source)), session) # Updating hit datasource selection boxes in Plots
         
         all_aGotool_Barselect <- all_aGotool[grepl(paste(aGoBarSelect2, collapse="|"), all_aGotool$Source),]

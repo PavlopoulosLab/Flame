@@ -44,7 +44,7 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
       response<-rawToChar(content(request,"raw"))
       response<-gsub("PMID \\(PubMed IDentifier\\)", "PubMed", response)
       result_df <- read.csv(text = response, sep="\t", stringsAsFactors = FALSE)
-
+      
       if(!is.null(result_df) & nrow(result_df)>0)
       {
         LiteratureResults <<- data.frame()
@@ -76,11 +76,9 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
         LiteratureResults$Term_ID <<- as.character(LiteratureResults$Term_ID)
         
         LiteratureResults <<- LiteratureResults[with(LiteratureResults,order(-`-log10Pvalue`)),]
-        #LiteratureResults$`Positive Hits`<<- strsplit(gsub(sprintf("%s.",taxid),"", LiteratureResults$`Positive Hits`), ";")
         session$sendCustomMessage("handler_startLoader", c(13,50))
         convertedGenesOutput <- gconvert(unlist(genesForLiterature$target), organism = gProfOrganism, target = gconvertTargetLiterature)
         session$sendCustomMessage("handler_startLoader", c(13,70))
-        
         for (i in 1:nrow(LiteratureResults))
         {
           genesOutput<-c()
@@ -88,12 +86,10 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
           for (j in 1:length(initialSplitGenes))
           {
             inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
-            
             genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
           }
           LiteratureResults[["Positive Hits"]][i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
         }
-        
         param_literature <- "" # String variable for execution parameters to be printed
         param_literature <- paste("File: ", literatureSelect, "\nOrganism: ", literatureOrganism, "\nSignificance threshold :", literatureCorrectionMethod, "\nP-Value cut-off: ", literaturePvalue,"\nTerm_ID output: ", gconvertTargetLiterature, "\nDatabases: " , "PubMed", sep ="")
         output$literatureParameters <- renderText(param_literature)
@@ -114,19 +110,8 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
         all_literature$Term_ID <<- paste("<a href='https://pubmed.ncbi.nlm.nih.gov/", pubmedIds, "' target='_blank'>", all_literature$Term_ID, "</a>", sep="")
         all_literature$`Positive Hits` <-  gsub(",", ", ", all_literature$`Positive Hits`)
         output$literatureTable <- renderTableFunc(all_literature, literatureSelect, 11, "HPA_gProfiler_Results'PUBMED Enrichment", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-        # output$literatureTable <- DT::renderDataTable(all_literature, server = FALSE, 
-        #                                               extensions = 'Buttons',
-        #                                               options = list(
-        #                                                 pageLength = 10,
-        #                                                 "dom" = 'T<"clear">lBfrtip',
-        #                                                 buttons = list(list(extend='excel',filename=paste('PUBMED Enrichment_Results_', literatureSelect, sep="")),
-        #                                                                list(extend= 'csv',filename=paste('PUBMED Enrichment_Results_', literatureSelect, sep="")),
-        #                                                                list(extend='copy',filename=paste('PUBMED Enrichment_Results_', literatureSelect, sep="")),
-        #                                                                list(extend='pdf',filename=paste('PUBMED Enrichment_Results_', literatureSelect, sep="")),
-        #                                                                list(extend='print',filename=paste('PUBMED Enrichment_Results_', literatureSelect, sep="")))
-        #                                               ),rownames= FALSE, escape = FALSE)
         
-      ##update sliders for the plots
+        ##update sliders for the plots
         updateSliderInput(session, "literatureSliderScatter", "Choose a number of results to view:", min = 1, 
                           max = 1, value = 0, step = 1)
         updateSliderInput(session, "literatureSliderScatter", "Choose a number of results to view:", min = 1,
@@ -136,7 +121,7 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
                           max = 1, value = 0, step = 1)
         updateSliderInput(session, "literatureSliderBarplot", "Choose a number of results to view:", min = 1,
                           max = length(all_literature$Term_ID), value = 10, step = 1)
-       
+        
         updateSliderInput(session, "literatureSliderHeatmap", "Choose a number of results to view:", min = 1, 
                           max = 1, value = 0, step = 1)
         updateSliderInput(session, "literatureSliderHeatmap", "Choose a number of results to view:", min = 2,
@@ -166,7 +151,6 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
         
       }else session$sendCustomMessage("handler_alert", paste("No valid results found.", sep=""))
       session$sendCustomMessage("handler_startLoader", c(13,100))
-      #session$sendCustomMessage("handler_finishLoader", 13)
       session$sendCustomMessage("handler_enableAllButtons", T) # now enable buttons again 
     }
   }

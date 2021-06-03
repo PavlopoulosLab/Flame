@@ -58,7 +58,7 @@ upsetTab<- HTML('     The <b>UpSet plot</b> is a sophisticated alternative of a 
                       participating in each list combination. The connected-dots matrix indicates which combination of lists corresponds to which vertical rectangle. 
                       Finally, the horizontal bars (Set Size) denote the participation of hovered objects (from the vertical rectangles) in the respective lists. 
                       <br>
-                      <b>FLAME</b> supports four UpSet plot modes: <br>
+                      <b>Flame</b> supports four UpSet plot modes: <br>
                                 
                                  &bull;<b>Intersections:</b> creates all file combinations as long as they share at least one element, allowing an element to participate in more than one combination.  <br> 
                                  &bull;<b>Distinct intersections:</b> creates file combinations only for distinct elements that do not participate in other lists.  <br> 
@@ -73,19 +73,18 @@ upsetTab<- HTML('     The <b>UpSet plot</b> is a sophisticated alternative of a 
                           </div>  
                              <div class="col-md-12"><hr></div>
                       
-                       <p>
-                        <div class="col-md-9">
+                       <div class="col-md-12">
+                         <p>
+                        <h3>3. Select UpSet plot element to create a new file</h3>
+                     On <b>mouse-hover</b> over each UpSet plot element combination (vertical rectangles), Flame presents the respective genes in a table, while on a <b>mouse click</b> the
+                      user can append the selected list of files with a new file containing the selected genes and process it separately.</p>
+                     </div>
+                        <div class="col-md-12">
                         <img src = "help_images/upset2.png"  style="float:left;border: 1px solid black;margin-right:20px;">
                         </div>
-                         <div class="col-md-3">
-                        <h3>3. Select UpSet plot element to create a new file</h3>
-                     On <b>mouse-hover</b> over each UpSet plot element combination (vertical rectangles), FLAME presents the respective genes in a table, while on a <b>mouse click</b> the
-                      user can append the selected list of files with a new file containing the selected genes and process it separately.
-                     </div>
-                       </p>
-                      
-                      
-                      
+                        
+                         
+                       
                       ')
 viewData <-HTML('<p>
                 <img src = "help_images/viewData.png" style="float:left;border: 1px solid black;margin-right:20px;">
@@ -100,13 +99,9 @@ gconvertTab <- HTML('<p><b>Gene ID Conversion</b> is a gene ID mapping tool that
                       Also supports major public databases and naming conventions like Uniprot, EMBL, RefSeq, Entrez  and organism-specific ID schemas, corresponding
                        mappings are retrieved from Ensembl. 
                       <br><br></p>
-                              <div class="col-md-8">
+                              <p>
                                 <img src = "help_images/gconvert.png" style="border: 1px solid black">
-                                <br>
-                                <figcaption style = "font-size:14px" class="figure-caption text-center"><b>Figure 2.</b> Gene ID Conversion.</figcaption>
-                              </div>
-                              
-                               <div class="col-md-4">
+                         
                       <ul>
                        <li>The user needs to select the file for conversion from the <b>Select file to convert</b> option. </li>
                       <li>The file may consist of a mixture of IDs of different types</li>
@@ -118,18 +113,14 @@ gconvertTab <- HTML('<p><b>Gene ID Conversion</b> is a gene ID mapping tool that
                       <li>In case of term ID, the tool retrieves all genes of a given organism associated to the given term. 
                       For example, when queried for GO:0007507 (heart development) with organism H. sapiens, it retrieves about a hundred human genes associated to heart development.</li>
                       </ul>
-                      </div>
+                     </p>
                    ')
 gorthTab <- HTML('<p><b>Orthology Search</b> is a tool for mapping orthologous genes between related organisms based on data collected into the Ensembl database. Orthologous genes are similar in sequence and are likely conserved through evolution since a 
                   common ancestor. Orhologous genes may also carry out similar function and are therefore relevant in functional analysis. Ortholog mappings are based on Ensembl alignments. 
                       <br><br></p>
-                              <div class="col-md-9">
+                              <p>
                                 <img src = "help_images/gorth.png" style="border: 1px solid black">
-                                <br>
-                                <figcaption style = "font-size:14px" class="figure-caption text-center"><b>Figure 2.</b> Orthology Search.</figcaption>
-                              </div>
-                              
-                               <div class="col-md-3">
+                                
                       <ul>
                        <li>The user needs to select the file for conversion from the <b>Select file for orthology search</b> option. </li>
                       <li>The input can be a mixed list of IDs for genes or other biomolecules of the organism of interest that the user also needs to select as a target organism.</li>
@@ -141,19 +132,18 @@ gorthTab <- HTML('<p><b>Orthology Search</b> is a tool for mapping orthologous g
                       <li>In case of term ID, the tool retrieves all genes of a given organism associated to the given term. 
                       For example, when queried for GO:0007507 (heart development) with organism H. sapiens, it retrieves about a hundred human genes associated to heart development.</li>
                       </ul>
-                      </div>
+                      </p>
                    ')
     proteinNetwork <- HTML('<p>The network view summarizes the network of predicted associations for a particular group of proteins. The network nodes are proteins.
                                 The edges represent the predicted functional associations. 
                             </p>
                             <div class="col-md-12"><hr></div>
-                            <div class="col-md-8">
-                            <br><br><br>
+                           <p>
+                            
                                 <img src = "help_images/proteinNetworkInput.png" style="border: 1px solid black">
                                 <br>
-                                <figcaption style = "font-size:14px" class="figure-caption text-center"><b>Figure 1.</b> Protein-Protein Interaction Network Input and Parameters.</figcaption>
-                            </div>
-                            <div class="col-md-4">
+                               
+                            
                                 <h3>1. Network Parameters</h3>
                                 <ul>
                                   <li>The user needs to select the file from the <b>Select file for analysis</b> option. </li>
@@ -167,15 +157,9 @@ gorthTab <- HTML('<p><b>Orthology Search</b> is a tool for mapping orthologous g
                                   included in the predicted network. Lower score mean more interaction, but also more false positives. </li>
                                   </ul>
                                 </ul>
-                            </div>
-                            <hr>
+                            </p>
+                           
                       <div class="col-md-12"><hr></div>
-                      <div class="col-md-12">
-                          <img src = "help_images/proteinNetwork.png" style="border: 1px solid black">
-                          <br>
-                          <figcaption style = "font-size:14px" class="figure-caption text-center"><b>Figure 2.</b> Protein-Protein Interaction Network Results.</figcaption>
-                      </div>
-                              
                       <div class="col-md-12">
                           <h3>2. Network Results</h3>
                           <ul>
@@ -183,6 +167,11 @@ gorthTab <- HTML('<p><b>Orthology Search</b> is a tool for mapping orthologous g
                             <li>Clicking on a node gives several details about the protein.</li>
                             <li>The network is downloadable in TSV file. Also you can export the network as an image or redirect the network to STRING database for further analysis.</li>
                           </ul>
+                      </div>
+                      <div class="col-md-12">
+                          <img src = "help_images/proteinNetwork.png" style="border: 1px solid black">
+                          <br>
+                        
                       </div>
                    ')
 gprofInput <- HTML(' <p style = "text-align:justify"><b>Functional Enrichment Analysis: gProfiler</b> is a tool that performs functional enrichment analysis, also known as over-representation analysis (ORA) or
@@ -219,11 +208,11 @@ gprofInput <- HTML(' <p style = "text-align:justify"><b>Functional Enrichment An
 
 gprofOutput <- HTML(' <p style = "text-align:justify">The results are displayed in Tables for all enrichment terms (ALL Tab), and for each category separately.
                       </p>
-                               <div class="col-md-12">
+                             <p>
                                <h3>1. Results</h3>
-                               Results table containing information about the:
-                      <ul>
-                                 <li><b>Datasource</b> </li> 
+                              Each results table contains information about the:
+                                <ul>
+                                 <li><b>Source</b> </li> 
                                  <li><b>Term ID: </b>the unique term identifier. In the table, Term ID is a hyperlink that points to the correspoding data source of the term </li> 
                                  <li><b>Function: </b>the short name of the function</li> 
                                   <li><b>p-value: </b>hypergeometric p-value after correction for multiple testing</li> 
@@ -231,39 +220,176 @@ gprofOutput <- HTML(' <p style = "text-align:justify">The results are displayed 
                                     <li><b>Query size: </b> number of genes that were included in the query</li> 
                                      <li><b>Intersection Size: </b> the number of genes in the input query that are annotated to the corresponding term </li> 
                                       <li><b>Enrichement Score%: </b>Intersection Size/Term size*100% </li>
-                                       <li><b>Genes: </b>a comma separated list of genes from the query that are annotated to the corresponding term</li> 
-                                   
-                                 </ul></p>
+                                       <li><b>Positive Hits: </b>a comma separated list of genes from the query that are annotated to the corresponding term</li> 
+                                 </ul>
+                                 </p>
                                  <div class="col-md-12">
                                 <img src = "help_images/gprofOutput.png" style="border: 1px solid black">
                                 <br>
-                               
                               </div>
-                      </div>
                    ')
 manPlot <- HTML(' <p style = "text-align:justify">In the case of <b>Functional Enrichment Analysis: gProfiler</b> only, an adjusted to the selected data sources
-                                  interactive <b>Manhattan plot </b>is offered for a clearer overview. In this plot, functional terms are organized along the x-axis and 
-                                  colored by their data source, whereas the y-axis shows the significance (p-value) of each term. Hovering over a data point generates 
-                                  a popup window with key information about the functional term. By selecting a set of points using a lasso or a rectangle, the Manhattan plot 
-                                  will be redrawn showing information about the selected items only. Upon selection, the corresponding tables will be automatically updated. 
-                                  </p><br>
-                                 <div class="col-md-12">
+                                  interactive <b>Manhattan plot </b>is offered for a clearer overview. <br>
+                                  In this plot:<br>
+                                   &bull; Functional terms are organized along the x-axis and colored by their data source. <br>
+                                    &bull; Y-axis shows the significance (p-value) of each term.<br>
+                                     &bull; Hovering over a data point generates a popup window with key information about the functional term. <br>
+                                      &bull; By selecting a set of points using a lasso or a rectangle, the Manhattan plot 
+                                  will be redrawn showing information about the selected items only. <br>
+                                   &bull; Upon selection, the corresponding tables will be automatically updated.  <br>
+                                    &bull; Export options are also supported and the table is also downloadable. <br>
+                                     &bull; The plot is fully interactive and one can zoom in and isolate an area of interest.
+                                 <br>
+                                 
                                 <img src = "help_images/manPlot.png" style="border: 1px solid black">
-                                <br>
-                               
-                              </div>
+                                
+                               </p>
                    ')
-scatterPlot <- HTML(' <p style = "text-align:justify">In all of the enrichment-type analyses offered by FLAME, <b>for every source<b>, the most significant
-                        functional terms will be shown in a <b>Scatter plot<b>: <br>
-                       &bull; The user can further customize to adjust the desired number of terms analyzed.
-                        Enriched Terms are sorted according to the enrichment score.<br>
-                       &bull; On mouse hovering, a tooltip with key information about the functional term will be shown.<br>
-                       &bull; The terms depicted in the plot will also appear in table format below the graph.
+
+scatterPlot <- HTML(' <p style = "text-align:justify">In all of the enrichment-type analyses offered by Flame, <b>for every source</b>, the most significant
+                        functional terms will be shown in a <b>Scatter plot</b>: <br><br>
+                       &bull; The user can further customize to adjust the </b>desired number of terms</b> analyzed. Enriched Terms are sorted according to the enrichment score.<br>
+                       &bull; On <b>mouse hovering</b>, a tooltip with key information about the functional term will be shown.<br>
+                       &bull; The terms depicted in the plot will also appear in <b>table</b> format below the graph.
                        The number of terms in the table will be the same number of terms as in the graph. <br>
-                       &bull; The results can also be downloaded through the table below the plot, in CSV, Excel or PDF format.
+                        &bull; The plot is fully interactive and one can zoom in and isolate an area of interest and adjust the number of elements which will be shown. Export options are also supported.<br>
+                       &bull; The results can also be <b>downloaded</b> through the table below the plot, in <b>CSV, Excel or PDF format</b>.
                        </p>
                        <br>
                         <div class="col-md-12">
                         <img src = "help_images/scatterPlot.png" style="border: 1px solid black">
                               </div>
+                   ')
+barPlot <- HTML(' <p style = "text-align:justify">In all of the enrichment-type analyses offered by Flame, <b>for every source</b>, or <b> multiple selected sources </b> the most significant
+                        functional terms will be shown in a <b>Barchart</b>: <br><br>
+                       &bull; The <b>Select barplot</b> option sorts the terms and the barplot in accordance to Enrichment Score (Default option) or -log10Pvalue.<br>
+                       &bull; The user can further customize to adjust the <b>desired number of terms</b> analyzed. Enriched Terms are sorted according to the selected option.<br>
+                       &bull; On <b>mouse hovering</b>, a tooltip with key information about the functional term will be shown.<br>
+                       &bull; The terms depicted in the barplot will also appear in<b> table</b> format below the graph.
+                       The number of terms in the table will be the same number of terms as in the graph. <br>
+                       &bull; The plot is fully interactive and one can zoom in and isolate an area of interest,and adjust the number of elements which will be shown. Export options are also supported.<br>
+                       &bull; The results can also be <b>downloaded</b> through the table below the plot, in <b>CSV, Excel or PDF format</b>.
+                       </p>
+                       <br>
+                        <div class="col-md-12">
+                        <img src = "help_images/barPlot.png" style="border: 1px solid black">
+                              </div>
+                   ')
+heatMapHelp <- HTML(' <p style = "text-align:justify">In all of the enrichment-type analyses offered by Flame, <b>for every source</b>, 2 types of <b> Heatmaps </b> are available: <br><br>
+                         In the first case, genes are plotted against functional terms, while in the second case functional terms are plotted against themselves (square matrix). A color-scheme is used to capture the enrichment 
+                        or the statistical score for a particular functional term. In the second mode (functional terms vs functional terms), a cell value depicts a similarity capturing the number of common genes. 
+                        This is calculated as the summation of the unique common genes between a pair of functional terms divided by the number of total unique genes found to be associated with the functional terms. 
+                        <br>
+                       &bull; The <b>Select type of heatmap</b> option sorts the terms and the Heatmap in accordance to Enrichment Score (Default option) or -log10Pvalue.<br>
+                       &bull; The user can further customize to adjust the <b>desired number of terms</b> analyzed. Enriched Terms are sorted according to the selected option.<br>
+                       &bull; On <b>mouse hovering</b>, a tooltip with key information about the functional term will be shown.<br>
+                       &bull; The terms depicted in the heatmap will also appear in<b> table</b> format below the graph.<br>
+                       &bull; All of the heatmaps are fully <b>interactive</b> and one can zoom in and isolate an area of interest, swap the x and y axes and adjust the number of elements which will be shown. Notably, 
+                        all heatmaps are clustered after applying a hierarchical clustering method and export options are also supported.<br> 
+                       &bull; The results can also be <b>downloaded</b> through the table below the plot, in <b>CSV, Excel or PDF format</b>.
+                       </p>
+                       <br>
+                        <div class="col-md-12">
+                        <img src = "help_images/heatMap.png" style="border: 1px solid black">
+                              </div>
+                   ')
+networkHelp <-HTML(' <p style = "text-align:justify"><b>Flame</b> offers  three types of networks: <br>
+                            <b>1.</b> Nodes represent genes and/or functional terms (colored differently), whereas edges represent the similarity scores between them. <br>
+                            <b>2.</b>Nodes represent the functional terms, while edges reflect the number of common genes between them. <br>
+                            <b>3.</b>Nodes represent genes which are connected based on the number of common functions or processes they are involved in. <br>
+
+                        <br><br>
+                       &bull; The <b>Select network</b> option sorts the terms in accordance to Enrichment Score (Default option) or -log10Pvalue.<br>
+                       &bull; The user can further customize to adjust the <b>desired number of terms</b> analyzed. Enriched Terms are sorted according to the selected option.<br>
+                       &bull; Users can apply an <b>edge-cutoff</b> based on the <b>similarity score</b> to reduce the network s density, and make visualization more appealing and more informative. <br>
+                       &bull; The terms depicted in the networks and the interactions among them  will also appear in<b> table</b> format below the graph.<br>
+                       &bull; All of the networks are fully <b>interactive</b> and one can zoom in and isolate an area of interest and adjust the number of elements which will be shown. <b>Export options as an Image</b> are also supported.<br> 
+                       &bull; The results can also be <b>downloaded</b> through the table below the plot, in <b>CSV, Excel or PDF format</b>.
+                       </p>
+                       <br>
+                        <div class="col-md-12">
+                        <img src = "help_images/network.png" style="border: 1px solid black">
+                              </div>
+                   ')
+aGoInput <- HTML(' 
+                               <p>
+                               <h3>1. Select the Parameters</h3>
+                      <ol type="1">
+                                 <li><b>Select file for analysis.</b> </li> 
+                                 <li><b>Select organism:</b> select organism that matches your input query gene list. A choice among 197 species is given. Default organism is human (Homo sapiens). </li> 
+                                 <li><b>Select datasources:</b> </li> 
+                                    <ul>
+                                      <li> UniProt keywords</li>
+                                      <li> Disease Ontology</li>
+                                      <li> Interpro</li>
+                                      <li> PFAM</li>
+                                    </ul>
+                                 <li><b>Select ID type for output:</b> Define the ID type that will be used in the analysis, as well as in the output.
+                                Results can be reported as Entrez, UniProt, EMBL, ENSEMBL, ChEMBL, WikiGene and RefSeq identifiers. </li> 
+                                 <li><b>Select significance threshold: </b>  Define the type of evaluation threshold.  Two options are given: p-value and  corrected p-value (FDR). </li>
+                                 <li><b>P-value correction cut-off:</b> User-defined p-value threshold provides a possibility to additionally filter results. 
+                                 The threshold defaults to p=0.05, meaning that all significant results are shown. </li>
+                                 </ol></p>
+                                 <div class="col-md-12">
+                                <img src = "help_images/aGoInput.png" style="border: 1px solid black">
+                              </div>
+                   ')
+
+aGoOutput <- HTML(' <p style = "text-align:justify">The results are displayed in Tables for all enrichment terms (ALL Tab), and for each category separately.
+                      </p>
+                             <p>
+                               <h3>1. Results</h3>
+                              Each results table contains information about the:
+                                <ul>
+                                 <li><b>Source</b> </li> 
+                                 <li><b>Term ID: </b>the unique term identifier. In the table, Term ID is a hyperlink that points to the correspoding data source of the term </li> 
+                                 <li><b>Function: </b>the short name of the function</li> 
+                                  <li><b>p-value: </b>hypergeometric p-value after correction for multiple testing</li> 
+                                   <li><b>Term size: </b>number of genes that are annotated to the term </li> 
+                                    <li><b>Query size: </b> number of genes that were included in the query</li> 
+                                     <li><b>Intersection Size: </b> the number of genes in the input query that are annotated to the corresponding term </li> 
+                                      <li><b>Enrichement Score%: </b>Intersection Size/Term size*100% </li>
+                                       <li><b>Positive Hits: </b>a comma separated list of genes from the query that are annotated to the corresponding term</li> 
+                                 </ul>
+                                 </p>
+                                 <p>
+                                <img src = "help_images/aGoOutput.png" style="border: 1px solid black">
+                                </p>
+                   ')
+literatureInput <- HTML('   <p><h3>1. Select the Parameters</h3>
+                                <ol type="1">
+                                 <li><b>Select file for analysis.</b> </li> 
+                                 <li><b>Select organism:</b> select organism that matches your input query gene list. A choice among 197 species is given. Default organism is human (Homo sapiens). </li> 
+                                 <li><b>PubMed Publications</b> is used as a source for Literature Enrichment </li> 
+                                 <li><b>Select ID type for output:</b> Define the ID type that will be used in the analysis, as well as in the output.
+                                Results can be reported as Entrez, UniProt, EMBL, ENSEMBL, ChEMBL, WikiGene and RefSeq identifiers. </li> 
+                                 <li><b>Select significance threshold: </b>  Define the type of evaluation threshold.  Two options are given: p-value and  corrected p-value (FDR). </li>
+                                 <li><b>P-value correction cut-off:</b> User-defined p-value threshold provides a possibility to additionally filter results. 
+                                 The threshold defaults to p=0.05, meaning that all significant results are shown. </li>
+                                 </ol>
+                                 </p>
+                                 <p>
+                                <img src = "help_images/literatureInput.png" style="border: 1px solid black">
+                              </p>
+                   ')
+
+literatureOutput <-HTML(' 
+                             <p>
+                               <h3>1. Results</h3>
+                             Results contains information about the:
+                                <ul>
+                                 <li><b>Source</b> </li> 
+                                 <li><b>Term ID: </b>the unique term identifier. In the table, Term ID is a hyperlink that points to the correspoding publication in PubMed </li> 
+                                 <li><b>Publication: </b>the name of the Publication</li> 
+                                  <li><b>p-value: </b>hypergeometric p-value after correction for multiple testing</li> 
+                                   <li><b>Term size: </b>number of genes that are annotated to the term </li> 
+                                    <li><b>Query size: </b> number of genes that were included in the query</li> 
+                                     <li><b>Intersection Size: </b> the number of genes in the input query that are annotated to the corresponding term </li> 
+                                      <li><b>Enrichement Score%: </b>Intersection Size/Term size*100% </li>
+                                       <li><b>Positive Hits: </b>a comma separated list of genes from the query that are annotated to the corresponding term</li> 
+                                 </ul>
+                                 </p>
+                                 <p>
+                                <img src = "help_images/literatureOutput.png" style="border: 1px solid black">
+                                </p>
                    ')

@@ -13,7 +13,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
       organism <- organismsFromFile[organismsFromFile$print_name == organism,]$gprofiler_ID
       linkOrganism <- organismsFromFile[organismsFromFile$gprofiler_ID == organism,]$KEGG
       
-      
       genesForgprofiler <- gconvert(unlist(genesForgprofiler), organism = organism, target = "ENSG")
       session$sendCustomMessage("handler_startLoader", c(2,30))
       if (identical(genesForgprofiler, NULL)) session$sendCustomMessage("handler_alert", paste("Valid genes for analysis not found.", sep=""))
@@ -41,7 +40,7 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
           clearTables(output) # resetting any previous tables before updating
           sources_list <- c("GO:MF", "GO:CC", "GO:BP", "KEGG", "REAC", "WP", "TF", "MIRNA", "CORUM", "HPA", "HP")
           all_gost <<- data.frame()
-
+          
           #convert the names of the output genes in accordance with the user s preference  output type
           convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$name)), organism = organism, target = gconvertTargetGprofiler)
           for (i in 1:nrow(gostres))
@@ -66,18 +65,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 all_gost <<- rbind(all_gost, GOMF_gost)
                 
                 output$table_gomf <- renderTableFunc(GOMF_gost, selectEnrichFile, 11, "GO:MF_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_gomf <- DT::renderDataTable(GOMF_gost, server = FALSE, 
-                #                                          extensions = 'Buttons',
-                #                                          options = list(
-                #                                            pageLength = 10,
-                #                                            "dom" = 'T<"clear">lBfrtip',
-                #                                            buttons = list(list(extend='excel',filename=paste('GO:MF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend= 'csv',filename=paste('GO:MF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='copy',filename=paste('GO:MF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='pdf',filename=paste('GO:MF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='print',filename=paste('GO:MF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                          ),rownames= FALSE, escape = FALSE)
-                
               }
               else output$table_gomf <- DT::renderDataTable(GOMF_gost)
             } else if(datasources[i] == "GO:CC"){
@@ -87,18 +74,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 GOCC_gost$Term_ID <- paste("<a href='https://www.ebi.ac.uk/QuickGO/term/", GOCC_gost$Term_ID, "' target='_blank'>", GOCC_gost$Term_ID, "</a>", sep="")
                 all_gost <<- rbind(all_gost, GOCC_gost)
                 output$table_gocc <- renderTableFunc(GOCC_gost, selectEnrichFile, 11, "GO:CC_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_gocc <- DT::renderDataTable(GOCC_gost,  server = FALSE, 
-                #                                          extensions = 'Buttons',
-                #                                          options = list(
-                #                                            pageLength = 10,
-                #                                            "dom" = 'T<"clear">lBfrtip',
-                #                                            buttons = list(list(extend='excel',filename=paste('GO:CC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend= 'csv',filename=paste('GO:CC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='copy',filename=paste('GO:CC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='pdf',filename=paste('GO:CC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='print',filename=paste('GO:CC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                          ),rownames= FALSE, escape = FALSE)
-                
               }
               else output$table_gocc <- DT::renderDataTable(GOCC_gost)
             } else if(datasources[i] == "GO:BP"){
@@ -109,24 +84,13 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 GOBP_gost$Term_ID <- paste("<a href='https://www.ebi.ac.uk/QuickGO/term/", GOBP_gost$Term_ID, "' target='_blank'>", GOBP_gost$Term_ID, "</a>", sep="")
                 all_gost <<- rbind(all_gost, GOBP_gost)
                 output$table_gobp <- renderTableFunc(GOBP_gost, selectEnrichFile, 11, "GO:BP_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_gobp <- DT::renderDataTable(GOBP_gost, server = FALSE, 
-                #                                          extensions = 'Buttons',
-                #                                          options = list(
-                #                                            pageLength = 10,
-                #                                            "dom" = 'T<"clear">lBfrtip',
-                #                                            buttons = list(list(extend='excel',filename=paste('GO:BP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend= 'csv',filename=paste('GO:BP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='copy',filename=paste('GO:BP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='pdf',filename=paste('GO:BP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='print',filename=paste('GO:BP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                          ),rownames= FALSE, escape = FALSE)
               }
               else output$table_gobp <- DT::renderDataTable(GOBP_gost)
             } else if(datasources[i] == "KEGG"){
               KEGG_gost <- gostres[grepl("^KEGG$", gostres$Source),]
               if (nrow(KEGG_gost) > 0){
-                # create and call function to create links with @param KEGG_gost and return@updated KEGG_gost with links and gene colors
-                ###
+                #creates links with @param KEGG_gost and return@updated KEGG_gost with links and gene colors
+                
                 for(j in 1:length(KEGG_gost$`Positive Hits`)){
                   kegg_genes<-gsub(",", "%20orange+", KEGG_gost$`Positive Hits`)
                   kegg_genes<-(paste("+",kegg_genes, sep=""))
@@ -137,17 +101,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 KEGG_gost$`Positive Hits` <-  gsub(",", ", ", KEGG_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost, KEGG_gost)
                 output$table_kegg <- renderTableFunc(KEGG_gost, selectEnrichFile, 11, "KEGG_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_kegg <- DT::renderDataTable(KEGG_gost, server = FALSE, 
-                #                                          extensions = 'Buttons',
-                #                                          options = list(
-                #                                            pageLength = 10,
-                #                                            "dom" = 'T<"clear">lBfrtip',
-                #                                            buttons = list(list(extend='excel',filename=paste('KEGG_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend= 'csv',filename=paste('KEGG_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='copy',filename=paste('KEGG_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='pdf',filename=paste('KEGG_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='print',filename=paste('KEGG_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                          ),rownames= FALSE, escape = FALSE)
               }
               else output$table_kegg <- DT::renderDataTable(KEGG_gost)
             } else if(datasources[i] == "REAC"){
@@ -157,18 +110,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 REAC_gost$`Positive Hits` <-  gsub(",", ", ", REAC_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost, REAC_gost)
                 output$table_reac <- renderTableFunc(REAC_gost, selectEnrichFile, 11, "REAC_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_reac <- DT::renderDataTable(REAC_gost,  server = FALSE, 
-                #                                          extensions = 'Buttons',
-                #                                          options = list(
-                #                                            pageLength = 10,
-                #                                            "dom" = 'T<"clear">lBfrtip',
-                #                                            buttons = list(list(extend='excel',filename=paste('REAC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend= 'csv',filename=paste('REAC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='copy',filename=paste('REAC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='pdf',filename=paste('REAC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                           list(extend='print',filename=paste('REAC_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                          ),rownames= FALSE, escape = FALSE)
-                
               }
               else output$table_reac <- DT::renderDataTable(REAC_gost)
             } else if(datasources[i] == "WP"){
@@ -178,17 +119,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 WP_gost$`Positive Hits` <-  gsub(",", ", ", WP_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost,WP_gost)
                 output$table_wp <- renderTableFunc(WP_gost, selectEnrichFile, 11, "WP_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_wp <- DT::renderDataTable(WP_gost, server = FALSE, 
-                #                                        extensions = 'Buttons',
-                #                                        options = list(
-                #                                          pageLength = 10,
-                #                                          "dom" = 'T<"clear">lBfrtip',
-                #                                          buttons = list(list(extend='excel',filename=paste('WP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend= 'csv',filename=paste('WP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='copy',filename=paste('WP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='pdf',filename=paste('WP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='print',filename=paste('WP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                        ),rownames= FALSE, escape = FALSE)
               }
               else output$table_wp <- DT::renderDataTable(WP_gost)
             } else if(datasources[i] == "TF"){
@@ -197,18 +127,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 TF_gost$`Positive Hits` <-  gsub(",", ", ", TF_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost,TF_gost)
                 output$table_tf <- renderTableFunc(TF_gost, selectEnrichFile, 11, "TF_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_tf <- DT::renderDataTable(TF_gost, server = FALSE, 
-                #                                        extensions = 'Buttons',
-                #                                        options = list(
-                #                                          pageLength = 10,
-                #                                          "dom" = 'T<"clear">lBfrtip',
-                #                                          buttons = list(list(extend='excel',filename=paste('TF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend= 'csv',filename=paste('TF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='copy',filename=paste('TF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='pdf',filename=paste('TF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='print',filename=paste('TF_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                        ),rownames= FALSE, escape = FALSE)
-                
               }
               else output$table_tf <- DT::renderDataTable(TF_gost)
             } else if(datasources[i] == "MIRNA"){
@@ -219,18 +137,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 MIRNA_gost$`Positive Hits` <-  gsub(",", ", ", MIRNA_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost,MIRNA_gost)
                 output$table_mirna <- renderTableFunc(MIRNA_gost, selectEnrichFile, 11, "MIRNA_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_mirna <- DT::renderDataTable(MIRNA_gost, server = FALSE, 
-                #                                           extensions = 'Buttons',
-                #                                           options = list(
-                #                                             pageLength = 10,
-                #                                             "dom" = 'T<"clear">lBfrtip',
-                #                                             buttons = list(list(extend='excel',filename=paste('MIRNA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend= 'csv',filename=paste('MIRNA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend='copy',filename=paste('MIRNA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend='pdf',filename=paste('MIRNA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend='print',filename=paste('MIRNA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                           ),rownames= FALSE, escape = FALSE)
-                
               }
               else output$table_mirna <- DT::renderDataTable(MIRNA_gost)
             } else if(datasources[i] == "CORUM"){
@@ -239,18 +145,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 CORUM_gost$`Positive Hits` <-  gsub(",", ", ", CORUM_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost,CORUM_gost)
                 output$table_corum <- renderTableFunc(CORUM_gost, selectEnrichFile, 11, "CORUM_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_corum <- DT::renderDataTable(CORUM_gost, server = FALSE, 
-                #                                           extensions = 'Buttons',
-                #                                           options = list(
-                #                                             pageLength = 10,
-                #                                             "dom" = 'T<"clear">lBfrtip',
-                #                                             buttons = list(list(extend='excel',filename=paste('CORUM_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend= 'csv',filename=paste('CORUM_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend='copy',filename=paste('CORUM_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend='pdf',filename=paste('CORUM_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                            list(extend='print',filename=paste('CORUM_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                           ),rownames= FALSE, escape = FALSE)
-                # 
               }
               else output$table_corum <- DT::renderDataTable(CORUM_gost)
             } else if(datasources[i] == "HPA"){
@@ -259,37 +153,14 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 HPA_gost$`Positive Hits` <-  gsub(",", ", ", HPA_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost,HPA_gost)
                 output$table_hpa <- renderTableFunc(HPA_gost, selectEnrichFile, 11, "HPA_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_hpa <- DT::renderDataTable(HPA_gost, server = FALSE, 
-                #                                         extensions = 'Buttons',
-                #                                         options = list(
-                #                                           pageLength = 10,
-                #                                           "dom" = 'T<"clear">lBfrtip',
-                #                                           buttons = list(list(extend='excel',filename=paste('HPA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                          list(extend= 'csv',filename=paste('HPA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                          list(extend='copy',filename=paste('HPA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                          list(extend='pdf',filename=paste('HPA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                          list(extend='print',filename=paste('HPA_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                         ),rownames= FALSE, escape = FALSE)
               }
               else output$table_hpa <- DT::renderDataTable(HPA_gost)
             } else if(datasources[i] == "HP"){
-                         HP_gost <- gostres[grepl("^HP$", gostres$Source),]
+              HP_gost <- gostres[grepl("^HP$", gostres$Source),]
               if (nrow(HP_gost) > 0){
                 HP_gost$`Positive Hits` <-  gsub(",", ", ", HP_gost$`Positive Hits`)
                 all_gost <<- rbind(all_gost, HP_gost)
                 output$table_hp <- renderTableFunc(HP_gost, selectEnrichFile, 11, "HP_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-                # output$table_hp <- DT::renderDataTable(HP_gost, server = FALSE, 
-                #                                        extensions = 'Buttons',
-                #                                        options = list(
-                #                                          pageLength = 10,
-                #                                          "dom" = 'T<"clear">lBfrtip',
-                #                                          buttons = list(list(extend='excel',filename=paste('HP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend= 'csv',filename=paste('HP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='copy',filename=paste('HP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='pdf',filename=paste('HP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")),
-                #                                                         list(extend='print',filename=paste('HP_Functional_ Enrichment_Results_', selectEnrichFile, sep="")))
-                #                                        ),rownames= FALSE, escape = FALSE)
-                
               }
               else output$table_hp <- DT::renderDataTable(HP_gost)
             }
@@ -299,28 +170,13 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
             all_gost <<- all_gost[with(all_gost,order(-`-log10Pvalue`)),]
             
             output$table_all <- renderTableFunc(all_gost, selectEnrichFile, 11, "ALL_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-            # output$table_all <- renderDataTable(all_gost, 
-            #                                   server = FALSE, 
-            #                                   extensions = 'Buttons',
-            #                                   options = list(
-            #                                     pageLength = 10,
-            #                                     "dom" = 'T<"clear">lBfrtip',
-            #                                     buttons = list(list(extend='excel',filename=paste('Enrichment_Results_', selectEnrichFile, sep="")),
-            #                                                    list(extend= 'csv',filename=paste('Enrichment_Results_', selectEnrichFile, sep="")),
-            #                                                    list(extend='copy',filename=paste('Enrichment_Results_', selectEnrichFile, sep="")),
-            #                                                    list(extend='pdf',filename=paste('Enrichment_Results_', selectEnrichFile, sep="")),
-            #                                                    list(extend='print',filename=paste('Enrichment_Results_', selectEnrichFile, sep="")))
-            #                                   ),
-            #                                   rownames= FALSE, escape = FALSE)
-            
-            
           }
           session$sendCustomMessage("handler_startLoader", c(2,90))
           drawManhattan(gostres_m, output) # call function to draw manhattan and the table with the clicked events
-
+          
           updatePlotDataSources(unique(gostres_m$result$source), session) # Updating hit datasource selection boxes in Plots
           
-          
+          # Updating SliderInput in Plots
           all_gost_barselect <- all_gost[grepl(paste(barSelect2, collapse="|"), all_gost$Source),]
           updateSliderInput(session, "sliderBarplot", "Choose a number:", min = 1, max = length(all_gost_barselect$Term_ID), value = 10, step = 1)
           
@@ -368,23 +224,6 @@ clearTables <- function(output){
   output$table_hp <- renderDataTable(c())
 }
 
-# converts current organism to the required nomenclature
-# @param organism: Organism name in the format of: "hsapiens" etc
-# @return: re-formatted organism name like "hsa"
-# link_organism <- function(organism){
-#   if (organism == "hsapiens") selected_organism <- "hsa"
-#   else if (organism == "mmusculus") selected_organism <- "mmu"
-#   else if (organism == "athaliana") selected_organism <- "ath"
-#   else if (organism == "drerio") selected_organism <- "dre"
-#   else if (organism == "celegans") selected_organism <- "cel"
-#   else if (organism == "dmelanogaster") selected_organism <- "dme"
-#   else if (organism == "rnorvegicus") selected_organism <- "rno"
-#   else if (organism == "ptroglodytes") selected_organism <- "ptr"
-#   else if (organism == "ocuniculus") selected_organism <- "ocu"
-#   else if (organism == "scerevisiae") selected_organism <- "sce"
-#   return(selected_organism)
-# }
-
 # draws Manhattan plot in another tab "Plots"
 # @param gostres1, a copy of gostres at the time this function is called (during the FE analysis)
 # @return void
@@ -393,8 +232,8 @@ drawManhattan <- function(gostres1, output){
   # click_event <<- list() # TODO probably remove this global var
   output$manhattan_table <- DT::renderDataTable(as.data.frame(list())) # clears previous results
   output$manhattan <- renderPlotly({
-   
-     gostplot(
+    
+    gostplot(
       gostres1,
       capped = TRUE,
       interactive = T,
@@ -407,7 +246,7 @@ drawManhattan <- function(gostres1, output){
 
 # This function updates the datasource selection boxes of some plots at the Plots tab
 updatePlotDataSources <- function(gostresSources, session){
- 
+  
   if (!is.na(match("GO:BP", gostresSources))) selected <- "GO:BP"
   else if (!is.na(match("GO:MF", gostresSources))) selected <- "GO:MF"
   else if (!is.na(match("GO:CC", gostresSources))) selected <- "GO:CC"

@@ -25,7 +25,7 @@ create_string_network <- function(dataset, organism, type, edges, score, output)
   {
     converted_ids<-converted_ids[1:STRING_LIMIT]
   }
-
+  
   #3. Create STRING input IDs: 
   #3.1 get the tax ID from the organismsFromFile global
   string_taxid <- organismsFromFile[organismsFromFile$print_name == organism,]$Taxonomy_ID
@@ -38,13 +38,13 @@ create_string_network <- function(dataset, organism, type, edges, score, output)
   ids_post <- paste(unlist(string_ids), sep = "%0d", collapse = "%0d") 
   
   #4 Perform all POST requests to create network objects
-
+  
   #4.1 Create and render Interactive Network Viewer, using STRING's 'getSTRING' javascript POST API 
   #this uses the getSTRING function, which builds and interactive window viewer
   output$string_viewer <- renderUI ({
     
     
-    tags$div(style="border: 2px solid black;",
+    tags$div(
              tags$script(sprintf("
         var proteins = ['%s']; 
         var species = ['%s'];
@@ -167,8 +167,8 @@ create_string_network <- function(dataset, organism, type, edges, score, output)
       write(string_tsv, file)
     }
   )
-
-
+  
+  
   
   # # The old GET API urls are shown below.  These DO NOT work for large (>400 IDs) datasets
   # download_tsv <- sprintf("https://string-db.org/api/tsv/network?identifiers=%s&species=%s&network_type=%s&network_flavor=%s&required_score=%s", ids_post,  string_taxid, type, edges, score)
@@ -187,13 +187,7 @@ create_string_network <- function(dataset, organism, type, edges, score, output)
   #   )
   # })
   
-  
 }
-
-
-
-
-
 
 ##Method to create legend for the network viewer-####
 

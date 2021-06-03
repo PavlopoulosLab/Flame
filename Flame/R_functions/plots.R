@@ -1,23 +1,7 @@
 # This function receives the clicked element from the Manhattan plot and prints a table with a single line
 # containing the gprofiler result row below
 handleManhattanClick <- function(output, currentTermID){
-  # event_data("plotly_click", source="A")
-  # currentTermID <-  event_data("plotly_click")$key #, source = "A"
-  # if (!identical(which(click_event %in% currentTermID), integer(0) )) click_event <<- click_event[click_event != currentTermID]
-  # else click_event <<- append( click_event, currentTermID, length(click_event))
   table_man <- all_gost[grepl(currentTermID, all_gost$Term_ID), ] # for more than one: click_event contains the array of clicked elements, so match returns all hit rows if replace: currentTermID with click_event
-  # output$manhattan_table <- DT::renderDataTable(as.data.frame(table_man), server = FALSE,
-  #                                               extensions = 'Buttons',
-  #                                               options = list(
-  #                                                 pageLength = 10,
-  #                                                 "dom" = 'T<"clear">lBfrtip',
-  #                                                 buttons = list(list(extend='excel', filename=paste('Manhattan_Table_', currentTermID, sep="")),
-  #                                                                list(extend= 'csv', filename=paste('Manhattan_Table_', currentTermID, sep="")),
-  #                                                                list(extend='copy', filename=paste('Manhattan_Table_', currentTermID, sep="")),
-  #                                                                list(extend='pdf', filename=paste('Manhattan_Table_', currentTermID, sep="")),
-  #                                                                list(extend='print', filename=paste('Manhattan_Table_', currentTermID, sep="")))
-  #                                               ), rownames= FALSE, escape = FALSE
-  # )
   output$manhattan_table <- renderTableFunc(as.data.frame(table_man), currentTermID, 11, "Manhattan_Table_", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
   session$sendCustomMessage("handler_finishLoader", 3)
 }
@@ -26,24 +10,12 @@ handleManhattanClick <- function(output, currentTermID){
 # containing the gprofiler results row below
 handleManhattanSelect <- function(output,currentTermIDs){
   currentTermIDs <-  event_data("plotly_selected")$key #, source = "A"
-  
   table_man <- all_gost
   table_man <- table_man[0,]
-  for (i in 1:length(currentTermIDs))
-  {
+  for (i in 1:length(currentTermIDs)){
     table_man[nrow(table_man) + 1,] <- all_gost[grepl(currentTermIDs[i], all_gost$Term_ID), ]
   }
-  # output$manhattan_table <- DT::renderDataTable(table_man, server = FALSE,
-  #                                               extensions = 'Responsive',
-  #                                               options = list(
-  #                                                 pageLength = 11,
-  #                                                 dom = 'Brftip',
-  #                                                 buttons = list(list(extend='collection', buttons=c('csv', 'excel', 'pdf'), text="Download")),
-  #                                                 columnDefs = list(list(visible=F, targets=c(8,9)))
-  #                                               ), rownames= FALSE, escape = FALSE
-  # )
   output$manhattan_table <- renderTableFunc(table_man, "Selected", 11, "Manhattan_Table_", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
-  
 }
 
 # This event updates the scatterplot slider, an event which is observed in server
@@ -77,8 +49,7 @@ handleScatterPlot <- function(DB_source, sliderScatter, output, session){
     DB_table <- DB_table[with(DB_table,order(-`Enrichment Score %`)),]
     output$scatterPlot <- renderUI({plotlyOutput("scatter", height = height_plots(sliderScatter, 15, 110))})
     output$scatter <- renderPlotly({
-    
-      ggplot(DB_table[1:sliderScatter,], aes(`Enrichment Score %`, `-log10Pvalue`,text=paste("TERM_ID: ", Term_ID,"\n", "FUNCTION: ", Function, sep=""))) + geom_point(fill=new_color,color="black", position = position_dodge(width = 0.8), alpha = 0.7, pch=21, size=3, stroke=0.3)+ labs(x = "ENRICHMENT SCORE %")+ labs(title = DB_source )
+      ggplot(DB_table[1:sliderScatter,], aes(`Enrichment Score %`, `-log10Pvalue`,text=paste("TERM_ID: ", Term_ID,"\n", "FUNCTION: ", Function, sep=""))) + geom_point(fill=new_color,color="black",position=position_jitter(h=0.005,w=0.005), alpha = 0.7, pch=21, size=3, stroke=0.3)+ labs(x = "ENRICHMENT SCORE %")+ labs(title = DB_source )
     })
     output$scatter_table <- DT::renderDataTable(head(DB_table, sliderScatter), server = FALSE,
                                                 extensions = 'Buttons',
@@ -93,21 +64,7 @@ handleScatterPlot <- function(DB_source, sliderScatter, output, session){
     session$sendCustomMessage("handler_finishLoader", 7)
   }
 }
-# deprecated 
-# This event updates the barplot slider, an event which is observed in server
-# and consequently changes the barplot and the respective table
-# @param DB_source: one eligible datasource from available
-# @return void
-handleBarSelect <- function(DB_source, session){
-  if (!identical(DB_source, "")){
-    gostres_m <- all_gost[grepl(DB_source, all_gost$Source),]
-    # to ALWAYS trigger an observed event from barplot slider, first update with a value fo 0
-    updateSliderInput(session, "sliderBarplot", "Choose a number of results to view:", min = 1, 
-                      max = 1, value = 0, step = 1)
-    updateSliderInput(session, "sliderBarplot", "Choose a number of results to view:", min = 1,
-                      max = length(gostres_m$Term_ID), value = 10, step = 1)
-  }
-}
+
 # This event updates the barplot slider, an event which is observed in server
 # and consequently changes the barplot and the respective table
 # Not called when no sources are selected
@@ -120,72 +77,9 @@ handleBarSelect2 <- function(DB_sources, session){
                     max = 1, value = 0, step = 1)
   updateSliderInput(session, "sliderBarplot", "Choose a number of results to view:", min = 1,
                     max = length(gostres_m$Term_ID), value = 10, step = 1)
-  # }
+  
 }
-# deprecated
-# This function draws a barplot and the corresponding data table
-# @param DB_source: one eligible datasource from available
-# @param sliderBarplot: the user slider input
-# @return void
-handleBarPlot <- function(DB_source, sliderBarplot, barplotMode, output, session){
-  if (!identical(DB_source, "")){
-    session$sendCustomMessage("handler_startLoader", 8)
-    new_color <- bar_colors[DB_source][[1]]
-    DB_table <- all_gost[grepl(DB_source,all_gost$Source),] #with links
-    barplotInputTable<-gostres[grepl(DB_source, gostres$Source), ] # without links
-    
-    DB_table <- subset(DB_table, select=-c(`Positive Hits`))
-    barplotInputTable <- subset(barplotInputTable, select=-c(`Positive Hits`))
-    # Check mode of execution
-    if(barplotMode == "-log10Pavlue"){
-      output$barplot <- renderUI({plotlyOutput("barplot1", height = height_plots(sliderBarplot, 18, 100))})
-      DB_table <- head(DB_table, sliderBarplot)
-      barplotInputTable <- head(barplotInputTable, sliderBarplot)
-      output$barplot1 <- renderPlotly({
-       
-        ggplot(barplotInputTable, aes(Term_ID, `-log10Pvalue`,text=paste("FUNCTION: ", Function,"\n", "ENRICHMENT SCORE %: ", `Enrichment Score %`, sep=""))) + geom_bar(stat='identity', fill = new_color)+ coord_flip()+ labs(y = "-LOG10PAVLUE ")+ labs(title = DB_source )+
-          geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5)+ scale_x_discrete(limits = barplotInputTable$Term_ID[order(barplotInputTable$`-log10Pvalue`)])
-      })
-      output$barplot_table <- DT::renderDataTable(DB_table, server = FALSE, 
-                                                  extensions = 'Buttons',
-                                                  options = list(
-                                                    "dom" = 'T<"clear">lBfrtip',
-                                                    buttons = list(list(extend='excel',filename=paste(DB_source, '_BarPlot_Table_-logPval', sep="")),
-                                                                   list(extend= 'csv',filename=paste(DB_source, '_BarPlot_Table_-logPval', sep="")),
-                                                                   list(extend='copy',filename=paste(DB_source, '_BarPlot_Table_-logPval', sep="")),
-                                                                   list(extend='pdf',filename=paste(DB_source, '_BarPlot_Table_-logPval', sep="")),
-                                                                   list(extend='print',filename=paste(DB_source, '_BarPlot_Table_-logPval', sep="")))
-                                                  ),rownames= FALSE, escape=F)
-      
-    }
-    else { # Enrichment Mode
-      DB_table <- DB_table[with(DB_table,order(-(`Enrichment Score %`))),]
-      barplotInputTable <- barplotInputTable[with(barplotInputTable,order(-(`Enrichment Score %`))),]
-      DB_table <- head(DB_table, sliderBarplot)
-      barplotInputTable <- head(barplotInputTable, sliderBarplot)
-      output$barplot <- renderUI({plotlyOutput("barplot1", height = height_plots(sliderBarplot, 18, 100))})
-      output$barplot1 <- renderPlotly({
-       
-        ggplot(barplotInputTable, aes(Term_ID, `Enrichment Score %`,text=paste("FUNCTION: ", Function,"\n", "-LOG_PVALUE: ", `-log10Pvalue`, sep=""))) + geom_bar(stat='identity', fill = new_color)+coord_flip()+labs(y = "ENRICHMENT SCORE % ")+ labs(title = DB_source )+ 
-          geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5)+ scale_x_discrete(limits = barplotInputTable$Term_ID[order(barplotInputTable$`Enrichment Score %`)])
-      })
-      
-      output$barplot_table <- DT::renderDataTable(DB_table, server = FALSE, 
-                                                  extensions = 'Buttons',
-                                                  options = list(
-                                                    "dom" = 'T<"clear">lBfrtip',
-                                                    buttons = list(list(extend='excel',filename=paste(DB_source, '_BarPlot_Table_EnScore', sep="")),
-                                                                   list(extend= 'csv',filename=paste(DB_source, '_BarPlot_Table_EnScore', sep="")),
-                                                                   list(extend='copy',filename=paste(DB_source, '_BarPlot_Table_EnScore', sep="")),
-                                                                   list(extend='pdf',filename=paste(DB_source, '_BarPlot_Table_EnScore', sep="")),
-                                                                   list(extend='print',filename=paste(DB_source, '_BarPlot_Table_EnScore', sep="")))
-                                                  ),rownames= FALSE, escape=F)
-      
-    }
-    session$sendCustomMessage("handler_finishLoader", 8)
-  }
-}
-# THIS ONE
+
 # This function draws a barplot from multiple selected sources and the corresponding data table
 # @param DB_source: multiple eligible datasource from available
 # @param sliderBarplot: the user slider input
@@ -198,14 +92,11 @@ handleBarPlot2 <- function(DB_sources, sliderBarplot, barplotMode, output, sessi
     DB_table <- subset(DB_table, select=-c(`Positive Hits`))
     all_gost_table <- subset(all_gost_table, select=-c(`Positive Hits`))
     #make a figure legend based on DB_source
-    
     fonts <- c("GO:MF"= "white", "GO:BP"= "black", "GO:CC" = "black",
-      "KEGG" = "white", "REAC" = "white", "WP" = "black", "TF" = "black",
-      "MIRNA" = "black", "HPA" = "black", "CORUM" = "black", "HP" = "white")
-    
+               "KEGG" = "white", "REAC" = "white", "WP" = "black", "TF" = "black",
+               "MIRNA" = "black", "HPA" = "black", "CORUM" = "black", "HP" = "white")
     fig_legend = "<table style='border-spacing: 0;border-collapse: collapse;'><tr><td><b>Colors:&nbsp;&nbsp;</b></td>"
-    for(i in 1:length(DB_sources))
-    {
+    for(i in 1:length(DB_sources)){
       fig_legend<-paste(fig_legend, sprintf("<td style='background-color:%s; color:%s;border: 1px solid black'>&nbsp; %s &nbsp;</td>", bar_colors[DB_sources[i]][[1]][1], fonts[DB_sources[i]][[1]][1], DB_sources[i]), sep="")
     }
     fig_legend<-paste(fig_legend, "</tr></table>")
@@ -221,10 +112,6 @@ handleBarPlot2 <- function(DB_sources, sliderBarplot, barplotMode, output, sessi
       DB_table <- DB_table[with(DB_table, order( Function, decreasing = T)),]
       DB_table <- DB_table[with(DB_table, order(-`-log10Pvalue`)),]
       new_colors <- as.character(bar_colors[as.character(DB_table$Source)])
-      #new_colors <- bar_colors[as.character(DB_table$Source)]
-      
-      # par(las=1) # make label text perpendicular to axis
-      # par(mar=c(5, 30, 2, 10)) # increase y-axis margin.
       DB_table$Term_ID <- factor(DB_table$Term_ID, levels = unique(DB_table$Term_ID)[order(DB_table$`-log10Pvalue`, decreasing = F)])
       output$barplot1 <- renderPlotly({
         plot_ly(x =  DB_table$`-log10Pvalue`, y = DB_table$Term_ID, 
@@ -236,15 +123,7 @@ handleBarPlot2 <- function(DB_sources, sliderBarplot, barplotMode, output, sessi
                 hoverinfo = "text",
                 hovertext =paste("TERM ID: ",DB_table$Term_ID, "\n-LOG10PAVULE: ",DB_table$`-log10Pvalue`, "\nFUNCTION: ", DB_table$Function,"\n", "ENRICHMENT SCORE %: ", DB_table$`Enrichment Score %`, sep=""))%>% 
           layout(title = paste(DB_sources, collapse="_"),xaxis = list(title = "-LOG10PVALUE "), yaxis=list(title="TERM ID")) 
-          
       })
-        # output$barplot1 <- renderPlotly({
-      #  
-      #   ggplot(DB_table, aes(Term_ID, `-log10Pvalue`, text=paste("FUNCTION: ", Function,"\n", "ENRICHMENT SCORE %: ", `Enrichment Score %`, sep=""))) +
-      #     geom_bar(stat='identity', fill= new_colors) + coord_flip()+ labs(y = "-LOG10PAVLUE ")+ labs(title = paste(DB_sources, collapse="_") ) +
-      #     geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5) + 
-      #     scale_x_discrete(limits = DB_table$Term_ID[order(DB_table$`-log10Pvalue`)])
-      # })
       
     }
     else { # Enrichment Mode
@@ -254,15 +133,8 @@ handleBarPlot2 <- function(DB_sources, sliderBarplot, barplotMode, output, sessi
       all_gost_table <- head(all_gost_table, sliderBarplot)
       DB_table <- DB_table[with(DB_table, order( Function, decreasing = T)),]
       DB_table <- DB_table[with(DB_table, order(-`Enrichment Score %`)),]
-      #new_colors <- bar_colors[as.character(DB_table$Source)]
       new_colors <- as.character(bar_colors[as.character(DB_table$Source)])
       output$barplot <- renderUI({plotlyOutput("barplot1", height = height_plots(sliderBarplot, 18, 100))})
-      # output$barplot1 <- renderPlotly({
-      #  
-      #   ggplot(DB_table, aes(Term_ID, `Enrichment Score %`, text=paste("FUNCTION: ", Function,"\n", "-LOG_PVALUE: ", `-log10Pvalue`, sep=""))) + geom_bar(stat='identity', fill= new_colors)+coord_flip()+labs(y = "ENRICHMENT SCORE % ")+ labs(title = paste(DB_sources, collapse="_") ) +
-      #     geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5)+ scale_x_discrete(limits = DB_table$Term_ID[order(DB_table$`Enrichment Score %`)]) +
-      #     scale_colour_manual(values = as.vector(new_colors))
-      # })
       DB_table$Term_ID <- factor(DB_table$Term_ID, levels = unique(DB_table$Term_ID)[order(DB_table$`Enrichment Score %`, decreasing = F)])
       output$barplot1 <- renderPlotly({
         plot_ly(x =  DB_table$`Enrichment Score %`, y = DB_table$Term_ID, 
@@ -274,9 +146,7 @@ handleBarPlot2 <- function(DB_sources, sliderBarplot, barplotMode, output, sessi
                 hoverinfo = "text",
                 hovertext =paste("TERM ID: ",DB_table$Term_ID, "\n-LOG10PAVULE: ",DB_table$`-log10Pvalue`, "\nFUNCTION: ", DB_table$Function,"\n", "ENRICHMENT SCORE %: ", DB_table$`Enrichment Score %`, sep=""))%>% 
           layout(title = paste(DB_sources, collapse="_"),xaxis = list(title = "ENRICHMENT SCORE "), yaxis=list(title="TERM ID")) 
-        
       })
-      
     }
     session$sendCustomMessage("handler_startLoader", c(8,90))
     output$barplot_table <- DT::renderDataTable(all_gost_table, server = FALSE,
@@ -327,7 +197,6 @@ handleHeatMap <- function(heatmapSelect, sliderHeatmap, heatmapAxis, heatmapMode
       if (heatmapMode == "Enrichment Score") {
         heatMapGostres <- heatMapGostres[with(heatMapGostres,order(-`Enrichment Score %`)),]
         all_gost_table <- all_gost_table[with(all_gost_table,order(-`Enrichment Score %`)),]
-        
       }
       heatMapGostres <- head(heatMapGostres, sliderHeatmap)
       all_gost_table <- head(all_gost_table, sliderHeatmap)
@@ -366,18 +235,13 @@ handleHeatMap <- function(heatmapSelect, sliderHeatmap, heatmapAxis, heatmapMode
       hoverLabelsTable[] <- lapply(colnames(hoverLabelsTable), function(colname) {
         paste0(hoverLabelsTable[, colname], ", ", colname)
       })
-      
       session$sendCustomMessage("handler_startLoader", c(6,100))
       if (heatmapAxis == "Genes-Functions") {
         heatmapTable <- t(heatmapTable)
         hoverLabelsTable <- t(hoverLabelsTable)
         genesNumber <- length(all_genes)
-        
-        
         output$heatmapPlot <- renderUI(plotlyOutput("heatmap", height = height_plots(genesNumber, 15, 500)))
         output$heatmap <- renderPlotly({
-         
-          
           heatmaply(heatmapTable,custom_hovertext = hoverLabelsTable, 
                     xlab = "FUNCTIONS",ylab = "GENES",main = heatmapSelect, fontsize_row = 10, fontsize_col = 10, 
                     grid_gap = 1,show_dendrogram = c(F, F), #margins = c(NA, NA, 60, NA),
@@ -388,12 +252,10 @@ handleHeatMap <- function(heatmapSelect, sliderHeatmap, heatmapAxis, heatmapMode
       else {
         output$heatmapPlot <- renderUI(plotlyOutput("heatmap", height = height_plots(sliderHeatmap, 15, 200)))
         output$heatmap <- renderPlotly({
-         
           heatmaply(heatmapTable, custom_hovertext = hoverLabelsTable, 
                     xlab = "GENES",ylab = "FUNCTIONS",main = heatmapSelect, fontsize_row = 10,fontsize_col = 10,
                     show_dendrogram = c(F, F), grid_gap = 1, #margins = c(NA, NA, 60, NA),
                     scale_fill_gradient_fun = ggplot2::scale_fill_gradient2(low = "white", high = new_color)
-                    
           )
         })
       }
@@ -425,14 +287,12 @@ handleHeatmapSelect2 <- function(DB_source, session){
 # @return void
 handleHeatMap2 <- function(heatmapSelect2, sliderHeatmap2, heatmapMode2, output, session){
   if (!identical(heatmapSelect2, "")){
-    
     session$sendCustomMessage("handler_startLoader", c(10, 30))
     new_color <- bar_colors[heatmapSelect2][[1]]
     heatMapGostres <- gostres[grepl(heatmapSelect2, gostres$Source), ]
     all_gost_table <- all_gost[grepl(heatmapSelect2, all_gost$Source), ] #with links
     if (length(heatMapGostres$Function) == 1) session$sendCustomMessage("handler_alert", "Cannot create a clustered heatmap if the results<2.")
     else{
-      
       if (heatmapMode2 == "Enrichment Score") {
         heatMapGostres <- heatMapGostres[with(heatMapGostres,order(-`Enrichment Score %`)),]
         all_gost_table <- all_gost_table[with(all_gost_table,order(-`Enrichment Score %`)),]
@@ -442,10 +302,8 @@ handleHeatMap2 <- function(heatmapSelect2, sliderHeatmap2, heatmapMode2, output,
       heatmapTable <- as.data.frame(matrix(0, ncol = length(heatMapGostres$Function), nrow = length(heatMapGostres$Function)))
       colnames(heatmapTable) <- heatMapGostres$Term_ID #paste(heatMapGostres$Term_ID, heatMapGostres$Function, sep="_")
       rownames(heatmapTable) <- heatMapGostres$Term_ID #paste(heatMapGostres$Term_ID, heatMapGostres$Function, sep="_")
-      
       similarityColumnTable <- list()
       intersectGenesList <- list()
-      
       for (i in 1:(length(heatMapGostres$Function))){
         row <- heatMapGostres$`Positive Hits`[i]
         row <- paste(row, collapse=",") 
@@ -459,22 +317,17 @@ handleHeatMap2 <- function(heatmapSelect2, sliderHeatmap2, heatmapMode2, output,
           similarityScore=((length(intersect(col[[1]], row[[1]])))/ (length(unique(unionGenes))))*100
           similarityScore= round(similarityScore, digits = 2)
           heatmapTable[i,j] <- similarityScore
-          #heatmapTable[j,i] <- similarityScore
           similarityColumnTable[[length(similarityColumnTable) + 1]] <- similarityScore
           intersectGenesList[[length(intersectGenesList) + 1]] <- as.list(intersect(col[[1]], row[[1]]))
         }
       }
-      #heatmapTable[ row(heatmapTable) == col(heatmapTable) ] <- 100
       session$sendCustomMessage("handler_startLoader", c(10, 70))
       combinedFunctions <- expand.grid(as.list(heatMapGostres$Function), as.list(heatMapGostres$Function))
       combinedTermIdsLinks <- expand.grid(as.list(all_gost_table$Term_ID), as.list(all_gost_table$Term_ID))
       heatTable <- as.data.frame(cbind("Function_A"=combinedFunctions$Var1,"Term_ID_A"= combinedTermIdsLinks$Var1, 
                                        "Function_B"=combinedFunctions$Var2,"Term_ID_B"= combinedTermIdsLinks$Var2, 
                                        "Similarity Score %"= similarityColumnTable,
-                                 "Intersection"= intersectGenesList))
-      #heatTable2 <- as.data.frame(cbind("Function_A"=combinedFunctions$Var1,"Term_ID_A"= combinedTermIdsLinks$Var1, "Function_B"=combinedFunctions$Var2,"Term_ID_B"= combinedTermIdsLinks$Var2, "Similarity Score %"= as.character(similarityColumnTable),"Intersection"= intersectGenesList))
-      
-      
+                                       "Intersection"= intersectGenesList))
       heatTable$Function_A <- as.character(unlist(heatTable$Function_A))
       heatTable$Function_B <- as.character(unlist(heatTable$Function_B))
       heatTable$`Similarity Score %` <- as.numeric(as.character(heatTable$`Similarity Score %`))
@@ -483,30 +336,13 @@ handleHeatMap2 <- function(heatmapSelect2, sliderHeatmap2, heatmapMode2, output,
         if (identical(heatTable$Function_A[i], heatTable$Function_B[i])) heatTable <- heatTable[-i, ] # removing self entries
       }
       heatTable <- heatTable[heatTable$`Similarity Score %` > 0, ] # removing zero entries
-      #startFor2 <- Sys.time()
       # removing reverse edges
       heatTable <- heatTable[!duplicated(apply(heatTable[, c("Function_A", "Function_B" )],1,function(x) paste(sort(x), collapse='_'))),]
       heatTable <- heatTable[with(heatTable,order(-`Similarity Score %`)),]
-      # endFor2 <- Sys.time()
-      # print("For2 time: ")
-      # print(endFor2 - startFor2)
-      
-      # output$heatmap_table2 <- DT::renderDataTable(heatTable, server = FALSE,
-      #                                              extensions = 'Buttons',
-      #                                              options = list("dom" = 'T<"clear">lBfrtip',
-      #                                                             buttons = list(list(extend='excel',filename=paste(heatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                            list(extend= 'csv',filename=paste(heatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                            list(extend='copy',filename=paste(heatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                            list(extend='pdf',filename=paste(heatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                            list(extend='print',filename=paste(heatmapSelect2, '_Heatmap2', sep="")))
-      #                                              ),rownames= FALSE, escape=F)
-      
       columnVis<- c(2,3,4,5,6,7)
       output$heatmap_table2 <- renderTableFunc(heatTable, heatmapSelect2, 7, "function-function_heatmap", "Positive Hits", columnVis)
-      
       output$heatmapPlot2 <- renderUI(plotlyOutput("heatmap2", height = height_plots(sliderHeatmap2, 18, 500)))
       output$heatmap2 <- renderPlotly({
-        
         heatmaply(heatmapTable,
                   xlab = "FUNCTIONS",ylab = "FUNCTIONS", main = heatmapSelect2, fontsize_row = 10, fontsize_col = 10, grid_gap = 1,
                   show_dendrogram = c(F, F),  #margins = c(NA, NA, 70, NA),
@@ -549,7 +385,6 @@ handleNetwork <- function(networkSelect,sliderNetwork, networkMode, output, sess
       networkGostres <- networkGostres[with(networkGostres,order(-`Enrichment Score %`)),]
       all_gost_table <- all_gost_table[with(all_gost_table,order(-`Enrichment Score %`)),]
     }
-    
     output$network_table <- DT::renderDataTable(head(all_gost_table, sliderNetwork), server = FALSE, 
                                                 extensions = 'Buttons',
                                                 options = list("dom" = 'T<"clear">lBfrtip',
@@ -559,7 +394,6 @@ handleNetwork <- function(networkSelect,sliderNetwork, networkMode, output, sess
                                                                               list(extend='pdf', filename=paste(networkSelect, '_Network', sep="")),
                                                                               list(extend='print', filename=paste(networkSelect, '_Network', sep="")))
                                                 ), rownames= FALSE, escape=F)
-    
     networkGostres <- head(networkGostres,sliderNetwork) 
     session$sendCustomMessage("handler_startLoader", c(9,40))
     networkEdgelist <- matrix("", nrow = 0, ncol = 2) #3 
@@ -568,7 +402,6 @@ handleNetwork <- function(networkSelect,sliderNetwork, networkMode, output, sess
       lineGenes <- strsplit(as.character(networkGostres$`Positive Hits`[i]), ",")[[1]]
       for (j in 1:length(lineGenes)) networkEdgelist <- rbind(networkEdgelist, c(name, lineGenes[j]))
     }
-   
     new_color <- bar_colors[networkSelect][[1]]
     session$sendCustomMessage("handler_startLoader", c(9,70))
     all_genes <- paste(networkGostres$`Positive Hits`, collapse=",") 
@@ -601,7 +434,6 @@ handleNetworkSelect2 <- function(DB_source, session){
 # @param sliderNetwork2: the user slider input
 # @param sliderThreshold: cutoff range for edge values to show
 # @param networkMode2: choose between two modes. the data are sorted in accordance to the chosen mode
-#
 # @return void
 handleNetwork2 <- function(networkSelect2, sliderNetwork2, networkMode2, sliderThreshold, output, session){
   if (!identical(networkSelect2, "")){
@@ -641,8 +473,8 @@ handleNetwork2 <- function(networkSelect2, sliderNetwork2, networkMode2, sliderT
     names <- paste(networkGostres$Term_ID, networkGostres$Function, sep="_")
     names <- expand.grid(as.list(names), as.list(names))
     networkEdgelist <- as.matrix(cbind(as.character(names$Var1), as.character(names$Var2), as.character(similarityColumnTable)))
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0, ] 
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= sliderThreshold, ]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ] 
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= sliderThreshold,, drop = F ]
     new_color <- bar_colors[networkSelect2][[1]]
     construct_visNetwork2(networkEdgelist, new_color)
     session$sendCustomMessage("handler_startLoader", c(11,80))
@@ -654,26 +486,25 @@ handleNetwork2 <- function(networkSelect2, sliderNetwork2, networkMode2, sliderT
     netTable$Function_A <- as.character(unlist(netTable$Function_A))
     netTable$Function_B <- as.character(unlist(netTable$Function_B))
     netTable$`Similarity Score %` <- as.numeric(as.character(netTable$`Similarity Score %`))
-    
     # remove self rows from table
     for (i in nrow(netTable):1){
-      if (identical(netTable$Function_A[i], netTable$Function_B[i])) netTable <- netTable[-i, ]
+      if (identical(netTable$Function_A[i], netTable$Function_B[i])) netTable <- netTable[-i,, drop = F ]
     }
-    
     # removing zero entries
-    netTable <- netTable[netTable$`Similarity Score %` > 0, ] 
-    
+    netTable <- netTable[netTable$`Similarity Score %` > 0,, drop = F ] 
     # removing reverse edges
-    netTable <- netTable[!duplicated(apply(netTable[, c("Function_A", "Function_B" )],1,function(x) paste(sort(x), collapse='_'))),]
+    netTable <- netTable[!duplicated(apply(netTable[, c("Function_A", "Function_B" )],1,function(x) paste(sort(x), collapse='_'))),, drop = F]
     netTable <- netTable[with(netTable,order(-`Similarity Score %`)),]
-    
-    netTable <- netTable[netTable$`Similarity Score %` >= sliderThreshold, ]
+    netTable <- netTable[netTable$`Similarity Score %` >= sliderThreshold,, drop = F ]
     columnVis<- c(2,3,4,5,6,7)
+    if(nrow(netTable)>0){
     output$network_table2 <- renderTableFunc(netTable, networkSelect2, 7, "function-function_network", "Positive Hits", columnVis)
+    }
     session$sendCustomMessage("handler_startLoader", c(11,100))
     session$sendCustomMessage("handler_finishLoader", 11)
   }
 }
+
 # This event updates the Network3 slider, an event which is observed in server
 # and consequently changes the Network and the respective table
 # @param DB_source: one eligible datasource from available
@@ -688,16 +519,13 @@ handleNetworkSelect3 <- function(DB_source, session){
                       max = length(gostres_m$Term_ID), value = 10, step = 1)
   }
 }
+
 # This event updates the sliderThreshold3 slider, an event which is observed by sliderNetwork3
 # and consequently changes the Network3 and the respective table
 # @param networkSelect3: one eligible datasource from available
 # @return void
 handleNetworkSlider3 <- function(sliderNetwork3, networkSelect3, session){
   if (!identical(networkSelect3, "")){
-   # networkGostres <- gostres[grepl(networkSelect3, gostres$Source), ]
-    # updateSliderInput(session, "sliderThreshold3", "Number of common Functions:", min = 0,
-    #                   max = length(head(networkGostres$Function, sliderNetwork3)), value = 0, step = 1)
-    
     updateSliderInput(session, "sliderThreshold3", "Number of common Functions:", min = 0,
                       max = sliderNetwork3, value = 0, step = 1)
   }
@@ -708,26 +536,15 @@ handleNetworkSlider3 <- function(sliderNetwork3, networkSelect3, session){
 # @param sliderNetwork3: the user slider input
 # @param sliderThreshold3: cutoff range for edge values to show
 # @param networkMode3: choose between two modes. the data are sorted in accordance to the chosen mode
-#
 # @return void
 handleNetwork3 <- function(networkSelect3, sliderNetwork3, networkMode3, sliderThreshold3, output, session){
   if (!identical(networkSelect3, "")){
-    #   session$sendCustomMessage("handler_startLoader", 11)
     session$sendCustomMessage("handler_startLoader", c(26,30))
     networkGostres <- gostres[grepl(networkSelect3, gostres$Source), ] # without links
-    #all_gost_table <- all_gost[grepl(networkSelect3, all_gost$Source), ] # with links
-    #all_gost_table <- subset(all_gost_table, select=-c(`Positive Hits`)) #remove the Genes column from the table
-    #lengthFunctions<- nrow(gostres[grepl(networkSelect3, gostres$Source), ]) # check
-    
-   # networkEdgelist<- geneGeneNetworkInput(networkMode3,networkGostres, sliderNetwork3, networkSelect3, sliderThreshold3)
-    
-    
     if (networkMode3 == "Enrichment Score") {
       networkGostres <- networkGostres[with(networkGostres,order(-`Enrichment Score %`)),]
-      #all_gost_table <- all_gost_table[with(all_gost_table,order(-`Enrichment Score %`)),]
     }
     networkGostres <- head(networkGostres, sliderNetwork3)
-    #all_gost_table <- head(all_gost_table, sliderNetwork3)
     col <- networkGostres$`Positive Hits`
     col <- paste(col, collapse=",")
     col <- strsplit(col, ",")
@@ -735,58 +552,53 @@ handleNetwork3 <- function(networkSelect3, sliderNetwork3, networkMode3, sliderT
     session$sendCustomMessage("handler_startLoader", c(26,40))
     similarityColumn<-list()
     intersectFunctions <- list()
-    #numberCommonFunctionsList <- list()
     totalFunctions<- list()
     for (i in 1:length(genes)){
       for (j in 1:length(genes)) {
         commonFunctions <- networkGostres [grepl(genes[i], networkGostres$`Positive Hits`) & grepl(genes[j], networkGostres$`Positive Hits`),]
         nameCommonFunctions<- commonFunctions$Function
         similarityScore<- nrow(commonFunctions)
-        #similarityScore <- (numberCommonFunctions/lengthFunctions)*100
-        #similarityScore <- round(similarityScore, digits = 2)
         similarityColumn[[length(similarityColumn) + 1]] <- similarityScore
         intersectFunctions[[length(intersectFunctions) + 1]] <- as.list(nameCommonFunctions)
-        #numberCommonFunctionsList[[length(numberCommonFunctionsList) + 1]] <- numberCommonFunctions
-        #totalFunctions[[length(totalFunctions) + 1]] <- lengthFunctions
-        
       }
     }
     session$sendCustomMessage("handler_startLoader", c(26,70))
     combinedGenes <- expand.grid(as.list(genes), as.list(genes))
-    
     #network input-networkEdgelist
     networkEdgelist <- as.matrix(cbind(as.character(combinedGenes$Var1), as.character(combinedGenes$Var2), as.character(similarityColumn)))
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0, ]
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= sliderThreshold3, ]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= sliderThreshold3,, drop = F]
     new_color <- bar_colors[networkSelect3][[1]]
     fonts <- c("GO:MF"= "white", "GO:BP"= "black", "GO:CC" = "black",
                "KEGG" = "black", "REAC" = "white", "WP" = "black", "TF" = "black",
                "MIRNA" = "black", "HPA" = "black", "CORUM" = "black", "HP" = "white")
     fontColor <- fonts[networkSelect3][[1]]
     construct_visNetwork3(networkEdgelist, new_color,fontColor)
-    
     #table-netTable
-    
     netTable <- as.data.frame(cbind("Gene_A"= combinedGenes$Var1, "Gene_B"=combinedGenes$Var2, "Common_Functions"= similarityColumn, "Total_Functions"= rep(sliderNetwork3, length(combinedGenes$Var1)), "Functions"= intersectFunctions))
     netTable$Gene_A <- as.character(unlist(netTable$Gene_A))
     netTable$Gene_B <- as.character(unlist(netTable$Gene_B))
     netTable$Common_Functions <- as.numeric(as.character(netTable$Common_Functions))
-    
-    # remove self rows from table
+     # remove self rows from table
     for (i in nrow(netTable):1){
-      if (identical(netTable$Gene_A[i], netTable$Gene_B[i])) netTable <- netTable[-i, ]
+      if (identical(netTable$Gene_A[i], netTable$Gene_B[i])) netTable <- netTable[-i,, drop = F]
     }
-    
-    # removing zero entries
-    netTable <- netTable[netTable$Common_Functions > 0, ]
-    # removing reverse edges
-    netTable <- netTable[!duplicated(apply(netTable[, c("Gene_A", "Gene_B" )],1,function(x) paste(sort(x), collapse='_'))),]
-    netTable <- netTable[with(netTable,order(-Common_Functions)),]
-    netTable <- netTable[netTable$Common_Functions >= sliderThreshold3, ]
    
-    columnVis<- c(2,3,4,5,6)
+    # removing zero entries
+    netTable <- netTable[netTable$Common_Functions > 0,, drop = F ]
+    # removing reverse edges
     
+    netTable <- netTable[!duplicated(apply(netTable[, c("Gene_A", "Gene_B" )],1,function(x) paste(sort(x), collapse='_'))),, drop = F]
+    
+    netTable <- netTable[with(netTable,order(-Common_Functions)),]
+    netTable <- netTable[netTable$Common_Functions >= sliderThreshold3,, drop = F ]
+    columnVis<- c(2,3,4,5,6)
+   
+    
+    if(nrow(netTable)>0){
     output$network_table3 <- renderTableFunc(netTable, networkSelect3, 6, "gene-gene_network", "Functions",columnVis)
+    }
+   
     session$sendCustomMessage("handler_startLoader", c(26,100))
     session$sendCustomMessage("handler_finishLoader", 26) 
   }
@@ -796,7 +608,7 @@ handleNetwork3 <- function(networkSelect3, sliderNetwork3, networkMode3, sliderT
 
 ###  aGotool Plots ####
 
-# This event updates the scatterplot slider, an event which is observed in server
+# This event updates the aGoscatterplot slider, an event which is observed in server
 # and consequently changes the scatterplot and the respective table
 # @param aGoScatterSelect: one eligible datasource from available
 # @return void
@@ -811,9 +623,9 @@ handleaGoScatterSelect <- function(aGoScatterSelect, session){
   }
 }
 
-# # This function draws a scatterplot and the corresponding data table
-# # @param DB_source: one eligible datasource from available
-# # @param sliderScatter: the user slider input
+# # This function draws a aGoscatterplot and the corresponding data table
+# # @param aGoScatterSelect: one eligible datasource from available
+# # @param aGoSliderScatter: the user slider input
 # # @return void
 handleaGoScatterPlot <- function(aGoScatterSelect, aGoSliderScatter,  output, session){ #aGoScatterMode,
   if (!identical(aGoScatterSelect, "")){
@@ -824,11 +636,9 @@ handleaGoScatterPlot <- function(aGoScatterSelect, aGoSliderScatter,  output, se
     DB_table <- DB_table[with(DB_table,order(-`Enrichment Score %`)),]
     session$sendCustomMessage("handler_startLoader", c(14,60))
     output$aGoScatterPlot <- renderUI({plotlyOutput("aGoScatter", height = height_plots(aGoSliderScatter, 15, 110))})
-    #if(aGoScatterMode =="Log10Pavlue - Enrichment Score"){
-    
     output$aGoScatter <- renderPlotly({
-      
-      ggplot(DB_table[1:aGoSliderScatter,], aes(`Enrichment Score %`, `-log10Pvalue`,text=paste("TERM_ID: ", Term_ID,"\n", "FUNCTION: ", Function, sep=""))) + geom_point(fill=new_color,color="black", position = position_dodge(width = 0.8), alpha = 0.7, pch=21, size=3, stroke=0.3)+ labs(x = "ENRICHMENT SCORE %")+ labs(title = aGoScatterSelect )
+      ggplot(DB_table[1:aGoSliderScatter,], aes(`Enrichment Score %`, `-log10Pvalue`,text=paste("TERM_ID: ", Term_ID,"\n", "FUNCTION: ",
+     Function, sep=""))) + geom_point(fill=new_color,color="black", position=position_jitter(h=0.005,w=0.005), alpha = 0.7, pch=21, size=3, stroke=0.3)+ labs(x = "ENRICHMENT SCORE %")+ labs(title = aGoScatterSelect )
     })
     session$sendCustomMessage("handler_startLoader", c(14,100))
     output$aGoScatter_table <- DT::renderDataTable(head(DB_table, aGoSliderScatter), server = FALSE,
@@ -846,10 +656,10 @@ handleaGoScatterPlot <- function(aGoScatterSelect, aGoSliderScatter,  output, se
 }
 
 
-# This event updates the barplot slider, an event which is observed in server
+# This event updates the aGobarplot slider, an event which is observed in server
 # and consequently changes the barplot and the respective table
 # Not called when no sources are selected
-# @param DB_source: multiple eligible datasources from available
+# @param aGoBarSelect2: multiple eligible datasources from available
 # @return void
 handleaGoBarSelect2 <- function(aGoBarSelect2, session){
   plot_aGotool <- all_aGotool[grepl(paste(aGoBarSelect2, collapse="|"), all_aGotool$Source),] # collapse="|", instead of for loop
@@ -862,7 +672,7 @@ handleaGoBarSelect2 <- function(aGoBarSelect2, session){
 }
 
 
-# This function draws a barplot from multiple selected sources and the corresponding data table
+# This function draws a aGobarplot from multiple selected sources and the corresponding data table
 # @param aGoBarSelect2: multiple eligible datasource from available
 # @param aGoSliderBarplot: the user slider input
 # @return void
@@ -873,14 +683,14 @@ handleaGoBarPlot2 <- function(aGoBarSelect2, aGoSliderBarplot, aGoBarplotMode, o
     all_aGo_table <- all_aGotool[grepl(paste(aGoBarSelect2, collapse="|"), all_aGotool$Source),]
     DB_table <- subset(DB_table, select=-c( `Positive Hits`))
     all_aGo_table <- subset(all_aGo_table, select=-c(`Positive Hits`))
-   
+    
     #make a figure legend based on DB_source
     
     fonts <- c("PFAM" = "white", "INTERPRO" = "white", "UniProt" = "black", "Disease Ontology" = "white")
     fig_legend = "<table style='border-spacing: 0;border-collapse: collapse;'><tr><td><b>Colors:&nbsp;&nbsp;</b></td>"
     for(i in 1:length(aGoBarSelect2)){
       fig_legend<-paste(fig_legend, sprintf("<td style='background-color:%s; color:%s;border: 1px solid black'>&nbsp; %s &nbsp;</td>", aGoBar_colors[aGoBarSelect2[i]][[1]][1], fonts[aGoBarSelect2[i]][[1]][1], aGoBarSelect2[i]), sep="")
-      }
+    }
     fig_legend<-paste(fig_legend, "</tr></table>")
     output$bar_legend_aGo<- renderUI(HTML(fig_legend))
     session$sendCustomMessage("handler_startLoader", c(15,40))
@@ -894,7 +704,7 @@ handleaGoBarPlot2 <- function(aGoBarSelect2, aGoSliderBarplot, aGoBarplotMode, o
       DB_table <- DB_table[with(DB_table, order( Function, decreasing = T)),]
       DB_table <- DB_table[with(DB_table, order(-`-log10Pvalue`)),]
       new_colors <- as.character(aGoBar_colors[as.character(DB_table$Source)])
-     
+      
       DB_table$Term_ID <- factor(DB_table$Term_ID, levels = unique(DB_table$Term_ID)[order(DB_table$ `-log10Pvalue`, decreasing = F)])
       output$aGoBarplot1 <- renderPlotly({
         plot_ly(x =  DB_table$`-log10Pvalue`, y = DB_table$Term_ID, 
@@ -908,14 +718,6 @@ handleaGoBarPlot2 <- function(aGoBarSelect2, aGoSliderBarplot, aGoBarplotMode, o
           layout(title = paste(aGoBarSelect2, collapse="_"),xaxis = list(title = "-LOG10PVALUE "), yaxis=list(title="TERM ID")) 
         
       })
-      
-      
-      # output$aGoBarplot1 <- renderPlotly({
-      #   
-      #   ggplot(DB_table, aes(Term_ID, `-log10Pvalue`, text=paste("FUNCTION: ", Function,"\n", "`Enrichment Score %`: ", `Enrichment Score %`, sep=""))) + geom_bar(stat='identity', fill= new_colors) + coord_flip()+ labs(y = "-LOG10PAVLUE ")+ labs(title = paste(aGoBarSelect2, collapse="_") ) +
-      #     geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5) + scale_x_discrete(limits = DB_table$Term_ID[order(DB_table$`-log10Pvalue`)])
-      # })
-      
     }
     else if(aGoBarplotMode == "Enrichment Score") { # Enrichment Mode
       DB_table <- DB_table[with(DB_table, order(-`Enrichment Score %`, Function)),]
@@ -927,14 +729,7 @@ handleaGoBarPlot2 <- function(aGoBarSelect2, aGoSliderBarplot, aGoBarplotMode, o
       new_colors <- as.character(aGoBar_colors[as.character(DB_table$Source)])
       
       output$aGoBarplot <- renderUI({plotlyOutput("aGoBarplot1", height = height_plots(aGoSliderBarplot, 18, 100))})
-      # output$aGoBarplot1 <- renderPlotly({
-      #   
-      #   ggplot(DB_table, aes(Term_ID, `Enrichment Score %`, text=paste("FUNCTION: ", Function,"\n", "-LOG_PVALUE: ", `-log10Pvalue`, sep=""))) + 
-      #     geom_bar(stat='identity',fill= new_colors)+coord_flip()+labs(y = "ENRICHMENT SCORE % ")+ labs(title = paste(aGoBarSelect2, collapse="_") ) +
-      #     geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5) + 
-      #     scale_x_discrete(limits = DB_table$Term_ID[order(DB_table$`Enrichment Score %`)])+
-      #     scale_colour_manual(values = as.vector(new_colors))
-      # })
+      
       DB_table$Term_ID <- factor(DB_table$Term_ID, levels = unique(DB_table$Term_ID)[order(DB_table$ `Enrichment Score %`, decreasing = F)])
       output$aGoBarplot1 <- renderPlotly({
         plot_ly(x =  DB_table$`Enrichment Score %`, y = DB_table$Term_ID, 
@@ -998,9 +793,7 @@ handleaGoHeatMap <- function(aGoHeatmapSelect, aGoSliderHeatmap, aGoHeatmapAxis,
       if (aGoHeatmapMode == "Enrichment Score") {
         aGoHeatmap <- aGoHeatmap[with(aGoHeatmap,order(-`Enrichment Score %`)),]
         all_aGotool_table <- all_aGotool_table[with(all_aGotool_table,order(-`Enrichment Score %`)),]
-        
       }
-      
       aGoHeatmap <- head(aGoHeatmap, aGoSliderHeatmap)
       all_aGotool_table <- head(all_aGotool_table, aGoSliderHeatmap)
       output$aGoHeatmap_table <- DT::renderDataTable( subset(all_aGotool_table, select=-c(`Positive Hits`)), server = FALSE, 
@@ -1060,12 +853,10 @@ handleaGoHeatMap <- function(aGoHeatmapSelect, aGoSliderHeatmap, aGoHeatmapAxis,
       else {
         output$aGoHeatmapPlot <- renderUI(plotlyOutput("aGoPlotHeatmap", height = height_plots(aGoSliderHeatmap, 15, 200)))
         output$aGoPlotHeatmap <- renderPlotly({
-          
           heatmaply(heatmapTable, custom_hovertext = hoverLabelsTable, 
                     xlab = "GENES",ylab = "FUNCTIONS",main = aGoHeatmapSelect, fontsize_row = 10,fontsize_col = 10,
                     show_dendrogram = c(F, F), grid_gap = 1, #margins = c(NA, NA, 60, NA),
                     scale_fill_gradient_fun = ggplot2::scale_fill_gradient2(low = "white", high = new_color)
-                    
           )
         })
       }
@@ -1075,7 +866,7 @@ handleaGoHeatMap <- function(aGoHeatmapSelect, aGoSliderHeatmap, aGoHeatmapAxis,
   }#end of first if
 }
 
-# This event updates the Heatmap2 slider, an event which is observed in server
+# This event updates the aGoHeatmap2 slider, an event which is observed in server
 # and consequently changes the Heatmap and the respective table
 # @param aGoHeatmapSelect2: one eligible datasource from available
 # @return void
@@ -1090,11 +881,11 @@ handleaGoHeatmapSelect2 <- function(aGoHeatmapSelect2, session){
   }
 }
 
-# This function draws a heatmap2 and the corresponding data table
+# This function draws a aGoheatmap2 and the corresponding data table
 # @param aGoHeatmapSelect2: one eligible datasource from available
-# @param sliderHeatmap: the user slider input
-# @param heatmapAxis: reverse the heatmap s axis
-# @param heatmapMode: choose between two modes. the data are sorted in accordance to the chosen mode
+# @param aGoSliderHeatmap2: the user slider input
+# @param aGoSliderHeatmap2: reduce results 
+# @param aGoHeatmapMode2: choose between two modes. the data are sorted in accordance to the chosen mode
 # @return void
 handleaGoHeatMap2<- function(aGoHeatmapSelect2, aGoSliderHeatmap2, aGoHeatmapMode2, output, session){
   if (!identical(aGoHeatmapSelect2, "")){
@@ -1164,20 +955,9 @@ handleaGoHeatMap2<- function(aGoHeatmapSelect2, aGoSliderHeatmap2, aGoHeatmapMod
       
       columnVis<- c(2,3,4,5,6,7)
       output$aGoHeatmap_table2 <- renderTableFunc(heatTable, aGoHeatmapSelect2, 7, "function-function_heatmap", "Positive Hits", columnVis)
-      
-      # output$aGoHeatmap_table2 <- DT::renderDataTable(heatTable, server = FALSE,
-      #                                                 extensions = 'Buttons',
-      #                                                 options = list("dom" = 'T<"clear">lBfrtip',
-      #                                                                buttons = list(list(extend='excel',filename=paste(aGoHeatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                               list(extend= 'csv',filename=paste(aGoHeatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                               list(extend='copy',filename=paste(aGoHeatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                               list(extend='pdf',filename=paste(aGoHeatmapSelect2, '_Heatmap2', sep="")),
-      #                                                                               list(extend='print',filename=paste(aGoHeatmapSelect2, '_Heatmap2', sep="")))
-      #                                                 ),rownames= FALSE, escape=F)
-
-       output$aGoHeatmapPlot2 <- renderUI(plotlyOutput("drawaGoHeatmapPlot2", height = height_plots(aGoSliderHeatmap2, 18, 500)))
+      output$aGoHeatmapPlot2 <- renderUI(plotlyOutput("drawaGoHeatmapPlot2", height = height_plots(aGoSliderHeatmap2, 18, 500)))
       output$drawaGoHeatmapPlot2 <- renderPlotly({
-       
+        
         heatmaply(heatmapTable,
                   xlab = "FUNCTIONS",ylab = "FUNCTIONS", main = aGoHeatmapSelect2, fontsize_row = 10, fontsize_col = 10, grid_gap = 1,
                   show_dendrogram = c(F, F),  #margins = c(NA, NA, 70, NA),
@@ -1186,16 +966,11 @@ handleaGoHeatMap2<- function(aGoHeatmapSelect2, aGoSliderHeatmap2, aGoHeatmapMod
       })
     }
     session$sendCustomMessage("handler_startLoader", c(17,100))
-    
     session$sendCustomMessage("handler_finishLoader", 17)
   }
 }
 
-
-
-
-
-# This event updates the Network slider, an event which is observed in server
+# This event updates the aGoNetwork slider, an event which is observed in server
 # and consequently changes the Network and the respective table
 # @param aGoNetworkSelect: one eligible datasource from available
 # @return void
@@ -1225,8 +1000,6 @@ handleaGoNetwork <- function(aGoNetworkSelect, aGoSliderNetwork, aGoNetworkMode,
       networkaGo <- networkaGo[with(networkaGo,order(-`Enrichment Score %`)),]
       aGo_table <- aGo_table[with(aGo_table,order(-`Enrichment Score %`)),]
     }
-    
-    
     output$aGoNetwork_table <- DT::renderDataTable(head(aGo_table, aGoSliderNetwork), server = FALSE, 
                                                    extensions = 'Buttons',
                                                    options = list("dom" = 'T<"clear">lBfrtip',
@@ -1244,9 +1017,7 @@ handleaGoNetwork <- function(aGoNetworkSelect, aGoSliderNetwork, aGoNetworkMode,
       lineGenes <- strsplit(as.character(networkaGo$`Positive Hits`[i]), ",")[[1]]
       for (j in 1:length(lineGenes)) networkEdgelist <- rbind(networkEdgelist, c(name, lineGenes[j]))
     }
-    
     new_color <- aGoBar_colors[aGoNetworkSelect][[1]]
-    
     all_genes <- paste(networkaGo$`Positive Hits`, collapse=",") 
     all_genes <- strsplit(all_genes, ",")
     all_genes <- unique(all_genes[[1]])
@@ -1275,10 +1046,9 @@ handleaGoNetworkSelect2 <- function(aGoNetworkSelect2, session){
 
 # This function draws a aGO network2 and the corresponding data table
 # @param aGoNetworkSelect2: one eligible datasource from available
-# @param sliderNetwork2: the user slider input
-# @param sliderThreshold: cutoff range for edge values to show
+# @param aGoSliderNetwork2: the user slider input
+# @param aGoSliderThreshold: cutoff range for edge values to show
 # @param aGoNetworkMode2: choose between two modes. the data are sorted in accordance to the chosen mode
-#
 # @return void
 handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMode2,  aGoSliderThreshold, output, session){
   if (!identical(aGoNetworkSelect2, "")){
@@ -1286,10 +1056,8 @@ handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMo
     networkAGo2 <- aGotoolResults[grepl(aGoNetworkSelect2, aGotoolResults$Source), ] # without links
     all_aGo_table <- all_aGotool[grepl(aGoNetworkSelect2, all_aGotool$Source), ] # with links
     all_aGo_table <- subset(all_aGo_table, select=-c(`Positive Hits`)) #remove the Genes column from the table
-    
     if (length(networkAGo2$Function) == 1) session$sendCustomMessage("handler_alert", paste(aGoNetworkSelect2," Cannot create a Function Vs Function network if number of results equals 1.", sep=":"))
     else{
-      
       if (aGoNetworkMode2 == "Enrichment Score") {
         networkAGo2 <- networkAGo2[with(networkAGo2,order(-`Enrichment Score %`)),]
         all_aGo_table <- all_aGo_table[with(all_aGo_table,order(-`Enrichment Score %`)),]
@@ -1298,7 +1066,6 @@ handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMo
       
       networkAGo2 <- head(networkAGo2, aGoSliderNetwork2)
       all_aGo_table <- head(all_aGo_table, aGoSliderNetwork2)
-      
       similarityColumnTable <- list()
       intersectGenesList <- list()
       for (i in 1:length(networkAGo2$Function)){
@@ -1313,7 +1080,6 @@ handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMo
           unionGenes <- unlist(unionGenes)
           similarityScore <- ((length(intersect(col[[1]], row[[1]]))) / (length(unique(unionGenes))))*100
           similarityScore <- round(similarityScore, digits = 2)
-          
           similarityColumnTable[[length(similarityColumnTable) + 1]] <- similarityScore
           intersectGenesList[[length(intersectGenesList) + 1]] <- as.list(intersect(col[[1]], row[[1]]))
         }
@@ -1324,15 +1090,12 @@ handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMo
       names <- paste(networkAGo2$Term_ID, networkAGo2$Function, sep="_")
       names <- expand.grid(as.list(names), as.list(names))
       networkEdgelist <- as.matrix(cbind(as.character(names$Var1), as.character(names$Var2), as.character(similarityColumnTable)))
-      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0, ]
-      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= aGoSliderThreshold, ]
-      if (identical(networkEdgelist[,1], networkEdgelist[,2])== TRUE) session$sendCustomMessage("handler_alert", paste(aGoNetworkSelect2," Cannot create a Function Vs Function network. No common genes found", sep=":"))
+      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ]
+      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= aGoSliderThreshold,, drop = F ]
+      if (identical(networkEdgelist[,1], networkEdgelist[,2])== TRUE) session$sendCustomMessage("handler_alert", paste(aGoNetworkSelect2," Cannot create a Function Vs Function network. No common genes found. Try with lower cut-off threshold or select more results to view.", sep=":"))
       else{
-        
-        
         new_color <- aGoBar_colors[aGoNetworkSelect2][[1]]
         session$sendCustomMessage("handler_startLoader", c(19,90))
-        
         construct_visNetworkaGo2(networkEdgelist, new_color)
         ##table-netTable
         combinedFunctions <- expand.grid(as.list(networkAGo2$Function), as.list(networkAGo2$Function))
@@ -1343,21 +1106,20 @@ handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMo
         netTable$Function_A <- as.character(unlist(netTable$Function_A))
         netTable$Function_B <- as.character(unlist(netTable$Function_B))
         netTable$`Similarity Score %` <- as.numeric(as.character(netTable$`Similarity Score %`))
-        
         # remove self rows from table
         for (i in nrow(netTable):1){
-          if (identical(netTable$Function_A[i], netTable$Function_B[i])) netTable <- netTable[-i, ]
+          if (identical(netTable$Function_A[i], netTable$Function_B[i])) netTable <- netTable[-i,, drop = F ]
         }
         # removing zero entries
-        netTable <- netTable[netTable$`Similarity Score %` > 0, ] 
-        
+        netTable <- netTable[netTable$`Similarity Score %` > 0,, drop = F ] 
         # removing reverse edges
-        netTable <- netTable[!duplicated(apply(netTable[, c("Function_A", "Function_B" )],1,function(x) paste(sort(x), collapse='_'))),]
-        
+        netTable <- netTable[!duplicated(apply(netTable[, c("Function_A", "Function_B" )],1,function(x) paste(sort(x), collapse='_'))),, drop = F]
         netTable <- netTable[with(netTable,order(-`Similarity Score %`)),]
-        netTable <- netTable[netTable$`Similarity Score %` >= aGoSliderThreshold, ]
+        netTable <- netTable[netTable$`Similarity Score %` >= aGoSliderThreshold,, drop = F ]
         columnVis<- c(2,3,4,5,6,7)
+        if(nrow(netTable)>0){
         output$aGoNetwork_table2 <- renderTableFunc(netTable, aGoNetworkSelect2, 7, "function-function_network", "Positive Hits",columnVis)
+        }
       }
     }
     session$sendCustomMessage("handler_startLoader", c(19,100))
@@ -1393,13 +1155,13 @@ handleaGoNetworkSlider3 <- function(aGoSliderNetwork3, aGoNetworkSelect3, sessio
 }
 
 
-# # This function draws a network3 and the corresponding data table
-# # @param networkSelect3: one eligible datasource from available
-# # @param sliderNetwork3: the user slider input
-# # @param sliderThreshold3: cutoff range for edge values to show
-# # @param networkMode3: choose between two modes. the data are sorted in accordance to the chosen mode
+# # This function draws a aGonetwork3 and the corresponding data table
+# # @param aGoNetworkSelect3: one eligible datasource from available
+# # @param aGoSliderNetwork3: the user slider input
+# # @param aGoSliderThreshold3: cutoff range for edge values to show
+# # @param aGoNetworkMode3: choose between two modes. the data are sorted in accordance to the chosen mode
 # # @return void
- handleaGoNetwork3 <- function(aGoNetworkSelect3, aGoSliderNetwork3, aGoNetworkMode3, aGoSliderThreshold3, output, session){
+handleaGoNetwork3 <- function(aGoNetworkSelect3, aGoSliderNetwork3, aGoNetworkMode3, aGoSliderThreshold3, output, session){
   if (!identical(aGoNetworkSelect3, "")){
     session$sendCustomMessage("handler_startLoader", c(27,30))
     networkaGoInput <- aGotoolResults[grepl(aGoNetworkSelect3, aGotoolResults$Source), ] # without links
@@ -1425,63 +1187,58 @@ handleaGoNetworkSlider3 <- function(aGoSliderNetwork3, aGoNetworkSelect3, sessio
       }
     }
     session$sendCustomMessage("handler_startLoader", c(27,80))
-    
     combinedGenes <- expand.grid(as.list(genes), as.list(genes))
-
     #network input-networkEdgelist
     networkEdgelist <- as.matrix(cbind(as.character(combinedGenes$Var1), as.character(combinedGenes$Var2), as.character(similarityColumn)))
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0, ]
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= aGoSliderThreshold3, ]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= aGoSliderThreshold3,, drop = F ]
     fonts <- c("PFAM" = "white", "INTERPRO" = "white", "UniProt" = "black", "Disease Ontology" = "white")
     new_color <- aGoBar_colors[aGoNetworkSelect3][[1]]
     fontsColor <- fonts[aGoNetworkSelect3][[1]]
     session$sendCustomMessage("handler_startLoader", c(27,90))
-    
     construct_visNetworkaGo3(networkEdgelist, new_color,fontsColor)
-
     #table-netTable
-
     netTable <- as.data.frame(cbind("Gene_A"= combinedGenes$Var1, "Gene_B"=combinedGenes$Var2, "Common_Functions"= similarityColumn, "Total_Functions"= rep(aGoSliderNetwork3, length(combinedGenes$Var1)), "Functions"= intersectFunctions))
     netTable$Gene_A <- as.character(unlist(netTable$Gene_A))
     netTable$Gene_B <- as.character(unlist(netTable$Gene_B))
     netTable$Common_Functions <- as.numeric(as.character(netTable$Common_Functions))
-
+    
     # remove self rows from table
     for (i in nrow(netTable):1){
-      if (identical(netTable$Gene_A[i], netTable$Gene_B[i])) netTable <- netTable[-i, ]
+      if (identical(netTable$Gene_A[i], netTable$Gene_B[i])) netTable <- netTable[-i,, drop = F ]
     }
     # removing zero entries
-    netTable <- netTable[netTable$Common_Functions > 0, ]
+    netTable <- netTable[netTable$Common_Functions > 0,, drop = F ]
     # removing reverse edges
-    netTable <- netTable[!duplicated(apply(netTable[, c("Gene_A", "Gene_B" )],1,function(x) paste(sort(x), collapse='_'))),]
+    netTable <- netTable[!duplicated(apply(netTable[, c("Gene_A", "Gene_B" )],1,function(x) paste(sort(x), collapse='_'))),, drop = F]
     netTable <- netTable[with(netTable,order(-Common_Functions)),]
-    netTable <- netTable[netTable$Common_Functions >= aGoSliderThreshold3, ]
+    netTable <- netTable[netTable$Common_Functions >= aGoSliderThreshold3,, drop = F ]
     columnVis<- c(2,3,4,5,6)
+    if(nrow(netTable)>0){
     output$aGoNetwork_table3 <- renderTableFunc(netTable, aGoNetworkSelect3, 6, "gene-gene_network", "Functions",columnVis)
+    }
     session$sendCustomMessage("handler_startLoader", c(27,100))
     session$sendCustomMessage("handler_finishLoader", 27)
     
   }
- }
+}
 
 ##### LITERATURE PLOTS####
 
-# This function draws a scatterplot and the corresponding data table
+# This function draws a Literaturescatterplot and the corresponding data table
 # @param literatureSliderScatter: the user slider input
 # @return void
 handleLitearureScatterPlot <- function(literatureSliderScatter,  output, session){ 
   if (nrow(all_literature)>0){
     session$sendCustomMessage("handler_startLoader", c(20,30))
     new_color <- "#c95591"
-    # DB_table <- all_aGotool[grepl(aGoScatterSelect, all_aGotool$Source), ]
     DB_table <- all_literature
     DB_table <- subset(DB_table, select=-c( `Positive Hits`))
     DB_table <- DB_table[with(DB_table,order(-`Enrichment Score %`)),]
     output$literatureScatterPlot <- renderUI({plotlyOutput("drawliteratureScatterPlot", height = height_plots(literatureSliderScatter, 15, 110))})
     session$sendCustomMessage("handler_startLoader", c(20,80))
     output$drawliteratureScatterPlot <- renderPlotly({
-      
-      ggplot(DB_table[1:literatureSliderScatter,], aes(`Enrichment Score %`, `-log10Pvalue`,text=paste("TERM_ID: ", Term_ID,"\n", "PUBLICATION: ", Publication, sep=""))) + geom_point(fill=new_color,color="black", position = position_dodge(width = 0.5), alpha = 0.7, pch=21, size=3, stroke=0.3)+ labs(x = "ENRICHMENT SCORE %")+ labs(title = "PubMed" )
+      ggplot(DB_table[1:literatureSliderScatter,], aes(`Enrichment Score %`, `-log10Pvalue`,text=paste("TERM_ID: ", Term_ID,"\n", "PUBLICATION: ", Publication, sep=""))) + geom_point(fill=new_color,color="black",position=position_jitter(h=0.005,w=0.005), alpha = 0.7, pch=21, size=3, stroke=0.3)+ labs(x = "ENRICHMENT SCORE %")+ labs(title = "PubMed" )
     })
     output$literatureScatter_table <- DT::renderDataTable(head(DB_table, literatureSliderScatter), server = FALSE,
                                                           extensions = 'Buttons',
@@ -1498,12 +1255,11 @@ handleLitearureScatterPlot <- function(literatureSliderScatter,  output, session
   }
 }
 
-# This function draws a barplot from multiple selected sources and the corresponding data table
-# @param aGoBarSelect2: multiple eligible datasource from available
-# @param aGoSliderBarplot: the user slider input
+# This function draws a literaturebarplot from multiple selected sources and the corresponding data table
+# @param literatureBarplotMode: multiple eligible datasource from available
+# @param literatureSliderBarplot: the user slider input
 # @return void
 handleLiteratureBarPlot2 <- function(literatureSliderBarplot, literatureBarplotMode, output, session){
-  
   if (nrow(all_literature)>0){
     session$sendCustomMessage("handler_startLoader", c(21,30))
     DB_table <-LiteratureResults
@@ -1522,12 +1278,6 @@ handleLiteratureBarPlot2 <- function(literatureSliderBarplot, literatureBarplotM
       
       DB_table <- DB_table[with(DB_table, order( Publication, decreasing = T )),]
       DB_table <- DB_table[with(DB_table, order(-`-log10Pvalue`)),]
-      
-      # output$literatureBarplot1 <- renderPlotly({
-      #  
-      #   ggplot(DB_table, aes(Term_ID, `-log10Pvalue`, text=paste("PUBLICATION: ", Publication,"\n", "ENRICHMENT SCORE %: ", `Enrichment Score %`, sep=""))) + geom_bar(stat='identity', fill= new_colors) + coord_flip()+ labs(y = "-LOG10PAVLUE ")+ labs(title = "PubMed" ) +
-      #     geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5) + scale_x_discrete(limits = DB_table$Term_ID[order(DB_table$`-log10Pvalue`)])
-      # })
       DB_table$Term_ID <- factor(DB_table$Term_ID, levels = unique(DB_table$Term_ID)[order(DB_table$ `-log10Pvalue`, decreasing = F)])
       output$literatureBarplot1 <- renderPlotly({
         plot_ly(x =  DB_table$`-log10Pvalue`, y = DB_table$Term_ID, 
@@ -1539,7 +1289,6 @@ handleLiteratureBarPlot2 <- function(literatureSliderBarplot, literatureBarplotM
                 hoverinfo = "text",
                 hovertext =paste("TERM ID: ",DB_table$Term_ID, "\n-LOG10PAVULE: ",DB_table$`-log10Pvalue`, "\nPUBLICATION: ", DB_table$Publication,"\n", "ENRICHMENT SCORE %: ", DB_table$`Enrichment Score %`, sep=""))%>% 
           layout(title = "PubMed",xaxis = list(title = "-LOG10PVALUE "), yaxis=list(title="TERM ID")) 
-        
       })
     }
     else if(literatureBarplotMode == "Enrichment Score") { # Enrichment Mode
@@ -1550,12 +1299,6 @@ handleLiteratureBarPlot2 <- function(literatureSliderBarplot, literatureBarplotM
       DB_table <- DB_table[with(DB_table, order(Publication, decreasing = T )),]
       DB_table <- DB_table[with(DB_table, order(-`Enrichment Score %`)),]
       output$literatureBarplot <- renderUI({plotlyOutput("literatureBarplot1", height = height_plots(literatureSliderBarplot, 18, 100))})
-      # output$literatureBarplot1 <- renderPlotly({
-      #  
-      #   ggplot(DB_table, aes(Term_ID, `Enrichment Score %`, text=paste("PUBLICATION: ", Publication,"\n", "-LOG_PVALUE: ", `-log10Pvalue`, sep=""))) + geom_bar(stat='identity', fill= new_colors)+coord_flip()+labs(y = "ENRICHMENT SCORE % ")+ labs(title = "PubMed" ) +
-      #     geom_text(aes(label=`Intersection Size`), vjust=+0.5, size=3.5)+ scale_x_discrete(limits = DB_table$Term_ID[order(DB_table$`Enrichment Score %`)]) +
-      #     scale_colour_manual(values = as.vector(new_colors))
-      # })
       DB_table$Term_ID <- factor(DB_table$Term_ID, levels = unique(DB_table$Term_ID)[order(DB_table$ `Enrichment Score %`, decreasing = F)])
       output$literatureBarplot1 <- renderPlotly({
         plot_ly(x =  DB_table$`Enrichment Score %`, y = DB_table$Term_ID, 
@@ -1635,23 +1378,18 @@ handleLiteratureHeatMap<- function(literatureSliderHeatmap, literatureHeatmapAxi
       
       
       hoverLabelsTable <- heatmapTable                # duplicate the initial input and change the rownames.
-      rownames(hoverLabelsTable) <- functions         # custom_hovertext parameter takes as an input a table with ta same dimensions... 
+      rownames(hoverLabelsTable) <- functions         # custom_hovertext parameter takes as an input a table with ta same dimensions. 
       hoverLabelsTable[] <- paste("PUBLICATION: ", rownames(hoverLabelsTable))
       hoverLabelsTable[] <- lapply(colnames(hoverLabelsTable), function(colname) {
         paste0(hoverLabelsTable[, colname], ", ", colname)
       })
-      
       session$sendCustomMessage("handler_startLoader", c(22,80))
-      
       if (literatureHeatmapAxis == "Genes-Publications") {
         heatmapTable <- t(heatmapTable)
         hoverLabelsTable <- t(hoverLabelsTable)
         genesNumber <- length(all_genes)
-        
-        
         output$literatureHeatmapPlot <- renderUI(plotlyOutput("drawliteratureHeatmapPlot", height = height_plots(genesNumber, 15, 500)))
         output$drawliteratureHeatmapPlot <- renderPlotly({
-          
           heatmaply(heatmapTable,custom_hovertext = hoverLabelsTable, 
                     xlab = "PUBLICATIONS",ylab = "GENES",main = "PubMed", fontsize_row = 10, fontsize_col = 10, 
                     grid_gap = 1,show_dendrogram = c(F, F), #margins = c(NA, NA, 60, NA),
@@ -1662,7 +1400,6 @@ handleLiteratureHeatMap<- function(literatureSliderHeatmap, literatureHeatmapAxi
       else {
         output$literatureHeatmapPlot <- renderUI(plotlyOutput("drawliteratureHeatmapPlot", height = height_plots(literatureSliderHeatmap, 15, 200)))
         output$drawliteratureHeatmapPlot <- renderPlotly({
-          
           heatmaply(heatmapTable, custom_hovertext = hoverLabelsTable, 
                     xlab = "GENES",ylab = "PUBLICATIONS",main = "PubMed", fontsize_row = 10,fontsize_col = 10,
                     show_dendrogram = c(F, F), grid_gap = 1, #margins = c(NA, NA, 60, NA),
@@ -1675,7 +1412,7 @@ handleLiteratureHeatMap<- function(literatureSliderHeatmap, literatureHeatmapAxi
     session$sendCustomMessage("handler_finishLoader", 22)
   }#end of first if
 }
-# This function draws a heatmap2 and the corresponding data table
+# This function draws a Literatureheatmap2 and the corresponding data table
 # @param literatureSliderHeatmap2: the user slider input
 # @param literatureHeatmapMode2: choose between two modes. the data are sorted in accordance to the chosen mode
 # @return void
@@ -1687,7 +1424,6 @@ handleLiteratureHeatMap2<- function(literatureSliderHeatmap2, literatureHeatmapM
     all_literature_table <-all_literature  #with links
     if (length(literatureHeatmap2$Publication) == 1) session$sendCustomMessage("handler_alert", "Cannot create a clustered heatmap if the results<2.")
     else{
-      
       if (literatureHeatmapMode2 == "Enrichment Score") {
         literatureHeatmap2 <- literatureHeatmap2[with(literatureHeatmap2,order(-`Enrichment Score %`)),]
         all_literature_table <- all_literature_table[with(all_literature_table,order(-`Enrichment Score %`)),]
@@ -1701,12 +1437,10 @@ handleLiteratureHeatMap2<- function(literatureSliderHeatmap2, literatureHeatmapM
       
       similarityColumnTable <- list()
       intersectGenesList <- list()
-      # for (i in 1:(length(literatureHeatmap2$Publication)-1)){
       for (i in 1:length(literatureHeatmap2$Publication)){
         row <- literatureHeatmap2$`Positive Hits`[i]
         row <- paste(row, collapse=",") 
         row <- strsplit(row, ",")
-        # for (j in (i+1):length(literatureHeatmap2$Publication)) {
         for (j in 1:length(literatureHeatmap2$Publication)) {
           col <- literatureHeatmap2$`Positive Hits`[j]
           col <- paste(col, collapse=",") 
@@ -1716,13 +1450,10 @@ handleLiteratureHeatMap2<- function(literatureSliderHeatmap2, literatureHeatmapM
           similarityScore=((length(intersect(col[[1]], row[[1]])))/ (length(unique(unionGenes))))*100
           similarityScore= round(similarityScore, digits = 2)
           heatmapTable[i,j] <- similarityScore
-          # heatmapTable[j,i] <- similarityScore
           similarityColumnTable[[length(similarityColumnTable) + 1]] <- similarityScore
           intersectGenesList[[length(intersectGenesList) + 1]] <- as.list(intersect(col[[1]], row[[1]]))
         }
       }
-      # heatmapTable[ row(heatmapTable) == col(heatmapTable) ] <- 100
-      
       combinedPublications <- expand.grid(as.list(literatureHeatmap2$Publication), as.list(literatureHeatmap2$Publication))
       combinedTermIdsLinks <- expand.grid(as.list(all_literature_table$Term_ID), as.list(all_literature_table$Term_ID))
       heatTable <- as.data.frame(cbind("Publication_A"=combinedPublications$Var1,"Term_ID_A"= combinedTermIdsLinks$Var1, 
@@ -1746,20 +1477,9 @@ handleLiteratureHeatMap2<- function(literatureSliderHeatmap2, literatureHeatmapM
       
       columnVis<- c(2,3,4,5,6,7)
       output$literatureHeatmap_table2 <- renderTableFunc(heatTable, "PubMed", 7, "Publication-Publication_heatmap", "Positive Hits", columnVis)
-      
-      # output$literatureHeatmap_table2 <- DT::renderDataTable(heatTable, server = FALSE,
-      #                                                        extensions = 'Buttons',
-      #                                                        options = list("dom" = 'T<"clear">lBfrtip',
-      #                                                                       buttons = list(list(extend='excel',filename='PublicationVsPublication_HeatMap_Table_PubMed'),
-      #                                                                                      list(extend= 'csv',filename='PublicationVsPublication_HeatMap_Table_PubMed'),
-      #                                                                                      list(extend='copy',filename='PublicationVsPublication_HeatMap_Table_PubMed'),
-      #                                                                                      list(extend='pdf',filename='PublicationVsPublication_HeatMap_Table_PubMed'),
-      #                                                                                      list(extend='print',filename='PublicationVsPublication_HeatMap_Table_PubMed'))
-      #                                                        ),rownames= FALSE, escape=F)
       output$literatureHeatmapPlot2 <- renderUI(plotlyOutput("drawliteratureHeatmapPlot2", height = height_plots(literatureSliderHeatmap2, 18, 500)))
       session$sendCustomMessage("handler_startLoader", c(23,80))
       output$drawliteratureHeatmapPlot2 <- renderPlotly({
-        
         heatmaply(heatmapTable,
                   xlab = "PUBLICATIONS",ylab = "PUBLICATIONS", main = "PubMed", fontsize_row = 10, fontsize_col = 10, grid_gap = 1,
                   show_dendrogram = c(F, F),  #margins = c(NA, NA, 70, NA),
@@ -1772,7 +1492,7 @@ handleLiteratureHeatMap2<- function(literatureSliderHeatmap2, literatureHeatmapM
   }
 }
 
-# This function draws a network and the corresponding data table
+# This function draws a literatureNetwork and the corresponding data table
 # @param literatureSliderNetwork: the user slider input
 # @param literatureNetworkMode: choose between two modes. the data are sorted in accordance to the chosen mode
 # @return void
@@ -1801,7 +1521,6 @@ handleLiteratureNetwork<- function(literatureSliderNetwork,literatureNetworkMode
     networkEdgelist <- matrix("", nrow = 0, ncol = 2) #3 
     for (i in 1:nrow(networkLiterature)){
       name <- networkLiterature$Term_ID[i]
-      #name <- paste(networkLiterature$Term_ID[i], networkLiterature$Publication[i], sep="_")
       lineGenes <- strsplit(as.character(networkLiterature$`Positive Hits`[i]), ",")[[1]]
       for (j in 1:length(lineGenes)) networkEdgelist <- rbind(networkEdgelist, c(name, lineGenes[j]))
     }
@@ -1819,7 +1538,6 @@ handleLiteratureNetwork<- function(literatureSliderNetwork,literatureNetworkMode
 # @param literatureSliderNetwork2: the user slider input
 # @param literatureSliderThreshold: cutoff range for edge values to show
 # @param literatureNetworkMode2: choose between two modes. the data are sorted in accordance to the chosen mode
-#
 # @return void
 handleLiteratureNetwork2 <- function(literatureSliderNetwork2, literatureNetworkMode2,  literatureSliderThreshold, output, session){
   if (nrow(all_literature)>0){
@@ -1828,10 +1546,8 @@ handleLiteratureNetwork2 <- function(literatureSliderNetwork2, literatureNetwork
     networkLiteratute2 <- LiteratureResults # without links
     all_literature_table <- all_literature # with links
     all_literature_table <- subset(all_literature_table, select=-c(`Positive Hits`)) #remove the Genes column from the table
-    
     if (length(networkLiteratute2$Publication) == 1) session$sendCustomMessage("handler_alert", paste(aGoNetworkSelect2," Cannot create a Publication Vs Publication network if the results=1.", sep=":"))
     else{
-      
       if (literatureNetworkMode2 == "Enrichment Score") {
         networkLiteratute2 <- networkLiteratute2[with(networkLiteratute2,order(-`Enrichment Score %`)),]
         all_literature_table <- all_literature_table[with(all_literature_table,order(-`Enrichment Score %`)),]
@@ -1861,12 +1577,11 @@ handleLiteratureNetwork2 <- function(literatureSliderNetwork2, literatureNetwork
       }
       #network input-networkEdgelist
       names<-networkLiteratute2$Term_ID
-      #names <- paste(networkLiteratute2$Term_ID, networkLiteratute2$Publication, sep="_")
       names <- expand.grid(as.list(names), as.list(names))
       networkEdgelist <- as.matrix(cbind(as.character(names$Var1), as.character(names$Var2), as.character(similarityColumnTable)))
-      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0, ]
-      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= literatureSliderThreshold, ]
-      if (identical(networkEdgelist[,1], networkEdgelist[,2])== TRUE) session$sendCustomMessage("handler_alert", "PubMed: Cannot create a Publication Vs Publication network. No common genes found")
+      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ]
+      networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= literatureSliderThreshold,, drop = F ]
+      if (identical(networkEdgelist[,1], networkEdgelist[,2])== TRUE) session$sendCustomMessage("handler_alert", "PubMed: Cannot create a Publication Vs Publication network. No common genes found. Try with lower cut-off threshold or select more results to view.")
       else{
         session$sendCustomMessage("handler_startLoader", c(25,80))
         construct_visNetworkLit2(networkEdgelist, new_color)
@@ -1876,20 +1591,6 @@ handleLiteratureNetwork2 <- function(literatureSliderNetwork2, literatureNetwork
         netTable <- as.data.frame(cbind("Publication_A"=combinedPublications$Var1, "Term_ID_A"=combinedTermIdsLinks$Var1,
                                         "Publication_B"=combinedPublications$Var2,"Term_ID_B"=combinedTermIdsLinks$Var2,
                                         "Similarity Score %"= similarityColumnTable, "Intersection"= intersectGenesList))
-        # netTable <- netTable[netTable$`Similarity Score %` >= literatureSliderThreshold, ]
-        # 
-        # for (i in nrow(netTable):1){ # remove self rows from table
-        #   if (identical(netTable$Publication_A[i], netTable$Publication_B[i])) netTable <- netTable[-i, ]
-        # }
-        # 
-        # for (i in nrow(netTable):2){ # remove inverse repetitions from table
-        #   for (j in (i-1):1){
-        #     if (identical(netTable$Publication_A[i], netTable$Publication_B[j]) && identical(netTable$Publication_A[j], netTable$Publication_B[i])) {
-        #       netTable <- netTable[-i, ]
-        #       break
-        #     }
-        #   }
-        # }
         
         netTable$Publication_A <- as.character(unlist(netTable$Publication_A))
         netTable$Publication_B <- as.character(unlist(netTable$Publication_B))
@@ -1897,28 +1598,20 @@ handleLiteratureNetwork2 <- function(literatureSliderNetwork2, literatureNetwork
         
         # remove self rows from table
         for (i in nrow(netTable):1){
-          if (identical(netTable$Publication_A[i], netTable$Publication_B[i])) netTable <- netTable[-i, ]
+          if (identical(netTable$Publication_A[i], netTable$Publication_B[i])) netTable <- netTable[-i,, drop = F ]
         }
         # removing zero entries
-        netTable <- netTable[netTable$`Similarity Score %` > 0, ] 
+        netTable <- netTable[netTable$`Similarity Score %` > 0,, drop = F ] 
         
         # removing reverse edges
-        netTable <- netTable[!duplicated(apply(netTable[, c("Publication_A", "Publication_B" )],1,function(x) paste(sort(x), collapse='_'))),]
+        netTable <- netTable[!duplicated(apply(netTable[, c("Publication_A", "Publication_B" )],1,function(x) paste(sort(x), collapse='_'))),, drop = F]
         netTable <- netTable[with(netTable,order(-`Similarity Score %`)),]
         
-        netTable <- netTable[netTable$`Similarity Score %` >= literatureSliderThreshold, ]
+        netTable <- netTable[netTable$`Similarity Score %` >= literatureSliderThreshold,, drop = F ]
         columnVis<- c(2,3,4,5,6,7)
-        # output$literatureNetwork_table2 <- DT::renderDataTable(netTable, server = FALSE,
-        #                                                        extensions = 'Buttons',
-        #                                                        options = list("dom" = 'T<"clear">lBfrtip',
-        #                                                                       buttons = list(list(extend='excel',filename='PublicationVsPublication_Network_Table_PubMed'),
-        #                                                                                      list(extend= 'csv',filename='PublicationVsPublication_Network_Table_PubMed'),
-        #                                                                                      list(extend='copy',filename='PublicationVsPublication_Network_Table_PubMed'),
-        #                                                                                      list(extend='pdf',filename='PublicationVsPublication_Network_Table_PubMed'),
-        #                                                                                      list(extend='print',filename='PublicationVsPublication_Network_Table_PubMed'))
-        #                                                        ),rownames= FALSE, escape=F)
+        if(nrow(netTable)>0){
         output$literatureNetwork_table2 <- renderTableFunc(netTable, "PubMed", 7, "function-function_network", "Positive Hits",columnVis)
-        
+        }
       }
     }
     session$sendCustomMessage("handler_startLoader", c(25,100))
@@ -1935,26 +1628,27 @@ handleLiteratureNetworkSlider3 <- function(literatureSliderNetwork3, session){
                       max = literatureSliderNetwork3, value = 0, step = 1)
   }
 }
+
 # This function draws a network3 and the corresponding data table
 # @param literatureSliderNetwork3: the user slider input
 # @param literatureSliderThreshold3: cutoff range for edge values to show
 # @param literatureNetworkMode3: choose between two modes. the data are sorted in accordance to the chosen mode
 # @return void
 handleLiteratureNetwork3<- function(literatureSliderNetwork3, literatureNetworkMode3,  literatureSliderThreshold3, output, session){
-    if (nrow(all_literature)>0){
-      session$sendCustomMessage("handler_startLoader", c(28,30))
-     literatureplotInput<- LiteratureResults
-     new_color <- "#c95591"
+  if (nrow(all_literature)>0){
+    session$sendCustomMessage("handler_startLoader", c(28,30))
+    literatureplotInput<- LiteratureResults
+    new_color <- "#c95591"
     if (literatureNetworkMode3 == "Enrichment Score") {
       literatureplotInput <- literatureplotInput[with(literatureplotInput,order(-`Enrichment Score %`)),]
     }
-     session$sendCustomMessage("handler_startLoader", c(28,40))
+    session$sendCustomMessage("handler_startLoader", c(28,40))
     literatureplotInput <- head(literatureplotInput, literatureSliderNetwork3)
     col <- literatureplotInput$`Positive Hits`
     col <- paste(col, collapse=",")
     col <- strsplit(col, ",")
     genes<-unique(unlist(col))
-
+    
     similarityColumn<-list()
     intersectPublications <- list()
     totalPublications<- list()
@@ -1968,68 +1662,39 @@ handleLiteratureNetwork3<- function(literatureSliderNetwork3, literatureNetworkM
       }
     }
     combinedGenes <- expand.grid(as.list(genes), as.list(genes))
-
+    
     #network input-networkEdgelist
     networkEdgelist <- as.matrix(cbind(as.character(combinedGenes$Var1), as.character(combinedGenes$Var2), as.character(similarityColumn)))
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0, ]
-    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= literatureSliderThreshold3, ]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ]
+    networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= literatureSliderThreshold3,, drop = F ]
     session$sendCustomMessage("handler_startLoader", c(28,80))
     construct_visNetworkLiterature3(networkEdgelist, new_color)
-
+    
     #table-netTable
-
+    
     netTable <- as.data.frame(cbind("Gene_A"= combinedGenes$Var1, "Gene_B"=combinedGenes$Var2, "Common_Publications"= similarityColumn, "Total_Publications"= rep(literatureSliderNetwork3, length(combinedGenes$Var1)), "Publications"= intersectPublications))
     netTable$Gene_A <- as.character(unlist(netTable$Gene_A))
     netTable$Gene_B <- as.character(unlist(netTable$Gene_B))
     netTable$Common_Publications <- as.numeric(as.character(netTable$Common_Publications))
-
+    
     # remove self rows from table
     for (i in nrow(netTable):1){
-      if (identical(netTable$Gene_A[i], netTable$Gene_B[i])) netTable <- netTable[-i, ]
+      if (identical(netTable$Gene_A[i], netTable$Gene_B[i])) netTable <- netTable[-i,, drop = F ]
     }
     # removing zero entries
-    netTable <- netTable[netTable$Common_Publications > 0, ]
+    netTable <- netTable[netTable$Common_Publications > 0,, drop = F ]
     # removing reverse edges
-    netTable <- netTable[!duplicated(apply(netTable[, c("Gene_A", "Gene_B" )],1,function(x) paste(sort(x), collapse='_'))),]
+    netTable <- netTable[!duplicated(apply(netTable[, c("Gene_A", "Gene_B" )],1,function(x) paste(sort(x), collapse='_'))),, drop = F]
     netTable <- netTable[with(netTable,order(-Common_Publications)),]
-    netTable <- netTable[netTable$Common_Publications >= literatureSliderThreshold3, ]
+    netTable <- netTable[netTable$Common_Publications >= literatureSliderThreshold3,, drop = F ]
     columnVis<- c(2,3,4,5,6)
+    if(nrow(netTable)>0){
     output$literatureNetwork_table3 <- renderTableFunc(netTable, "PubMed", 6, "gene-gene_network", "Publications",columnVis)
-    
-#     output$literatureNetwork_table3 <- DT::renderDataTable(  cbind(' ' = '&oplus;', netTable), escape = F,
-#                                                       extensions =  c('Responsive', 'Buttons'),
-#                                                       options = list("dom" = 'T<"clear">lBfrtip',
-#                                                                      buttons = list(list(extend='excel',filename="PubMed_Network"),
-#                                                                                     list(extend= 'csv',filename="PubMed_Network"),
-#                                                                                     list(extend='copy',filename="PubMed_Network"),
-#                                                                                     list(extend='pdf',filename="PubMed_Network"),
-#                                                                                     list(extend='print',filename="PubMed_Network")),
-#                                                                      columnDefs = list(
-#                                                                        list(visible = FALSE, targets = c(0,6)),
-#                                                                        list(orderable = FALSE, className = 'details-control', targets = 1)
-#                                                                      )
-#                                                       ),
-#                                                       callback = JS("
-#                                                     table.column(1).nodes().to$().css({cursor: 'pointer'});
-#                                                     var format = function(d) {
-#                                                       return '<div style=\"background-color:#eee; padding: .5em;\"> <b>Publications:</b> ' +
-#                                                               d[6] + '</div>';
-#                                                     };
-#                                                     table.on('click', 'td.details-control', function() {
-#                                                       var td = $(this), row = table.row(td.closest('tr'));
-#                                                       if (row.child.isShown()) {
-#                                                         row.child.hide();
-#                                                         td.html('&oplus;');
-#                                                       } else {
-#                                                         row.child(format(row.data())).show();
-#                                                         td.html('&CircleMinus;');
-#                                                       }
-#                                                     });"
-#                                                     ))
+    }
     session$sendCustomMessage("handler_startLoader", c(28,100))
-     session$sendCustomMessage("handler_finishLoader", 28) 
-   }
- }
+    session$sendCustomMessage("handler_finishLoader", 28) 
+  }
+}
 
 # Sub Routines ####
 
@@ -2041,13 +1706,14 @@ height_plots <-function(num_entries, number, standard){
   return(height)
 }
 
-# This function constructs and draws a network out of heatmaps adjacency matrix
+# This function constructs and draws a network out of  adjacency matrix
 # @param edgelist, 2 column matrix with source -> target, function -> gene
 # @param color, based on current database source, respective manhattan color
 construct_visNetwork <- function(edgelist, color){
   set.seed(123)
   tryCatch({
-    graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
+    graph <- createGraph(as.matrix(edgelist))
+    if(!identical(graph, NULL)){
     data <- toVisNetworkData(graph)
     nodes <- data$nodes
     nodes <- cbind(nodes, font.size=24)
@@ -2055,7 +1721,6 @@ construct_visNetwork <- function(edgelist, color){
     nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
     edges <- data$edges
     output$network <- renderVisNetwork({
-      
       visNetwork(nodes = nodes, edges = edges) %>%
         visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
         visGroups(groupname = "2", color = color, shape = "diamond") %>%
@@ -2063,8 +1728,7 @@ construct_visNetwork <- function(edgelist, color){
         visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
         visInteraction(navigationButtons = TRUE, hover = TRUE)
     })
-    
-    
+    } else  session$sendCustomMessage("handler_alert", paste("Can't create network."))
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
@@ -2073,21 +1737,21 @@ construct_visNetwork <- function(edgelist, color){
   }, finally = {})
 }
 
-# This function constructs and draws a network out of heatmaps adjacency matrix
+# This function constructs and draws a aGonetwork out of adjacency matrix
 # @param edgelist, 2 column matrix with source -> target, function -> gene
-# @param color, based on current database source, respective manhattan color
+# @param color, based on current database source
 construct_visNetworkaGo <- function(edgelist, color){
   set.seed(123)
   tryCatch({
-    graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
+    graph <- createGraph(as.matrix(edgelist)) 
+    if(!identical(graph, NULL)){
     data <- toVisNetworkData(graph)
     nodes <- data$nodes
     nodes <- cbind(nodes, font.size=24)
     nodes <- cbind(nodes, group=1)
-    nodes$group[grepl("_", nodes$id, fixed = T)] <- 2  #uniprot and pfam exoun allo sep symbol oxi :
+    nodes$group[grepl("_", nodes$id, fixed = T)] <- 2  
     edges <- data$edges
     output$aGoNetwork <- renderVisNetwork({
-      
       visNetwork(nodes = nodes, edges = edges) %>%
         visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
         visGroups(groupname = "2", color = color, shape = "diamond") %>%
@@ -2095,8 +1759,7 @@ construct_visNetworkaGo <- function(edgelist, color){
         visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
         visInteraction(navigationButtons = TRUE, hover = TRUE)
     })
-    
-    
+  } else  session$sendCustomMessage("handler_alert", paste("Can't create network."))
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
@@ -2105,21 +1768,21 @@ construct_visNetworkaGo <- function(edgelist, color){
   }, finally = {})
 }
 
-# This function constructs and draws a network out of heatmaps adjacency matrix
+# This function constructs and draws a LiteraureNetwork out of  adjacency matrix
 # @param edgelist, 2 column matrix with source -> target, function -> gene
-# @param color, based on current database source, respective manhattan color
+# @param color, based on current database source, 
 construct_visNetworkLit <- function(edgelist, color){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
+    if(!identical(graph, NULL)){
     data <- toVisNetworkData(graph)
     nodes <- data$nodes
     nodes <- cbind(nodes, font.size=24)
     nodes <- cbind(nodes, group=1)
-    nodes$group[grepl("PMID:", nodes$id, fixed = T)] <- 2  #PubMed sep= :
+    nodes$group[grepl("PMID:", nodes$id, fixed = T)] <- 2  #PubMed sep= PMID:
     edges <- data$edges
     output$literatureNetwork <- renderVisNetwork({
-      
       visNetwork(nodes = nodes, edges = edges) %>%
         visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
         visGroups(groupname = "2", color = color, shape = "diamond") %>%
@@ -2127,8 +1790,7 @@ construct_visNetworkLit <- function(edgelist, color){
         visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
         visInteraction(navigationButtons = TRUE, hover = TRUE)
     })
-    
-    
+    } else  session$sendCustomMessage("handler_alert", paste("Can't create network."))
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
@@ -2137,11 +1799,14 @@ construct_visNetworkLit <- function(edgelist, color){
   }, finally = {})
 }
 
-
+# This function constructs and draws a LiteraureNetwork out of  adjacency matrix
+# @param edgelist, 2 column matrix with source -> target, function -> gene
+# @param color, based on current database source,
 construct_visNetwork2 <- function(edgelist, color){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
+    if(!identical(graph, NULL)){
     data <- toVisNetworkData(graph)
     nodes <- data$nodes
     nodes <- cbind(nodes, font.size=24)
@@ -2152,7 +1817,6 @@ construct_visNetwork2 <- function(edgelist, color){
     edges$weight <- mapper(edges$weight, 0.5, 5)
     colnames(edges)[3] <- "width" # required to work
     output$network2 <- renderVisNetwork({
-      
       visNetwork(nodes = nodes, edges = edges) %>%
         visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
         visGroups(groupname = "2", color = color, shape = "diamond") %>%
@@ -2160,12 +1824,12 @@ construct_visNetwork2 <- function(edgelist, color){
         visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
         visInteraction(navigationButtons = TRUE, hover = TRUE)
     })
-    
+    } else  session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))  
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
     print(paste("Error :  ", e))
-    session$sendCustomMessage("handler_alert", paste("Can't create network."))
+    session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, finally = {})
 }
 
@@ -2173,6 +1837,7 @@ construct_visNetworkaGo2 <- function(edgelist, color){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
+    if(!identical(graph, NULL)){
     data <- toVisNetworkData(graph)
     nodes <- data$nodes
     nodes <- cbind(nodes, font.size=24)
@@ -2183,7 +1848,7 @@ construct_visNetworkaGo2 <- function(edgelist, color){
     edges$weight <- mapper(edges$weight, 0.5, 5)
     colnames(edges)[3] <- "width" # required to work
     output$aGoNetwork2 <- renderVisNetwork({
-    
+      
       visNetwork(nodes = nodes, edges = edges) %>%
         visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
         visGroups(groupname = "2", color = color, shape = "diamond") %>%
@@ -2191,12 +1856,12 @@ construct_visNetworkaGo2 <- function(edgelist, color){
         visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
         visInteraction(navigationButtons = TRUE, hover = TRUE)
     })
-    
+  } else  session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))   
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
     print(paste("Error :  ", e))
-    session$sendCustomMessage("handler_alert", paste("Can't create network."))
+    session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, finally = {})
 }
 
@@ -2204,6 +1869,7 @@ construct_visNetworkLit2 <- function(edgelist, color){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
+    if(!identical(graph, NULL)){
     data <- toVisNetworkData(graph)
     nodes <- data$nodes
     nodes <- cbind(nodes, font.size=24)
@@ -2222,43 +1888,44 @@ construct_visNetworkLit2 <- function(edgelist, color){
         visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
         visInteraction(navigationButtons = TRUE, hover = TRUE)
     })
-    
+    } else  session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))  
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
     print(paste("Error :  ", e))
-    session$sendCustomMessage("handler_alert", paste("Can't create network."))
+    session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, finally = {})
 }
 construct_visNetwork3 <- function(edgelist, color, fonts){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
-    data <- toVisNetworkData(graph)
-    nodes <- data$nodes
-    nodes <- cbind(nodes, font.size=24)
-    nodes <- cbind(nodes, group=1)
-    #nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
-    edges <- data$edges
-    edges$label <- edges$weight
-    edges$weight <- mapper(edges$weight, 0.5, 5)
-    colnames(edges)[3] <- "width" # required to work
-    output$network3 <- renderVisNetwork({
-      
-      visNetwork(nodes = nodes, edges = edges) %>%
-        #visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
-        visGroups(groupname = "1", color = color, shape = "circle") %>%
-        visEdges(color = "black") %>%
-        visNodes(font = list(color = fonts ))%>%
-        visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
-        visInteraction(navigationButtons = TRUE, hover = TRUE)
-    })
-    
+    if(!identical(graph, NULL)){
+      data <- toVisNetworkData(graph)
+      nodes <- data$nodes
+      nodes <- cbind(nodes, font.size=24)
+      nodes <- cbind(nodes, group=1)
+      #nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
+      edges <- data$edges
+      edges$label <- edges$weight
+      edges$weight <- mapper(edges$weight, 0.5, 5)
+      colnames(edges)[3] <- "width" # required to work
+      output$network3 <- renderVisNetwork({
+        
+        visNetwork(nodes = nodes, edges = edges) %>%
+          #visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
+          visGroups(groupname = "1", color = color, shape = "circle") %>%
+          visEdges(color = "black") %>%
+          visNodes(font = list(color = fonts ))%>%
+          visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
+          visInteraction(navigationButtons = TRUE, hover = TRUE)
+      })
+    } else     session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
     print(paste("Error :  ", e))
-    session$sendCustomMessage("handler_alert", paste("Can't create network."))
+    session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, finally = {})
 }
 
@@ -2266,32 +1933,33 @@ construct_visNetworkaGo3 <- function(edgelist, color, fonts){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
-    data <- toVisNetworkData(graph)
-    nodes <- data$nodes
-    nodes <- cbind(nodes, font.size=24)
-    nodes <- cbind(nodes, group=1)
-    #nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
-    
-    edges <- data$edges
-    edges$label <- edges$weight
-    edges$weight <- mapper(edges$weight, 0.5, 5)
-    colnames(edges)[3] <- "width" # required to work
-    output$aGoNetwork3 <- renderVisNetwork({
+    if(!identical(graph, NULL)){
+      data <- toVisNetworkData(graph)
+      nodes <- data$nodes
+      nodes <- cbind(nodes, font.size=24)
+      nodes <- cbind(nodes, group=1)
+      #nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
       
-      visNetwork(nodes = nodes, edges = edges) %>%
-        #visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
-        visGroups(groupname = "1", color = color, shape = "circle") %>%
-        visEdges(color = "black") %>%
-        visNodes(font = list(color = fonts ))%>%
-        visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
-        visInteraction(navigationButtons = TRUE, hover = TRUE)
-    })
-    
+      edges <- data$edges
+      edges$label <- edges$weight
+      edges$weight <- mapper(edges$weight, 0.5, 5)
+      colnames(edges)[3] <- "width" # required to work
+      output$aGoNetwork3 <- renderVisNetwork({
+        
+        visNetwork(nodes = nodes, edges = edges) %>%
+          #visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
+          visGroups(groupname = "1", color = color, shape = "circle") %>%
+          visEdges(color = "black") %>%
+          visNodes(font = list(color = fonts ))%>%
+          visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
+          visInteraction(navigationButtons = TRUE, hover = TRUE)
+      })
+    } else  session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
     print(paste("Error :  ", e))
-    session$sendCustomMessage("handler_alert", paste("Can't create network."))
+    session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, finally = {})
 }
 
@@ -2300,41 +1968,45 @@ construct_visNetworkLiterature3 <- function(edgelist, color){
   set.seed(123)
   tryCatch({
     graph <- createGraph(as.matrix(edgelist)) # as.matrix() ?
-    data <- toVisNetworkData(graph)
-    nodes <- data$nodes
-    nodes <- cbind(nodes, font.size=24)
-    nodes <- cbind(nodes, group=1)
-    #nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
-    edges <- data$edges
-    edges$label <- edges$weight
-    edges$weight <- mapper(edges$weight, 0.5, 5)
-    colnames(edges)[3] <- "width" # required to work
-    output$literatureNetwork3 <- renderVisNetwork({
-      visNetwork(nodes = nodes, edges = edges) %>%
-        #visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
-        visGroups(groupname = "1", color = color, shape = "circle") %>%
-        visEdges(color = "black") %>%
-        visNodes(font = list(color = "#ffffff" ))%>%
-        visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
-        visInteraction(navigationButtons = TRUE, hover = TRUE)
-    })
-    
+    if(!identical(graph, NULL)){
+      data <- toVisNetworkData(graph)
+      nodes <- data$nodes
+      nodes <- cbind(nodes, font.size=24)
+      nodes <- cbind(nodes, group=1)
+      #nodes$group[grepl(":", nodes$id, fixed = T)] <- 2
+      edges <- data$edges
+      edges$label <- edges$weight
+      edges$weight <- mapper(edges$weight, 0.5, 5)
+      colnames(edges)[3] <- "width" # required to work
+      output$literatureNetwork3 <- renderVisNetwork({
+        visNetwork(nodes = nodes, edges = edges) %>%
+          #visGroups(groupname = "1", color = "lightgrey", shape = "circle") %>%
+          visGroups(groupname = "1", color = color, shape = "circle") %>%
+          visEdges(color = "black") %>%
+          visNodes(font = list(color = "#ffffff" ))%>%
+          visIgraphLayout(layout = "layout_nicely") %>% # layout_in_circle # layout_with_fr # layout_with_kk
+          visInteraction(navigationButtons = TRUE, hover = TRUE)
+      })
+    } else  session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, warning = function(w) {
     print(paste("Warning:  ", w))
   }, error = function(e) {
     print(paste("Error :  ", e))
-    session$sendCustomMessage("handler_alert", paste("Can't create network."))
+    session$sendCustomMessage("handler_alert", paste("Can't create network. Try with lower cut-off threshold or select more results to view."))
   }, finally = {})
 }
 
 createGraph <- function(edgelist) {
-  graph <- graph_from_edgelist(edgelist[, 1:2], directed = FALSE)
-  if (ncol(edgelist) == 3) E(graph)$weight <- as.double(edgelist[, 3])
-  else E(graph)$weight <- rep(1, nrow(edgelist))
-  # remove loops and multiple edges, simplify sum aggregates same edges
-  graph <- simplify(graph, remove.multiple = TRUE, remove.loops = TRUE, edge.attr.comb = list(weight = "max"))
-  graph <- delete.vertices(graph, degree(graph)==0) # deleting isolate nodes
-  return(graph)
+  if(nrow(edgelist)>1){
+    graph <- graph_from_edgelist(edgelist[, 1:2], directed = FALSE)
+    if (ncol(edgelist) == 3) E(graph)$weight <- as.double(edgelist[, 3])
+    else E(graph)$weight <- rep(1, nrow(edgelist))
+    # remove loops and multiple edges, simplify sum aggregates same edges
+    graph <- simplify(graph, remove.multiple = TRUE, remove.loops = TRUE, edge.attr.comb = list(weight = "max"))
+    graph <- delete.vertices(graph, degree(graph)==0) # deleting isolate nodes
+    return(graph)
+  }
+  else return(NULL)
 }
 
 # This function translates an array of values into another number range in [min, max]
@@ -2356,6 +2028,7 @@ mapper <- function(inArr, min, max){
 
 
 renderTableFunc <- function(input_table, networkSelect, col, suffix, mode, columnsVis){
+   if(nrow(input_table)>0){
   DT::renderDataTable(  cbind(' ' = '&oplus;', input_table), escape = F, 
                         extensions =  c( 'Buttons'),
                         options = list("dom" = 'T<"clear">lBfrtip',
@@ -2386,5 +2059,5 @@ renderTableFunc <- function(input_table, networkSelect, col, suffix, mode, colum
                                               }
                                             });", sep="")
                         ))
+  }
 }
-  
