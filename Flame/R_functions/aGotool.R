@@ -11,10 +11,13 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
       session$sendCustomMessage("handler_disableSourcesTabsaGoTool", T) # disable all datasources tab panels
       session$sendCustomMessage("handler_startLoader", c(12,10))
       
+      ###
+      input_genes <- genesForaGotool
       gProfOrganism <- organismsFromFile[organismsFromFile$print_name == aGOtoolOrganism,]$gprofiler_ID #organism as gprofiler input
       genesForaGotool <- gconvert(unlist(genesForaGotool), organism = gProfOrganism, target = "ENSP") #gene convert to ENS ID using gProfOrganism format
+      genesForaGotool <- genesForaGotool[genesForaGotool$name!="nan",]
+      genesForaGotool <- genesForaGotool[c("input", "name", "target")]
       taxid <- organismsFromFile[organismsFromFile$print_name == aGOtoolOrganism, ]$Taxonomy_ID
-      
       aGOtoolDatasources <- unlist(aGOtoolDatasources) 
       limit_2_entity_type <- paste(unlist(aGOtoolDatasources), sep = ";", collapse = ";")
       
@@ -52,7 +55,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
       response <- gsub("UniProt keywords", "UniProt", response)
       result_df <- read.csv(text = response, sep="\t", stringsAsFactors = FALSE)
       session$sendCustomMessage("handler_startLoader", c(12,30))
-      
       if(!is.null(result_df) & nrow(result_df)>0)
       {
         aGotoolResults <<- data.frame()
@@ -80,7 +82,23 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
         aGotoolResults$`-log10Pvalue` <<- as.numeric(as.character(aGotoolResults$`-log10Pvalue`))
         aGotoolResults$`-log10FDR` <<- as.numeric(as.character(aGotoolResults$`-log10FDR`))
         aGotoolResults$`Positive Hits` <<- as.character(aGotoolResults$`Positive Hits`)
+        ###
+        positiveGenes <- strsplit(gsub(sprintf("%s.",taxid),"", aGotoolResults[["Positive Hits"]]), ";")
+        positiveGenes <- paste(unlist(positiveGenes), collapse=",")
+        positiveGenes <- strsplit(positiveGenes, ",")
+        positiveGenes <- unique(unlist(positiveGenes))
         
+        truefalse <- genesForaGotool$target %in% positiveGenes 
+        mergedGenes <- cbind(genesForaGotool, truefalse)
+        true <- mergedGenes [grepl("TRUE", mergedGenes$truefalse),]
+        trueGenes <- true$input
+        false <- mergedGenes [grepl("FALSE", mergedGenes$truefalse),]
+        falseGenes<- false$input
+        list.a <- as.list(trueGenes)
+        list.b <- as.list(falseGenes)
+        list.c <- as.list(as.character(input_genes[[1]]))
+        list.d <- as.list(genesForaGotool$input)
+        nonCommonGenes <- c(setdiff(list.c, list.d), setdiff(list.b, list.a)) # genes in input and not in output 
         clearaGoTables(output) # resetting any previous tables before updating
         sourceParameters<-c()
         for (i in 1:length(aGOtoolDatasources))
@@ -91,25 +109,77 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
           else {sourceParameters[i] <- "Disease Ontology"}
         }
         param_aGotool <- "" # String variable for execution parameters to be printed
-        param_aGotool <- paste("File: ", aGOtoolSelect, "\nOrganism: ", aGOtoolOrganism, "\nSignificance threshold :", aGoCorrectionMethod, "\nP-Value cut-off: ", aGOtoolPvalue,"\nTerm_ID output: ", gconvertTargetGotool, "\nDatabases: " , sep ="")
+        param_aGotool <- paste("File: ", aGOtoolSelect, "\nOrganism: ", aGOtoolOrganism, "\nSignificance threshold: ", aGoCorrectionMethod, "\nP-Value cut-off: ", aGOtoolPvalue,"\nTerm_ID output: ", gconvertTargetGotool, "\nDatabases: " , sep ="")
         param_aGotool <- paste(param_aGotool, paste(sourceParameters, collapse=', ' ), "\n", sep="")
-        output$aGoParameters <- renderText(param_aGotool)
         
+        
+        output$aGo_Parameters <- renderUI(
+          box(
+            title = "Parameters ", 
+            width = NULL,
+            status = "primary", 
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            verbatimTextOutput("aGoParameters")
+          )
+        )
+        output$aGoParameters <- renderText(param_aGotool)
+        nonCommonGenes <- unlist(nonCommonGenes)
+        geneNumber1 <- length(nonCommonGenes)
+        output$nothitaGo <- renderUI(
+          box(
+            title = paste ("Unidentified Elements ", "(", as.character(geneNumber1), ")", sep=""),  
+            width = NULL,
+            status = "primary", 
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            verbatimTextOutput("nonCommonaGo")
+          )
+        )
+        output$nonCommonaGo <- renderText(nonCommonGenes)
         sources_list <- c("-51", "-55", "-54", "-26")
         all_aGotool <<- data.frame()
         session$sendCustomMessage("handler_startLoader", c(12,60))
-        convertedGenesOutput <- gconvert(unlist(genesForaGotool$target), organism = gProfOrganism, target = gconvertTargetGotool)
-        for (i in 1:nrow(aGotoolResults)){
-          genesOutput<-c()
-          initialSplitGenes <- strsplit(gsub(sprintf("%s.",taxid),"", aGotoolResults[["Positive Hits"]][i]), ";")[[1]]
-          for (j in 1:length(initialSplitGenes)){
-            inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
-            genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
+        # START name conversion ####
+        # convert the names of the output genes in accordance with the user's preference  output type
+        output$notconvertaGo <- renderUI("") # resetting UI box for unconverted genes (for after switching to USERINPUT)
+        if (gconvertTargetGotool != "USERINPUT"){
+          convertedGenesOutput <- gconvert(unlist(genesForaGotool$target), organism = gProfOrganism, target = gconvertTargetGotool)
+          notConverted <- convertedGenesOutput[grepl("nan", convertedGenesOutput$target),]
+          notConverted <- notConverted$input
+          notConverted <- as.character(unlist(notConverted))
+          geneNumber2 <- length(notConverted)
+          output$notconvertaGo <- renderUI(
+            box(
+              title = paste("Unconverted Proteins " , "(", geneNumber2, ")", sep=""),  
+              width = NULL,
+              status = "primary", 
+              solidHeader = TRUE,
+              collapsible = TRUE,
+              verbatimTextOutput("notConvertedaGo")
+            )
+          )
+          output$notConvertedaGo <- renderText(notConverted)
+          
+          for (i in 1:nrow(aGotoolResults)){
+            genesOutput<-c()
+            initialSplitGenes <- strsplit(gsub(sprintf("%s.",taxid),"", aGotoolResults[["Positive Hits"]][i]), ";")[[1]]
+            for (j in 1:length(initialSplitGenes)){
+              inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
+              genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
+              if (genesOutput[j] == "nan") genesOutput[j] <- inputGenes$input[1]
+            }
+            aGotoolResults[["Positive Hits"]][i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
           }
-          aGotoolResults[["Positive Hits"]][i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
+        } else  {
+          initialSplitGenes <- strsplit(gsub(sprintf("%s.",taxid),"", aGotoolResults[["Positive Hits"]]), ";")
+          for (i in 1:length(initialSplitGenes)){
+            aGotoolResults[["Positive Hits"]][i] <<- paste(initialSplitGenes[[i]], collapse = ", ")
+          }
         }
-        
+        # END name conversion ####
         aGotoolResults <<- aGotoolResults[with(aGotoolResults,order(-`-log10Pvalue`)),]
+        
         session$sendCustomMessage("handler_startLoader", c(12,70))
         if (aGoCorrectionMethod == "P-value"){
           aGotoolResults <<- subset(aGotoolResults, select=-c(`-log10FDR`, FDR)) #remove the FDR and logFDR columns from the table
@@ -120,7 +190,6 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
           colnames(aGotoolResults)[5] <<- "-log10Pvalue"
           aGotoolResults <<- aGotoolResults[with(aGotoolResults,order(-`-log10Pvalue`)),]
         }
-        
         for (i in 1:length(aGOtoolDatasources)){
           session$sendCustomMessage("handler_enableSourceTabaGoTool", match(aGOtoolDatasources[i], sources_list)) # enable current datasource tab panel
           if (aGOtoolDatasources[i] == "-51"){

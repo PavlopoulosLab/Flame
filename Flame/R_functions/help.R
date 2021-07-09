@@ -224,6 +224,7 @@ gprofOutput <- HTML(' <p style = "text-align:justify">The results are displayed 
                                  </ul>
                                  </p>
                                  <div class="col-md-12">
+                                 <img src = "help_images/paramGprof.png" style="border: 1px solid black">
                                 <img src = "help_images/gprofOutput.png" style="border: 1px solid black">
                                 <br>
                               </div>
@@ -352,9 +353,16 @@ aGoOutput <- HTML(' <p style = "text-align:justify">The results are displayed in
                                        <li><b>Positive Hits: </b>a comma separated list of genes from the query that are annotated to the corresponding term</li> 
                                  </ul>
                                  </p>
+                                  <p>
+                                 
+                                  <br>
+                                <img src = "help_images/paramaGo.png" style="border: 1px solid black">
+                                </p>
+                                <br>
                                  <p>
                                 <img src = "help_images/aGoOutput.png" style="border: 1px solid black">
                                 </p>
+                                
                    ')
 literatureInput <- HTML('   <p><h3>1. Select the Parameters</h3>
                                 <ol type="1">
@@ -389,6 +397,12 @@ literatureOutput <-HTML('
                                        <li><b>Positive Hits: </b>a comma separated list of genes from the query that are annotated to the corresponding term</li> 
                                  </ul>
                                  </p>
+                                  <p>
+                                 
+                                  <br>
+                                <img src = "help_images/paramLiter.png" style="border: 1px solid black">
+                                </p>
+                                <br>
                                  <p>
                                 <img src = "help_images/literatureOutput.png" style="border: 1px solid black">
                                 </p>

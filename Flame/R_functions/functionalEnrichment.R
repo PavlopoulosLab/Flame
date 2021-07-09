@@ -12,11 +12,14 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
       
       organism <- organismsFromFile[organismsFromFile$print_name == organism,]$gprofiler_ID
       linkOrganism <- organismsFromFile[organismsFromFile$gprofiler_ID == organism,]$KEGG
-      
+      ###
+      input_genes <- genesForgprofiler
       genesForgprofiler <- gconvert(unlist(genesForgprofiler), organism = organism, target = "ENSG")
       session$sendCustomMessage("handler_startLoader", c(2,30))
       if (identical(genesForgprofiler, NULL)) session$sendCustomMessage("handler_alert", paste("Valid genes for analysis not found.", sep=""))
       else {
+        genesForgprofiler <- genesForgprofiler[genesForgprofiler$name!="nan",]
+        genesForgprofiler <- genesForgprofiler[c("input", "name")]
         gostres_m <- gost(genesForgprofiler$name, source = datasources, evcodes = T, organism = organism,  correction_method = significance_threshold, user_threshold = pvalue )
         session$sendCustomMessage("handler_startLoader", c(2,50))
         if (identical(gostres_m, NULL)) session$sendCustomMessage("handler_alert", "Functional enrichment could not return any valid resutls.")
@@ -31,29 +34,93 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
           gostres$`Enrichment Score %` <<- as.numeric(as.character(gostres$`Enrichment Score %`))
           gostres$`-log10Pvalue` <<- as.numeric(as.character(gostres$`-log10Pvalue`))
           gostres$`Positive Hits` <<- as.character(gostres$`Positive Hits`)
-          
+          ### unidentified genes 
+          positiveGenes <- paste(gostres$`Positive Hits`, collapse=",")
+          positiveGenes <- strsplit(positiveGenes, ",")
+          positiveGenes <- unique(unlist(positiveGenes))
+          truefalse <- genesForgprofiler$name %in% positiveGenes 
+          mergedGenes <- cbind(genesForgprofiler, truefalse)
+          true <- mergedGenes [grepl("TRUE", mergedGenes$truefalse),]
+          trueGenes <- true$input
+          false <- mergedGenes [grepl("FALSE", mergedGenes$truefalse),]
+          falseGenes<- false$input
+          list.a <- as.list(trueGenes)
+          list.b <- as.list(falseGenes)
+          list.c <- as.list(as.character(input_genes[[1]]))
+          list.d <- as.list(genesForgprofiler$input)
+          nonCommonGenes <- c(setdiff(list.c, list.d), setdiff(list.b, list.a)) # genes in input and not in output 
           param_funcEnr <- "" # String variable for execution parameters to be printed
           param_funcEnr <- paste("File: ", selectEnrichFile, "\nOrganism: ", organism, "\nCorrection Method: ", significance_threshold, 
                                  "\nUser threshold: ", pvalue, "\nID type Output: ", gconvertTargetGprofiler, "\nDatabases: " , sep ="")
           param_funcEnr <- paste(param_funcEnr, paste(datasources, collapse=', ' ), "\n", sep="")
+          output$gprofParameters <- renderUI(
+            box(
+              title = "Parameters", 
+              width = NULL,
+              status = "primary", 
+              solidHeader = TRUE,
+              collapsible = TRUE,
+              verbatimTextOutput("gprof_parameters")
+            )
+          )
           output$gprof_parameters <- renderText(param_funcEnr)
+          ###
+          nonCommonGenes <- paste(nonCommonGenes, collapse=",")
+          nonCommonGenes <- strsplit(nonCommonGenes, ",")
+          nonCommonGenes <- as.character(unlist(nonCommonGenes))
+          geneNumber1 <- length(nonCommonGenes)
+          output$nothit <- renderUI(
+            box(
+              title = paste ("Unidentified Elements ", "(", geneNumber1, ")", sep=""), 
+              width = NULL,
+              status = "primary", 
+              solidHeader = TRUE,
+              collapsible = TRUE,
+              verbatimTextOutput("nonCommon")
+            )
+          )
+          output$nonCommon <- renderText(nonCommonGenes)
           clearTables(output) # resetting any previous tables before updating
           sources_list <- c("GO:MF", "GO:CC", "GO:BP", "KEGG", "REAC", "WP", "TF", "MIRNA", "CORUM", "HPA", "HP")
           all_gost <<- data.frame()
-          
-          #convert the names of the output genes in accordance with the user s preference  output type
-          convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$name)), organism = organism, target = gconvertTargetGprofiler)
-          for (i in 1:nrow(gostres))
-          {
-            genesOutput <- c()
-            initialSplitGenes <- strsplit(gostres$`Positive Hits`[i], ",")[[1]]
-            for (j in 1:length(initialSplitGenes))
+          # START name conversion ####
+          # convert the names of the output genes in accordance with the user's preference  output type
+          output$notconvert <- renderUI("") # resetting UI box for unconverted genes (for after switching to USERINPUT)
+          if (gconvertTargetGprofiler != "USERINPUT"){
+            convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$name)), organism = organism, target = gconvertTargetGprofiler)
+            ### Unconverted genes
+            notConverted <- convertedGenesOutput[grepl("nan", convertedGenesOutput$target),]
+            notConverted <- notConverted$input
+            notConverted <- as.character(unlist(notConverted))
+            geneNumber2 <- length(notConverted)
+            
+            output$notconvert <- renderUI(
+              box(
+                title = paste("Unconverted Genes " , "(", geneNumber2, ")", sep=""),  
+                width = NULL,
+                status = "primary", 
+                solidHeader = TRUE,
+                collapsible = TRUE,
+                verbatimTextOutput("notConverted")
+              )
+            )
+            output$notConverted <- renderText(notConverted)
+            for (i in 1:nrow(gostres))
             {
-              inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
-              genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
+              genesOutput <- c()
+              initialSplitGenes <- strsplit(gostres$`Positive Hits`[i], ",")[[1]]
+              for (j in 1:length(initialSplitGenes))
+              {
+                inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
+                
+                genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
+                if (genesOutput[j] == "nan") genesOutput[j] <- inputGenes$input[1]
+              }
+              
+              gostres$`Positive Hits`[i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
             }
-            gostres$`Positive Hits`[i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
           }
+          # END name conversion ####
           session$sendCustomMessage("handler_startLoader", c(2,70))
           for (i in 1:length(datasources)){
             session$sendCustomMessage("handler_enableSourceTab", match(datasources[i], sources_list)) # enable current datasource tab panel

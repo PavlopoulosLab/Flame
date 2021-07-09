@@ -10,8 +10,12 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
       session$sendCustomMessage("handler_disableAllButtons", T) # disable all buttons until execution is over
       session$sendCustomMessage("handler_startLoader", c(13,10))
       genesForLiterature <- file_data[file_names==literatureSelect][[1]]
+      ###
+      input_genes <- genesForLiterature
       gProfOrganism <- organismsFromFile[organismsFromFile$print_name == literatureOrganism,]$gprofiler_ID #organism as gprofiler input
       genesForLiterature <- gconvert(unlist(genesForLiterature), organism = gProfOrganism, target = "ENSP") #gene convert to ENS ID using gProfOrganism format
+      genesForLiterature <- genesForLiterature[genesForLiterature$name!="nan",]
+      genesForLiterature <- genesForLiterature[c("input", "name", "target")]
       taxid <- organismsFromFile[organismsFromFile$print_name == literatureOrganism, ]$Taxonomy_ID
       uniprotIdGenes <- paste(taxid, genesForLiterature$target, sep = "." )
       session$sendCustomMessage("handler_startLoader", c(13,30))
@@ -77,8 +81,73 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
         
         LiteratureResults <<- LiteratureResults[with(LiteratureResults,order(-`-log10Pvalue`)),]
         session$sendCustomMessage("handler_startLoader", c(13,50))
-        convertedGenesOutput <- gconvert(unlist(genesForLiterature$target), organism = gProfOrganism, target = gconvertTargetLiterature)
+        
+        param_literature <- "" # String variable for execution parameters to be printed
+        param_literature <- paste("File: ", literatureSelect, "\nOrganism: ", literatureOrganism, "\nSignificance threshold: ", literatureCorrectionMethod, "\nP-Value cut-off: ", literaturePvalue,"\nTerm_ID output: ", gconvertTargetLiterature, "\nDatabases: " , "PubMed", sep ="")
+        
+        
+        output$literature_Parameters <- renderUI(
+          box(
+            title = "Parameters ", 
+            width = NULL,
+            status = "primary", 
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            verbatimTextOutput("literatureParameters")
+          )
+        )
+        output$literatureParameters <- renderText(param_literature)
+        
+        positiveGenes <- strsplit(gsub(sprintf("%s.",taxid),"", LiteratureResults[["Positive Hits"]]), ";")
+        positiveGenes <- paste(unlist(positiveGenes), collapse=",")
+        positiveGenes <- strsplit(positiveGenes, ",")
+        positiveGenes <- unique(unlist(positiveGenes))
+        
+        
+        truefalse <- genesForLiterature$target %in% positiveGenes 
+        mergedGenes <- cbind(genesForLiterature, truefalse)
+        true <- mergedGenes [grepl("TRUE", mergedGenes$truefalse),]
+        trueGenes <- true$input
+        false <- mergedGenes [grepl("FALSE", mergedGenes$truefalse),]
+        falseGenes<- false$input
+        list.a <- as.list(trueGenes)
+        list.b <- as.list(falseGenes)
+        list.c <- as.list(as.character(input_genes[[1]]))
+        list.d <- as.list(genesForLiterature$input)
+        nonCommonGenes <- c(setdiff(list.c, list.d), setdiff(list.b, list.a)) # genes in input and not in output 
+        nonCommonGenes <- unlist(nonCommonGenes)
+        geneNumber1 <- length(nonCommonGenes)
+        output$nothitLit <- renderUI(
+          box(
+            title = paste ("Unidentified Elements ", "(", as.character(geneNumber1), ")", sep=""),  
+            width = NULL,
+            status = "primary", 
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            verbatimTextOutput("nonCommonLit")
+          )
+        )
+        output$nonCommonLit <- renderText(nonCommonGenes)
         session$sendCustomMessage("handler_startLoader", c(13,70))
+        output$notconvertLit <- renderUI("") # resetting UI box for unconverted genes (for after switching to USERINPUT)
+        if (gconvertTargetLiterature != "USERINPUT"){
+        convertedGenesOutput <- gconvert(unlist(genesForLiterature$target), organism = gProfOrganism, target = gconvertTargetLiterature)
+        notConverted <- convertedGenesOutput[grepl("nan", convertedGenesOutput$target),]
+        notConverted <- notConverted$input
+        notConverted <- as.character(unlist(notConverted))
+        geneNumber2 <- length(notConverted)
+        
+        output$notconvertLit <- renderUI(
+          box(
+            title = paste("Unconverted Proteins " , "(", geneNumber2, ")", sep=""),  
+            width = NULL,
+            status = "primary", 
+            solidHeader = TRUE,
+            collapsible = TRUE,
+            verbatimTextOutput("notConvertedLit")
+          )
+        )
+        output$notConvertedLit <- renderText(notConverted)
         for (i in 1:nrow(LiteratureResults))
         {
           genesOutput<-c()
@@ -87,13 +156,16 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
           {
             inputGenes <- convertedGenesOutput[grepl(initialSplitGenes[j], convertedGenesOutput$input),]
             genesOutput[j] <- inputGenes$target[1] # in case of more than one matches Ens--> target namespace
+            if (genesOutput[j] == "nan") genesOutput[j] <- inputGenes$input[1]
           }
           LiteratureResults[["Positive Hits"]][i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
         }
-        param_literature <- "" # String variable for execution parameters to be printed
-        param_literature <- paste("File: ", literatureSelect, "\nOrganism: ", literatureOrganism, "\nSignificance threshold :", literatureCorrectionMethod, "\nP-Value cut-off: ", literaturePvalue,"\nTerm_ID output: ", gconvertTargetLiterature, "\nDatabases: " , "PubMed", sep ="")
-        output$literatureParameters <- renderText(param_literature)
-        
+        } else  {
+          initialSplitGenes <- strsplit(gsub(sprintf("%s.",taxid),"", LiteratureResults[["Positive Hits"]]), ";")
+          for (i in 1:length(initialSplitGenes)){
+            LiteratureResults[["Positive Hits"]][i] <<- paste(initialSplitGenes[[i]], collapse = ", ")
+          }
+        }
         if (literatureCorrectionMethod == "P-value"){
           LiteratureResults <<- subset(LiteratureResults, select=-c( FDR,`-log10FDR`)) #remove the FDR and logFDR columns from the table
         }
