@@ -17,6 +17,7 @@ library(curl)
 
 source("R_functions/help.R", local=TRUE) # help pages
 
+options(bitmapType = "cairo")
 #set the max size for each file
 options(shiny.maxRequestSize = 1.0 *1024^2) #uploaded files <1MB each
 
@@ -186,8 +187,8 @@ dashboardPage(title="Flame", skin="yellow",
                                                             "Gene Ontology-Biological Process (GO:BP)"="GO:BP","KEGG PATHWAY"="KEGG")
                                                
                                    ),
-                                   selectInput("gconvertTargetGprofiler","Select ID type for output:", selected = "ENTREZGENE",
-                                               choices = c("ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
+                                   selectInput("gconvertTargetGprofiler","Select ID type for output:", selected = "USERINPUT",
+                                               choices = c("User Input"="USERINPUT", "ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
                                                            "Entrez Gene Transcript Name" = "ENTREZGENE_TRANS_NAME", "UniProt Accession" = "UNIPROT_GN_ACC",
                                                            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
                                                            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
@@ -202,7 +203,9 @@ dashboardPage(title="Flame", skin="yellow",
                           actionButton("gprofiler", "Run analysis",icon("paper-plane"), class = "btn-submit"),
                           br(),
                           tags$hr(),
-                          verbatimTextOutput("gprof_parameters"),
+                          uiOutput("gprofParameters"),
+                          uiOutput("notconvert"),
+                          uiOutput("nothit"),
                           tabsetPanel(
                             tabPanel("Results", icon = icon("table"),
                                      br(),
@@ -374,13 +377,19 @@ dashboardPage(title="Flame", skin="yellow",
                                                choices=list("PFAM" = -55,"INTERPRO" = -54,"UniProt" = -51,"Disease Ontology" = -26),
                                                options = list('actions-box' = TRUE), multiple = TRUE,selected =list("PFAM" = -55,"INTERPRO" = -54,"UniProt" = -51,"Disease Ontology" = -26)
                                    ),
-                                   selectInput("gconvertTargetGotool","Select ID type for output:", selected = "ENTREZGENE",
-                                               choices = c("ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
+                                   selectInput("gconvertTargetGotool","Select ID type for output:",  selected = "USERINPUT",
+                                               choices = c("User Input"="USERINPUT", "ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
                                                            "Entrez Gene Transcript Name" = "ENTREZGENE_TRANS_NAME", "UniProt Accession" = "UNIPROT_GN_ACC",
                                                            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
                                                            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
                                                            "WIKIGENE ID" = " WIKIGENE", "RefSeq mRNA" = "REFSEQ_MRNA", "RefSeq mRNA Accession" = "REFSEQ_MRNA_ACC",
-                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))
+                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))%>%
+                                     shinyInput_label_embed(
+                                       shiny_iconlink() %>%
+                                         bs_embed_popover(
+                                           title = "Input elements are converted automatically to proteins (ENSEMBL IDs).\nMultiple protein identifiers might be matched to an input element.", content = "", placement = "left"
+                                         )
+                                     )
                             ),
                             column(4,
                                    selectInput("aGoCorrectionMethod","Select significance threshold:", choices = c("P-value", "Corrected P-value (FDR)")),
@@ -390,7 +399,10 @@ dashboardPage(title="Flame", skin="yellow",
                           actionButton("aGOtool", "Run analysis",icon("paper-plane"), class = "btn-submit"),
                           br(),
                           tags$hr(),
-                          verbatimTextOutput("aGoParameters"),
+                          uiOutput("aGo_Parameters"),
+                          uiOutput("notconvertaGo"),
+                          uiOutput("nothitaGo"),
+                          
                           tabsetPanel(
                             tabPanel("Results",icon = icon("table"),
                                      br(),
@@ -546,13 +558,19 @@ dashboardPage(title="Flame", skin="yellow",
                                    selectizeInput("literatureOrganism", label = " Select organism:",choices = organismsFromFile$print_name, multiple = F,
                                                   selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",width = "75%",
                                                   options = list(placeholder = 'Select an option or start typing...')),
-                                   selectInput("gconvertTargetLiterature","Select ID type for output:", selected = "ENTREZGENE",width = "75%",
-                                               choices = c("ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
+                                   selectInput("gconvertTargetLiterature","Select ID type for output:", selected = "USERINPUT",width = "75%",
+                                               choices = c("User Input"="USERINPUT", "ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
                                                            "Entrez Gene Transcript Name" = "ENTREZGENE_TRANS_NAME", "UniProt Accession" = "UNIPROT_GN_ACC",
                                                            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
                                                            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
                                                            "WIKIGENE ID" = " WIKIGENE", "RefSeq mRNA" = "REFSEQ_MRNA", "RefSeq mRNA Accession" = "REFSEQ_MRNA_ACC",
-                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))
+                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))%>%
+                                     shinyInput_label_embed(
+                                       shiny_iconlink() %>%
+                                         bs_embed_popover(
+                                           title = "Input elements are converted automatically to proteins (ENSEMBL IDs).\nMultiple protein identifiers might be matched to an input element.", content = "", placement = "left"
+                                         )
+                                     )
                             ),
                             column(4,
                                    selectInput("literatureCorrectionMethod","Select significance threshold:", choices = c("P-value", "Corrected P-value (FDR)")),
@@ -564,7 +582,9 @@ dashboardPage(title="Flame", skin="yellow",
                           br(),
                           tags$hr(),
                           br(),
-                          verbatimTextOutput("literatureParameters"),
+                          uiOutput("literature_Parameters"),
+                          uiOutput("notconvertLit"),
+                          uiOutput("nothitLit"),
                           br(),
                           
                           tabsetPanel(
