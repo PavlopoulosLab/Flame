@@ -383,13 +383,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
                                                            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
                                                            "WIKIGENE ID" = " WIKIGENE", "RefSeq mRNA" = "REFSEQ_MRNA", "RefSeq mRNA Accession" = "REFSEQ_MRNA_ACC",
-                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))%>%
-                                     shinyInput_label_embed(
-                                       shiny_iconlink() %>%
-                                         bs_embed_popover(
-                                           title = "Input elements are converted automatically to proteins (ENSEMBL IDs).\nMultiple protein identifiers might be matched to an input element.", content = "", placement = "left"
-                                         )
-                                     )
+                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))
                             ),
                             column(4,
                                    selectInput("aGoCorrectionMethod","Select significance threshold:", choices = c("P-value", "Corrected P-value (FDR)")),
@@ -564,13 +558,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
                                                            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
                                                            "WIKIGENE ID" = " WIKIGENE", "RefSeq mRNA" = "REFSEQ_MRNA", "RefSeq mRNA Accession" = "REFSEQ_MRNA_ACC",
-                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))%>%
-                                     shinyInput_label_embed(
-                                       shiny_iconlink() %>%
-                                         bs_embed_popover(
-                                           title = "Input elements are converted automatically to proteins (ENSEMBL IDs).\nMultiple protein identifiers might be matched to an input element.", content = "", placement = "left"
-                                         )
-                                     )
+                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC"))
                             ),
                             column(4,
                                    selectInput("literatureCorrectionMethod","Select significance threshold:", choices = c("P-value", "Corrected P-value (FDR)")),
@@ -839,7 +827,7 @@ dashboardPage(title="Flame", skin="yellow",
                                           <p style='font-size:15px'>If you find Flame useful in your work please cite:</p>
                                           
                                          &bull; F. Thanati, E. Karatzas, F. Baltoumas, D. J. Stravopodis, A. G. Eliopoulos, and G. Pavlopoulos, <b>“FLAME: a web tool for functional and literature enrichment analysis 
-                                          of multiple gene lists,”</b> bioRxiv, 2021, <a href='https://doi.org/10.1101/2021.06.02.446692' target='_blank'>doi: 10.1101/2021.06.02.446692.</a>
+                                          of multiple gene lists,”</b> Biology, 2021, <a href='https://www.mdpi.com/2079-7737/10/7/665' target='_blank'>doi: 10.3390/biology10070665</a>
 
                                                 ")
                           )
