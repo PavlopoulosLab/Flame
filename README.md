@@ -14,4 +14,4 @@ With Flame one can:<br/>
 * Perform cross-database and cross-species id conversions<br/>
 
 
-Check our publication at https://doi.org/10.1101/2021.06.02.446692 
+Check our publication at https://www.mdpi.com/2079-7737/10/7/665 
