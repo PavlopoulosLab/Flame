@@ -15,7 +15,7 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
       input_genes <- genesForaGotool
       gProfOrganism <- organismsFromFile[organismsFromFile$print_name == aGOtoolOrganism,]$gprofiler_ID #organism as gprofiler input
       genesForaGotool <- gconvert(unlist(genesForaGotool), organism = gProfOrganism, target = "ENSP") #gene convert to ENS ID using gProfOrganism format
-      genesForaGotool <- genesForaGotool[genesForaGotool$name!="nan",]
+      genesForaGotool <- genesForaGotool[genesForaGotool$target!="nan",]
       genesForaGotool <- genesForaGotool[c("input", "name", "target")]
       taxid <- organismsFromFile[organismsFromFile$print_name == aGOtoolOrganism, ]$Taxonomy_ID
       aGOtoolDatasources <- unlist(aGOtoolDatasources) 
@@ -50,10 +50,12 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
       )
       # API request
       request <- POST("https://agotool.org/api_orig", body = post_args, encode = "json")
+      if(request$status_code==200) {
       response <- rawToChar(content(request,"raw"))
       response <- gsub("PFAM \\(Protein FAMilies\\)", "PFAM", response)
       response <- gsub("UniProt keywords", "UniProt", response)
       result_df <- read.csv(text = response, sep="\t", stringsAsFactors = FALSE)
+       
       session$sendCustomMessage("handler_startLoader", c(12,30))
       if(!is.null(result_df) & nrow(result_df)>0)
       {
@@ -259,10 +261,12 @@ handleAGotool <- function(aGOtoolSelect, aGoCorrectionMethod, aGOtoolOrganism, a
         updateSliderInput(session, "aGoSliderHeatmap2","Choose a number of results to view:", min = 1, max = length(all_aGotool_Heatmapselect2$Term_ID), value = 10, step = 1)
         
       }else session$sendCustomMessage("handler_alert", paste("No valid results found.", sep=""))
+      }else session$sendCustomMessage("handler_alert", "Connection to aGO could not be established. Please try again later.")
     }
-    session$sendCustomMessage("handler_finishLoader", c(12,100))
-    session$sendCustomMessage("handler_enableAllButtons", T) # now enable buttons again 
-  }
+      session$sendCustomMessage("handler_finishLoader", c(12,100))
+      session$sendCustomMessage("handler_enableAllButtons", T) # now enable buttons again 
+    }
+  
 }
 ##FUNCTIONS##
 # void function that clears all current data from the gost datasources tables

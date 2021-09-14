@@ -18,9 +18,9 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
       session$sendCustomMessage("handler_startLoader", c(2,30))
       if (identical(genesForgprofiler, NULL)) session$sendCustomMessage("handler_alert", paste("Valid genes for analysis not found.", sep=""))
       else {
-        genesForgprofiler <- genesForgprofiler[genesForgprofiler$name!="nan",]
-        genesForgprofiler <- genesForgprofiler[c("input", "name")]
-        gostres_m <- gost(genesForgprofiler$name, source = datasources, evcodes = T, organism = organism,  correction_method = significance_threshold, user_threshold = pvalue )
+        genesForgprofiler <- genesForgprofiler[genesForgprofiler$target!="nan",] 
+        genesForgprofiler <- genesForgprofiler[c("input","target", "name")]
+        gostres_m <- gost(genesForgprofiler$target, source = datasources, evcodes = T, organism = organism,  correction_method = significance_threshold, user_threshold = pvalue )
         session$sendCustomMessage("handler_startLoader", c(2,50))
         if (identical(gostres_m, NULL)) session$sendCustomMessage("handler_alert", "Functional enrichment could not return any valid resutls.")
         else {
@@ -38,7 +38,7 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
           positiveGenes <- paste(gostres$`Positive Hits`, collapse=",")
           positiveGenes <- strsplit(positiveGenes, ",")
           positiveGenes <- unique(unlist(positiveGenes))
-          truefalse <- genesForgprofiler$name %in% positiveGenes 
+          truefalse <- genesForgprofiler$target %in% positiveGenes 
           mergedGenes <- cbind(genesForgprofiler, truefalse)
           true <- mergedGenes [grepl("TRUE", mergedGenes$truefalse),]
           trueGenes <- true$input
@@ -87,7 +87,7 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
           # convert the names of the output genes in accordance with the user's preference  output type
           output$notconvert <- renderUI("") # resetting UI box for unconverted genes (for after switching to USERINPUT)
           if (gconvertTargetGprofiler != "USERINPUT"){
-            convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$name)), organism = organism, target = gconvertTargetGprofiler)
+            convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$target)), organism = organism, target = gconvertTargetGprofiler) #genesForgprofiler$name
             ### Unconverted genes
             notConverted <- convertedGenesOutput[grepl("nan", convertedGenesOutput$target),]
             notConverted <- notConverted$input

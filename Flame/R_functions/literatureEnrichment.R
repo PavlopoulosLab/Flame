@@ -14,7 +14,7 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
       input_genes <- genesForLiterature
       gProfOrganism <- organismsFromFile[organismsFromFile$print_name == literatureOrganism,]$gprofiler_ID #organism as gprofiler input
       genesForLiterature <- gconvert(unlist(genesForLiterature), organism = gProfOrganism, target = "ENSP") #gene convert to ENS ID using gProfOrganism format
-      genesForLiterature <- genesForLiterature[genesForLiterature$name!="nan",]
+      genesForLiterature <- genesForLiterature[genesForLiterature$target!="nan",]
       genesForLiterature <- genesForLiterature[c("input", "name", "target")]
       taxid <- organismsFromFile[organismsFromFile$print_name == literatureOrganism, ]$Taxonomy_ID
       uniprotIdGenes <- paste(taxid, genesForLiterature$target, sep = "." )
@@ -45,6 +45,7 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
       # API request
       session$sendCustomMessage("handler_startLoader", c(13,40))
       request <- POST("https://agotool.org/api_orig", body = post_args, encode = "json")
+      if(request$status_code==200) {
       response<-rawToChar(content(request,"raw"))
       response<-gsub("PMID \\(PubMed IDentifier\\)", "PubMed", response)
       result_df <- read.csv(text = response, sep="\t", stringsAsFactors = FALSE)
@@ -222,6 +223,7 @@ handleLiteratureEnrich <- function(literatureSelect,literatureCorrectionMethod, 
                           max = length(all_literature$Term_ID), value = 10, step = 1)
         
       }else session$sendCustomMessage("handler_alert", paste("No valid results found.", sep=""))
+    }else session$sendCustomMessage("handler_alert", "Connection to aGO could not be established. Please try again later.")
       session$sendCustomMessage("handler_startLoader", c(13,100))
       session$sendCustomMessage("handler_enableAllButtons", T) # now enable buttons again 
     }
