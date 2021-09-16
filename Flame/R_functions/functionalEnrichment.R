@@ -34,11 +34,18 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
           gostres$`Enrichment Score %` <<- as.numeric(as.character(gostres$`Enrichment Score %`))
           gostres$`-log10Pvalue` <<- as.numeric(as.character(gostres$`-log10Pvalue`))
           gostres$`Positive Hits` <<- as.character(gostres$`Positive Hits`)
+          for (i in 1:nrow(gostres)){ # converting gostres$`Positive Hits back to user $input here
+            genesOutput <- c()
+            initialSplitGenes <- strsplit(gostres$`Positive Hits`[i], ",")[[1]]
+            
+            for (j in 1:length(initialSplitGenes)) genesOutput[j] <- genesForgprofiler[grepl(initialSplitGenes[j], genesForgprofiler$target),]$input[1]
+            gostres$`Positive Hits`[i] <<- paste(unique(genesOutput), sep=",", collapse = ",")
+          }
           ### unidentified genes 
           positiveGenes <- paste(gostres$`Positive Hits`, collapse=",")
           positiveGenes <- strsplit(positiveGenes, ",")
           positiveGenes <- unique(unlist(positiveGenes))
-          truefalse <- genesForgprofiler$target %in% positiveGenes 
+          truefalse <- genesForgprofiler$input %in% positiveGenes 
           mergedGenes <- cbind(genesForgprofiler, truefalse)
           true <- mergedGenes [grepl("TRUE", mergedGenes$truefalse),]
           trueGenes <- true$input
@@ -87,7 +94,7 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
           # convert the names of the output genes in accordance with the user's preference  output type
           output$notconvert <- renderUI("") # resetting UI box for unconverted genes (for after switching to USERINPUT)
           if (gconvertTargetGprofiler != "USERINPUT"){
-            convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$target)), organism = organism, target = gconvertTargetGprofiler) #genesForgprofiler$name
+            convertedGenesOutput <- gconvert(unique(unlist(genesForgprofiler$input)), organism = organism, target = gconvertTargetGprofiler) #genesForgprofiler$name
             ### Unconverted genes
             notConverted <- convertedGenesOutput[grepl("nan", convertedGenesOutput$target),]
             notConverted <- notConverted$input
