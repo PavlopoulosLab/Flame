@@ -2029,7 +2029,7 @@ mapper <- function(inArr, min, max){
 
 renderTableFunc <- function(input_table, networkSelect, col, suffix, mode, columnsVis){
    if(nrow(input_table)>0){
-  DT::renderDataTable(  cbind(' ' = '&oplus;', input_table), escape = F, 
+  DT::renderDataTable(server = FALSE,  cbind(' ' = '&oplus;', input_table), escape = F, 
                         extensions =  c( 'Buttons'),
                         options = list("dom" = 'T<"clear">lBfrtip',
                                        buttons = list(list(extend='excel', exportOptions = list(columns = columnsVis),filename=paste(networkSelect, suffix, sep="_")),

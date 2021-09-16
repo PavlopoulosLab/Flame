@@ -137,7 +137,6 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 GOMF_gost$`Positive Hits` <-  gsub(",", ", ", GOMF_gost$`Positive Hits`)
                 GOMF_gost$Term_ID <- paste("<a href='https://www.ebi.ac.uk/QuickGO/term/", GOMF_gost$Term_ID, "' target='_blank'>", GOMF_gost$Term_ID, "</a>", sep="")
                 all_gost <<- rbind(all_gost, GOMF_gost)
-                
                 output$table_gomf <- renderTableFunc(GOMF_gost, selectEnrichFile, 11, "GO:MF_gProfiler_Results", "Positive Hits",c(2,3,4,5,6,7,8,9,10,11))
               }
               else output$table_gomf <- DT::renderDataTable(GOMF_gost)
@@ -166,8 +165,10 @@ handleEnrichment <- function(selectEnrichFile, significance_threshold, organism,
                 #creates links with @param KEGG_gost and return@updated KEGG_gost with links and gene colors
                 
                 for(j in 1:length(KEGG_gost$`Positive Hits`)){
-                  kegg_genes<-gsub(",", "%20orange+", KEGG_gost$`Positive Hits`)
-                  kegg_genes<-(paste("+",kegg_genes, sep=""))
+                  kegg_genes <- gconvert(strsplit(KEGG_gost$`Positive Hits`[j], ",")[[1]], organism = organism, target = "ENTREZGENE_ACC")$target
+                  kegg_genes <- paste(kegg_genes, collapse =",")
+                  kegg_genes <- gsub(",", "%20orange+", kegg_genes)
+                  kegg_genes <- (paste("+",kegg_genes, sep=""))
                   kegg_genes <- (paste(kegg_genes, "%20orange", sep=""))
                 }
                 KEGG_gost$Term_ID <- paste("<a href='https://www.genome.jp/kegg-bin/show_pathway?", gsub("KEGG:", linkOrganism, KEGG_gost$Term_ID), 
