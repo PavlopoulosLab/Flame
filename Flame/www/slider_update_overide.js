@@ -25,7 +25,7 @@ var lazySliderInputBinding = $.extend({}, sliderInputBinding, {
   }
 });
 
-Shiny.inputBindings.register(lazySliderInputBinding, 'shiny.lazySliderInput');
+//Shiny.inputBindings.register(lazySliderInputBinding, 'shiny.lazySliderInput');
 
 var inputsInitialized = false;
 $(document).one('shiny:connected', function() {
