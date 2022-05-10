@@ -22,3 +22,5 @@ organismsFromFile$print_name <- paste0(sprintf("%s (%s) [NCBI Tax. ID: %s]", org
 # CONFIGURATION variables
 FILE_LIMIT <- 10
 STRING_LIMIT <- 500
+OBJECT_SIZE_LIMIT <- 1048576
+POST_REQUEST_PATH <- 'tmp/'

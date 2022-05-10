@@ -13,7 +13,8 @@ library(visNetwork)
 library(httr)
 library(htmltools)
 library(bsplus)
-library(curl) 
+library(curl)
+library(jsonlite)
 
 source("R_functions/help.R", local=TRUE) # help pages
 
@@ -25,7 +26,7 @@ dashboardPage(title="Flame", skin="yellow",
               
               dashboardHeader(
                 titleWidth = "356px", # set width of title
-                title = tags$a(href='http://bib.fleming.gr:3838/Flame/', tags$img(src='logo.png')) # Use image in title
+                title = tags$a(href='http://bib.fleming.gr:8084/app/flame/', tags$img(src='logo.png')) # Use image in title
                 
               ), # dashboardHeader End
               

@@ -28,14 +28,14 @@ handleTextSubmit <- function(inputText, prefix, session){
   flag <- T
   if (inputText == "") session$sendCustomMessage("handler_alert", "Please, paste your gene list.")
   else {
-    if (object.size(inputText) < 1048576){ # estimate object.size(inputText)
+    if (object.size(inputText) < OBJECT_SIZE_LIMIT){ # estimate object.size(inputText)
       if (!(length(inputText)+length(file_names)) > FILE_LIMIT) {
         # create random name and DF
         random_name <- getRandomName(prefix)
         text_data_frame <- trimFunction(inputText)
         # update globals: file_names and file_data 
         if (nrow(text_data_frame) > 0){
-          file_names[[length(file_names)+1]] <<-  random_name
+          file_names[[length(file_names)+1]] <<- random_name
           file_data[[length(file_data)+1]] <<- text_data_frame
           colnames(file_data[[length(file_data)]]) <<- file_names[[length(file_names)]]
           # update controls
@@ -56,6 +56,42 @@ handleTextSubmit <- function(inputText, prefix, session){
   return(flag)
 }
 
+# Function that checks json file data created form POST request
+# The user imported gene lists are added to checkboxes/ upset/ etc with a random name suffix (gene_list_random_name)
+# @param inFile(string): path to saved json from from the API POST request
+# @param session(Shiny session)
+# @return error_flag(boolean): check if !correct data format and passed limit checks
+parse_import_data <- function(inFile, session){
+  error_flag <- F
+  raw_json <- fromJSON(inFile)
+  
+  if (!(length(raw_json)) > FILE_LIMIT) { # each json raw is a gene list
+    for (i in 1:length(raw_json)){
+      if (object.size(raw_json[[i]]) < OBJECT_SIZE_LIMIT){
+        raw_json[[i]] <- trimList(raw_json[[i]]) # removing spaces and commas
+        raw_json[[i]] <- raw_json[[i]][ raw_json[[i]] != '' ]
+        if (length(raw_json[[i]]) > 0){ # if list not empty
+          
+          # random_name <- getRandomName(names(raw_json)[i]) # json list names are unique already
+          file_names[[length(file_names)+1]] <<- names(raw_json)[i]
+          file_data[[length(file_data)+1]] <<- as.data.frame(raw_json[[i]])
+          colnames(file_data[[length(file_data)]]) <<- file_names[[length(file_names)]]
+          updateFileBoxes(session)
+          
+        }
+      } else{
+        error_flag <- T
+        session$sendCustomMessage("handler_alert", paste("Make sure every gene list is < 1MB.", sep = ""))
+        break
+      }
+    }
+  } else{
+    error_flag <- T
+    session$sendCustomMessage("handler_alert", paste("Make sure you import <= (", FILE_LIMIT, ") gene lists.", sep = ""))
+  }
+  
+  return(error_flag)
+}
 # This event creates an example data input in the text area
 handleRandomExample <- function(session){
   exampleGeneList <- readRDS("random_genes.rds")
@@ -268,7 +304,7 @@ updateFileBoxes <- function(session) {
   
 }
 
-# Function that parses the user text input gene , removing commas, spaces, carriage returns and new lines
+# Function that parses the user text input gene, removing commas, spaces, carriage returns and new lines
 # @param textDF: the text data frame to be parsed
 # return: the parsed data frame (trimmed, empty values removed)
 trimFunction <- function(textDF){
@@ -280,6 +316,14 @@ trimFunction <- function(textDF){
   textDF <- lapply(textDF, function(z){ z[!is.na(z) & z != ""]})
   textDF <- as.data.frame(textDF)
   return(textDF)
+}
+
+trimList <- function(inList){
+  inList <- gsub(",", "", inList)
+  inList <- gsub(" ", "", inList)
+  inList <- gsub("\t", "", inList)
+  inList <- gsub("\r", "", inList)
+  return(inList)
 }
 
 # This function draws the Upset plot
