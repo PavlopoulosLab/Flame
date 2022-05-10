@@ -9,27 +9,36 @@ function(input, output, session) {
   source("R_functions/stringNetwork.R", local=TRUE)
   
   # CONFIG
-  #set_base_url("http://biit.cs.ut.ee/gprofiler_archive3/e102_eg49_p15") # for gprofiler bug
+  # set_base_url("http://biit.cs.ut.ee/gprofiler_archive3/e102_eg49_p15") # for gprofiler bug
   
   output$url_checker <- renderText({ # this component needs to be in landing page in order to be observed on page load
     tryCatch({
+      
       query <- parseQueryString(session$clientData$url_search)
-      if (length(query$url_genes) > 0){ # GET request
+      if (length(query$f) > 0){ # GET json file from POST request
         updateTabItems (session, "A", selected ="file_handler") # change tab to file input
+        
+        error_flag <- parse_import_data(paste0(POST_REQUEST_PATH, query$f), session)
+        if (!error_flag) output$url_checked <- renderText({"Gene list(s) loaded from url."})
+        
+        paste("") # empty string to not print anything on landing page
+      } else if (length(query$url_genes) > 0){ # GET request with written gene lists
+        updateTabItems (session, "A", selected ="file_handler") # change tab to file input
+        
         lists <- str_split(query$url_genes, ";")[[1]]
         for (list in lists) {
           flag <- handleTextSubmit(list, "url_gene_list", session)
           if (!flag) break
         }
+        
         output$url_checked <- renderText({"Gene list(s) loaded from url."})
         paste("") # empty string to not print anything on landing page
       }
-    }, warning = function(w) {
-      print(paste("Warning:  ", w))
+      
     }, error = function(e) {
       print(paste("Error :  ", e))
       session$sendCustomMessage("handler_alert", paste("Problem with url query handling: ", e, sep=""))
-    }, finally = {})
+    })
   })
   
   observeEvent(input$link_to_fileinput, {
