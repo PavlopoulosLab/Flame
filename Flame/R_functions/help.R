@@ -1,3 +1,30 @@
+POSTRequestHelp <- HTML('
+<p>
+  To open <i>Flame</i> from an external application, we offer an API that allows a <b>POST</b> request along with a JSON object.
+  The API link is <b><u><i>http://bib.fleming.gr:8091/bib/api/flame</i></u></b>. Don\'t forget to set the <b>Header Content-Type</b> to <b>application/json</b>. Here, we provide an example of the required JSON object format:
+</p>
+<h3>Simple 3 gene list example</h3>
+<pre>
+{
+  "gene_list1": ["GNAS", "ABCG2", "WT1", "CDK2", "FLT1", "CCN2", "INSR"],
+  "gene_list2": ["MMP1", "PTGS2", "C3", "PON1", "LDLR", "HBA1", "CYP1B1", "PTEN", "SNCA", "RAC1", "BCL2", "HLA-DRB1", "IL13", "GRN", "NF1", "AHR", "YAP1", "LCN2", "FOXO3", "LEPR", "ABCB1", "STAT3", "HRAS", "NOS3", "HLA-DQA1", "BRCA1", "EZH2", "CDKN1B"],
+  "gene_list3": ["HLA-C", "PTEN", "UGT1A1", "CDH1", "MDM2", "EGFR", "FMR1", "VEGFA", "ERCC1", "VWF", "CFH", "OGG1", "TGFB1", "IGF2", "ADRB2", "AGER", "CETP", "CYP2D6", "KIT", "HTT", "ACE2", "CASP8", "HDAC1", "GJB2", "IL4", "EDN1", "OPRM1", "NOS3", "ERCC2", "NFKB1", "KCNQ1"]
+}
+</pre>
+<p>
+  The server then returns a JSON response with the url that links to the <i>Flame</i> application, having the requested gene lists (up to 10) loaded:
+</p>
+<pre>
+{
+  "url": "http://bib.fleming.gr:8084/app/flame?f=110407183nWHu5VfeP9fM.json"
+}
+</pre>
+')
+
+GETRequestHelp <- HTML('
+For shorter gene lists, we also allow <b>GET</b> requests in the following format <b><u><i>http://bib.fleming.gr:8084/app/flame/?url_genes=MCL1,TTR;APOE,ACE2;TLR4,HMOX1,TP73</i></u></b> where gene lists are separated with semicolon (;) and genes with comma (,).
+')
+
 fileInputTab <-  HTML('<b>Flame</b> provides the option to select and upload <b>multiple files</b> simultaneously and/or write in a text area field.
                       <p>
                       <br>

@@ -842,7 +842,7 @@ dashboardPage(title="Flame", skin="yellow",
                                      tabPanel(h5("File Input"),
                                               br(),
                                               fluidRow(
-                                                column(12,box( title = "Upload File(s)", collapsible = TRUE, collapsed = T,
+                                                column(12,box( title = "Upload File(s)", collapsible = TRUE, collapsed = F,
                                                                solidHeader = TRUE, status = "primary", width = NULL, 
                                                                fileInputTab)),
                                                 column(12,box( title = "Upset plot", collapsible = TRUE, collapsed = TRUE,
@@ -856,7 +856,7 @@ dashboardPage(title="Flame", skin="yellow",
                                      tabPanel(h5("Functional Enrichment Analysis"),
                                               br(),
                                               fluidRow(
-                                                column(12,box( title = "Functional Enrichment Parameters", collapsible = TRUE, collapsed = TRUE,
+                                                column(12,box( title = "Functional Enrichment Parameters", collapsible = TRUE, collapsed = F,
                                                                solidHeader = TRUE, status = "primary", width = NULL,gprofInput)),
                                                 column(12,box(title = "Functional Enrichment Results", collapsible = TRUE, collapsed = TRUE,
                                                               solidHeader = TRUE, status = "primary", width = NULL, gprofOutput,
@@ -866,7 +866,7 @@ dashboardPage(title="Flame", skin="yellow",
                                      tabPanel(h5("aGotool Analysis"),
                                               br(),
                                               fluidRow(
-                                                column(12,box( title = "aGotool Analysis Parameters", collapsible = TRUE, collapsed = TRUE,
+                                                column(12,box( title = "aGotool Analysis Parameters", collapsible = TRUE, collapsed = F,
                                                                solidHeader = TRUE, status = "primary", width = NULL, aGoInput)),
                                                 column(12,box(title = "aGotool Analysis Results", collapsible = TRUE, collapsed = TRUE,
                                                               solidHeader = TRUE, status = "primary",width = NULL,aGoOutput))
@@ -876,7 +876,7 @@ dashboardPage(title="Flame", skin="yellow",
                                               br(),
                                               fluidRow(
                                                 column(12,box( title = "Literature Search Parameters", collapsible = TRUE, width = NULL,
-                                                               collapsed = TRUE, status = "primary",solidHeader = TRUE, literatureInput)),
+                                                               collapsed = F, status = "primary",solidHeader = TRUE, literatureInput)),
                                                 column(12,box(title = "Literature Search Results", collapsible = TRUE, collapsed = TRUE,
                                                               solidHeader = TRUE, status = "primary", width = NULL, literatureOutput))
                                               )
@@ -905,20 +905,28 @@ dashboardPage(title="Flame", skin="yellow",
                                      tabPanel(h5("Network Analysis"),
                                               br(),
                                               fluidRow(
-                                                column(12,box( title = "Network Analysis", collapsible = TRUE, collapsed = TRUE,
+                                                column(12,box( title = "Network Analysis", collapsible = TRUE, collapsed = F,
                                                                solidHeader = TRUE, status = "primary", width = NULL, proteinNetwork)),
                                               )
                                      ),#tabpanel 7 end
                                      tabPanel(h5("Conversion"),
                                               br(),
                                               fluidRow(
-                                                column(12,box( title = "Gene ID Conversion", collapsible = TRUE, collapsed = TRUE,
+                                                column(12,box( title = "Gene ID Conversion", collapsible = TRUE, collapsed = F,
                                                                solidHeader = TRUE, status = "primary", width = NULL, gconvertTab)),
                                                 column(12,box(title = "Orthology Search", collapsible = TRUE, collapsed = TRUE,
                                                               solidHeader = TRUE, status = "primary", width = NULL,gorthTab))
                                               )
-                                     )#tabpanel 8 end
-                                     
+                                     ),#tabpanel 8 end
+                                     tabPanel(h5("API"),
+                                              br(),
+                                              fluidRow(
+                                                column(12,box( title = "POST Request", collapsible = TRUE, collapsed = F,
+                                                               solidHeader = TRUE, status = "primary", width = NULL, POSTRequestHelp)),
+                                                column(12,box( title = "GET Request", collapsible = TRUE, collapsed = F,
+                                                               solidHeader = TRUE, status = "primary", width = NULL, GETRequestHelp))
+                                              )
+                                     )#tabpanel 9 end
                                    )
                             )
                           )#fluidRow end 
