@@ -12,24 +12,28 @@ handle_gconvert <- function(gconvert_select, gconvert_organism, gconvert_target,
     gconvert_organism <- organismsFromFile[organismsFromFile$print_name == gconvert_organism,]$gprofiler_ID
     session$sendCustomMessage("handler_startLoader", c(4,30))
     converted_genes <- gconvert(unlist(genesForconvert), organism = gconvert_organism, target = c(gconvert_target), numeric_ns = "", mthreshold = Inf, filter_na = T)
-    converted_genes <- converted_genes[-c(1,3,7)]
-    session$sendCustomMessage("handler_startLoader", c(4,70))
-    for (i in nrow(converted_genes ):1){ # remove nan rows from table
-      if (identical(converted_genes$target [i], "nan")) converted_genes <- converted_genes[-i, ]
+    if (!identical(converted_genes, NULL)){
+      converted_genes <- converted_genes[-c(1,3,7)]
+      session$sendCustomMessage("handler_startLoader", c(4,70))
+      for (i in nrow(converted_genes ):1){ # remove nan rows from table
+        if (identical(converted_genes$target [i], "nan")) converted_genes <- converted_genes[-i, ]
+      }
+      print(converted_genes)
+      session$sendCustomMessage("handler_startLoader", c(4,80))
+      output$gconvert_table <- DT::renderDataTable(converted_genes, server = FALSE, 
+                                                   extensions = 'Buttons',
+                                                   options = list(
+                                                     pageLength = 10,
+                                                     "dom" = 'T<"clear">lBfrtip',
+                                                     buttons = list(list(extend='excel',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
+                                                                    list(extend= 'csv',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
+                                                                    list(extend='copy',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
+                                                                    list(extend='pdf',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
+                                                                    list(extend='print',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")))
+                                                   ),rownames= FALSE, escape = FALSE
+      )
     }
-    session$sendCustomMessage("handler_startLoader", c(4,80))
-    output$gconvert_table <- DT::renderDataTable(converted_genes, server = FALSE, 
-                                                 extensions = 'Buttons',
-                                                 options = list(
-                                                   pageLength = 10,
-                                                   "dom" = 'T<"clear">lBfrtip',
-                                                   buttons = list(list(extend='excel',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                  list(extend= 'csv',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                  list(extend='copy',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                  list(extend='pdf',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                  list(extend='print',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")))
-                                                 ),rownames= FALSE, escape = FALSE
-    )
+    else  session$sendCustomMessage("handler_alert", "No results found. Please try another organism (input/target) or list input.")
     session$sendCustomMessage("handler_startLoader", c(4,100))
     session$sendCustomMessage("handler_finishLoader", 4)
     session$sendCustomMessage("handler_enableAllButtons", T) # now enable buttons again
