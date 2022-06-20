@@ -319,6 +319,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("network", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("network_table"),
+                                                           DT::dataTableOutput("network_edgelist"),
                                                            br()
                                                   ),
                                                   tabPanel("Network: Functions Vs Functions",
@@ -337,6 +338,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("network2", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("network_table2"),
+                                                           DT::dataTableOutput("network_edgelist2"),
                                                            br()
                                                   ),
                                                   tabPanel("Network: Gene Vs Gene",
@@ -355,6 +357,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("network3", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("network_table3"),
+                                                           DT::dataTableOutput("network_edgelist3"),
                                                            br()
                                                   )
                                                 )
@@ -495,6 +498,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("aGoNetwork", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("aGoNetwork_table"),
+                                                           DT::dataTableOutput("aGoNetwork_edgelist"),
                                                            br()
                                                   ), # tabPanel"Network: Functions Vs Genes" end
                                                   tabPanel("Network: Functions Vs Functions",
@@ -513,6 +517,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("aGoNetwork2", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("aGoNetwork_table2"),
+                                                           DT::dataTableOutput("aGoNetwork_edgelist2"),
                                                            br()
                                                   ),# tabPanel("Network: Functions Vs Functions") end
                                                   tabPanel("Network: Gene Vs Gene",
@@ -531,6 +536,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("aGoNetwork3", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("aGoNetwork_table3"),
+                                                           DT::dataTableOutput("aGoNetwork_edgelist3"),
                                                            br()
                                                   )# tabPanel("Network: Gene Vs Gene") end
                                                 ) #tabsetPanel network end
@@ -654,6 +660,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("literatureNetwork", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("literatureNetwork_table"),
+                                                           DT::dataTableOutput("literatureNetwork_edgelist"),
                                                            br()
                                                   ), # tabPanel"Network: Functions Vs Genes" end
                                                   
@@ -670,6 +677,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("literatureNetwork2", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("literatureNetwork_table2"),
+                                                           DT::dataTableOutput("literatureNetwork_edgelist2"),
                                                            br()
                                                   ),# tabPanel("Network: Functions Vs Functions") end
                                                   tabPanel("Network: Gene Vs Gene",
@@ -685,6 +693,7 @@ dashboardPage(title="Flame", skin="yellow",
                                                            visNetworkOutput("literatureNetwork3", height = "1000px"),
                                                            br(),
                                                            DT::dataTableOutput("literatureNetwork_table3"),
+                                                           DT::dataTableOutput("literatureNetwork_edgelist3"),
                                                            br()
                                                   )# tabPanel("Network: Functions Vs Functions") end
                                                 ) #tabsetPanel network end
@@ -777,7 +786,8 @@ dashboardPage(title="Flame", skin="yellow",
                                                            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
                                                            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
                                                            "WIKIGENE ID" = " WIKIGENE", "RefSeq mRNA" = "REFSEQ_MRNA", "RefSeq mRNA Accession" = "REFSEQ_MRNA_ACC",
-                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC")
+                                                           "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC",
+                                                           "BEEBASE" = "BEEBASE")
                                    )
                             )
                           ),
@@ -935,7 +945,7 @@ dashboardPage(title="Flame", skin="yellow",
                 ), # tabItems End
                 fluidRow(column(12,
                                 HTML("<footer>
-                                     © 2021 <a href=\"https://sites.google.com/site/pavlopoulossite\" target=\"_blank\">Bioinformatics and Integrative Biology Lab</a> | 
+                                     © 2022 <a href=\"https://sites.google.com/site/pavlopoulossite\" target=\"_blank\">Bioinformatics and Integrative Biology Lab</a> | 
                                      <a href=\"https://www.fleming.gr\" target=\"_blank\">Biomedical Sciences Research Center \"Alexander Fleming\"</a>
                                      </footer>")
                 ))

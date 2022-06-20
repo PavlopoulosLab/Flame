@@ -21,12 +21,23 @@ footer {
 	font-size: 18px;
 }
 
+caption{
+  text-align: center;
+  font-size: 20px;
+  background-color: #2998b1;
+  color: white;
+}
+
 [class*="fillAlternating-upset"] {
   fill: rgba(0, 0, 0, 0.05) !important;
 }
 
 [class*="fillNotMember-upset"] {
   fill: rgba(0, 0, 0, 0.05) !important;
+}
+
+.datatables{
+  margin-top: 15px;
 }
 
 .logo{

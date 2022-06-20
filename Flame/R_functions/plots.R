@@ -387,6 +387,7 @@ handleNetwork <- function(networkSelect,sliderNetwork, networkMode, output, sess
     }
     output$network_table <- DT::renderDataTable(head(all_gost_table, sliderNetwork), server = FALSE, 
                                                 extensions = 'Buttons',
+                                                caption = "Enrichment Results",
                                                 options = list("dom" = 'T<"clear">lBfrtip',
                                                                buttons = list(list(extend='excel', filename=paste(networkSelect, '_Network', sep="")),
                                                                               list(extend= 'csv', filename=paste(networkSelect, '_Network', sep="")),
@@ -407,6 +408,19 @@ handleNetwork <- function(networkSelect,sliderNetwork, networkMode, output, sess
     all_genes <- paste(networkGostres$`Positive Hits`, collapse=",") 
     all_genes <- strsplit(all_genes, ",")
     all_genes <- unique(all_genes[[1]])
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2")
+    output$network_edgelist <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                   caption = "Edgelist",
+                                                   extensions = 'Buttons',
+                                                   options = list("dom" = 'T<"clear">lBfrtip',
+                                                                  buttons = list(list(extend='excel', filename=paste(networkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='csv', filename=paste(networkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='copy', filename=paste(networkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='pdf', filename=paste(networkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='print', filename=paste(networkSelect, '_Edgelist', sep="")))
+                                                   ), rownames = FALSE, escape = F)
+    
     construct_visNetwork(networkEdgelist, new_color)
     session$sendCustomMessage("handler_startLoader", c(9,100))
     session$sendCustomMessage("handler_finishLoader", 9)
@@ -476,6 +490,19 @@ handleNetwork2 <- function(networkSelect2, sliderNetwork2, networkMode2, sliderT
     networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ] 
     networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= sliderThreshold,, drop = F ]
     new_color <- bar_colors[networkSelect2][[1]]
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2", "Weigth")
+    output$network_edgelist2 <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                   caption = "Edgelist",
+                                                   extensions = 'Buttons',
+                                                   options = list("dom" = 'T<"clear">lBfrtip',
+                                                                  buttons = list(list(extend='excel', filename=paste(networkSelect2, '_Edgelist', sep="")),
+                                                                                 list(extend='csv', filename=paste(networkSelect2, '_Edgelist', sep="")),
+                                                                                 list(extend='copy', filename=paste(networkSelect2, '_Edgelist', sep="")),
+                                                                                 list(extend='pdf', filename=paste(networkSelect2, '_Edgelist', sep="")),
+                                                                                 list(extend='print', filename=paste(networkSelect2, '_Edgelist', sep="")))
+                                                   ), rownames = FALSE, escape = F)
+    
     construct_visNetwork2(networkEdgelist, new_color)
     session$sendCustomMessage("handler_startLoader", c(11,80))
     ##table-netTable
@@ -498,7 +525,7 @@ handleNetwork2 <- function(networkSelect2, sliderNetwork2, networkMode2, sliderT
     netTable <- netTable[netTable$`Similarity Score %` >= sliderThreshold,, drop = F ]
     columnVis<- c(2,3,4,5,6,7)
     if(nrow(netTable)>0){
-    output$network_table2 <- renderTableFunc(netTable, networkSelect2, 7, "function-function_network", "Positive Hits", columnVis)
+      output$network_table2 <- renderTableFunc(netTable, networkSelect2, 7, "function-function_network", "Positive Hits", columnVis)
     }
     session$sendCustomMessage("handler_startLoader", c(11,100))
     session$sendCustomMessage("handler_finishLoader", 11)
@@ -573,6 +600,19 @@ handleNetwork3 <- function(networkSelect3, sliderNetwork3, networkMode3, sliderT
                "KEGG" = "black", "REAC" = "white", "WP" = "black", "TF" = "black",
                "MIRNA" = "black", "HPA" = "black", "CORUM" = "black", "HP" = "white")
     fontColor <- fonts[networkSelect3][[1]]
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2", "Weigth")
+    output$network_edgelist3 <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                    caption = "Edgelist",
+                                                    extensions = 'Buttons',
+                                                    options = list("dom" = 'T<"clear">lBfrtip',
+                                                                   buttons = list(list(extend='excel', filename=paste(networkSelect3, '_Edgelist', sep="")),
+                                                                                  list(extend='csv', filename=paste(networkSelect3, '_Edgelist', sep="")),
+                                                                                  list(extend='copy', filename=paste(networkSelect3, '_Edgelist', sep="")),
+                                                                                  list(extend='pdf', filename=paste(networkSelect3, '_Edgelist', sep="")),
+                                                                                  list(extend='print', filename=paste(networkSelect3, '_Edgelist', sep="")))
+                                                    ), rownames = FALSE, escape = F)
+    
     construct_visNetwork3(networkEdgelist, new_color,fontColor)
     #table-netTable
     netTable <- as.data.frame(cbind("Gene_A"= combinedGenes$Var1, "Gene_B"=combinedGenes$Var2, "Common_Functions"= similarityColumn, "Total_Functions"= rep(sliderNetwork3, length(combinedGenes$Var1)), "Functions"= intersectFunctions))
@@ -1002,6 +1042,7 @@ handleaGoNetwork <- function(aGoNetworkSelect, aGoSliderNetwork, aGoNetworkMode,
     }
     output$aGoNetwork_table <- DT::renderDataTable(head(aGo_table, aGoSliderNetwork), server = FALSE, 
                                                    extensions = 'Buttons',
+                                                   caption = "Enrichment Results",
                                                    options = list("dom" = 'T<"clear">lBfrtip',
                                                                   buttons = list(list(extend='excel', filename=paste(aGoNetworkSelect, '_Network', sep="")),
                                                                                  list(extend= 'csv', filename=paste(aGoNetworkSelect, '_Network', sep="")),
@@ -1022,6 +1063,19 @@ handleaGoNetwork <- function(aGoNetworkSelect, aGoSliderNetwork, aGoNetworkMode,
     all_genes <- strsplit(all_genes, ",")
     all_genes <- unique(all_genes[[1]])
     session$sendCustomMessage("handler_startLoader", c(18,80))
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2")
+    output$aGoNetwork_edgelist <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                   caption = "Edgelist",
+                                                   extensions = 'Buttons',
+                                                   options = list("dom" = 'T<"clear">lBfrtip',
+                                                                  buttons = list(list(extend='excel', filename=paste(aGoNetworkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='csv', filename=paste(aGoNetworkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='copy', filename=paste(aGoNetworkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='pdf', filename=paste(aGoNetworkSelect, '_Edgelist', sep="")),
+                                                                                 list(extend='print', filename=paste(aGoNetworkSelect, '_Edgelist', sep="")))
+                                                   ), rownames = FALSE, escape = F)
+    
     construct_visNetworkaGo(networkEdgelist, new_color)
     session$sendCustomMessage("handler_startLoader", c(18,100))
     session$sendCustomMessage("handler_finishLoader", 18)
@@ -1096,6 +1150,19 @@ handleaGoNetwork2 <- function(aGoNetworkSelect2, aGoSliderNetwork2, aGoNetworkMo
       else{
         new_color <- aGoBar_colors[aGoNetworkSelect2][[1]]
         session$sendCustomMessage("handler_startLoader", c(19,90))
+        
+        colnames(networkEdgelist) <- c("Node_1", "Node_2", "Weigth")
+        output$aGoNetwork_edgelist2 <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                        caption = "Edgelist",
+                                                        extensions = 'Buttons',
+                                                        options = list("dom" = 'T<"clear">lBfrtip',
+                                                                       buttons = list(list(extend='excel', filename=paste(aGoNetworkSelect2, '_Edgelist', sep="")),
+                                                                                      list(extend='csv', filename=paste(aGoNetworkSelect2, '_Edgelist', sep="")),
+                                                                                      list(extend='copy', filename=paste(aGoNetworkSelect2, '_Edgelist', sep="")),
+                                                                                      list(extend='pdf', filename=paste(aGoNetworkSelect2, '_Edgelist', sep="")),
+                                                                                      list(extend='print', filename=paste(aGoNetworkSelect2, '_Edgelist', sep="")))
+                                                        ), rownames = FALSE, escape = F)
+        
         construct_visNetworkaGo2(networkEdgelist, new_color)
         ##table-netTable
         combinedFunctions <- expand.grid(as.list(networkAGo2$Function), as.list(networkAGo2$Function))
@@ -1196,6 +1263,19 @@ handleaGoNetwork3 <- function(aGoNetworkSelect3, aGoSliderNetwork3, aGoNetworkMo
     new_color <- aGoBar_colors[aGoNetworkSelect3][[1]]
     fontsColor <- fonts[aGoNetworkSelect3][[1]]
     session$sendCustomMessage("handler_startLoader", c(27,90))
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2", "Weigth")
+    output$aGoNetwork_edgelist3 <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                       caption = "Edgelist",
+                                                       extensions = 'Buttons',
+                                                       options = list("dom" = 'T<"clear">lBfrtip',
+                                                                      buttons = list(list(extend='excel', filename=paste(aGoNetworkSelect3, '_Edgelist', sep="")),
+                                                                                     list(extend='csv', filename=paste(aGoNetworkSelect3, '_Edgelist', sep="")),
+                                                                                     list(extend='copy', filename=paste(aGoNetworkSelect3, '_Edgelist', sep="")),
+                                                                                     list(extend='pdf', filename=paste(aGoNetworkSelect3, '_Edgelist', sep="")),
+                                                                                     list(extend='print', filename=paste(aGoNetworkSelect3, '_Edgelist', sep="")))
+                                                       ), rownames = FALSE, escape = F)
+    
     construct_visNetworkaGo3(networkEdgelist, new_color,fontsColor)
     #table-netTable
     netTable <- as.data.frame(cbind("Gene_A"= combinedGenes$Var1, "Gene_B"=combinedGenes$Var2, "Common_Functions"= similarityColumn, "Total_Functions"= rep(aGoSliderNetwork3, length(combinedGenes$Var1)), "Functions"= intersectFunctions))
@@ -1509,6 +1589,7 @@ handleLiteratureNetwork<- function(literatureSliderNetwork,literatureNetworkMode
     }
     output$literatureNetwork_table <- DT::renderDataTable(head(all_literature_table, literatureSliderNetwork), server = FALSE, 
                                                           extensions = 'Buttons',
+                                                          caption = "Enrichment Results",
                                                           options = list("dom" = 'T<"clear">lBfrtip',
                                                                          buttons = list(list(extend='excel',filename='GeneVsPublication_Network_Table_PubMed'),
                                                                                         list(extend= 'csv',filename='GeneVsPublication_Network_Table_PubMed'),
@@ -1528,6 +1609,19 @@ handleLiteratureNetwork<- function(literatureSliderNetwork,literatureNetworkMode
     all_genes <- strsplit(all_genes, ",")
     all_genes <- unique(all_genes[[1]])
     session$sendCustomMessage("handler_startLoader", c(24,80))
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2")
+    output$literatureNetwork_edgelist <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                      caption = "Edgelist",
+                                                      extensions = 'Buttons',
+                                                      options = list("dom" = 'T<"clear">lBfrtip',
+                                                                     buttons = list(list(extend='excel', filename='GeneVsPublication_Edgelist'),
+                                                                                    list(extend='csv', filename='GeneVsPublication_Edgelist'),
+                                                                                    list(extend='copy', filename='GeneVsPublication_Edgelist'),
+                                                                                    list(extend='pdf', filename='GeneVsPublication_Edgelist'),
+                                                                                    list(extend='print', filename='GeneVsPublication_Edgelist'))
+                                                      ), rownames = FALSE, escape = F)
+    
     construct_visNetworkLit(networkEdgelist, new_color)
     session$sendCustomMessage("handler_startLoader", c(24,100))
     session$sendCustomMessage("handler_finishLoader", 24)
@@ -1584,6 +1678,19 @@ handleLiteratureNetwork2 <- function(literatureSliderNetwork2, literatureNetwork
       if (identical(networkEdgelist[,1], networkEdgelist[,2])== TRUE) session$sendCustomMessage("handler_alert", "PubMed: Cannot create a Publication Vs Publication network. No common genes found. Try with lower cut-off threshold or select more results to view.")
       else{
         session$sendCustomMessage("handler_startLoader", c(25,80))
+        
+        colnames(networkEdgelist) <- c("Node_1", "Node_2", "Weigth")
+        output$literatureNetwork_edgelist2 <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                        caption = "Edgelist",
+                                                        extensions = 'Buttons',
+                                                        options = list("dom" = 'T<"clear">lBfrtip',
+                                                                       buttons = list(list(extend='excel', filename='GeneVsPublication_Edgelist'),
+                                                                                      list(extend='csv', filename='GeneVsPublication_Edgelist'),
+                                                                                      list(extend='copy', filename='GeneVsPublication_Edgelist'),
+                                                                                      list(extend='pdf', filename='GeneVsPublication_Edgelist'),
+                                                                                      list(extend='print', filename='GeneVsPublication_Edgelist'))
+                                                        ), rownames = FALSE, escape = F)
+        
         construct_visNetworkLit2(networkEdgelist, new_color)
         ##table-netTable
         combinedPublications <- expand.grid(as.list(networkLiteratute2$Publication), as.list(networkLiteratute2$Publication))
@@ -1668,6 +1775,19 @@ handleLiteratureNetwork3<- function(literatureSliderNetwork3, literatureNetworkM
     networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) > 0,, drop = F ]
     networkEdgelist <- networkEdgelist[as.numeric(as.character(networkEdgelist[,3])) >= literatureSliderThreshold3,, drop = F ]
     session$sendCustomMessage("handler_startLoader", c(28,80))
+    
+    colnames(networkEdgelist) <- c("Node_1", "Node_2", "Weigth")
+    output$literatureNetwork_edgelist3 <- DT::renderDataTable(networkEdgelist, server = FALSE,
+                                                    caption = "Edgelist",
+                                                    extensions = 'Buttons',
+                                                    options = list("dom" = 'T<"clear">lBfrtip',
+                                                                   buttons = list(list(extend='excel', filename='GeneVsPublication_Edgelist'),
+                                                                                  list(extend='csv', filename='GeneVsPublication_Edgelist'),
+                                                                                  list(extend='copy', filename='GeneVsPublication_Edgelist'),
+                                                                                  list(extend='pdf', filename='GeneVsPublication_Edgelist'),
+                                                                                  list(extend='print', filename='GeneVsPublication_Edgelist'))
+                                                    ), rownames = FALSE, escape = F)
+    
     construct_visNetworkLiterature3(networkEdgelist, new_color)
     
     #table-netTable
