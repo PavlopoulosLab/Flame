@@ -2,6 +2,8 @@
 library(shinydashboard)
 library(upsetjs)
 library(shinyWidgets)
+library(shinyjs)
+library(shinyalert)
 library(plotly)
 library(stringr)
 library(gprofiler2)
@@ -31,7 +33,6 @@ dashboardPage(title="Flame", skin="yellow",
               ), # dashboardHeader End
               
               dashboardSidebar(
-                
                 width = "356px",
                 tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "Flame.css")), # CSS
                 tags$head(tags$link(rel = "stylesheet", type = "text/css", href="loading-bar.css")), # loading bar CSS
@@ -64,6 +65,9 @@ dashboardPage(title="Flame", skin="yellow",
               ), # dashboardSidebar End
               
               dashboardBody(
+                useShinyjs(),
+                extendShinyjs(text = js.opentab, functions = c("BrowseURL")),
+                useShinyalert(),  # Set up shinyalert
                 div(class="ldBar", "data-preset"="bubble"),
                 tabItems(
                   tabItem("homepage", 
@@ -309,10 +313,12 @@ dashboardPage(title="Flame", skin="yellow",
                                                   tabPanel("Network: Functions Vs Genes",
                                                            br(),
                                                            fluidRow(
-                                                             column(4, selectInput("networkSelect", "Select datasource", choices = NULL)),
+                                                             column(4, selectInput("networkSelect", "Select datasource", choices = NULL),
+                                                                    br(),
+                                                                    actionButton("network_arena", "Visualize 3D", class = "enrich-btn"),
+                                                                    br()),
                                                              column(4, radioButtons("networkMode", "Select network", choices = c("Enrichment Score", "-log10Pavlue"), inline = TRUE)),
-                                                             column(4, sliderInput("sliderNetwork", "Choose number of results to view:", min = 1, max = 10, value = 10, step = 1),
-                                                                    br())
+                                                             column(4, sliderInput("sliderNetwork", "Choose number of results to view:", min = 1, max = 10, value = 10, step = 1))
                                                            ),
                                                            br(),
                                                            tags$hr(),
@@ -488,10 +494,12 @@ dashboardPage(title="Flame", skin="yellow",
                                                   tabPanel("Network: Functions Vs Genes",
                                                            br(),
                                                            fluidRow(
-                                                             column(4, selectInput("aGoNetworkSelect", "Select datasource", choices = NULL)),
+                                                             column(4, selectInput("aGoNetworkSelect", "Select datasource", choices = NULL),
+                                                                    br(),
+                                                                    actionButton("ago_network_arena", "Visualize 3D", class = "enrich-btn"),
+                                                                    br()),
                                                              column(4, radioButtons("aGoNetworkMode", "Select network", choices = c("Enrichment Score", "-log10Pavlue"), inline = TRUE)),
-                                                             column(4, sliderInput("aGoSliderNetwork", "Choose number of results to view:", min = 1, max = 10, value = 10, step = 1),
-                                                                    br())
+                                                             column(4, sliderInput("aGoSliderNetwork", "Choose number of results to view:", min = 1, max = 10, value = 10, step = 1))
                                                            ),
                                                            br(),
                                                            tags$hr(),
@@ -651,9 +659,11 @@ dashboardPage(title="Flame", skin="yellow",
                                                   tabPanel("Network: Publications Vs Genes",
                                                            br(),
                                                            fluidRow(
-                                                             column(6, radioButtons("literatureNetworkMode", "Select network", choices = c("Enrichment Score", "-log10Pavlue"), inline = TRUE)),
-                                                             column(6, sliderInput("literatureSliderNetwork", "Choose number of results to view:", min = 1, max = 10, value = 10, step = 1),
-                                                                    br())
+                                                             column(6, radioButtons("literatureNetworkMode", "Select network", choices = c("Enrichment Score", "-log10Pavlue"), inline = TRUE),
+                                                                    br(),
+                                                                    actionButton("lit_network_arena", "Visualize 3D", class = "enrich-btn"),
+                                                                    br()),
+                                                             column(6, sliderInput("literatureSliderNetwork", "Choose number of results to view:", min = 1, max = 10, value = 10, step = 1))
                                                            ),
                                                            br(),
                                                            tags$hr(),

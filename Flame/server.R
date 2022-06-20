@@ -7,6 +7,7 @@ function(input, output, session) {
   source("R_functions/aGotool.R", local=TRUE) # aGotool tab functions
   source("R_functions/literatureEnrichment.R", local=TRUE) # literatureEnrichment tab functions
   source("R_functions/stringNetwork.R", local=TRUE)
+  source("R_functions/interoperability.R", local=TRUE)
   
   # CONFIG
   # set_base_url("http://biit.cs.ut.ee/gprofiler_archive3/e102_eg49_p15") # for gprofiler bug
@@ -202,6 +203,17 @@ function(input, output, session) {
   
   observeEvent(input$networkMode,{
     handleNetwork(input$networkSelect, input$sliderNetwork, input$networkMode, output, session)
+  })
+  
+  observeEvent(input$network_arena, {
+    tryCatch({
+      showModal(modalDialog(HTML("<h2>Please wait.</h2>
+                                 <p>Building network for Arena3Dweb</p>"), footer = NULL))
+      arenaHandler(arena_edgelist, input$networkSelect)
+    }, error = function(e) {
+      print(paste("Error while preparing JSON for Arena: ", e))
+      shinyalert("Error!", "There was an error with sending the network to Arena3Dweb.", type = "error")
+    }, finally = removeModal())
   })
   
   observeEvent(input$sliderNetwork, {
@@ -441,7 +453,16 @@ function(input, output, session) {
     })
   })
   
-  
+  observeEvent(input$ago_network_arena, {
+    tryCatch({
+      showModal(modalDialog(HTML("<h2>Please wait.</h2>
+                                 <p>Building network for Arena3Dweb</p>"), footer = NULL))
+      arenaHandler(arena_ago_edgelist, input$aGoNetworkSelect)
+    }, error = function(e) {
+      print(paste("Error while preparing JSON for Arena: ", e))
+      shinyalert("Error!", "There was an error with sending the network to Arena3Dweb.", type = "error")
+    }, finally = removeModal())
+  })
   
   #Literature Enrichment####
   
@@ -577,6 +598,17 @@ function(input, output, session) {
     }, finally = {
       
     })
+  })
+  
+  observeEvent(input$lit_network_arena, {
+    tryCatch({
+      showModal(modalDialog(HTML("<h2>Please wait.</h2>
+                                 <p>Building network for Arena3Dweb</p>"), footer = NULL))
+      arenaHandler(arena_lit_edgelist, "Literature")
+    }, error = function(e) {
+      print(paste("Error while preparing JSON for Arena: ", e))
+      shinyalert("Error!", "There was an error with sending the network to Arena3Dweb.", type = "error")
+    }, finally = removeModal())
   })
   
   #Protein-Protein Network (STRING)-####

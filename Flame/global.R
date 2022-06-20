@@ -9,6 +9,10 @@ aGotoolResults <- data.frame() # Variable to keep the initial results of the fun
 all_aGotool <- data.frame()# Variable to keep the running results of the functional enrichment analysis procedure (aGotool) in df format with links
 LiteratureResults <- data.frame()
 all_literature <- data.frame()
+arena_edgelist <- data.frame()
+arena_ago_edgelist <- data.frame()
+arena_lit_edgelist <- data.frame()
+
 # FINAL
 bar_colors <- c("GO:MF"= "#dc3912", "GO:BP"= "#ff9900", "GO:CC" = "#109618",
                 "KEGG" = "#dd4477", "REAC" = "#3366cc", "WP" = "#0099c6", "TF" = "#5574a6",
@@ -24,3 +28,11 @@ FILE_LIMIT <- 10
 STRING_LIMIT <- 500
 OBJECT_SIZE_LIMIT <- 1048576
 POST_REQUEST_PATH <- 'tmp/'
+ARENA_API_LINK <- "https://bib.fleming.gr/bib/api/arena3dweb" #"http://127.0.0.1:8080/api/arena3dweb"
+
+# Shiny js functions ####
+js.opentab <- "
+  shinyjs.BrowseURL = function(url) {
+    window.open(url, '_blank');
+  }
+"

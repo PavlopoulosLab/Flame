@@ -410,6 +410,7 @@ handleNetwork <- function(networkSelect,sliderNetwork, networkMode, output, sess
     all_genes <- unique(all_genes[[1]])
     
     colnames(networkEdgelist) <- c("Node_1", "Node_2")
+    arena_edgelist <<- networkEdgelist
     output$network_edgelist <- DT::renderDataTable(networkEdgelist, server = FALSE,
                                                    caption = "Edgelist",
                                                    extensions = 'Buttons',
@@ -1065,6 +1066,7 @@ handleaGoNetwork <- function(aGoNetworkSelect, aGoSliderNetwork, aGoNetworkMode,
     session$sendCustomMessage("handler_startLoader", c(18,80))
     
     colnames(networkEdgelist) <- c("Node_1", "Node_2")
+    arena_ago_edgelist <<- networkEdgelist
     output$aGoNetwork_edgelist <- DT::renderDataTable(networkEdgelist, server = FALSE,
                                                    caption = "Edgelist",
                                                    extensions = 'Buttons',
@@ -1611,6 +1613,7 @@ handleLiteratureNetwork<- function(literatureSliderNetwork,literatureNetworkMode
     session$sendCustomMessage("handler_startLoader", c(24,80))
     
     colnames(networkEdgelist) <- c("Node_1", "Node_2")
+    arena_lit_edgelist <<- networkEdgelist
     output$literatureNetwork_edgelist <- DT::renderDataTable(networkEdgelist, server = FALSE,
                                                       caption = "Edgelist",
                                                       extensions = 'Buttons',
