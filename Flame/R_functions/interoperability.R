@@ -6,7 +6,7 @@
 # @return void
 arenaHandler <- function (edgelist, networkSelect) {
   if ( nrow(edgelist) > 0 ){
-    scene_df <- list(position_x = "0", position_y = "0",  scale_x = "0.9", color = "#000000",
+    scene_df <- list(position_x = "0", position_y = "0",  scale = "0.9", color = "#000000",
                       rotation_x = "0.2618", rotation_y = "0.2618",  rotation_z = "0.0873")
     
     layer_df <- data.frame()
@@ -42,7 +42,7 @@ arenaHandler <- function (edgelist, networkSelect) {
                                     "0", as.character(sample(-410:410, 1)), as.character(sample(-410:410, 1)), "1",
                                     "#b6b9bf", "", ""))
     }
-    colnames(nodes_df) <- c("name","layer", "position_x", "position_y", "position_z", "scale_x", "color", "url", "descr")
+    colnames(nodes_df) <- c("name","layer", "position_x", "position_y", "position_z", "scale", "color", "url", "descr")
     
     edges_df <- data.frame()
     for (i in 1:nrow(edgelist)){
