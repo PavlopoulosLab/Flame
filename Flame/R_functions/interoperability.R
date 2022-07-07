@@ -6,8 +6,8 @@
 # @return void
 arenaHandler <- function (edgelist, networkSelect) {
   if ( nrow(edgelist) > 0 ){
-    scene_pan <- list(position_x = "0", position_y = "0",  scale_x = "0.9", color = "#000000")
-    scene_sphere <- list(rotation_x = "0.2618", rotation_y = "0.2618",  rotation_z = "0.0873")
+    scene_df <- list(position_x = "0", position_y = "0",  scale_x = "0.9", color = "#000000",
+                      rotation_x = "0.2618", rotation_y = "0.2618",  rotation_z = "0.0873")
     
     layer_df <- data.frame()
     layers <- c(networkSelect, "Gene")
@@ -52,8 +52,8 @@ arenaHandler <- function (edgelist, networkSelect) {
     }
     colnames(edges_df) <- c("src", "trg", "opacity", "color", "channel")
     
-    matrix <- list(scene_pan = scene_pan, scene_sphere = scene_sphere,
-                   layers = layer_df, nodes = nodes_df, edges = edges_df,
+    matrix <- list(scene = scene_df, layers = layer_df,
+                   nodes = nodes_df, edges = edges_df,
                    universal_label_color = "#FFFFFF")
     
     res <- POST(ARENA_API_LINK, body = matrix, encode = "json") # , verbose() to print info
