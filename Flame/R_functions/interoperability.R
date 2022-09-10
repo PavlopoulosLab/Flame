@@ -54,7 +54,7 @@ arenaHandler <- function (edgelist, networkSelect) {
     
     matrix <- list(scene = scene_df, layers = layer_df,
                    nodes = nodes_df, edges = edges_df,
-                   universal_label_color = "#FFFFFF")
+                   universalLabelColor = "#FFFFFF")
     
     res <- POST(ARENA_API_LINK, body = matrix, encode = "json") # , verbose() to print info
     print(res)
