@@ -33,6 +33,6 @@ ARENA_API_LINK <- "https://bib.fleming.gr/bib/api/arena3dweb" #"http://127.0.0.1
 # Shiny js functions ####
 js.opentab <- "
   shinyjs.BrowseURL = function(url) {
-    window.open(url, '_blank');
+    window.open(url, '_blank', 'noopener');
   }
 "
