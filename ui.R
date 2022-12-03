@@ -65,7 +65,7 @@ dashboardPage(
       tabItem("gProfiler", generateGprofilerPage()),
       tabItem("aGOtool", generateAGOToolPage()),
       tabItem("literature_search", generateLiteraturePage()),
-      tabItem("string_network", stringNetworkPage),
+      tabItem("string_network", generateStringNetworkPage()),
       tabItem("gconvert", convertPage),
       tabItem("gorth", orthologyPage),
       tabItem("help", helpPage),
