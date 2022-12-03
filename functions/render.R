@@ -160,8 +160,6 @@ renderHeatmap <- function(shinyOutputId, heatmapTable, color,
       x = heatmapTable[[xAxisColumn]],
       z = heatmapTable[[weightColumn]],
       type = 'heatmap',
-      xgap = 3,
-      ygap = 3,
       colors = colorRamp(c("white", color)),
       hoverinfo = "text",
       hovertext = generateHeatmapHoverText(shinyOutputId)
