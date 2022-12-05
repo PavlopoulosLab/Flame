@@ -69,7 +69,7 @@ constructVisNetwork <- function(networkId, networkEdgelist,
   edges <- data$edges
   edges <- appendWidth(edges)
   layout <- names(LAYOUT_CHOICES)[match(
-    input$network1_layout, LAYOUT_CHOICES)]
+    input[[paste0(networkId, "_layout")]], LAYOUT_CHOICES)]
   renderShinyVisNetwork(networkId, nodes, edges, layout)
 }
 
