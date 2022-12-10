@@ -1,8 +1,14 @@
-handleManhattanPlot <- function(networkId) {
+handleManhattanPlot <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Manhattan Plot.</p>")
-    resetManhattanTable()
-    renderManhattanPlot()
+    if (existEnrichmentResults("functional")) {
+      resetManhattanTable()
+      if (validGprofilerResult())
+        renderManhattanPlot()
+      else
+        renderWarning("The Manhattan plot is currently available
+                      only for the GPROFILER analysis pipeline.")
+    }
   }, error = function(e) {
     cat(paste0("Error: ", e))
     renderWarning("Could not draw Manhattan plot.")
@@ -14,9 +20,9 @@ handleManhattanPlot <- function(networkId) {
 handleManhattanClick <- function() {
   tryCatch({
     currentTermID <- event_data("plotly_click")$key
-    manhattanTable <- gprofilerTransformedResult[match(
+    manhattanTable <- functionalEnrichmentResult[match(
       currentTermID,
-      gprofilerTransformedResult$Term_ID_noLinks), ]
+      functionalEnrichmentResult$Term_ID_noLinks), ]
     renderManhattanEnrichmentTable(manhattanTable)
   }, error = function(e) {
     cat(paste0("Error: ", e))
@@ -28,8 +34,8 @@ handleManhattanSelect <- function() {
   tryCatch({
     currentTermIDs <- event_data("plotly_selected")$key
     manhattanTable <- 
-      gprofilerTransformedResult[which(
-        gprofilerTransformedResult$Term_ID_noLinks %in% currentTermIDs
+      functionalEnrichmentResult[which(
+        functionalEnrichmentResult$Term_ID_noLinks %in% currentTermIDs
       ), ]
     renderManhattanEnrichmentTable(manhattanTable)
   }, error = function(e) {

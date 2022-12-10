@@ -1,8 +1,7 @@
 # When the user uploads files, this event appends the file names and 
 # data into two respective static global lists: file_names, inputGeneLists
 # @param inputFiles: multiple uploaded files (list)
-# @param session: R shiny session for environment control
-handleInputFiles <- function(inputFiles, session){
+handleInputFiles <- function(inputFiles) {
   if (!(length(inputFiles$name)+length(file_names)) > FILE_LIMIT) {
     for (i in 1:nrow(inputFiles)){
       if(is.na(match(inputFiles$name[i], file_names))){
@@ -13,20 +12,23 @@ handleInputFiles <- function(inputFiles, session){
           inputGeneLists[[length(inputGeneLists)+1]] <<- tempData # read.csv(inputFiles$datapath[i], header=F) # old
           colnames(inputGeneLists[[length(inputGeneLists)]]) <<- file_names[[length(file_names)]]
         }
-      } else session$sendCustomMessage("handler_alert", paste("A file named ", inputFiles$name[i] ," already exists.", sep = ""))
+      } else
+        renderWarning(paste0("A file named ", inputFiles$name[i] ," already exists."))
     }
-    updateFileBoxes(session)
+    updateFileBoxes()
   }
-  else session$sendCustomMessage("handler_alert", paste("You have exceed the maximum numbers of files (", FILE_LIMIT, ").", sep = ""))
+  else
+    renderWarning(paste0("You have exceed the maximum numbers of files (", FILE_LIMIT, ")."))
 }
 
 # Event that parses the data from the text area where the user can paste a list of genes
 # The gene list is added to checkboxes/ upset/ etc with a random name suffix (gene_list_random_name) 
 # The user can then rename/remove the list and select it for enrichment in the same way with uploaded files
 # Also checks the size of the text using the object.size() function
-handleTextSubmit <- function(inputText, prefix, session){
+handleTextSubmit <- function(inputText, prefix) {
   flag <- T
-  if (inputText == "") session$sendCustomMessage("handler_alert", "Please, paste your gene list.")
+  if (inputText == "")
+    renderWarning("Please, paste your gene list.")
   else {
     if (object.size(inputText) < OBJECT_SIZE_LIMIT){ # estimate object.size(inputText)
       if (!(length(inputText)+length(file_names)) > FILE_LIMIT) {
@@ -40,16 +42,17 @@ handleTextSubmit <- function(inputText, prefix, session){
           colnames(inputGeneLists[[length(inputGeneLists)]]) <<- file_names[[length(file_names)]]
           # update controls
           updateTextAreaInput(session, "text", value = "")
-          updateFileBoxes(session)
-        } else session$sendCustomMessage("handler_alert", "Please, paste your gene list.")
-      }else {
-        session$sendCustomMessage("handler_alert", paste("You have exceed the maximum numbers of files (", FILE_LIMIT, ").", sep = ""))
+          updateFileBoxes()
+        } else
+          renderWarning("Please, paste your gene list.")
+      } else {
+        renderWarning(paste0("You have exceed the maximum numbers of files (", FILE_LIMIT, ")."))
         flag <- F
       }
     } else 
     {
       updateTextAreaInput(session, "text", value = "")
-      session$sendCustomMessage("handler_alert", paste("Make sure your list is < 1MB.", sep = ""))
+      renderWarning("Make sure your list is < 1MB.")
     }
   }
   output$url_checked <- renderText({""})
@@ -76,24 +79,23 @@ parse_import_data <- function(inFile, session){
           file_names[[length(file_names)+1]] <<- names(raw_json)[i]
           inputGeneLists[[length(inputGeneLists)+1]] <<- as.data.frame(raw_json[[i]])
           colnames(inputGeneLists[[length(inputGeneLists)]]) <<- file_names[[length(file_names)]]
-          updateFileBoxes(session)
+          updateFileBoxes()
           
         }
       } else{
         error_flag <- T
-        session$sendCustomMessage("handler_alert", paste("Make sure every gene list is < 1MB.", sep = ""))
+        renderWarning("Make sure every gene list is < 1MB.")
         break
       }
     }
   } else{
     error_flag <- T
-    session$sendCustomMessage("handler_alert", paste("Make sure you import <= (", FILE_LIMIT, ") gene lists.", sep = ""))
+    renderWarning(paste0("Make sure you import <= (", FILE_LIMIT, ") gene lists."))
   }
-  
   return(error_flag)
 }
 # This event creates an example data input in the text area
-handleRandomExample <- function(session){
+handleRandomExample <- function(){
   exampleGeneList <- readRDS("random_genes.rds")
   exampleGeneList <- sample(c(exampleGeneList), RANDOM_GENES_NUMBER, replace = FALSE)
   exampleGeneList <- paste(exampleGeneList, collapse = ',')
@@ -102,14 +104,14 @@ handleRandomExample <- function(session){
 }
 
 # This event clears the text area
-handleClearExample <- function(session){
+handleClearExample <- function(){
   updateTextAreaInput(session, "text", value = "")
 }
 
 # This event selects or deselects all the uploaded files 
 # by calling the updateFileCheckboxes function
 # @param "Select/Deselect Button" click
-handleSelectAllFiles <- function(selectAll, session){
+handleSelectAllFiles <- function(selectAll){
   if (selectAll == 0) updateCheckboxGroupInput(session,"checkboxFiles",choices=file_names)
   else updateCheckboxGroupInput(session,"checkboxFiles",choices=file_names,selected=file_names)
 }
@@ -118,7 +120,7 @@ handleSelectAllFiles <- function(selectAll, session){
 # and passes the execution to javascript, which calls modal windows for the user
 # to rename each selected file
 # @param "Rename Button" click
-handlePrepareRename <- function(checkBoxFiles, session){
+handlePrepareRename <- function(checkBoxFiles){
   global_positions <<- which(file_names %in% checkBoxFiles)
   session$sendCustomMessage("handler_rename", checkBoxFiles)
 }
@@ -127,71 +129,79 @@ handlePrepareRename <- function(checkBoxFiles, session){
 # on javascript pop-up text windows, assigned by the user
 # @param js_fileNames: assigned by the updateFileNames() function
 # of update_rshiny_value.js
-handleRename <- function(js_fileNames, session){
+handleRename <- function(js_fileNames){
   for (i in 1:length(global_positions)){
     if(js_fileNames[i] != ""){
       if (file_names[global_positions[[i]][1]] != js_fileNames[[i]][1]){
         if(is.na(match(js_fileNames[i], file_names))){
           file_names[global_positions[i]] <<- js_fileNames[i]
           colnames(inputGeneLists[[global_positions[i]]]) <<- js_fileNames[i]
-        } else session$sendCustomMessage("handler_alert", paste("Duplicate name: ", js_fileNames[i], " . Name didn't change.", sep="")) 
+        } else
+          renderWarning(paste0("Duplicate name: ", js_fileNames[i], " . Name didn't change.")) 
       }
-    } else session$sendCustomMessage("handler_alert", paste("Empty name found. Name didn't change.", sep=""))
+    } else
+      renderWarning("Empty name found. Name didn't change.")
   }
-  updateFileBoxes(session)
+  updateFileBoxes()
 }
 
 # This event removes selected checkbox entries from file names and data lists
 # and then updates checkboxgroup, by calling the updateFileCheckboxes function
 # Also considers empty selections
 # @param "Remove Button" click
-handleRemove <- function(checkboxFiles, session){
+handleRemove <- function(checkboxFiles){
   positions <- which(file_names %in% checkboxFiles)
   if (!identical(positions, integer(0))){
     file_names <<- file_names[-positions]
     inputGeneLists <<- inputGeneLists[-positions]
-    updateFileBoxes(session)
+    updateFileBoxes()
   }
 }
 
 # This event creates an upset plot for selected files
 # @param "Create Upset plot" Click
-handleSubmitUpset <- function(checkboxFiles, mode, output, session){
-  
-  positions <- which(file_names %in% checkboxFiles)
-  if (!identical(positions, integer(0)) && (length(positions) >= 2)){ # only execute if files have been selected
-    session$sendCustomMessage("handler_disableAllButtons", T) # disable all buttons until execution is over
-    session$sendCustomMessage("handler_startLoader", c(0,30))
+handleSubmitUpset <- function() {
+  tryCatch({
+    renderModal("<h2>Please wait.</h2><br /><p>Handling UpSet Plot.</p>")
+    checkboxFiles <- input$checkboxFiles
+    mode <- input$mode
+    
     positions <- which(file_names %in% checkboxFiles)
-    upset_list <<- ""
-    for (i in 1:length(positions)) upset_list <<- c(upset_list, (inputGeneLists[positions[i]][[1]]))
-    upset_list <<- upset_list[upset_list != ""]
-    session$sendCustomMessage("handler_startLoader", c(0,70))
-    create_upset(mode, output)
-    output$Hovered_Set <- renderText(("Hovered Set:")) # displays the labels of hovered sets
-    session$sendCustomMessage("handler_enableAllButtons", T) # disable all buttons until execution is over
-    session$sendCustomMessage("handler_startLoader", c(0,100))
-    session$sendCustomMessage("handler_finishLoader", 0)
-  }
-  else session$sendCustomMessage("handler_alert", "Please, select 2 or more files.")
+    if (!identical(positions, integer(0)) && (length(positions) >= 2)){ # only execute if files have been selected
+      positions <- which(file_names %in% checkboxFiles)
+      upset_list <<- ""
+      for (i in 1:length(positions)) upset_list <<- c(upset_list, (inputGeneLists[positions[i]][[1]]))
+      upset_list <<- upset_list[upset_list != ""]
+      create_upset(mode)
+      output$Hovered_Set <- renderText(("Hovered Set:")) # displays the labels of hovered sets
+    }
+    else
+      renderWarning("Please, select 2 or more files.")
+  }, error = function(e) {
+    print(paste("Error :  ", e))
+    renderError("Problem with UpSet Plot.")
+  }, finally = {
+    removeModal()
+  })
 }
 
 # This event uses the create_upset function to recreate the upset plot depending on the mode
-handleModeUpset <- function(mode, output, session){
-  if (length(upset_list) > 1){
-    session$sendCustomMessage("handler_disableAllButtons", T) # disable all buttons until execution is over
-    session$sendCustomMessage("handler_startLoader", c(0,30))
-    create_upset(mode, output)
-    session$sendCustomMessage("handler_startLoader", c(0,100))
-    session$sendCustomMessage("handler_finishLoader", 0)
-    session$sendCustomMessage("handler_enableAllButtons", T) # disable all buttons until execution is over
-  }
+handleModeUpset <- function(mode){
+  tryCatch({
+    renderModal("<h2>Please wait.</h2><br /><p>Handling UpSet Plot.</p>")
+    if (length(upset_list) > 1)
+      create_upset(mode)
+  }, error = function(e) {
+    print(paste("Error :  ", e))
+    renderError("Problem with UpSet Plot.")
+  }, finally = {
+    removeModal()
+  })
 }
 
 # This event displays the selected file
 # @param input$Select_view
-handleSelectView <- function(selectView, output, session){
-  session$sendCustomMessage("handler_startLoader", c(1,30))
+handleSelectView <- function(selectView){
   gene_tables<- as.data.frame(inputGeneLists[file_names == selectView])
   output$contents <- DT::renderDataTable(gene_tables, server = FALSE, 
                                          extensions = 'Buttons',
@@ -205,13 +215,11 @@ handleSelectView <- function(selectView, output, session){
                                                           list(extend='print', filename='Gene_Data_Table')
                                            )
                                          ), rownames= FALSE)
-  session$sendCustomMessage("handler_startLoader", c(1,100))
-  session$sendCustomMessage("handler_finishLoader", 1)
 }
 
 # Displays the title of the hovered upon column (combination of files)
 # Also displays the names of the elements(genes) of each column when the user hovers on the respective column
-handleUpsetHover <- function(upsetjs_hover, output){
+handleUpsetHover <- function(upsetjs_hover){
   hoveredGenes <- paste(as.character(upsetjs_hover$elems), collapse = '\n')
   hoveredGenes <- gsub("\n",", ", hoveredGenes)
   output$hovered <- renderText({upsetjs_hover$name})
@@ -259,31 +267,31 @@ handleUpsetClick <- function(mode, upsetjs_click){
 # If the user confirms (OK), a file with the results is created
 # and appended to the lists for further analysis
 # Also appoints a random name (random generator) as a suffix to the initial name
-handleIntersection <- function(upsetjs_click, session){
+handleIntersection <- function(upsetjs_click){
   mode_append_list(upsetjs_click, "Intersection_list")
   removeModal()
-  updateFileBoxes(session)
+  updateFileBoxes()
 }
 
 # Same for Distinct, as above
-handleDistinct <- function(upsetjs_click, session){
+handleDistinct <- function(upsetjs_click){
   mode_append_list(upsetjs_click, "Distinct_Intersections_list")
   removeModal()
-  updateFileBoxes(session)
+  updateFileBoxes()
 }
 
 # Same for Union, as above
-handleUnion <- function(upsetjs_click, session){
+handleUnion <- function(upsetjs_click){
   mode_append_list(upsetjs_click, "Union_list")
   removeModal()
-  updateFileBoxes(session)
+  updateFileBoxes()
 }
 
 # Same for Distinct per File, as above
-handleDistinctPerFile <- function(upsetjs_click, session){
+handleDistinctPerFile <- function(upsetjs_click){
   mode_append_list(upsetjs_click, "Distinct_list")
   removeModal()
-  updateFileBoxes(session)
+  updateFileBoxes()
 }
 
 # Sub Routines ####
@@ -291,9 +299,10 @@ handleDistinctPerFile <- function(upsetjs_click, session){
 # This function updates all File-related boxes across the app
 # i.e. checkbox groups and select inputs
 # @param session: R shiny session for environment control
-updateFileBoxes <- function(session) {
+updateFileBoxes <- function() {
   updateCheckboxGroupInput(session, "checkboxFiles", choices = file_names)
-  updateSelectInput(session, "selectEnrichFile", choices = file_names)
+  updateSelectInput(session, "functional_enrichment_file", choices = file_names)
+  updateSelectInput(session, "literature_enrichment_file", choices = file_names)
   updateSelectInput(session, "selectView", choices = file_names)
   updateSelectInput(session, "selectUpset", choices = file_names)
   updateSelectInput(session, "gconvert_select", choices = file_names)
@@ -328,7 +337,7 @@ trimList <- function(inList){
 
 # This function draws the Upset plot
 # Can be called either from button either from radioGroup
-create_upset <- function(mode, output){
+create_upset <- function(mode){
   if(mode =="Distinct Intersections"){
     # upset_listDistinct <- createListForDistinct()
     output$upsetjs <- renderUpsetjs({
@@ -397,9 +406,7 @@ create_upset <- function(mode, output){
     }else
     {
       updateRadioButtons(session, "mode", selected = "Union")
-      session$sendCustomMessage("handler_alert", paste("No distinct genes found.", sep = ""))
-      
-      
+      renderWarning("No distinct genes found.")
     }
   }
 }

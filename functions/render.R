@@ -24,7 +24,7 @@ renderShinyDataTable <- function(shinyOutputId, outputData,
     extensions = 'Buttons',
     caption = caption,
     options = list(
-      dom = 'Blfiprt',
+      "dom" = 'Blfiprt',
       buttons = list(
         list(extend = 'excel', filename = fileName),
         list(extend = 'csv', filename = fileName),
@@ -90,70 +90,38 @@ renderManhattanEnrichmentTable <- function(manhattanTable) {
                         expandableColumn = 11)
 }
 
-renderManhattanPlot <- function(){ 
-  output$manhattan <- renderPlotly({
-    gostplot(
-      gprofilerResult,
-      capped = TRUE,
-      interactive = T,
-      pal = DATASOURCE_COLORS
-    )
+renderShinyVisNetwork <- function(networkId, nodes, edges, layout) {
+  shinyjs::show(networkId)
+  output[[networkId]] <- renderVisNetwork({
+    set.seed(123)
+    visNetwork(nodes = nodes, edges = edges, background = "white") %>%
+      visGroups(groupname = "Gene", color = GENE_NODE_COLOR, shape = "square") %>%
+      visGroups(groupname = "PUBMED", color = LITERATURE_NODE_COLOR, shape = "square") %>%
+      visGroups(groupname = "GO:MF", color = DATASOURCE_COLORS["GO:MF"][[1]], shape = "hexagon") %>%
+      visGroups(groupname = "GO:BP", color = DATASOURCE_COLORS["GO:BP"][[1]], shape = "hexagon") %>%
+      visGroups(groupname = "GO:CC", color = DATASOURCE_COLORS["GO:CC"][[1]], shape = "hexagon") %>%
+      visGroups(groupname = "KEGG", color = DATASOURCE_COLORS["KEGG"][[1]], shape = "diamond") %>%
+      visGroups(groupname = "REAC", color = DATASOURCE_COLORS["REAC"][[1]], shape = "diamond") %>%
+      visGroups(groupname = "WP", color = DATASOURCE_COLORS["WP"][[1]], shape = "diamond") %>%
+      visGroups(groupname = "INTERPRO", color = DATASOURCE_COLORS["INTERPRO"][[1]], shape = "star") %>%
+      visGroups(groupname = "PFAM", color = DATASOURCE_COLORS["PFAM"][[1]], shape = "star") %>%
+      visGroups(groupname = "UNIPROT", color = DATASOURCE_COLORS["UNIPROT"][[1]], shape = "star") %>%
+      visGroups(groupname = "TF", color = DATASOURCE_COLORS["TF"][[1]], shape = "star") %>%
+      visGroups(groupname = "MIRNA", color = DATASOURCE_COLORS["MIRNA"][[1]], shape = "star") %>%
+      visGroups(groupname = "BTO", color = DATASOURCE_COLORS["BTO"][[1]], shape = "triangle") %>%
+      visGroups(groupname = "HPA", color = DATASOURCE_COLORS["HPA"][[1]], shape = "triangle") %>%
+      visGroups(groupname = "CORUM", color = DATASOURCE_COLORS["CORUM"][[1]], shape = "triangle") %>%
+      visGroups(groupname = "DO", color = DATASOURCE_COLORS["DO"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "HP", color = DATASOURCE_COLORS["HP"][[1]], shape = "triangleDown") %>%
+      visEdges(color = "black") %>%
+      visIgraphLayout(layout = layout) %>%
+      visInteraction(navigationButtons = TRUE, hover = TRUE)
   })
 }
 
-renderScatterPlot <- function(shinyOutputId, scatterData) {
-  output[[shinyOutputId]] <- renderPlotly({
-    plot_ly(data = scatterData,
-            x = ~`-log10Pvalue_jittered`,
-            y = ~`Enrichment Score %_jittered`,
-            type = 'scatter',
-            mode = 'markers',
-            marker = list(
-              size = 15,
-              line = list(
-                color = 'rgb(0, 0, 0)',
-                width = 1
-              )),
-            color = ~Source,
-            colors = DATASOURCE_COLORS,
-            hoverinfo = "text",
-            hovertext = ~paste0("TERM_ID: ", Term_ID_noLinks,
-                           "\nFUNCTION: ", Function,
-                           "\nEnrichment Score %: ", `Enrichment Score %`,
-                           "\n-log10Pvalue: ", `-log10Pvalue`)) %>%
-      layout(
-        xaxis = list(title = "-log10Pvalue"),
-        yaxis = list(title = "Enrichment Score")
-      ) 
-  })
-}
-
-renderBarchart <- function(shinyOutputId, barchartData, column, height) {
-  output[[shinyOutputId]] <- renderPlotly({
-    plot_ly(
-      data = barchartData,
-      x = barchartData[[column]],
-      y = ~Term_ID,
-      type = 'bar',
-      orientation = 'h',
-      color = ~Source,
-      colors = DATASOURCE_COLORS,
-      text = ~`Intersection Size`,
-      textfont = list(color = '#000000', size = 16),
-      textposition = 'outside',
-      hoverinfo = "text",
-      hovertext = ~paste0("TERM_ID: ", Term_ID_noLinks,
-                     "\nFUNCTION: ", Function,
-                     "\nEnrichment Score %: ", `Enrichment Score %`,
-                     "\n-log10Pvalue: ", `-log10Pvalue`)
-    ) %>%
-      layout(height = height)
-  })
-}
-
-renderHeatmap <- function(shinyOutputId, heatmapTable, color,
+renderHeatmap <- function(enrichmentType, shinyOutputId, heatmapTable, color,
                           yAxisColumn, xAxisColumn, weightColumn, height) {
-  output[[shinyOutputId]] <- renderPlotly({
+  output[[paste(enrichmentType, shinyOutputId, sep = "_")]] <- renderPlotly({
     plot_ly(
       data = heatmapTable,
       y = heatmapTable[[yAxisColumn]],
@@ -162,10 +130,10 @@ renderHeatmap <- function(shinyOutputId, heatmapTable, color,
       type = 'heatmap',
       colors = colorRamp(c("#f5f6f7", color)),
       hoverinfo = "text",
-      hovertext = generateHeatmapHoverText(shinyOutputId)
+      hovertext = generateHeatmapHoverText(shinyOutputId),
+      height = height
     ) %>%
-      layout(height = height,
-             xaxis = list(showgrid = F),
+      layout(xaxis = list(showgrid = F),
              yaxis = list(showgrid = F))
   })
 }
@@ -193,25 +161,64 @@ generateHeatmapHoverText <- function(shinyOutputId) {
   return(hoverText)
 }
 
-renderShinyVisNetwork <- function(networkId, nodes, edges, layout) {
-  shinyjs::show(networkId)
-  output[[networkId]] <- renderVisNetwork({
-    set.seed(123)
-    visNetwork(nodes = nodes, edges = edges, background = "white") %>%
-      visGroups(groupname = "Gene", color = GENE_NODE_COLOR, shape = "square") %>%
-      visGroups(groupname = "GO:MF", color = DATASOURCE_COLORS["GO:MF"][[1]], shape = "hexagon") %>%
-      visGroups(groupname = "GO:BP", color = DATASOURCE_COLORS["GO:BP"][[1]], shape = "hexagon") %>%
-      visGroups(groupname = "GO:CC", color = DATASOURCE_COLORS["GO:CC"][[1]], shape = "hexagon") %>%
-      visGroups(groupname = "KEGG", color = DATASOURCE_COLORS["KEGG"][[1]], shape = "diamond") %>%
-      visGroups(groupname = "REAC", color = DATASOURCE_COLORS["REAC"][[1]], shape = "diamond") %>%
-      visGroups(groupname = "WP", color = DATASOURCE_COLORS["WP"][[1]], shape = "diamond") %>%
-      visGroups(groupname = "TF", color = DATASOURCE_COLORS["TF"][[1]], shape = "star") %>%
-      visGroups(groupname = "MIRNA", color = DATASOURCE_COLORS["MIRNA"][[1]], shape = "star") %>%
-      visGroups(groupname = "HPA", color = DATASOURCE_COLORS["HPA"][[1]], shape = "triangle") %>%
-      visGroups(groupname = "CORUM", color = DATASOURCE_COLORS["CORUM"][[1]], shape = "triangle") %>%
-      visGroups(groupname = "HP", color = DATASOURCE_COLORS["HP"][[1]], shape = "triangleDown") %>%
-      visEdges(color = "black") %>%
-      visIgraphLayout(layout = layout) %>%
-      visInteraction(navigationButtons = TRUE, hover = TRUE)
+renderBarchart <- function(shinyOutputId, barchartData, column, height) {
+  output[[shinyOutputId]] <- renderPlotly({
+    plot_ly(
+      data = barchartData,
+      x = barchartData[[column]],
+      y = ~Term_ID,
+      type = 'bar',
+      orientation = 'h',
+      color = ~Source,
+      colors = DATASOURCE_COLORS,
+      text = ~`Intersection Size`,
+      textfont = list(color = '#000000', size = 16),
+      textposition = 'outside',
+      hoverinfo = "text",
+      hovertext = ~paste0("TERM_ID: ", Term_ID_noLinks,
+                          "\nFUNCTION: ", Function,
+                          "\nEnrichment Score %: ", `Enrichment Score %`,
+                          "\n-log10Pvalue: ", `-log10Pvalue`),
+      height = height
+    )
   })
 }
+
+renderScatterPlot <- function(shinyOutputId, scatterData) {
+  output[[shinyOutputId]] <- renderPlotly({
+    plot_ly(data = scatterData,
+            x = ~`-log10Pvalue_jittered`,
+            y = ~`Enrichment Score %_jittered`,
+            type = 'scatter',
+            mode = 'markers',
+            marker = list(
+              size = 15,
+              line = list(
+                color = 'rgb(0, 0, 0)',
+                width = 1
+              )),
+            color = ~Source,
+            colors = DATASOURCE_COLORS,
+            hoverinfo = "text",
+            hovertext = ~paste0("TERM_ID: ", Term_ID_noLinks,
+                                "\nFUNCTION: ", Function,
+                                "\nEnrichment Score %: ", `Enrichment Score %`,
+                                "\n-log10Pvalue: ", `-log10Pvalue`)) %>%
+      layout(
+        xaxis = list(title = "-log10Pvalue"),
+        yaxis = list(title = "Enrichment Score")
+      ) 
+  })
+}
+
+renderManhattanPlot <- function(){ 
+  output$manhattan <- renderPlotly({
+    gostplot(
+      gprofilerResult,
+      capped = T,
+      interactive = T,
+      pal = DATASOURCE_COLORS
+    )
+  })
+}
+

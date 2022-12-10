@@ -2,9 +2,9 @@ initializeUIApp <- function() {
   initializeOrganismsData()
 }
 
-initializeOrganismsData <- function() {
+initializeOrganismsData <- function(filePath = "./organisms_with_kegg.tsv") {
   ORGANISMS_FROM_FILE <<- read.delim(
-    "./organisms_with_kegg.tsv",
+    filePath,
     header = T,
     stringsAsFactors = F
   )
@@ -17,23 +17,28 @@ initializeOrganismsData <- function() {
 }
 
 initializeServerApp <- function() {
-  session$sendCustomMessage("handler_disableSourcesTabs", "gprofiler")
-  session$sendCustomMessage("handler_disableSourcesTabs", "aGoTool")
+  session$sendCustomMessage("handler_hideSourceTabs", "functional")
   initializeOrganismsData()
   initializeArenaEdgelist()
-  shinyjs::hide("conversionBoxes")
+  shinyjs::hide("functional_conversionBoxes")
+  shinyjs::hide("literature_conversionBoxes")
   hideVisNetworks()
 }
 
 initializeArenaEdgelist <- function() {
-  for (id in networkIds) {
-    arenaEdgelist <<- c(arenaEdgelist, list(data.frame()))
+  for (enrichmentType in ENRICHMENT_TYPES) {
+    for (networkId in NETWORK_IDS) {
+      newItem <- list(data.frame())
+      names(newItem) <- paste(enrichmentType, networkId, sep = "_")
+      arenaEdgelist <<- c(arenaEdgelist, newItem)
+    }
   }
-  names(arenaEdgelist) <<- networkIds
 }
 
 hideVisNetworks <- function() {
-  lapply(networkIds, function(networkId) {
-    shinyjs::hide(networkId)
+  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+    lapply(NETWORK_IDS, function(networkId) {
+      shinyjs::hide(paste(enrichmentType, networkId, sep = "_"))
+    })
   })
 }

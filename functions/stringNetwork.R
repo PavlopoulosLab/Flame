@@ -1,5 +1,21 @@
+handleStringNetwork <- function() {
+  tryCatch({
+    renderModal("<h2>Please wait.</h2><br /><p>Generating STRING network.</p>")
+    create_string_network()
+  }, error = function(e) {
+    print(paste("Error :  ", e))
+    renderError("Problem with STRING network.")
+  }, finally = {
+    removeModal()
+  })
+}
 
-create_string_network <- function(dataset, organism, type, edges, score, output) {
+create_string_network <- function() {
+  dataset <- input$STRINGnetworkSelect
+  organism <- input$STRINGnetworkOrganism
+  type <- input$STRINGnetworkType
+  edges <- input$STRINGnetworkEdges
+  score <- input$STRINGnetworkScore
   
   #1. Get input IDs from dataset
   input_ids_initial<-unlist(inputGeneLists[file_names==dataset][[1]])

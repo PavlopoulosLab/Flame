@@ -138,7 +138,7 @@ caption{
   text-align: center;
 }
 
-#enrichmentResultsDiv {
+.enrichmentResultsDiv {
   border: 1px solid FireBrick;
   border-top: none;
   border-bottom-left-radius: 25px;
@@ -161,11 +161,13 @@ caption{
   overflow-y: auto;
 }
 
-#barchart, #heatmap1, #heatmap2, #heatmap3 {
+#functional_barchart, #literature_barchart,
+#functional_heatmap1, #functional_heatmap2, #functional_heatmap3,
+#literature_heatmap1, #literature_heatmap2, #literature_heatmap3{
   height: auto !important;
 }
 
-#heatmap1_axis {
+#functional_heatmap1_axis, #literature_heatmap1_axis {
   margin-top: -30px;
 }
 
@@ -211,7 +213,8 @@ border-top-color:#fae4c8;
  background-color: white;
 }
 
-#network1, #network2, #network3{
+#functional_network1, #functional_network2, #functional_network3,
+#literature_network1, #literature_network2, #literature_network3{
   border: 3px solid orange;
   border-radius: 25px;
   box-shadow: 10px 10px 5px grey; 
