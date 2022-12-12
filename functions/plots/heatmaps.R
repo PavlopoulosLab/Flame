@@ -1,14 +1,15 @@
-handleHeatmap <- function(enrichmentType, heatmapId) {
+handleHeatmap <- function(enrichmentType, enrichmentTool, heatmapId) {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Heatmap.</p>")
-    if (existEnrichmentResults(enrichmentType)){
+    if (existEnrichmentResults(enrichmentType, enrichmentTool)){
       handleHeatmapCallbackFunction <- switch(
         heatmapId,
         "heatmap1" = handleFunctionVsGeneHeatmap,
         "heatmap2" = handleFunctionVsFunctionHeatmap,
         "heatmap3" = handleGeneVsGeneHeatmap
       )
-      handleHeatmapCallbackFunction(enrichmentType)
+      type_Tool <- paste(enrichmentType, enrichmentTool, sep = "_")
+      handleHeatmapCallbackFunction(enrichmentType, enrichmentTool, type_Tool)
     }
   }, error = function(e) {
     cat(paste0("Error: ", e))
@@ -18,25 +19,26 @@ handleHeatmap <- function(enrichmentType, heatmapId) {
   })
 }
 
-handleFunctionVsGeneHeatmap <- function(enrichmentType) {
-  source <- input[[paste0(enrichmentType, "_heatmap1_sourceSelect")]]
+handleFunctionVsGeneHeatmap <- function(enrichmentType, enrichmentTool, type_Tool) {
+  source <- input[[paste(type_Tool, "heatmap1_sourceSelect", sep = "_")]]
   
   if (isSourceNotNull(source)) {
-    enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-      id = paste0(enrichmentType, "_heatmap1"), plotType = "heatmap",
+    enrichmentFilteredData <- filterAndPrintTable(
+      enrichmentType, enrichmentTool,
+      outputId = paste(type_Tool, "heatmap1", sep = "_"),
       sourceSelect = source,
-      mode = input[[paste0(enrichmentType, "_heatmap1_mode")]],
-      slider = input[[paste0(enrichmentType, "_heatmap1_slider")]])
+      mode = input[[paste(type_Tool, "heatmap1_mode", sep = "_")]],
+      slider = input[[paste(type_Tool, "heatmap1_slider", sep = "_")]])
     
-    constructFunctionsVsGeneHeatmap(enrichmentType, enrichmentFilteredData)
+    constructFunctionsVsGeneHeatmap(type_Tool, enrichmentFilteredData)
   }
 }
 
-constructFunctionsVsGeneHeatmap <- function(enrichmentType, enrichmentFilteredData) {
+constructFunctionsVsGeneHeatmap <- function(type_Tool, enrichmentFilteredData) {
   heatmapTable <- separateRows(enrichmentFilteredData)
   heatmapTable$GeneExists <- 1
   
-  heatmap1_axis <- input[[paste0(enrichmentType, "_heatmap1_axis")]]
+  heatmap1_axis <- input[[paste(type_Tool, "heatmap1_axis", sep = "_")]]
   yColumn <- switch(
     heatmap1_axis,
     "Functions-Genes" = {
@@ -52,63 +54,69 @@ constructFunctionsVsGeneHeatmap <- function(enrichmentType, enrichmentFilteredDa
   )
   entriesCount <- length(unique(heatmapTable[[yColumn]]))
   height <- calculatePlotHeight(entriesCount)
-  renderHeatmap(enrichmentType, "heatmap1", heatmapTable,
-                color = DATASOURCE_COLORS[[input[[paste0(enrichmentType,
-                                                         "_heatmap1_sourceSelect")]]]],
+  renderHeatmap(type_Tool, "heatmap1", heatmapTable,
+                color = DATASOURCE_COLORS[[input[[paste(
+                  type_Tool, "heatmap1_sourceSelect", sep = "_")]]]],
                 yAxisColumn, xAxisColumn,
                 weightColumn = "GeneExists",
                 height = height)
 }
 
-handleFunctionVsFunctionHeatmap <- function(enrichmentType) {
-  source <- input[[paste0(enrichmentType, "_heatmap2_sourceSelect")]]
+handleFunctionVsFunctionHeatmap <- function(enrichmentType, enrichmentTool, type_Tool) {
+  source <- input[[paste(type_Tool, "heatmap2_sourceSelect", sep = "_")]]
   
   if (isSourceNotNull(source)) {
-    enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-      id = paste0(enrichmentType, "_heatmap2"), plotType = "heatmap",
+    enrichmentFilteredData <- filterAndPrintTable(
+      enrichmentType, enrichmentTool,
+      outputId = paste(type_Tool, "heatmap2", sep = "_"),
       sourceSelect = source,
-      mode = input[[paste0(enrichmentType, "_heatmap2_mode")]],
-      slider = input[[paste0(enrichmentType, "_heatmap2_slider")]])
+      mode = input[[paste(type_Tool, "heatmap2_mode", sep = "_")]],
+      slider = input[[paste(type_Tool, "heatmap2_slider", sep = "_")]])
 
-    constructFunctionsVsFunctionHeatmap(enrichmentType, enrichmentFilteredData)
+    constructFunctionsVsFunctionHeatmap(enrichmentType, enrichmentTool,
+                                        type_Tool, enrichmentFilteredData)
   }
 }
 
-constructFunctionsVsFunctionHeatmap <- function(enrichmentType, enrichmentFilteredData) {
-  heatmapTable <- extractFunctionVsFunctionEdgelist(enrichmentType, enrichmentFilteredData)
+constructFunctionsVsFunctionHeatmap <- function(enrichmentType, enrichmentTool,
+                                                type_Tool, enrichmentFilteredData) {
+  heatmapTable <- extractFunctionVsFunctionEdgelist(enrichmentType, enrichmentTool,
+                                                    enrichmentFilteredData)
   
   entriesCount <- length(unique(heatmapTable$`Source Name`))
   height <- calculatePlotHeight(entriesCount)
-  renderHeatmap(enrichmentType, "heatmap2", heatmapTable,
-                color = DATASOURCE_COLORS[[input[[paste0(enrichmentType,
-                                                         "_heatmap2_sourceSelect")]]]],
+  renderHeatmap(type_Tool, "heatmap2", heatmapTable,
+                color = DATASOURCE_COLORS[[input[[paste(
+                  type_Tool, "heatmap2_sourceSelect", sep = "_")]]]],
                 yAxisColumn = "Source Id",
                 xAxisColumn = "Target Id",
                 weightColumn = "Similarity Score %",
                 height = height)
 }
 
-handleGeneVsGeneHeatmap <- function(enrichmentType) {
-  source <- input[[paste0(enrichmentType, "_heatmap3_sourceSelect")]]
+handleGeneVsGeneHeatmap <- function(enrichmentType, enrichmentTool, type_Tool) {
+  source <- input[[paste(type_Tool, "heatmap3_sourceSelect", sep = "_")]]
   
   if (isSourceNotNull(source)) {
-    enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-      id = paste0(enrichmentType, "_heatmap3"), plotType = "heatmap",
+    enrichmentFilteredData <- filterAndPrintTable(
+      enrichmentType, enrichmentTool,
+      outputId = paste(type_Tool, "heatmap3", sep = "_"),
       sourceSelect = source,
-      mode = input[[paste0(enrichmentType, "_heatmap3_mode")]],
-      slider = input[[paste0(enrichmentType, "_heatmap3_slider")]])
+      mode = input[[paste(type_Tool, "heatmap3_mode", sep = "_")]],
+      slider = input[[paste(type_Tool, "heatmap3_slider", sep = "_")]])
     
-    constructGeneVsGeneHeatmap(enrichmentType, enrichmentFilteredData)
+    constructGeneVsGeneHeatmap(type_Tool, enrichmentFilteredData)
   }
 }
 
-constructGeneVsGeneHeatmap <- function(enrichmentType, enrichmentFilteredData) {
+constructGeneVsGeneHeatmap <- function(type_Tool, enrichmentFilteredData) {
   heatmapTable <- extractGeneVsGeneEdgelist(enrichmentFilteredData)
   
   entriesCount <- length(unique(heatmapTable$`Source Name`))
   height <- calculatePlotHeight(entriesCount)
-  renderHeatmap(enrichmentType, "heatmap3", heatmapTable,
-                color = DATASOURCE_COLORS[[input[[paste0(enrichmentType, "_heatmap3_sourceSelect")]]]],
+  renderHeatmap(type_Tool, "heatmap3", heatmapTable,
+                color = DATASOURCE_COLORS[[input[[paste(
+                  type_Tool, "heatmap3_sourceSelect", sep = "_")]]]],
                 yAxisColumn = "Source Name",
                 xAxisColumn = "Target Name",
                 weightColumn = "Common Functions",

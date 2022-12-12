@@ -1,10 +1,9 @@
-attachDBLinks <- function(organism) { # Transfac HPA CORUMLinks, unavailable
-  linkOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$gprofiler_ID == organism, ]$KEGG
+attachDBLinks <- function() { # Transfac HPA CORUMLinks, unavailable
   attachInterProLinks()
   attachPFAMLinks()
   attachUniProtLinks()
   attachGOLinks()
-  attachKEGGLinks(organism, linkOrganism)
+  attachKEGGLinks()
   attachReactomeLinks()
   attachWikiPathsLinks()
   attachDOLinks()
@@ -15,9 +14,11 @@ attachDBLinks <- function(organism) { # Transfac HPA CORUMLinks, unavailable
 
 attachInterProLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^INTERPRO$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^INTERPRO$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^INTERPRO$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^INTERPRO$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.ebi.ac.uk/interpro/entry/InterPro/",
         linksVector,
@@ -30,9 +31,11 @@ attachInterProLinks <- function() {
 
 attachPFAMLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^PFAM$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^PFAM$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^PFAM$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^PFAM$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.ebi.ac.uk/interpro/entry/pfam/",
         linksVector,
@@ -45,9 +48,11 @@ attachPFAMLinks <- function() {
 
 attachUniProtLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^UNIPROT$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^UNIPROT$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^UNIPROT$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^UNIPROT$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.uniprot.org/keywords/",
         linksVector,
@@ -60,9 +65,11 @@ attachUniProtLinks <- function() {
 
 attachGOLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^GO:", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^GO:", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^GO:", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^GO:", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.ebi.ac.uk/QuickGO/term/",
         linksVector,
@@ -73,11 +80,14 @@ attachGOLinks <- function() {
   }
 }
 
-attachKEGGLinks <- function(organism, linkOrganism) {
+attachKEGGLinks <- function() {
+  linkOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$gprofiler_ID == currentOrganism, ]$KEGG
   linksVector <-
-    functionalEnrichmentResult[grepl("^KEGG$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^KEGG$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^KEGG$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^KEGG$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.genome.jp/kegg-bin/show_pathway?",
         gsub("KEGG:", linkOrganism, linksVector),
@@ -90,9 +100,11 @@ attachKEGGLinks <- function(organism, linkOrganism) {
 
 attachReactomeLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^REAC$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^REAC$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^REAC$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^REAC$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://reactome.org/content/detail/",
         gsub("REAC:", "", linksVector),
@@ -105,9 +117,11 @@ attachReactomeLinks <- function() {
 
 attachWikiPathsLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^WP$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^WP$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^WP$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^WP$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.wikipathways.org/index.php/Pathway:",
         gsub("WP:", "", linksVector),
@@ -120,9 +134,11 @@ attachWikiPathsLinks <- function() {
 
 attachDOLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^DO$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^DO$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^DO$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^DO$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='http://www.informatics.jax.org/disease/",
         linksVector,
@@ -135,9 +151,11 @@ attachDOLinks <- function() {
 
 attachBTOLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^BTO$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^BTO$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^BTO$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^BTO$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.ebi.ac.uk/ols/ontologies/bto/terms?iri=http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FBTO_",
         gsub("BTO:", "", linksVector),
@@ -150,9 +168,11 @@ attachBTOLinks <- function() {
 
 attachMirBaseLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^MIRNA$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^MIRNA$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^MIRNA$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^MIRNA$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://www.mirbase.org/textsearch.shtml?q=",
         gsub("MIRNA:", "", linksVector),
@@ -165,9 +185,11 @@ attachMirBaseLinks <- function() {
 
 attachHPOLinks <- function() {
   linksVector <-
-    functionalEnrichmentResult[grepl("^HP$", functionalEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^HP$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    functionalEnrichmentResult[grepl("^HP$", functionalEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^HP$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://mseqdr.org/hpo_browser.php?",
         gsub("HP:", "", linksVector),
@@ -180,9 +202,11 @@ attachHPOLinks <- function() {
 
 attachLiteratureDBLinks <- function() {
   linksVector <-
-    literatureEnrichmentResult[grepl("^PUBMED$", literatureEnrichmentResult$Source), ]$Term_ID
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^PUBMED$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID
   if (length(linksVector) > 0) {
-    literatureEnrichmentResult[grepl("^PUBMED$", literatureEnrichmentResult$Source), ]$Term_ID <<-
+    enrichmentResults[[currentType_Tool]][grepl(
+      "^PUBMED$", enrichmentResults[[currentType_Tool]]$Source), ]$Term_ID <<-
       paste0(
         "<a href='https://pubmed.ncbi.nlm.nih.gov/",
         gsub("PMID:", "", linksVector),

@@ -5,10 +5,10 @@ handle_gconvert <- function() {
     gconvert_organism <- input$gconvert_organism
     gconvert_target <- input$gconvert_target
     
-    if (identical(inputGeneLists, list()))
+    if (identical(userInputLists, list()))
       renderWarning("Please, first upload your data files.")
     else {
-      genesForconvert <- inputGeneLists[file_names==gconvert_select][[1]]
+      genesForconvert <- userInputLists[file_names==gconvert_select][[1]]
       gconvert_organism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gconvert_organism,]$gprofiler_ID
       converted_genes <- gconvert(unlist(genesForconvert), organism = gconvert_organism, target = c(gconvert_target), numeric_ns = "", mthreshold = Inf, filter_na = T)
       if (!identical(converted_genes, NULL)){
@@ -59,10 +59,10 @@ handle_gorth <- function() {
     gorth_organism <- input$gorth_organism
     gorth_target <- input$gorth_target
     
-    if (identical(inputGeneLists, list()))
+    if (identical(userInputLists, list()))
       renderWarning("Please, first upload your data files.")
     else {
-      genesForgorth <- inputGeneLists[file_names==gorth_select][[1]]
+      genesForgorth <- userInputLists[file_names==gorth_select][[1]]
       gorth_organism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorth_organism,]$gprofiler_ID
       gorth_target <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorth_target,]$gprofiler_ID
       gorth_genes <- gorth(unlist(genesForgorth), source_organism = gorth_organism, target_organism = c(gorth_target), numeric_ns = "", mthreshold = Inf, filter_na = T)

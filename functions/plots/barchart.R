@@ -1,16 +1,19 @@
-handleBarchart <- function(enrichmentType) {
+handleBarchart <- function(enrichmentType, enrichmentTool) {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Barchart.</p>")
-    if (existEnrichmentResults(enrichmentType)) {
-      sourceSelect <- input[[paste0(enrichmentType, "_barchart_sourceSelect")]]
-      mode <- input[[paste0(enrichmentType, "_barchart_mode")]]
+    if (existEnrichmentResults(enrichmentType, enrichmentTool)) {
+      type_Tool <- paste(enrichmentType, enrichmentTool, sep = "_")
+      sourceSelect <- input[[paste(type_Tool, "barchart_sourceSelect", sep = "_")]]
+      mode <- input[[paste(type_Tool, "barchart_mode", sep = "_")]]
       
       if (isSourceNotNull(sourceSelect)) {
-        enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-          id = paste0(enrichmentType, "_barchart"), plotType = "barchart",
+        enrichmentFilteredData <- filterAndPrintTable(
+          enrichmentType, enrichmentTool,
+          outputId = paste(type_Tool, "barchart", sep = "_"),
           sourceSelect = sourceSelect,
-          mode = mode, slider = input[[paste0(enrichmentType, "_barchart_slider")]])
-        constructBarchart(enrichmentType, enrichmentFilteredData, mode)
+          mode = mode,
+          slider = input[[paste(type_Tool, "barchart_slider", sep = "_")]])
+        constructBarchart(type_Tool, enrichmentFilteredData, mode)
       }
     }
   }, error = function(e) {
@@ -21,7 +24,7 @@ handleBarchart <- function(enrichmentType) {
   })
 }
 
-constructBarchart <- function(enrichmentType, enrichmentFilteredData, mode) {
+constructBarchart <- function(type_Tool, enrichmentFilteredData, mode) {
   column <- switch(
     mode,
     "Enrichment Score" = "Enrichment Score %",
@@ -33,6 +36,6 @@ constructBarchart <- function(enrichmentType, enrichmentFilteredData, mode) {
       levels = unique(enrichmentFilteredData$Term_ID)[order(enrichmentFilteredData[[column]],
                                                             decreasing = F)])
   height <- calculatePlotHeight(nrow(enrichmentFilteredData))
-  renderBarchart(paste0(enrichmentType, "_barchart"),
+  renderBarchart(paste(type_Tool, "barchart", sep = "_"),
                  enrichmentFilteredData, column, height)
 }

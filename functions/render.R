@@ -84,7 +84,7 @@ renderManhattanEnrichmentTable <- function(manhattanTable) {
   renderEnrichmentTable("manhattan_table",
                         manhattanTable,
                         caption = "Selected Terms", 
-                        fileName = "_selected_enriched_gprofiler",
+                        fileName = "gprofiler_manhattan_selected",
                         mode = "Positive Hits",
                         hiddenColumns = c(0, 11, 12),
                         expandableColumn = 11)
@@ -119,9 +119,9 @@ renderShinyVisNetwork <- function(networkId, nodes, edges, layout) {
   })
 }
 
-renderHeatmap <- function(enrichmentType, shinyOutputId, heatmapTable, color,
+renderHeatmap <- function(type_Tool, shinyOutputId, heatmapTable, color,
                           yAxisColumn, xAxisColumn, weightColumn, height) {
-  output[[paste(enrichmentType, shinyOutputId, sep = "_")]] <- renderPlotly({
+  output[[paste(type_Tool, shinyOutputId, sep = "_")]] <- renderPlotly({
     plot_ly(
       data = heatmapTable,
       y = heatmapTable[[yAxisColumn]],

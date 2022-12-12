@@ -1,5 +1,5 @@
 # When the user uploads files, this event appends the file names and 
-# data into two respective static global lists: file_names, inputGeneLists
+# data into two respective static global lists: file_names, userInputLists
 # @param inputFiles: multiple uploaded files (list)
 handleInputFiles <- function(inputFiles) {
   if (!(length(inputFiles$name)+length(file_names)) > FILE_LIMIT) {
@@ -9,8 +9,8 @@ handleInputFiles <- function(inputFiles) {
         tempData <- trimFunction(tempData)
         if (nrow(tempData) > 0){
           file_names[[length(file_names)+1]] <<- inputFiles$name[i]
-          inputGeneLists[[length(inputGeneLists)+1]] <<- tempData # read.csv(inputFiles$datapath[i], header=F) # old
-          colnames(inputGeneLists[[length(inputGeneLists)]]) <<- file_names[[length(file_names)]]
+          userInputLists[[length(userInputLists)+1]] <<- tempData # read.csv(inputFiles$datapath[i], header=F) # old
+          colnames(userInputLists[[length(userInputLists)]]) <<- file_names[[length(file_names)]]
         }
       } else
         renderWarning(paste0("A file named ", inputFiles$name[i] ," already exists."))
@@ -35,11 +35,11 @@ handleTextSubmit <- function(inputText, prefix) {
         # create random name and DF
         random_name <- getRandomName(prefix)
         text_data_frame <- trimFunction(inputText)
-        # update globals: file_names and inputGeneLists 
+        # update globals: file_names and userInputLists 
         if (nrow(text_data_frame) > 0){
           file_names[[length(file_names)+1]] <<- random_name
-          inputGeneLists[[length(inputGeneLists)+1]] <<- text_data_frame
-          colnames(inputGeneLists[[length(inputGeneLists)]]) <<- file_names[[length(file_names)]]
+          userInputLists[[length(userInputLists)+1]] <<- text_data_frame
+          colnames(userInputLists[[length(userInputLists)]]) <<- file_names[[length(file_names)]]
           # update controls
           updateTextAreaInput(session, "text", value = "")
           updateFileBoxes()
@@ -77,8 +77,8 @@ parse_import_data <- function(inFile, session){
           
           # random_name <- getRandomName(names(raw_json)[i]) # json list names are unique already
           file_names[[length(file_names)+1]] <<- names(raw_json)[i]
-          inputGeneLists[[length(inputGeneLists)+1]] <<- as.data.frame(raw_json[[i]])
-          colnames(inputGeneLists[[length(inputGeneLists)]]) <<- file_names[[length(file_names)]]
+          userInputLists[[length(userInputLists)+1]] <<- as.data.frame(raw_json[[i]])
+          colnames(userInputLists[[length(userInputLists)]]) <<- file_names[[length(file_names)]]
           updateFileBoxes()
           
         }
@@ -135,7 +135,7 @@ handleRename <- function(js_fileNames){
       if (file_names[global_positions[[i]][1]] != js_fileNames[[i]][1]){
         if(is.na(match(js_fileNames[i], file_names))){
           file_names[global_positions[i]] <<- js_fileNames[i]
-          colnames(inputGeneLists[[global_positions[i]]]) <<- js_fileNames[i]
+          colnames(userInputLists[[global_positions[i]]]) <<- js_fileNames[i]
         } else
           renderWarning(paste0("Duplicate name: ", js_fileNames[i], " . Name didn't change.")) 
       }
@@ -153,7 +153,7 @@ handleRemove <- function(checkboxFiles){
   positions <- which(file_names %in% checkboxFiles)
   if (!identical(positions, integer(0))){
     file_names <<- file_names[-positions]
-    inputGeneLists <<- inputGeneLists[-positions]
+    userInputLists <<- userInputLists[-positions]
     updateFileBoxes()
   }
 }
@@ -170,7 +170,7 @@ handleSubmitUpset <- function() {
     if (!identical(positions, integer(0)) && (length(positions) >= 2)){ # only execute if files have been selected
       positions <- which(file_names %in% checkboxFiles)
       upset_list <<- ""
-      for (i in 1:length(positions)) upset_list <<- c(upset_list, (inputGeneLists[positions[i]][[1]]))
+      for (i in 1:length(positions)) upset_list <<- c(upset_list, (userInputLists[positions[i]][[1]]))
       upset_list <<- upset_list[upset_list != ""]
       create_upset(mode)
       output$Hovered_Set <- renderText(("Hovered Set:")) # displays the labels of hovered sets
@@ -202,7 +202,7 @@ handleModeUpset <- function(mode){
 # This event displays the selected file
 # @param input$Select_view
 handleSelectView <- function(selectView){
-  gene_tables<- as.data.frame(inputGeneLists[file_names == selectView])
+  gene_tables<- as.data.frame(userInputLists[file_names == selectView])
   output$contents <- DT::renderDataTable(gene_tables, server = FALSE, 
                                          extensions = 'Buttons',
                                          options = list(
@@ -411,13 +411,13 @@ create_upset <- function(mode){
   }
 }
 
-# This function appends the two global file variables: file_names and inputGeneLists
+# This function appends the two global file variables: file_names and userInputLists
 # @param mode_list: one of "Intersection_list", "Distinct_Intersections_list" and "Union_list"
 mode_append_list<- function(upsetjs_click, mode_list){
   random_name <- getRandomName(paste(mode_list, upsetjs_click$name, sep="_"))
   file_names[[length(file_names)+1]] <<- random_name
-  inputGeneLists[[length(inputGeneLists)+1]] <<- as.data.frame(as.character(upsetjs_click$elems))
-  colnames(inputGeneLists[[length(inputGeneLists)]]) <<-file_names[[length(file_names)]]
+  userInputLists[[length(userInputLists)+1]] <<- as.data.frame(as.character(upsetjs_click$elems))
+  colnames(userInputLists[[length(userInputLists)]]) <<-file_names[[length(file_names)]]
 }
 
 # This function creates the upset list for distinct combo values out of the global upset_list variable

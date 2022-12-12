@@ -1,15 +1,15 @@
-runGprofiler <- function(query, organism){
+runGprofiler <- function(query){
   gprofilerResult <<- gost(
     query = query,
-    organism = organism,
+    organism = currentOrganism,
     evcodes = T, # gene hits and intersection
     user_threshold = input$functional_enrichment_threshold,
-    correction_method = input$functional_enrichment_metric,
+    correction_method = currentSignificanceMetric,
     sources = input$functional_enrichment_datasources
   )
   if (validGprofilerResult()) {
     gprofilerParsedResult <- parseGprofilerResult()
-    functionalEnrichmentResult <<- 
+    enrichmentResults[[currentType_Tool]] <<-
       transformEnrichmentResultTable(gprofilerParsedResult)
   }
 }

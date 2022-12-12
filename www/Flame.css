@@ -1,4 +1,4 @@
-*{
+* {
   font-family: "Segoe UI";
 }
 
@@ -6,7 +6,7 @@ hr {
   border-top: 1px solid #383f4f;
 }
 
-td:last-child, #hovered{
+td:last-child, #hovered {
   word-break: break-all;
 }
 
@@ -21,7 +21,7 @@ footer {
 	font-size: 18px;
 }
 
-caption{
+caption {
   text-align: center;
   font-size: 20px;
   background-color: #2998b1;
@@ -50,46 +50,67 @@ caption{
   border-top-right-radius: 25px;;
 }
 
-.logo{
+.toolTabs > .tabbable > .nav-tabs {
+  font-weight: bold;
+  font-size: 20px;
+  border-bottom: 3px solid FireBrick;;
+}
+
+.toolTabs > .tabbable > .nav-tabs > li {
+  margin-bottom: -3px;
+}
+
+.toolTabs > .tabbable > .nav-tabs > li > a {
+  margin: 0;
+  border: 0;
+}
+
+.toolTabs > .tabbable > .nav-tabs > .active {
+  border: 3px solid FireBrick;
+  border-bottom: none;
+}
+
+
+.logo {
   height: 90px !important;
   padding-top: 5px !important;
   padding-bottom: 5px !important;
   background-color: #ffee6e  !important;
 }
 
-.navbar{
+.navbar {
   background-color: #ffee6e  !important;
 }
 
-.sidebar-menu{
+.sidebar-menu {
   padding-top: 60px;
 }
 
-.sidebar-toggle{
+.sidebar-toggle {
   color: #222d32 !important;
   height: 90px !important;
   padding-top: 35px !important;
 }
 
-.sidebar-toggle:hover{
+.sidebar-toggle:hover {
   background-color: #fffef0 !important;
 }
 
-.content-wrapper{
+.content-wrapper {
   background-color: #fffef0;
 }
 
-.btn-submit, .btn-submit:hover, .btn-submit:focus{
+.btn-submit, .btn-submit:hover, .btn-submit:focus {
   color: #fff;
   background-color: #ff9d00;
 }
 
-.btn-submit:active{
+.btn-submit:active {
   color: #fff !important;
   background-color: #ff9d00 !important;
 }
 
-.dt-buttons{
+.dt-buttons {
   padding-left: 10px;
   top: -5px;
 }
@@ -139,36 +160,41 @@ caption{
 }
 
 .enrichmentResultsDiv {
-  border: 1px solid FireBrick;
+  border: 3px solid FireBrick;
   border-top: none;
   border-bottom-left-radius: 25px;
   border-bottom-right-radius: 25px;
   padding: 5px;
 }
 
-#textSubmit, #rename{
+.networkOutput > .visNetwork {
+  border: 3px solid orange;
+  border-radius: 25px;
+  box-shadow: 10px 10px 5px grey; 
+}
+
+.heatmapOutput > .plotly,
+.barchartOutput > .plotly{
+  height: auto !important;
+}
+
+.heatmapAxis {
+  margin-top: -30px;
+}
+
+#textSubmit, #rename {
   color: #fff;
   background-color: #158794;
 }
 
-#remove, #clear{
+#remove, #clear {
   color: #fff;
   background-color: #eb4310;
 }
 
-#stringEmbedded{
+#stringEmbedded {
   overflow-x: auto;
   overflow-y: auto;
-}
-
-#functional_barchart, #literature_barchart,
-#functional_heatmap1, #functional_heatmap2, #functional_heatmap3,
-#literature_heatmap1, #literature_heatmap2, #literature_heatmap3{
-  height: auto !important;
-}
-
-#functional_heatmap1_axis, #literature_heatmap1_axis {
-  margin-top: -30px;
 }
 
 @media only screen and (max-width: 770px) {
@@ -188,34 +214,27 @@ caption{
   100% { transform: rotate(360deg); }
 }
 
-.content{
+.content {
   padding-bottom: 50px;
 }
 
 .box.box-solid.box-primary>.box-header {
   color:#ffffff;
   background:#2998b1;
-                    }
-
-.box.box-solid.box-primary{
-border-bottom-color:#fae4c8;
-border-left-color:#fae4c8;
-border-right-color:#fae4c8;
-border-top-color:#fae4c8;
 }
 
-.shiny-notification{
+.box.box-solid.box-primary {
+  border-bottom-color:#fae4c8;
+  border-left-color:#fae4c8;
+  border-right-color:#fae4c8;
+  border-top-color:#fae4c8;
+}
+
+.shiny-notification {
  position: fixed;
  top: 33%;
  left: 33%;
  right: 33%;
  color: blue;
  background-color: white;
-}
-
-#functional_network1, #functional_network2, #functional_network3,
-#literature_network1, #literature_network2, #literature_network3{
-  border: 3px solid orange;
-  border-radius: 25px;
-  box-shadow: 10px 10px 5px grey; 
 }

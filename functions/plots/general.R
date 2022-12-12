@@ -1,15 +1,18 @@
-handleDatasourcePicker <- function(enrichmentType, componentId) {
+handleDatasourcePicker <- function(enrichmentType, toolName, componentId) {
   tryCatch({
-    datasources <- input[[paste(enrichmentType, componentId, "sourceSelect", sep = "_")]]
-    maxSliderValue <- calculateMaxSliderValue(datasources, enrichmentType)
+    type_Tool <- paste(enrichmentType, toolName, sep = "_")
+    datasources <- input[[paste(type_Tool, componentId, "sourceSelect", sep = "_")]]
+    maxSliderValue <- calculateMaxSliderValue(enrichmentType, toolName, datasources)
     
-    sliderId <- paste(enrichmentType, componentId, "slider", sep = "_")
+    sliderId <- paste(type_Tool, componentId, "slider", sep = "_")
     updateShinySliderInput(shinyOutputId = sliderId,
                            min = 1, maxSliderValue)
     if (componentId == "network3") {
-      updateShinySliderInput(shinyOutputId = paste0(enrichmentType, "_network3_thresholdSlider"),
-                             min = 1, maxSliderValue,
-                             value = round(maxSliderValue / 10))
+      updateShinySliderInput(
+        shinyOutputId = paste(type_Tool, "network3_thresholdSlider", sep = "_"),
+        min = 1, maxSliderValue,
+        value = round(maxSliderValue / 10)
+      )
     }
   }, error = function(e) {
     cat(paste0("Error: ", e))
@@ -17,8 +20,8 @@ handleDatasourcePicker <- function(enrichmentType, componentId) {
   })
 }
 
-calculateMaxSliderValue <- function(datasources, enrichmentType) {
-  enrichmentResult <- switchGlobalEnrichmentResult(enrichmentType)
+calculateMaxSliderValue <- function(enrichmentType, toolName, datasources) {
+  enrichmentResult <- getGlobalEnrichmentResult(enrichmentType, toolName)
   maxSliderValue <- nrow(
     subset(
       enrichmentResult,
@@ -28,13 +31,16 @@ calculateMaxSliderValue <- function(datasources, enrichmentType) {
   return(maxSliderValue)
 }
 
-existEnrichmentResults <- function(enrichmentType) {
-  enrichmentResult <- switchGlobalEnrichmentResult(enrichmentType)
+existEnrichmentResults <- function(enrichmentType, enrichmentTool) {
+  enrichmentResult <- getGlobalEnrichmentResult(enrichmentType, enrichmentTool)
   exist <- F
   if (nrow(enrichmentResult) > 0){
     exist <- T
   } else
-    renderWarning(paste0("Execute ", enrichmentType, " enrichment analysis first."))
+    renderWarning(paste0(
+      "Execute ", enrichmentType, " enrichment analysis 
+      with ", enrichmentTool, " first."
+    ))
   return(exist)
 }
 
@@ -47,15 +53,15 @@ isSourceNotNull <- function(sourceSelect) {
   return(isNotNull)
 }
 
-filterAndPrintTable <- function(enrichmentType, id, plotType,
-                                sourceSelect, mode, slider) {
+filterAndPrintTable <- function(enrichmentType, enrichmentTool,
+                                outputId, sourceSelect, mode, slider) {
   enrichmentFilteredData <-
-    filterTopData(enrichmentType, sourceSelect, mode, slider)
+    filterTopData(enrichmentType, enrichmentTool, sourceSelect, mode, slider)
   renderEnrichmentTable(
-    shinyOutputId = paste0(id, "_table"),
+    shinyOutputId = paste0(outputId, "_table"),
     enrichmentFilteredData,
     caption = "Enrichment Results",
-    fileName = paste0(sourceSelect, "_", plotType),
+    fileName = paste(outputId, paste(sourceSelect, collapse = "_"), sep = "_"),
     mode = "Positive Hits",
     hiddenColumns = c(0, 11, 12),
     expandableColumn = 11
@@ -63,8 +69,9 @@ filterAndPrintTable <- function(enrichmentType, id, plotType,
   return(enrichmentFilteredData)
 }
 
-filterTopData <- function(enrichmentType, sourceSelect, mode, slider) {
-  enrichmentResult <- switchGlobalEnrichmentResult(enrichmentType)
+filterTopData <- function(enrichmentType, enrichmentTool,
+                          sourceSelect, mode, slider) {
+  enrichmentResult <- getGlobalEnrichmentResult(enrichmentType, enrichmentTool)
   filteredData <- subset(
     enrichmentResult,
     Source %in% sourceSelect
@@ -93,7 +100,8 @@ calculatePlotHeight <- function(entriesCount) {
   return(height)
 }
 
-extractFunctionVsFunctionEdgelist <- function(enrichmentType, enrichmentData,
+extractFunctionVsFunctionEdgelist <- function(enrichmentType, enrichmentTool,
+                                              enrichmentData,
                                               thresholdSlider = NULL,
                                               simplifyForNetwork = F) {
   functionsEdgelist <- enrichmentData[, c("Term_ID_noLinks", "Positive Hits")]
@@ -116,7 +124,7 @@ extractFunctionVsFunctionEdgelist <- function(enrichmentType, enrichmentData,
                                                  weightColumn,
                                                  thresholdSlider)
   }
-  functionsEdgelist <- appendSourceDatabasesAndIds(enrichmentType, functionsEdgelist)
+  functionsEdgelist <- appendSourceDatabasesAndIds(enrichmentType, enrichmentTool, functionsEdgelist)
   functionsEdgelist <- functionsEdgelist[order(-functionsEdgelist$`Similarity Score %`), ]
   return(functionsEdgelist)
 }
@@ -219,8 +227,8 @@ filterBySliderThreshold <- function(edgelist, weightColumn, thresholdSlider) {
   return(edgelist)
 }
 
-appendSourceDatabasesAndIds <- function(enrichmentType, functionsEdgelist) {
-  enrichedNetworkData <- switchGlobalEnrichmentResult(enrichmentType)
+appendSourceDatabasesAndIds <- function(enrichmentType, enrichmentTool, functionsEdgelist) {
+  enrichedNetworkData <- getGlobalEnrichmentResult(enrichmentType, enrichmentTool)
   enrichedNetworkData <- enrichedNetworkData[, c(
     "Source", "Term_ID_noLinks", "Function")]
   functionsEdgelist <- merge(functionsEdgelist, enrichedNetworkData,

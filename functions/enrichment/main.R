@@ -1,34 +1,32 @@
-handleEnrichment <- function() {
+handleEnrichment <- function(enrichmentType) {
   tryCatch({
-    renderModal(paste0("<h2>Please wait.</h2><br /><p>Executing ", currentEnrichmentType, " enrichment.</p>"))
     if (existInputGeneLists()) {
-      if (isInputOrganismNotEmpty()) {
-        if (existDataSources()) {
-          session$sendCustomMessage("handler_hideSourceTabs", currentEnrichmentType)
-          resetEnrichmentResults()
-          inputGenes <-
-            unlist(inputGeneLists[file_names ==
-                               input[[paste0(currentEnrichmentType,
-                                 "_enrichment_file")]]][[1]])
-          organism <- 
+      currentEnrichmentType <<- enrichmentType
+      if (existInputOrganism()) {
+        if (existEnrichmentTool()) {
+          tools <- switch(
+            currentEnrichmentType,
+            "functional" = input$functional_enrichment_tool,
+            "literature" = "aGOtool"
+          )
+          currentUserList <<-
+            unlist(userInputLists[file_names ==
+                                    input[[paste0(currentEnrichmentType,
+                                                  "_enrichment_file")]]][[1]])
+          currentOrganism <<- 
             ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name ==
                                   input[[paste0(currentEnrichmentType,
-                                    "_enrichment_organism")]], ]$gprofiler_ID
-          inputGenesConversionTable <- geneConvert(inputGenes, organism)
-          if (validInputGenesConversionTable(inputGenesConversionTable)) {
-            runEnrichmentAnalysis(inputGenesConversionTable$target, organism)
-            if (validEnrichmentResult()) {
-              printParameters(organism)
-              if (input[[paste0(currentEnrichmentType, "_enrichment_namespace")]] != "USERINPUT") {
-                shinyjs::show(paste0(currentEnrichmentType, "_conversionBoxes"))
-                printUnconvertedGenes(inputGenes, inputGenesConversionTable$input)
-                printConversionTable(inputGenesConversionTable)
-              }
-              findAndPrintNoHitGenes(inputGenesConversionTable$target)
-              printResultTables(organism)
-              updatePlotControlPanels()
-            }
-          }
+                                                "_enrichment_organism")]], ]$gprofiler_ID
+          lapply(tools, function(toolName) {
+            currentEnrichmentTool <<- toolName
+            currentType_Tool <<-
+              paste(currentEnrichmentType, currentEnrichmentTool, sep = "_")
+            currentSignificanceMetric <<- decideToolMetric()
+            start_time <- proc.time()
+            handleEnrichmentWithTool()
+            end_time <- proc.time()
+            print((end_time - start_time)[3])
+          })
         }
       }
     }
@@ -42,14 +40,14 @@ handleEnrichment <- function() {
 
 existInputGeneLists <- function() {
   exist <- F
-  if (length(inputGeneLists) > 0)
+  if (length(userInputLists) > 0)
     exist <- T
   else
     renderWarning("First upload at least one gene list.")
   return(exist)
 }
 
-isInputOrganismNotEmpty <- function() {
+existInputOrganism <- function() {
   notEmpty <- F
   if (input[[paste0(currentEnrichmentType, "_enrichment_organism")]] != "")
     notEmpty <- T
@@ -58,7 +56,55 @@ isInputOrganismNotEmpty <- function() {
   return(notEmpty)
 }
 
-existDataSources <- function() {
+existEnrichmentTool <- function() {
+  exist <- F
+  if (!is.null(input[[paste0(currentEnrichmentType, "_enrichment_tool")]]))
+    exist <- T
+  else
+    renderWarning("Select at least one enrichment tool.")
+  return(exist)
+}
+
+decideToolMetric <- function() {
+  if (input[[paste0(currentEnrichmentType, "_enrichment_metric")]] == DEFAULT_METRIC_TEXT)
+    currentSignificanceMetric <<-
+      eval(parse(text = paste0(toupper(currentEnrichmentTool), "_METRICS")))[[1]]
+  else
+    currentSignificanceMetric <<-
+      input[[paste0(currentEnrichmentType, "_enrichment_metric")]]
+}
+
+handleEnrichmentWithTool <- function() {
+  renderModal(
+    paste0(
+      "<h2>Please wait.</h2><br />
+      <p>Executing ", currentEnrichmentType, " enrichment
+      with ", currentEnrichmentTool, ".</p>"
+    )
+  )
+  if (existDataSources()) {
+    session$sendCustomMessage("handler_hideSourceTabs", currentType_Tool)
+    resetEnrichmentResults()
+    inputGenesConversionTable <- geneConvert()
+    if (validInputGenesConversionTable(inputGenesConversionTable)) {
+      runEnrichmentAnalysis(inputGenesConversionTable$target)
+      if (validEnrichmentResult()) {
+        printParameters()
+        if (input[[paste0(currentEnrichmentType, "_enrichment_namespace")]] != "USERINPUT") {
+          shinyjs::show(paste(currentType_Tool,
+                              "conversionBoxes", sep = "_"))
+          printUnconvertedGenes(inputGenesConversionTable$input)
+          printConversionTable(inputGenesConversionTable)
+        }
+        findAndPrintNoHitGenes(inputGenesConversionTable$target)
+        printResultTables()
+        updatePlotControlPanels()
+      }
+    }
+  }
+}
+
+existDataSources <- function() { # TODO check if need different condition for each tool during multiple
   exist <- F
   if (!is.null(input[[paste0(currentEnrichmentType, "_enrichment_datasources")]]))
     exist <- T
@@ -67,21 +113,21 @@ existDataSources <- function() {
   return(exist)
 }
 
-geneConvert <- function(inputGenes, organism) {
+geneConvert <- function() {
   target = input[[paste0(currentEnrichmentType, "_enrichment_namespace")]]
   if (target != "USERINPUT"){
     inputGenesConversionTable <- gprofiler2::gconvert(
-      inputGenes,
-      organism = organism,
+      currentUserList,
+      organism = currentOrganism,
       target = target
     )
     inputGenesConversionTable <- inputGenesConversionTable[inputGenesConversionTable$target != "nan", ] 
     inputGenesConversionTable <- inputGenesConversionTable[, c("input", "target", "name")]
   } else {
     inputGenesConversionTable <- data.frame(
-      "input" = inputGenes,
-      "target" = inputGenes,
-      "name" = inputGenes
+      "input" = currentUserList,
+      "target" = currentUserList,
+      "name" = currentUserList
     )
   }
   return(inputGenesConversionTable)
@@ -96,14 +142,14 @@ validInputGenesConversionTable <- function(inputGenesConversionTable) {
   return(valid)
 }
 
-runEnrichmentAnalysis <- function(userInputList, organism) {
-  tool <- toupper(input[[paste0(currentEnrichmentType, "_enrichment_tool")]])
+runEnrichmentAnalysis <- function(userInputList) {
+  tool <- toupper(currentEnrichmentTool)
   if (tool == "AGOTOOL") {
     taxid <- 
-      ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$gprofiler_ID == organism, ]$Taxonomy_ID
+      ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$gprofiler_ID == currentOrganism, ]$Taxonomy_ID
     runAGoTool(userInputList, taxid)
   } else if (tool == "GPROFILER") {
-    runGprofiler(userInputList, organism)
+    runGprofiler(userInputList)
   } else { # TODO remove
     renderWarning(paste0(tool, " pipeline has not been coded yet."))
   }
@@ -111,42 +157,49 @@ runEnrichmentAnalysis <- function(userInputList, organism) {
 
 validEnrichmentResult <- function() {
   valid <- F
-  enrichmentResult <- switchGlobalEnrichmentResult(currentEnrichmentType)
+  enrichmentResult <- getGlobalEnrichmentResult(currentEnrichmentType, currentEnrichmentTool)
   if (nrow(enrichmentResult) > 0)
     valid <- T
   else
-    renderWarning(paste0(str_to_title(currentEnrichmentType),
-                         " enrichment could not return any valid results."))
+    renderWarning(paste0(
+      str_to_title(currentEnrichmentType), " enrichment with ",
+      currentEnrichmentTool, " could not return any valid results."))
   return(valid)
 }
 
-switchGlobalEnrichmentResult <- function(enrichmentType) {
-  switch(
-    enrichmentType,
-    "functional" = functionalEnrichmentResult,
-    "literature" = literatureEnrichmentResult
-  )
+getGlobalEnrichmentResult <- function(enrichmentType, toolName) {
+  return(enrichmentResults[[paste(enrichmentType, toolName, sep = "_")]])
 }
 
-printParameters <- function(organism) {
+printParameters <- function() {
   parametersOutput <- paste0(
     "File: ", input[[paste0(currentEnrichmentType, "_enrichment_file")]],
-    "\nOrganism: ", organism,
-    "\nCorrection Method: ", input[[paste0(currentEnrichmentType, "_enrichment_metric")]], 
-    "\nUser threshold: ", input[[paste0(currentEnrichmentType, "_enrichment_threshold")]],
-    "\nID type Output: ", input[[paste0(currentEnrichmentType, "_enrichment_namespace")]],
-    "\nDatabases: ")
-  parametersOutput <- paste0(parametersOutput,
-                             paste(input[[paste0(currentEnrichmentType, "_enrichment_datasources")]],
-                                   collapse=', ')
+    "\nOrganism: ", currentOrganism,
+    "\nDatasources: ", decideToolSelectedDatasources(),
+    "\nNamespace: ", input[[paste0(
+      currentEnrichmentType, "_enrichment_namespace")]],
+    "\nSignificance metric: ", currentSignificanceMetric, 
+    "\nSignificance threshold: ", input[[
+      paste0(currentEnrichmentType, "_enrichment_threshold")]]
   )
-  renderShinyText(paste0(currentEnrichmentType, "_enrichment_parameters"),
-                  parametersOutput)
+  renderShinyText(paste(
+    currentType_Tool, "enrichment_parameters", sep = "_"), parametersOutput)
 }
 
-printUnconvertedGenes <- function(inputGenes, convertedInputs) {
-  shinyOutputId <- paste0(currentEnrichmentType, "_notConverted")
-  unconvertedInputs <- inputGenes[!inputGenes %in% convertedInputs]
+decideToolSelectedDatasources <- function() {
+  inputSelectedDatasources <-
+    input[[paste0(currentEnrichmentType, "_enrichment_datasources")]]
+  toolDatasources <- eval(parse(text = paste0(toupper(currentEnrichmentTool), "_DATASOURCES")))
+  inputSelectedDatasources <-
+    inputSelectedDatasources[inputSelectedDatasources %in% toolDatasources]
+  inputSelectedDatasources <- paste(inputSelectedDatasources, collapse = ", ")
+  return(inputSelectedDatasources)
+}
+
+printUnconvertedGenes <- function(convertedInputs) {
+  shinyOutputId <- paste(currentType_Tool,
+                         "notConverted", sep = "_")
+  unconvertedInputs <- currentUserList[!currentUserList %in% convertedInputs]
   unconvertedInputsCount <- length(unconvertedInputs)
   if (unconvertedInputsCount > 0) {
     unconvertedInputs <- paste(unconvertedInputs, collapse=", ")
@@ -161,8 +214,8 @@ printUnconvertedGenes <- function(inputGenes, convertedInputs) {
 }
 
 printConversionTable <- function(conversionTable) {
-  shinyOutputId <- paste0(currentEnrichmentType, "_conversionTable")
-  fileName <- "conversion_table"
+  shinyOutputId <- paste(currentType_Tool, "conversionTable", sep = "_")
+  fileName <- paste(currentType_Tool, "conversion_table", sep = "_")
   colnames(conversionTable) <- c("Input", "Target", "Name")
   renderShinyDataTable(shinyOutputId, conversionTable,
                        fileName = fileName)
@@ -174,7 +227,7 @@ findAndPrintNoHitGenes <- function(convertedInputs) {
 }
 
 findNoHitGenes <- function(convertedInputs) {
-  enrichmentResult <- switchGlobalEnrichmentResult(currentEnrichmentType)
+  enrichmentResult <- getGlobalEnrichmentResult(currentEnrichmentType, currentEnrichmentTool)
   allHitGenes <- paste(enrichmentResult$`Positive Hits`, collapse = ",")
   allHitGenes <- strsplit(allHitGenes, ",")[[1]]
   allHitGenes <- unique(allHitGenes)
@@ -183,7 +236,7 @@ findNoHitGenes <- function(convertedInputs) {
 }
 
 printNoHitGenes <- function(noHitGenes) {
-  shinyOutputId <- paste0(currentEnrichmentType, "_genesNotFound")
+  shinyOutputId <- paste(currentType_Tool, "genesNotFound", sep = "_")
   noHitGenesCount <- length(noHitGenes)
   if (noHitGenesCount > 0) {
     noHitGenes <- paste(noHitGenes, collapse=", ")
@@ -197,37 +250,35 @@ printNoHitGenes <- function(noHitGenes) {
     renderShinyText(shinyOutputId, "-")
 }
 
-printResultTables <- function(organism) {
-  formatResultTable(organism)
-  enrichmentResult <- switch(
+printResultTables <- function() {
+  formatResultTable()
+  switch(
     currentEnrichmentType,
     "functional" = printFunctionalResultTable(),
     "literature" = printLiteratureResultTable()
   )
 }
 
-formatResultTable <- function(organism) {
-  enrichmentResult <- switch(
+formatResultTable <- function() {
+  enrichmentResults[[currentType_Tool]] <<-
+    enrichmentResults[[currentType_Tool]][order(
+      -enrichmentResults[[currentType_Tool]]$`-log10Pvalue`), ]
+  enrichmentResults[[currentType_Tool]]$Term_ID_noLinks <<-
+    enrichmentResults[[currentType_Tool]]$Term_ID
+    
+  switch(
     currentEnrichmentType,
     "functional" = {
-      functionalEnrichmentResult <<-
-        functionalEnrichmentResult[order(-functionalEnrichmentResult$`-log10Pvalue`), ]
-      functionalEnrichmentResult$Term_ID_noLinks <<-
-        functionalEnrichmentResult$Term_ID
-      attachDBLinks(organism)
+      attachDBLinks()
     },
     "literature" = {
-      literatureEnrichmentResult <<-
-        literatureEnrichmentResult[order(-literatureEnrichmentResult$`-log10Pvalue`), ]
-      literatureEnrichmentResult$Term_ID_noLinks <<-
-        literatureEnrichmentResult$Term_ID
       attachLiteratureDBLinks()
     }
   )
 }
 
 printFunctionalResultTable <- function() {
-  shinyOutputId <- "functional_table_all"
+  shinyOutputId <- paste(currentType_Tool, "table_all", sep = "_")
   tabPosition <- 0
   printResultTable(shinyOutputId, tabPosition, "all")
   datasources <- input$functional_enrichment_datasources
@@ -251,31 +302,29 @@ printFunctionalResultTable <- function() {
       "HPA" = "hpa",
       "HP" = "hp"
     )
-    shinyOutputId <- paste0("functional_table_", partialId)
+    shinyOutputId <- paste(currentType_Tool, "table", partialId, sep = "_")
     tabPosition <- match(datasource, ENRICHMENT_DATASOURCES)
     printResultTable(shinyOutputId, tabPosition, datasource)
   })
 }
 
 printResultTable <- function(shinyOutputId, tabPosition, datasource) {
-  if (datasource == "all")
-    transformedResultPartial <- functionalEnrichmentResult
-  else if (datasource == "pubmed")
-    transformedResultPartial <- literatureEnrichmentResult
+  if (datasource == "all" || datasource == "pubmed")
+    transformedResultPartial <- enrichmentResults[[currentType_Tool]]
   else
     transformedResultPartial <-
-      functionalEnrichmentResult[grepl(paste0("^", datasource, "$"),
-                                       functionalEnrichmentResult$Source),]
+      enrichmentResults[[currentType_Tool]][grepl(
+        paste0("^", datasource, "$"),
+        enrichmentResults[[currentType_Tool]]$Source), ]
   
   if (nrow(transformedResultPartial) > 0) {
     transformedResultPartial$`Positive Hits` <-
       gsub(",", ", ", transformedResultPartial$`Positive Hits`)
     session$sendCustomMessage("handler_showSourceTab",
-                              list(prefix = currentEnrichmentType,
+                              list(prefix = currentType_Tool,
                                    tabPosition = tabPosition))
     caption = "Enrichment Results"
-    fileName <- paste0(input[[paste0(currentEnrichmentType,
-                                     "_enrichment_file")]], "_all_enriched")
+    fileName <- paste(currentType_Tool, datasource, sep = "_")
     mode <- "Positive Hits"
     hiddenColumns <- c(0, 11, 12)
     expandableColumn <- 11
@@ -286,7 +335,7 @@ printResultTable <- function(shinyOutputId, tabPosition, datasource) {
 }
 
 printLiteratureResultTable <- function() {
-  shinyOutputId <- "literature_table_pubmed"
+  shinyOutputId <- paste(currentType_Tool, "table_pubmed", sep = "_")
   tabPosition <- 0
   printResultTable(shinyOutputId, tabPosition, "pubmed")
 }

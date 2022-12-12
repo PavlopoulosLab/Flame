@@ -9,22 +9,22 @@ testsPassed <- 0
 testsFailed <- 0
 
 organism <- "hsapiens"
-functionalEnrichmentResult <- 
-  readRDS("RDS/links_before_agotool_functionalEnrichmentResult.RDS")
+enrichmentResults[[currentType_Tool]] <- 
+  readRDS("RDS/links_before_agotool_enrichmentResults[[currentType_Tool]].RDS")
 agotoolTransformedResult_links <- 
-  readRDS("RDS/links_agotool_functionalEnrichmentResult.RDS")
+  readRDS("RDS/links_agotool_enrichmentResults[[currentType_Tool]].RDS")
 gprofilerTransformedResult_links <-
-  readRDS("RDS/links_gprofiler_functionalEnrichmentResult.RDS")
+  readRDS("RDS/links_gprofiler_enrichmentResults[[currentType_Tool]].RDS")
 
 testDBLinksAttached <- function() {
   initializeOrganismsData(filePath = "../organisms_with_kegg.tsv")
   attachDBLinks(organism)
-  assertEquals(functionalEnrichmentResult,
+  assertEquals(enrichmentResults[[currentType_Tool]],
                agotoolTransformedResult_links)
-  functionalEnrichmentResult <<- 
-    readRDS("RDS/links_before_gprofiler_functionalEnrichmentResult.RDS")
+  enrichmentResults[[currentType_Tool]] <<- 
+    readRDS("RDS/links_before_gprofiler_enrichmentResults[[currentType_Tool]].RDS")
   attachDBLinks(organism)
-  assertEquals(functionalEnrichmentResult,
+  assertEquals(enrichmentResults[[currentType_Tool]],
                gprofilerTransformedResult_links)
 }
 

@@ -4,23 +4,13 @@ runAGoTool <- function(userInputList, taxid) {
   if (validResponse(response)) {
     aGoToolParsedResult <- parseAGoToolResult(response, taxid)
     if (validResult(aGoToolParsedResult))
-      switch(
-        currentEnrichmentType,
-        "functional" = {
-          functionalEnrichmentResult <<-
-            transformEnrichmentResultTable(aGoToolParsedResult)
-        },
-        "literature" = {
-          literatureEnrichmentResult <<-
-            transformEnrichmentResultTable(aGoToolParsedResult)
-        }
-      )
+      enrichmentResults[[currentType_Tool]] <<-
+        transformEnrichmentResultTable(aGoToolParsedResult)
   }
 }
 
 buildAGoToolRequestBody <- function(userInputList, taxid) {
-  if (input[[paste0(currentEnrichmentType, "_enrichment_metric")]] ==
-      "False discovery rate") {
+  if (currentSignificanceMetric == "False discovery rate") {
     FDR_cutoff <- input[[paste0(currentEnrichmentType, "_enrichment_threshold")]]
     p_value_cutoff <- 1
   } else {
@@ -35,7 +25,6 @@ buildAGoToolRequestBody <- function(userInputList, taxid) {
     )
   foreground <- paste0(paste0(taxid, ".", userInputList), collapse = "%0d")
   enrichment_method <- "genome"
-  
   requestBody <- list(
     taxid = taxid,
     FDR_cutoff = FDR_cutoff,
@@ -66,9 +55,10 @@ parseAGoToolResult <- function(response, taxid) {
   responseBody <- rawToChar(httr::content(response, "raw"))
   aGoToolResult <- read.delim(text = responseBody)
   significanceColumnName <- switch(
-    input[[paste0(currentEnrichmentType, "_enrichment_metric")]],
+    currentSignificanceMetric,
     "False discovery rate" = "FDR",
-    "P-value" = "p_value"
+    "P-value" = "p_value",
+    DEFAULT_METRIC_TEXT = "FDR"
   )
   aGoToolResult <-
     aGoToolResult[, c(

@@ -1,14 +1,15 @@
-handleEnrichmentNetwork <- function(enrichmentType, networkId) {
+handleEnrichmentNetwork <- function(enrichmentType, enrichmentTool, networkId) {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Network.</p>")
-    if (existEnrichmentResults(enrichmentType)){
+    if (existEnrichmentResults(enrichmentType, enrichmentTool)){
       handleNetworkCallbackFunction <- switch(
         networkId,
         "network1" = handleFunctionVsGeneNetwork,
         "network2" = handleFunctionVsFunctionNetwork,
         "network3" = handleGeneVsGeneNetwork
       )
-      handleNetworkCallbackFunction(enrichmentType)
+      type_Tool <- paste(enrichmentType, enrichmentTool, sep = "_")
+      handleNetworkCallbackFunction(enrichmentType, enrichmentTool, type_Tool)
     }
   }, error = function(e) {
     cat(paste0("Error: ", e))
@@ -19,28 +20,30 @@ handleEnrichmentNetwork <- function(enrichmentType, networkId) {
   })
 }
 
-handleFunctionVsGeneNetwork <- function(enrichmentType) {
-  source <- input[[paste0(enrichmentType, "_network1_sourceSelect")]]
+handleFunctionVsGeneNetwork <- function(enrichmentType, enrichmentTool, type_Tool) {
+  source <- input[[paste(type_Tool, "network1_sourceSelect", sep = "_")]]
   
   if (isSourceNotNull(source)) {
-    enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-      id = paste0(enrichmentType, "_network1"), plotType = "network",
+    enrichmentFilteredData <- filterAndPrintTable(
+      enrichmentType, enrichmentTool,                                         
+      outputId = paste(type_Tool, "network1", sep = "_"),
       sourceSelect = source,
-      mode = input[[paste0(enrichmentType, "_network1_mode")]],
-      slider = input[[paste0(enrichmentType, "_network1_slider")]])
+      mode = input[[paste(type_Tool, "network1_mode", sep = "_")]],
+      slider = input[[paste(type_Tool, "network1_slider", sep = "_")]])
     
     networkEdgelist <- separateRows(enrichmentFilteredData)
     networkEdgelist <- keepEdgelistColumns(networkEdgelist)
-    arenaEdgelist[[paste0(currentEnrichmentType, "_network1")]] <<- networkEdgelist
+    arenaEdgelist[[paste(type_Tool, "network1", sep = "_")]] <<- networkEdgelist
     renderShinyDataTable(
-      shinyOutputId = paste0(enrichmentType, "_network1_edgelist"),
+      shinyOutputId = paste(type_Tool, "network1_edgelist", sep = "_"),
       networkEdgelist,
       caption = "Edgelist",
-      fileName = paste0(source, "_edgelist")
+      fileName = paste(type_Tool, paste(source, collapse = "_"),
+                       "network1_edgelist", sep = "_")
     )
     
     constructVisNetwork(
-      enrichmentType,
+      type_Tool,
       networkId = "network1",
       networkEdgelist,
       sourceColumnName = "Source Id",
@@ -58,7 +61,7 @@ keepEdgelistColumns <- function(gprofilerNetworkData) {
   return(gprofilerNetworkData)
 }
 
-constructVisNetwork <- function(enrichmentType, networkId, networkEdgelist,
+constructVisNetwork <- function(type_Tool, networkId, networkEdgelist,
                                 sourceColumnName, targetColumnName,
                                 weightColumn) {
   graph <- createGraph(networkEdgelist, sourceColumnName,
@@ -71,8 +74,8 @@ constructVisNetwork <- function(enrichmentType, networkId, networkEdgelist,
   edges <- data$edges
   edges <- appendWidth(edges)
   layout <- names(LAYOUT_CHOICES)[match(
-    input[[paste(enrichmentType, networkId, "layout", sep = "_")]], LAYOUT_CHOICES)]
-  renderShinyVisNetwork(paste(enrichmentType, networkId, sep = "_"), nodes, edges, layout)
+    input[[paste(type_Tool, networkId, "layout", sep = "_")]], LAYOUT_CHOICES)]
+  renderShinyVisNetwork(paste(type_Tool, networkId, sep = "_"), nodes, edges, layout)
 }
 
 createGraph <- function(networkEdgelist, sourceColumnName,
@@ -115,30 +118,35 @@ appendWidth <- function(edges) {
   return(edges)
 }
 
-handleFunctionVsFunctionNetwork <- function(enrichmentType) {
-  source <- input[[paste0(enrichmentType, "_network2_sourceSelect")]]
+handleFunctionVsFunctionNetwork <- function(enrichmentType, enrichmentTool, type_Tool) {
+  source <- input[[paste(type_Tool, "network2_sourceSelect", sep = "_")]]
   
   if (isSourceNotNull(source)) {
-    enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-      id = paste0(enrichmentType, "_network2"), plotType = "network",
+    enrichmentFilteredData <- filterAndPrintTable(
+      enrichmentType, enrichmentTool,
+      outputId = paste(type_Tool, "network2", sep = "_"),
       sourceSelect = source,
-      mode = input[[paste0(enrichmentType, "_network2_mode")]],
-      slider = input[[paste0(enrichmentType, "_network2_slider")]])
+      mode = input[[paste(type_Tool, "network2_mode", sep = "_")]],
+      slider = input[[paste(type_Tool, "network2_slider", sep = "_")]])
     
-    networkEdgelist <- extractFunctionVsFunctionEdgelist(enrichmentType, enrichmentFilteredData,
-                                                         input$functional_network2_thresholdSlider,
-                                                         simplifyForNetwork = T)
-    if (existEnoughEdges(enrichmentType, "network2", networkEdgelist)) {
-      arenaEdgelist[[paste0(currentEnrichmentType, "_network2")]] <<- networkEdgelist
+    networkEdgelist <- 
+      extractFunctionVsFunctionEdgelist(
+        enrichmentType, enrichmentTool, enrichmentFilteredData,
+        input[[paste(type_Tool, "network2_thresholdSlider", sep = "_")]],
+        simplifyForNetwork = T
+      )
+    if (existEnoughEdges(enrichmentType, enrichmentTool, "network2", networkEdgelist)) {
+      arenaEdgelist[[paste(type_Tool, "network2", sep = "_")]] <<- networkEdgelist
       renderShinyDataTable(
-        shinyOutputId = paste0(currentEnrichmentType, "_network2_edgelist"),
+        shinyOutputId = paste(type_Tool, "network2_edgelist", sep = "_"),
         networkEdgelist,
         caption = "Edgelist",
-        fileName = paste0(source, "_edgelist")
+        fileName = paste(type_Tool, paste(source, collapse = "_"),
+                         "network2_edgelist", sep = "_")
       )
       
       constructVisNetwork(
-        enrichmentType,
+        type_Tool,
         networkId = "network2",
         networkEdgelist,
         sourceColumnName = "Source Id",
@@ -149,42 +157,48 @@ handleFunctionVsFunctionNetwork <- function(enrichmentType) {
   }
 }
 
-existEnoughEdges <- function(enrichmentType, networkId, networkEdgelist) {
+existEnoughEdges <- function(enrichmentType, enrichmentTool,
+                             networkId, networkEdgelist) {
   exist <- F
   if (nrow(networkEdgelist) > 0){
     exist <- T
   } else {
     renderWarning("The current chosen filters cannot produce enough edges to form a network.
                   Please adjust the data sources or filter values.")
-    resetEdgelist_ViewAndArenaObjects(enrichmentType, networkId)
+    resetEdgelist_ViewAndArenaObjects(enrichmentType, enrichmentTool, networkId)
   }
   return(exist)
 }
 
-handleGeneVsGeneNetwork <- function(enrichmentType) {
-  source <- input[[paste0(enrichmentType, "_network3_sourceSelect")]]
+handleGeneVsGeneNetwork <- function(enrichmentType, enrichmentTool, type_Tool) {
+  source <- input[[paste(type_Tool, "network3_sourceSelect", sep = "_")]]
   
   if (isSourceNotNull(source)) {
-    enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-      id = paste0(enrichmentType, "_network3"), plotType = "network",
+    enrichmentFilteredData <- filterAndPrintTable(
+      enrichmentType, enrichmentTool,
+      outputId = paste(type_Tool, "network3", sep = "_"),
       sourceSelect = source,
-      mode = input[[paste0(enrichmentType, "_network3_mode")]],
-      slider = input[[paste0(enrichmentType, "_network3_slider")]])
+      mode = input[[paste(type_Tool, "network3_mode", sep = "_")]],
+      slider = input[[paste(type_Tool, "network3_slider", sep = "_")]])
     
-    networkEdgelist <- extractGeneVsGeneEdgelist(enrichmentFilteredData,
-                                                 input$functional_network3_thresholdSlider,
-                                                 simplifyForNetwork = T)
-    if (existEnoughEdges(enrichmentType, "network3", networkEdgelist)) {
-      arenaEdgelist[[paste0(currentEnrichmentType, "_network3")]] <<- networkEdgelist
+    networkEdgelist <- 
+      extractGeneVsGeneEdgelist(
+        enrichmentFilteredData,
+        input[[paste(type_Tool, "network3_thresholdSlider", sep = "_")]],
+        simplifyForNetwork = T
+      )
+    if (existEnoughEdges(enrichmentType, enrichmentTool, "network3", networkEdgelist)) {
+      arenaEdgelist[[paste(type_Tool, "network3", sep = "_")]] <<- networkEdgelist
       renderShinyDataTable(
-        shinyOutputId = paste0(enrichmentType, "_network3_edgelist"),
+        shinyOutputId = paste(type_Tool, "network3_edgelist", sep = "_"),
         networkEdgelist,
         caption = "Edgelist",
-        fileName = paste0(source, "_edgelist")
+        fileName = paste(type_Tool, paste(source, collapse = "_"),
+                         "network3_edgelist", sep = "_")
       )
       
       constructVisNetwork(
-        enrichmentType,
+        type_Tool,
         networkId = "network3",
         networkEdgelist,
         sourceColumnName = "Source Name",

@@ -11,7 +11,7 @@ source("../functions/enrichment/gprofiler.R")
 testsPassed <- 0
 testsFailed <- 0
 
-inputGeneLists <- list(c("SP1", "MBL2", "NOD2"), c("ACE", "VDR"), c("MBL2"))
+userInputLists <- list(c("SP1", "MBL2", "NOD2"), c("ACE", "VDR"), c("MBL2"))
 inputENSPList <- c(
   "ENSP00000329357", "ENSP00000331327", "ENSP00000261733", "ENSP00000446252",
   "ENSP00000300093", "ENSP00000441543", "ENSP00000340684", "ENSP00000365777",
@@ -62,9 +62,9 @@ parsedAGoToolResult <- readRDS("RDS/parsedAGoToolResult.RDS")
 
 testInputGeneListsExist <- function() {
   assertTrue(existInputGeneLists())
-  inputGeneLists <<- list()
+  userInputLists <<- list()
   assertFalse(existInputGeneLists())
-  inputGeneLists <<- list(c("SP1", "MBL2", "NOD2"), c("ACE", "VDR"), c("MBL2"))
+  userInputLists <<- list(c("SP1", "MBL2", "NOD2"), c("ACE", "VDR"), c("MBL2"))
 }
 
 testDataSourcesExist <- function() {
@@ -75,25 +75,25 @@ testDataSourcesExist <- function() {
 }
 
 testInputOrganismIsNotEmpty <- function() {
-  assertTrue(isInputOrganismNotEmpty())
+  assertTrue(existInputOrganism())
   input$functional_enrichment_organism <<- ""
-  assertFalse(isInputOrganismNotEmpty())
+  assertFalse(existInputOrganism())
   input$functional_enrichment_organism <<- "hsapiens"
 }
 
 testGeneConvert <- function() {
   assertEquals(testConvertResult1,
-               geneConvert(inputGeneLists[[1]],
+               geneConvert(userInputLists[[1]],
                            input$functional_enrichment_organism))
   input$functional_enrichment_namespace <<- "ENSP"
   assertEquals(testConvertResult2,
-               geneConvert(inputGeneLists[[3]],
+               geneConvert(userInputLists[[3]],
                            input$functional_enrichment_organism))
   input$functional_enrichment_namespace <<- "USERINPUT"
 }
 
 testInputGenesConversionTableValid <- function() {
-  assertTrue(validInputGenesConversionTable(inputGeneLists[[1]]))
+  assertTrue(validInputGenesConversionTable(userInputLists[[1]]))
   assertFalse(validInputGenesConversionTable(NULL))
 }
 
@@ -108,7 +108,7 @@ testEnrichmentScoreCalculation <- function() {
 }
 
 testNoHitGenesFound <- function() {
-  functionalEnrichmentResult <<- readRDS("RDS/gprofilerTransformedResult2.RDS")
+  enrichmentResults[[currentType_Tool]] <<- readRDS("RDS/gprofilerTransformedResult2.RDS")
   assertEquals(noHitGenes,
                findNoHitGenes(convertedInputs))
 }

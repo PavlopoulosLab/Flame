@@ -1,17 +1,19 @@
-handleScatterPlot <- function(enrichmentType) {
+handleScatterPlot <- function(enrichmentType, enrichmentTool) {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Scatter Plot.</p>")
-    if (existEnrichmentResults(enrichmentType)){
-      sourceSelect <- input[[paste0(enrichmentType, "_scatter_sourceSelect")]]
+    if (existEnrichmentResults(enrichmentType, enrichmentTool)){
+      type_Tool <- paste(enrichmentType, enrichmentTool, sep = "_")
+      sourceSelect <- input[[paste(type_Tool, "scatter_sourceSelect", sep = "_")]]
 
       if (isSourceNotNull(sourceSelect)) {
-        enrichmentFilteredData <- filterAndPrintTable(enrichmentType,
-          id = paste0(enrichmentType, "_scatterPlot"), plotType = "scatterPlot",
+        enrichmentFilteredData <- filterAndPrintTable(
+          enrichmentType, enrichmentTool,
+          outputId = paste(type_Tool, "scatterPlot", sep = "_"),
           sourceSelect = sourceSelect,
-          mode = input[[paste0(enrichmentType, "_scatter_mode")]],
-          slider = input[[paste0(enrichmentType, "_scatter_slider")]])
+          mode = input[[paste(type_Tool, "scatter_mode", sep = "_")]],
+          slider = input[[paste(type_Tool, "scatter_slider", sep = "_")]])
         
-        constructScatterPlot(enrichmentType, enrichmentFilteredData)
+        constructScatterPlot(type_Tool, enrichmentFilteredData)
       }
     }
   }, error = function(e) {
@@ -22,9 +24,9 @@ handleScatterPlot <- function(enrichmentType) {
   })
 }
 
-constructScatterPlot <- function(enrichmentType, scatterData) {
+constructScatterPlot <- function(type_Tool, scatterData) {
   scatterData <- addJitter(scatterData)
-  renderScatterPlot(paste0(enrichmentType, "_scatterPlot"), scatterData)
+  renderScatterPlot(paste(type_Tool, "scatterPlot", sep = "_"), scatterData)
 }
 
 addJitter <- function(scatterData) {

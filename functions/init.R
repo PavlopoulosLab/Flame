@@ -17,28 +17,51 @@ initializeOrganismsData <- function(filePath = "./organisms_with_kegg.tsv") {
 }
 
 initializeServerApp <- function() {
-  session$sendCustomMessage("handler_hideSourceTabs", "functional")
+  lapply(ENRICHMENT_TOOLS, function(toolName) {
+    session$sendCustomMessage("handler_hideSourceTabs",
+                              paste0("functional_", toolName))
+  })
   initializeOrganismsData()
+  initializeEnrichmentResults()
   initializeArenaEdgelist()
   shinyjs::hide("functional_conversionBoxes")
   shinyjs::hide("literature_conversionBoxes")
   hideVisNetworks()
 }
 
+initializeEnrichmentResults <- function() {
+  for (enrichmentTool in ENRICHMENT_TOOLS) {
+    newItem <- list(data.frame())
+    names(newItem) <- paste("functional", enrichmentTool, sep = "_")
+    enrichmentResults <<- c(enrichmentResults, newItem)
+  }
+  newItem <- list(data.frame())
+  names(newItem) <- paste("literature", "aGoTool", sep = "_")
+  enrichmentResults <<- c(enrichmentResults, newItem)
+}
+
 initializeArenaEdgelist <- function() {
-  for (enrichmentType in ENRICHMENT_TYPES) {
+  for (enrichmentTool in ENRICHMENT_TOOLS) {
     for (networkId in NETWORK_IDS) {
       newItem <- list(data.frame())
-      names(newItem) <- paste(enrichmentType, networkId, sep = "_")
+      names(newItem) <- paste("functional", enrichmentTool, networkId, sep = "_")
       arenaEdgelist <<- c(arenaEdgelist, newItem)
     }
+  }
+  for (networkId in NETWORK_IDS) {
+    newItem <- list(data.frame())
+    names(newItem) <- paste("literature", "aGoTool", networkId, sep = "_")
+    arenaEdgelist <<- c(arenaEdgelist, newItem)
   }
 }
 
 hideVisNetworks <- function() {
-  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+  lapply(ENRICHMENT_TOOLS, function(enrichmentTool) {
     lapply(NETWORK_IDS, function(networkId) {
-      shinyjs::hide(paste(enrichmentType, networkId, sep = "_"))
+      shinyjs::hide(paste("functional", enrichmentTool, networkId, sep = "_"))
     })
+  })
+  lapply(NETWORK_IDS, function(networkId) {
+    shinyjs::hide(paste("literature", "aGoTool", networkId, sep = "_"))
   })
 }

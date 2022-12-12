@@ -18,7 +18,7 @@ create_string_network <- function() {
   score <- input$STRINGnetworkScore
   
   #1. Get input IDs from dataset
-  input_ids_initial<-unlist(inputGeneLists[file_names==dataset][[1]])
+  input_ids_initial<-unlist(userInputLists[file_names==dataset][[1]])
   
   #2. Convert them to ENSEMBL protein IDs for STRING
   #2.1 get the gprofiler ID from the ORGANISMS_FROM_FILE global

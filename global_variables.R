@@ -15,6 +15,10 @@ ENRICHMENT_DATASOURCES <- c("INTERPRO", "PFAM", "UNIPROT",
                             "KEGG", "REAC", "WP",
                             "DO", "BTO",
                             "TF", "MIRNA", "CORUM", "HPA", "HP")
+AGOTOOL_DATASOURCES <- c("INTERPRO", "PFAM", "UNIPROT",
+                         "GO:MF", "GO:CC", "GO:BP",
+                         "KEGG", "REAC", "WP",
+                         "DO", "BTO")
 AGOTOOL_DATASOURCES_PRINT <- list(
   'Gene Ontology' = list(
     "Molecular Function (GO:MF)" = "GO:MF",
@@ -28,7 +32,7 @@ AGOTOOL_DATASOURCES_PRINT <- list(
     "Interpro" = "INTERPRO",
     "PFAM" = "PFAM"
   ),
-  'Protein Database' = list(
+  'Protein Keywords' = list(
     "UniProt keywords" = "UNIPROT"
   ),
   'Disease Ontology' = list(
@@ -53,6 +57,9 @@ AGOTOOL_NAMESPACES <- list(
 )
 AGOTOOL_METRICS <- list("False discovery rate", "P-value")
 AGOTOOL_API_LINK <- "https://agotool.org/api_orig"
+GPROFILER_DATASOURCES <- c("GO:MF", "GO:CC", "GO:BP",
+                           "KEGG", "REAC", "WP",
+                           "TF", "MIRNA", "CORUM", "HPA", "HP")
 GPROFILER_DATASOURCES_PRINT <- list(
   'Gene Ontology' = list(
     "Molecular Function (GO:MF)" = "GO:MF",
@@ -86,6 +93,7 @@ GPROFILER_METRICS <- list(
   "False discovery rate" = "fdr",
   "Bonferroni correction" = "bonferroni"
 )
+DEFAULT_METRIC_TEXT <- "Default tool metrics"
 # organisms initialized both from UI and server
 ORGANISMS_FROM_FILE <- data.frame()
 # Plots
@@ -130,9 +138,15 @@ YEAR <- substr(Sys.Date(), 1, 4)
 file_names <- list()
 global_positions <- list() # Saved positions for files to be renamed, needed for JS
 upset_list <- "" # Saved files that are going to be handled for Upset plots (re-initialized when pushing the Submit Upset plot button)
-inputGeneLists <- list()
-currentEnrichmentType <- ""
+userInputLists <- list()
+
 gprofilerResult <- list() # for gprofiler ManhattanPlot only
-functionalEnrichmentResult <- data.frame()
-literatureEnrichmentResult <- data.frame()
+enrichmentResults <- list()
 arenaEdgelist <- list()
+
+currentEnrichmentType <- ""
+currentUserList <- c()
+currentOrganism <- ""
+currentEnrichmentTool <- ""
+currentType_Tool <- ""
+currentSignificanceMetric <- ""

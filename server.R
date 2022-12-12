@@ -135,85 +135,105 @@ function(input, output, session) {
   # Functional Enrichment ####
   observeEvent(input$functional_enrichment_tool,{
     handleFunctionalEnrichmentToolSelection()
-  }, ignoreInit = T)
+  }, ignoreInit = T, ignoreNULL = F)
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     observeEvent(input[[paste0(enrichmentType, "_enrichment_run")]], {
-      currentEnrichmentType <<- enrichmentType
-      start_time <- proc.time()
-      handleEnrichment()
-      end_time <- proc.time()
-      print((end_time - start_time)[3])
+      handleEnrichment(enrichmentType)
     }, ignoreInit = T)
   })
   
   # Plots ####
   # Networks
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(NETWORK_IDS, function(networkId) {
-      observeEvent(input[[paste(enrichmentType, networkId, "sourceSelect", sep = "_")]], {
-        handleDatasourcePicker(enrichmentType, networkId)
-      }, ignoreInit = T, ignoreNULL = F)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      lapply(NETWORK_IDS, function(networkId) {
+        observeEvent(input[[paste(enrichmentType, toolName,
+                                  networkId, "sourceSelect", sep = "_")]], {
+          handleDatasourcePicker(enrichmentType, toolName, networkId)
+        }, ignoreInit = T, ignoreNULL = F)
+      })
     })
   })
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(NETWORK_IDS, function(networkId) {
-      observeEvent(input[[paste(enrichmentType, networkId, "visualizeNetwork", sep = "_")]], {
-        handleEnrichmentNetwork(enrichmentType, networkId)
-      }, ignoreInit = T)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      lapply(NETWORK_IDS, function(networkId) {
+        observeEvent(input[[paste(enrichmentType, toolName,
+                                  networkId, "visualizeNetwork", sep = "_")]], {
+          handleEnrichmentNetwork(enrichmentType, toolName, networkId)
+        }, ignoreInit = T)
+      })
     })
   })
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(NETWORK_IDS, function(networkId) {
-      observeEvent(input[[paste(enrichmentType, networkId, "arena", sep = "_")]], {
-        arenaHandler(enrichmentType, networkId)
-      }, ignoreInit = T)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      lapply(NETWORK_IDS, function(networkId) {
+        observeEvent(input[[paste(enrichmentType, toolName,
+                                  networkId, "arena", sep = "_")]], {
+          arenaHandler(enrichmentType, toolName, networkId)
+        }, ignoreInit = T)
+      })
     })
   })
   
   # Heatmaps
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(HEATMAP_IDS, function(heatmapId) {
-      observeEvent(input[[paste(enrichmentType, heatmapId, "sourceSelect", sep = "_")]], {
-        handleDatasourcePicker(enrichmentType, heatmapId)
-      }, ignoreInit = T, ignoreNULL = F)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      lapply(HEATMAP_IDS, function(heatmapId) {
+        observeEvent(input[[paste(enrichmentType, toolName, heatmapId, "sourceSelect", sep = "_")]], {
+          handleDatasourcePicker(enrichmentType, toolName, heatmapId)
+        }, ignoreInit = T, ignoreNULL = F)
+      })
     })
   })
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(HEATMAP_IDS, function(heatmapId) {
-      observeEvent(input[[paste(enrichmentType, heatmapId, "visualizeHeatmap", sep = "_")]], {
-        handleHeatmap(enrichmentType, heatmapId)
-      }, ignoreInit = T)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      lapply(HEATMAP_IDS, function(heatmapId) {
+        observeEvent(input[[paste(enrichmentType, toolName,
+                                  heatmapId, "visualizeHeatmap", sep = "_")]], {
+          handleHeatmap(enrichmentType, toolName, heatmapId)
+        }, ignoreInit = T)
+      })
     })
   })
   
   # Barchart
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    observeEvent(input[[paste0(enrichmentType, "_barchart_sourceSelect")]], {
-      handleDatasourcePicker(enrichmentType, "barchart")
-    }, ignoreInit = T, ignoreNULL = F)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      observeEvent(input[[paste(enrichmentType, toolName, "barchart_sourceSelect", sep = "_")]], {
+        handleDatasourcePicker(enrichmentType, toolName, "barchart")
+      }, ignoreInit = T, ignoreNULL = F)
+    })
   })
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    observeEvent(input[[paste0(enrichmentType, "_barchart_button")]], {
-      handleBarchart(enrichmentType)
-    }, ignoreInit = T)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      observeEvent(input[[paste(enrichmentType, toolName,
+                                "barchart_button", sep = "_")]], {
+        handleBarchart(enrichmentType, toolName)
+      }, ignoreInit = T)
+    })
   })
   
   # Scatter
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    observeEvent(input[[paste0(enrichmentType, "_scatter_sourceSelect")]], {
-      handleDatasourcePicker(enrichmentType, "scatter")
-    }, ignoreInit = T, ignoreNULL = F)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      observeEvent(input[[paste(enrichmentType, toolName, "scatter_sourceSelect", sep = "_")]], {
+        handleDatasourcePicker(enrichmentType, toolName, "scatter")
+      }, ignoreInit = T, ignoreNULL = F)
+    })
   })
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    observeEvent(input[[paste0(enrichmentType, "_scatter_button")]], {
-      handleScatterPlot(enrichmentType)
-    }, ignoreInit = T)
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      observeEvent(input[[paste(enrichmentType, toolName,
+                                "scatter_button", sep = "_")]], {
+        handleScatterPlot(enrichmentType, toolName)
+      }, ignoreInit = T)
+    })
   })
 
   # Manhattan
