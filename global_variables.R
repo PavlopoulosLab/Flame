@@ -7,6 +7,9 @@ options(shiny.maxRequestSize = 1.0 * 1024^2) # uploaded files <1MB each
 RANDOM_GENES_NUMBER <- 100 # currently 322 max
 # Enrichment
 ENRICHMENT_TYPES <- c("functional", "literature")
+UI_TERM_KEYWORD <- list(
+  "functional" = "functions", "literature" = "articles"
+)
 ENRICHMENT_TOOLS <- c("aGOtool", "gProfiler") # david, enrichr, webgestalt
 DEFAULT_TOOL <- "aGOtool"
 DEFAULT_TOOL_UPPER <- toupper(DEFAULT_TOOL)
@@ -18,7 +21,7 @@ ENRICHMENT_DATASOURCES <- c("INTERPRO", "PFAM", "UNIPROT",
 AGOTOOL_DATASOURCES <- c("INTERPRO", "PFAM", "UNIPROT",
                          "GO:MF", "GO:CC", "GO:BP",
                          "KEGG", "REAC", "WP",
-                         "DO", "BTO")
+                         "DO", "BTO", "PUBMED")
 AGOTOOL_DATASOURCES_PRINT <- list(
   'Gene Ontology' = list(
     "Molecular Function (GO:MF)" = "GO:MF",

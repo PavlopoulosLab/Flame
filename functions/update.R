@@ -40,20 +40,20 @@ updatePlotDataSources <- function(){
   )
   selected <- sources[1]
   
-  updatePickerInput(session, paste(currentEnrichmentType, currentEnrichmentTool,
-                                   "scatter_sourceSelect", sep = "_"),
+  updatePickerInput(session,
+                    paste(currentType_Tool, "scatter_sourceSelect", sep = "_"),
                     choices = sources, selected = selected)
-  updatePickerInput(session, paste(currentEnrichmentType, currentEnrichmentTool,
-                                    "barchart_sourceSelect", sep = "_"),
+  updatePickerInput(session,
+                    paste(currentType_Tool, "barchart_sourceSelect", sep = "_"),
                     choices = sources, selected = selected)
   lapply(HEATMAP_IDS, function(heatmapId) {
-    updateSelectInput(session, paste(currentEnrichmentType, currentEnrichmentTool,
-                                     heatmapId, "sourceSelect", sep = "_"),
+    updateSelectInput(session,
+                      paste(currentType_Tool, heatmapId, "sourceSelect", sep = "_"),
                       choices = sources, selected = selected)
   })
   lapply(NETWORK_IDS, function(networkId) {
-    updatePickerInput(session, paste(currentEnrichmentType, currentEnrichmentTool,
-                                     networkId, "sourceSelect", sep = "_"),
+    updatePickerInput(session,
+                      paste(currentType_Tool, networkId, "sourceSelect", sep = "_"),
                       choices = sources, selected = selected)
   })
   return(selected)
@@ -62,47 +62,37 @@ updatePlotDataSources <- function(){
 updatePlotSliderInputs <- function(selectedDataSource) {
   maxSliderValue <- switch(
     currentEnrichmentType,
-    "functional" = nrow(
-      enrichmentResults[[currentType_Tool]][grepl(
+    "functional" = nrow(enrichmentResults[[currentType_Tool]][grepl(
         selectedDataSource, enrichmentResults[[currentType_Tool]]$Source), ]),
     "literature" = nrow(enrichmentResults[[currentType_Tool]])
   )
-   
+  
   updateShinySliderInput(
-    shinyOutputId = paste(currentEnrichmentType, currentEnrichmentTool,
-                          "scatter_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "scatter_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "barchart_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "barchart_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "heatmap1_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "heatmap1_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "heatmap2_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "heatmap2_slider", sep = "_"),
     minSliderValue = 2, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "heatmap3_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "heatmap3_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "network1_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "network1_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "network2_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "network2_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "network3_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "network3_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
-    shinyOutputId = paste0(currentEnrichmentType, currentEnrichmentTool,
-                           "network3_thresholdSlider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "network3_thresholdSlider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
 }
 

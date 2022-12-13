@@ -285,11 +285,13 @@ generateNetworkPanel <- function(networkId) {
   exclusiveComponent <- switch(
     networkId,
     "network1" = {
-      tabName <- "Functions Vs Genes"
+      tabName <- paste0(str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]]),
+                        " Vs Genes")
       NULL
     },
     "network2" = {
-      tabName <- "Functions Vs Functions"
+      tabName <- paste0(str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]]),
+                        " Vs ", str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]]))
       sliderInput(
         inputId = paste(currentType_Tool, "network2_thresholdSlider", sep = "_"),
         label = "Similarity score cut-off (%):",
@@ -299,7 +301,7 @@ generateNetworkPanel <- function(networkId) {
       tabName <- "Genes Vs Genes"
       sliderInput(
         inputId = paste(currentType_Tool, "network3_thresholdSlider", sep = "_"),
-        label = "Number of common functions:",
+        label = paste0("Number of common ", UI_TERM_KEYWORD[[currentEnrichmentType]], ":"),
         min = 1, max = 10, value = 10, step = 1)
     }
   )
@@ -331,7 +333,7 @@ generateNetworkPanel <- function(networkId) {
           4, 
           radioButtons(
             inputId = paste(currentType_Tool, networkId, "mode", sep = "_"),
-            label = "Order retrieved terms by:",
+            label = paste0("Order retrieved ", UI_TERM_KEYWORD[[currentEnrichmentType]], " by:"),
             choices = c("-log10Pvalue", "Enrichment Score"), inline = TRUE)
         )
       ),
@@ -348,7 +350,7 @@ generateNetworkPanel <- function(networkId) {
           4,
           sliderInput(
             inputId = paste(currentType_Tool, networkId, "slider", sep = "_"),
-            label = "Filter number of top terms:",
+            label = paste0("Filter number of top ", UI_TERM_KEYWORD[[currentEnrichmentType]], ":"),
             min = 1, max = 10, value = 10, step = 1)
         ),
         column(
@@ -500,7 +502,8 @@ generateHeatmapPanel <- function(heatmapId) {
   exclusiveComponent <- switch(
     heatmapId,
     "heatmap1" = {
-      tabName <- "Functions Vs Genes"
+      tabName <- paste0(str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]]),
+                        " Vs Genes")
       radioButtons(
         inputId = paste0(currentType_Tool, "_heatmap1_axis"),
         label = "Axes",
@@ -509,7 +512,8 @@ generateHeatmapPanel <- function(heatmapId) {
       )
     },
     "heatmap2" = {
-      tabName <- "Functions Vs Functions"
+      tabName <- paste0(str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]]),
+                        " Vs ", str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]]))
       NULL
     },
     "heatmap3" = {
@@ -535,7 +539,7 @@ generateHeatmapPanel <- function(heatmapId) {
           4,
           sliderInput(
             inputId = paste(currentType_Tool, heatmapId, "slider", sep = "_"),
-            label = "Filter number of top terms:",
+            label = paste0("Filter number of top ", UI_TERM_KEYWORD[[currentEnrichmentType]], ":"),
             min = 1, max = 10, value = 10, step = 1
           )
         ),
@@ -543,7 +547,7 @@ generateHeatmapPanel <- function(heatmapId) {
           4, 
           radioButtons(
             inputId = paste(currentType_Tool, heatmapId, "mode", sep = "_"),
-            label = "Order retrieved terms by:",
+            label = paste0("Order retrieved ", UI_TERM_KEYWORD[[currentEnrichmentType]], " by:"),
             choices = c("-log10Pvalue", "Enrichment Score"),
             inline = TRUE
           )
@@ -594,7 +598,7 @@ generateBarchartPanel <- function() {
         4,
         sliderInput(
           inputId = paste(currentType_Tool, "barchart_slider", sep = "_"),
-          label = "Filter number of top terms:",
+          label = paste0("Filter number of top ", UI_TERM_KEYWORD[[currentEnrichmentType]], ":"),
           min = 1, max = 10, value = 10, step = 1
         )
       ),
@@ -602,7 +606,7 @@ generateBarchartPanel <- function() {
         4, 
         radioButtons(
           inputId = paste(currentType_Tool, "barchart_mode", sep = "_"),
-          label = "Order retrieved terms by:",
+          label = paste0("Order retrieved ", UI_TERM_KEYWORD[[currentEnrichmentType]], " by:"),
           choices = c("-log10Pvalue", "Enrichment Score"),
           inline = TRUE
         )
@@ -639,7 +643,7 @@ generateScatterplotPanel <- function() {
         4,
         sliderInput(
           inputId = paste(currentType_Tool, "scatter_slider", sep = "_"),
-          label = "Filter number of top terms:",
+          label = paste0("Filter number of top ", UI_TERM_KEYWORD[[currentEnrichmentType]], ":"),
           min = 1, max = 10, value = 10, step = 1
         )
       ),
@@ -647,7 +651,7 @@ generateScatterplotPanel <- function() {
         4, 
         radioButtons(
           inputId = paste(currentType_Tool, "scatter_mode", sep = "_"),
-          label = "Order retrieved terms by:",
+          label = paste0("Order retrieved ", UI_TERM_KEYWORD[[currentEnrichmentType]], " by:"),
           choices = c("-log10Pvalue", "Enrichment Score"),
           inline = TRUE
         )
