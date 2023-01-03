@@ -20,7 +20,7 @@ renderShinyDataTable <- function(shinyOutputId, outputData,
                                  caption = NULL, fileName = "") {
   output[[shinyOutputId]] <- DT::renderDataTable(
     outputData,
-    server = FALSE, 
+    server = F, 
     extensions = 'Buttons',
     caption = caption,
     options = list(
@@ -32,16 +32,72 @@ renderShinyDataTable <- function(shinyOutputId, outputData,
         list(extend = 'pdf', filename = fileName),
         list(extend = 'print', filename = fileName))
     ),
-    rownames = FALSE,
+    rownames = F,
     escape = F
   )
+}
+
+renderTextMiningResult <- function(extracted_terms) {
+  output$extracted_terms <- DT::renderDataTable(
+    extracted_terms,
+    server = F, 
+    options = list(
+      paging = F, 
+      scrollY = "200px", 
+      scroller = T,
+      dom = "t"
+    ),
+    escape = F
+  )
+}
+
+renderUpset <- function(upsetList, upsetModeFunction) {
+  output$upsetjsView <- renderUpsetjs({
+    upsetjs() %>%
+      fromList(upsetList) %>%
+      interactiveChart() %>%
+      upsetModeFunction() %>%
+      chartLabels(combination.name = paste0(currentUpsetMode, " Size")) %>% 
+      chartFontSizes(
+        font.family = "Segoe UI",
+        chart.label = "18px",
+        set.label = "10px") %>%
+      chartTheme(color = "#383f4f") %>%
+      chartLayout(width.ratios = c(0.2, 0.1, 0.7), bar.padding = 0.3)
+  })
+}
+
+renderVolcano <- function() {
+  output$volcanoPlot <- renderPlotly({
+    plot_ly(
+      data = currentVolcano,
+      x = ~`logfc`,
+      y = ~`-log10Pvalue`,
+      customdata = ~symbol,
+      type = 'scatter',
+      mode = 'markers',
+      marker = list(size = 6),
+      color = ~expression,
+      colors = VOLCANO_COLORS,
+      hoverinfo = "text",
+      hovertext = ~paste0("Symbol: ", symbol,
+                          "\nlogFC: ", logfc,
+                          "\n-log10Pvalue: ", `-log10Pvalue`),
+      source = "Volcano"
+    ) %>%
+      layout(
+        xaxis = list(title = "logFC"),
+        yaxis = list(title = "-log10Pvalue"),
+        showlegend = F
+      )
+  })
 }
 
 renderEnrichmentTable <- function(shinyOutputId, input_table,
                                   caption, fileName, mode,
                                   hiddenColumns, expandableColumn){
   output[[shinyOutputId]] <- DT::renderDataTable(
-    server = FALSE,
+    server = F,
     cbind(' ' = '&oplus;', input_table),
     escape = F, 
     extensions = c('Buttons'),
@@ -56,18 +112,18 @@ renderEnrichmentTable <- function(shinyOutputId, input_table,
         list(extend = 'print', filename = fileName)
       ),
       columnDefs = list(
-        list(visible = FALSE, targets = hiddenColumns),
-        list(orderable = FALSE, className = 'details-control', targets = 1)
+        list(visible = F, targets = hiddenColumns),
+        list(orderable = F, className = 'details-control', targets = 1)
       )
     ),
     callback = JS(paste0(
       "table.column(1).nodes().to$().css({cursor: 'pointer'});
-      var format = function(d) {
+      let format = function(d) {
         return '<div style=\"background-color:#eee; padding: .5em;\"> <b>", mode, ":</b> ' +
                 d[", expandableColumn, "] + '</div>';
       };
       table.on('click', 'td.details-control', function() {
-        var td = $(this), row = table.row(td.closest('tr'));
+        let td = $(this), row = table.row(td.closest('tr'));
         if (row.child.isShown()) {
           row.child.hide();
           td.html('&oplus;');
@@ -115,7 +171,7 @@ renderShinyVisNetwork <- function(networkId, nodes, edges, layout) {
       visGroups(groupname = "HP", color = DATASOURCE_COLORS["HP"][[1]], shape = "triangleDown") %>%
       visEdges(color = "black") %>%
       visIgraphLayout(layout = layout) %>%
-      visInteraction(navigationButtons = TRUE, hover = TRUE)
+      visInteraction(navigationButtons = T, hover = T)
   })
 }
 
@@ -131,7 +187,8 @@ renderHeatmap <- function(type_Tool, shinyOutputId, heatmapTable, color,
       colors = colorRamp(c("#f5f6f7", color)),
       hoverinfo = "text",
       hovertext = generateHeatmapHoverText(shinyOutputId),
-      height = height
+      height = height,
+      source = "Heatmap"
     ) %>%
       layout(xaxis = list(showgrid = F),
              yaxis = list(showgrid = F))
@@ -179,39 +236,43 @@ renderBarchart <- function(shinyOutputId, barchartData, column, height) {
                           "\nFUNCTION: ", Function,
                           "\nEnrichment Score %: ", `Enrichment Score %`,
                           "\n-log10Pvalue: ", `-log10Pvalue`),
-      height = height
+      height = height,
+      source = "Barchart"
     )
   })
 }
 
 renderScatterPlot <- function(shinyOutputId, scatterData) {
   output[[shinyOutputId]] <- renderPlotly({
-    plot_ly(data = scatterData,
-            x = ~`-log10Pvalue_jittered`,
-            y = ~`Enrichment Score %_jittered`,
-            type = 'scatter',
-            mode = 'markers',
-            marker = list(
-              size = 15,
-              line = list(
-                color = 'rgb(0, 0, 0)',
-                width = 1
-              )),
-            color = ~Source,
-            colors = DATASOURCE_COLORS,
-            hoverinfo = "text",
-            hovertext = ~paste0("TERM_ID: ", Term_ID_noLinks,
-                                "\nFUNCTION: ", Function,
-                                "\nEnrichment Score %: ", `Enrichment Score %`,
-                                "\n-log10Pvalue: ", `-log10Pvalue`)) %>%
+    plot_ly(
+      data = scatterData,
+      x = ~`-log10Pvalue_jittered`,
+      y = ~`Enrichment Score %_jittered`,
+      type = 'scatter',
+      mode = 'markers',
+      marker = list(
+        size = 15,
+        line = list(
+          color = 'rgb(0, 0, 0)',
+          width = 1
+        )),
+      color = ~Source,
+      colors = DATASOURCE_COLORS,
+      hoverinfo = "text",
+      hovertext = ~paste0("TERM_ID: ", Term_ID_noLinks,
+                          "\nFUNCTION: ", Function,
+                          "\nEnrichment Score %: ", `Enrichment Score %`,
+                          "\n-log10Pvalue: ", `-log10Pvalue`),
+      source = "Scatter"
+    ) %>%
       layout(
         xaxis = list(title = "-log10Pvalue"),
         yaxis = list(title = "Enrichment Score")
-      ) 
+      )
   })
 }
 
-renderManhattanPlot <- function(){ 
+renderManhattanPlot <- function() { 
   output$manhattan <- renderPlotly({
     gostplot(
       gprofilerResult,

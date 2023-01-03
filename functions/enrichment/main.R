@@ -10,7 +10,7 @@ handleEnrichment <- function(enrichmentType) {
             "literature" = "aGOtool"
           )
           currentUserList <<-
-            unlist(userInputLists[file_names ==
+            unlist(userInputLists[names(userInputLists) ==
                                     input[[paste0(currentEnrichmentType,
                                                   "_enrichment_file")]]][[1]])
           currentOrganism <<- 
@@ -43,7 +43,7 @@ existInputGeneLists <- function() {
   if (length(userInputLists) > 0)
     exist <- T
   else
-    renderWarning("First upload at least one gene list.")
+    renderWarning("Upload an input list first.")
   return(exist)
 }
 

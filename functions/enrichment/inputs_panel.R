@@ -1,7 +1,7 @@
-handleFunctionalEnrichmentOrganismSelection <- function() { # TODO
+handleFunctionalEnrichmentOrganismSelection <- function() {
   tryCatch({
-    updateAvailableTools() # TODO
-    updateAvailableNamespaces()
+    # updateAvailableTools() # TODO
+    # updateAvailableNamespaces()
   }, error = function(e) {
     cat(paste("Error: ", e))
     renderError("Unexpected error occured.")

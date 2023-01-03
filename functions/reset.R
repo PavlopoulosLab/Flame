@@ -1,3 +1,10 @@
+resetTextMiningResults <- function() {
+  currentTextminingResult <<- c()
+  output$extracted_text <- renderUI({ HTML("") })
+  output$extracted_terms <- renderDataTable(c())
+  shinyjs::hide("textmining_tagger_results")
+}
+
 resetEnrichmentResults <- function() {
   resetGlobalVariables()
   resetResultBoxes()

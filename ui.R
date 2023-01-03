@@ -1,12 +1,13 @@
 source("global_variables.R", local = TRUE)
 source("functions/init.R", local = TRUE)
-source("views/welcome.R", local = TRUE) 
+source("views/welcome.R", local = TRUE)
 source("views/input.R", local = TRUE)
 source("views/enrichment.R", local = TRUE)
-source("views/network.R", local = TRUE) 
-source("views/conversion.R", local = TRUE) 
+source("views/plots.R", local = TRUE)
+source("views/network.R", local = TRUE)
+source("views/conversion.R", local = TRUE)
 source("views/help.R", local = TRUE)
-source("views/about.R", local = TRUE) 
+source("views/about.R", local = TRUE)
 source("views/footer.R", local = TRUE)
 
 initializeUIApp()
@@ -27,7 +28,7 @@ dashboardPage(
       id = "sideBarId",
       menuItem("Welcome", tabName = "welcome", icon = icon("house")),
       tags$hr(),
-      menuItem("File Input", tabName = "file_handler", icon = icon("file-contract")),
+      menuItem("Input Lists", tabName = "file_handler", icon = icon("file-contract")),
       tags$hr(),
       menuItem("Functional Enrichment", tabName = "functional_enrichment", icon = icon("gears")),
       tags$hr(),
@@ -44,15 +45,16 @@ dashboardPage(
     )
   ),
   dashboardBody(
-    tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "Flame.css")),
+    tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "css/Flame.css")),
+    tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "css/extract_popups.css")),
     tags$head(tags$script(src = "js/rshiny_handlers.js")),
     tags$head(tags$script(src = "js/update_rshiny_values.js")),
+    tags$head(tags$script(src = "js/extract_popups.js")),
     tags$head(tags$script(src = 'https://string-db.org/javascript/combined_embedded_network_v2.0.2.js')),
     useShinyjs(),
-    div(class="ldBar", "data-preset" = "bubble"), # TODO remove after replaced with modals
     tabItems(
-      tabItem(tabName = "welcome", welcomePage),
-      tabItem("file_handler", inputPage),
+      tabItem("welcome", welcomePage),
+      tabItem("file_handler", generateInputPage()),
       tabItem("functional_enrichment", generateEnrichmentPage("functional")),
       tabItem("literature_enrichment", generateEnrichmentPage("literature")),
       tabItem("string_network", generateStringNetworkPage()),

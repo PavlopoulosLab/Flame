@@ -61,7 +61,7 @@ generateStringNetworkPage <- function() {
         )
       )
     ),
-    actionButton("runStringNetwork", "Run analysis", icon("paper-plane"), class = "btn-submit"),
+    actionButton("runStringNetwork", "Run analysis", icon("paper-plane"), class = "submit_button"),
     tags$br(),
     tags$hr(),
     tags$br(),

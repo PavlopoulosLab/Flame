@@ -30,29 +30,26 @@ handleFunctionVsGeneHeatmap <- function(enrichmentType, enrichmentTool, type_Too
       mode = input[[paste(type_Tool, "heatmap1_mode", sep = "_")]],
       slider = input[[paste(type_Tool, "heatmap1_slider", sep = "_")]])
     
-    constructFunctionsVsGeneHeatmap(type_Tool, enrichmentFilteredData)
+    constructFunctionsVsGeneHeatmap(enrichmentType, 
+                                    type_Tool, enrichmentFilteredData)
   }
 }
 
-constructFunctionsVsGeneHeatmap <- function(type_Tool, enrichmentFilteredData) {
+constructFunctionsVsGeneHeatmap <- function(enrichmentType,
+                                            type_Tool, enrichmentFilteredData) {
   heatmapTable <- separateRows(enrichmentFilteredData)
   heatmapTable$GeneExists <- 1
   
+  uiTermKeyword <- str_to_title(UI_TERM_KEYWORD[[enrichmentType]])
   heatmap1_axis <- input[[paste(type_Tool, "heatmap1_axis", sep = "_")]]
-  yColumn <- switch(
-    heatmap1_axis,
-    "Functions-Genes" = {
-      yAxisColumn = "Term_ID_noLinks"
-      xAxisColumn = "Positive Hits"
-      "Term_ID_noLinks"
-    },
-    "Genes-Functions" = {
-      yAxisColumn = "Positive Hits"
-      xAxisColumn = "Term_ID_noLinks"
-      "Positive Hits"
-    }
-  )
-  entriesCount <- length(unique(heatmapTable[[yColumn]]))
+  if (heatmap1_axis == paste0(uiTermKeyword, "-Genes")) {
+    yAxisColumn <- "Term_ID_noLinks"
+    xAxisColumn <- "Positive Hits"
+  } else {
+    yAxisColumn <- "Positive Hits"
+    xAxisColumn <- "Term_ID_noLinks"
+  }
+  entriesCount <- length(unique(heatmapTable[[yAxisColumn]]))
   height <- calculatePlotHeight(entriesCount)
   renderHeatmap(type_Tool, "heatmap1", heatmapTable,
                 color = DATASOURCE_COLORS[[input[[paste(

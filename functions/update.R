@@ -1,3 +1,37 @@
+updateUserInputLists <- function(inputDF, listName) {
+  colnames(inputDF) <- listName
+  userInputLists <<- c(userInputLists, list(inputDF))
+  names(userInputLists)[length(userInputLists)] <<- listName
+}
+
+updateListBoxes <- function() {
+  updateCheckboxGroupInput(session, "checkboxLists", choices = names(userInputLists))
+  updateSelectInput(session, "functional_enrichment_file", choices = names(userInputLists))
+  updateSelectInput(session, "literature_enrichment_file", choices = names(userInputLists))
+  updateSelectInput(session, "selectView", choices = names(userInputLists))
+  updateSelectInput(session, "selectUpset", choices = names(userInputLists))
+  updateSelectInput(session, "gconvert_select", choices = names(userInputLists))
+  updateSelectInput(session, "gorth_select", choices = names(userInputLists))
+  updateSelectInput(session, "aGOtoolSelect", choices = names(userInputLists))
+  updateSelectInput(session, "literatureSelect", choices = names(userInputLists))
+  updateSelectInput(session, "STRINGnetworkSelect", choices = names(userInputLists))
+}
+
+updateVolcanoSliders <- function(maxLog10PValue, maxLogFC) {
+  updateShinySliderInput(
+    shinyOutputId = "volcano_pvalue_slider",
+    minSliderValue = 0, maxSliderValue = ceiling(maxLog10PValue),
+    value = input$volcano_pvalue_slider,
+    step = DEFAULT_VOLCANO_10LOGPVALUE_STEP
+  )
+  updateShinySliderInput(
+    shinyOutputId = "volcano_fc_slider",
+    minSliderValue = 0, maxSliderValue = ceiling(maxLogFC),
+    value = input$volcano_fc_slider,
+    step = DEFAULT_VOLCANO_LOGFC_STEP
+  )
+}
+
 updateAvailableTools <- function() {
   # TODO
   # updateSelectInput(session, "functional_enrichment_organism",
@@ -40,21 +74,12 @@ updatePlotDataSources <- function(){
   )
   selected <- sources[1]
   
-  updatePickerInput(session,
-                    paste(currentType_Tool, "scatter_sourceSelect", sep = "_"),
-                    choices = sources, selected = selected)
-  updatePickerInput(session,
-                    paste(currentType_Tool, "barchart_sourceSelect", sep = "_"),
-                    choices = sources, selected = selected)
-  lapply(HEATMAP_IDS, function(heatmapId) {
-    updateSelectInput(session,
-                      paste(currentType_Tool, heatmapId, "sourceSelect", sep = "_"),
-                      choices = sources, selected = selected)
-  })
-  lapply(NETWORK_IDS, function(networkId) {
-    updatePickerInput(session,
-                      paste(currentType_Tool, networkId, "sourceSelect", sep = "_"),
-                      choices = sources, selected = selected)
+  allPlotIds <- c(NETWORK_IDS, HEATMAP_IDS, "barchart", "scatterPlot")
+  lapply(allPlotIds, function(plotId) {
+    updatePickerInput(
+      session, paste(currentType_Tool, plotId, "sourceSelect", sep = "_"),
+      choices = sources, selected = selected
+    )
   })
   return(selected)
 }
@@ -68,7 +93,7 @@ updatePlotSliderInputs <- function(selectedDataSource) {
   )
   
   updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "scatter_slider", sep = "_"),
+    shinyOutputId = paste(currentType_Tool, "scatterPlot_slider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
   updateShinySliderInput(
     shinyOutputId = paste(currentType_Tool, "barchart_slider", sep = "_"),
@@ -97,10 +122,10 @@ updatePlotSliderInputs <- function(selectedDataSource) {
 }
 
 updateShinySliderInput <- function(shinyOutputId, minSliderValue, maxSliderValue,
-                                   value = DEFAULT_SLIDER_VALUE) {
+                                   value = DEFAULT_SLIDER_VALUE, step = 1) {
   updateSliderInput(
     session, shinyOutputId,
     min = minSliderValue, max = maxSliderValue,
-    value = value, step = 1
+    value = value, step = step
   )
 }

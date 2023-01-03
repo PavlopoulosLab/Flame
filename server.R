@@ -6,7 +6,12 @@ function(input, output, session) {
   source("functions/update.R", local = TRUE)
   source("functions/reset.R", local = TRUE)
   
-  source("functions/fileInput.R", local = TRUE)
+  source("functions/input/main.R", local = TRUE)
+  source("functions/input/upset.R", local = TRUE)
+  source("functions/input/text_mining.R", local = TRUE)
+  source("functions/input/volcano.R", local = TRUE)
+  source("functions/input/api.R", local = TRUE)
+  
   source("functions/enrichment/inputs_panel.R", local = TRUE)
   source("functions/enrichment/main.R", local = TRUE)
   source("functions/enrichment/general.R", local = TRUE)
@@ -15,124 +20,135 @@ function(input, output, session) {
   source("functions/links.R", local = TRUE)
   
   source("functions/plots/general.R", local = TRUE)
-  source("functions/plots/manhattan.R", local = TRUE)
-  source("functions/plots/scatter.R", local = TRUE)
-  source("functions/plots/barchart.R", local = TRUE)
-  source("functions/plots/heatmaps.R", local = TRUE)
   source("functions/plots/networks.R", local = TRUE)
-  source("functions/interoperability.R", local = TRUE)
+  source("functions/plots/heatmaps.R", local = TRUE)
+  source("functions/plots/barchart.R", local = TRUE)
+  source("functions/plots/scatter.R", local = TRUE)
+  source("functions/plots/manhattan.R", local = TRUE)
+  source("functions/plots/arena3d.R", local = TRUE)
   
-  source("functions/conversion.R", local = TRUE)
   source("functions/stringNetwork.R", local = TRUE)
+  source("functions/conversion.R", local = TRUE)
   
-  # Start ####
-  initializeServerApp()
-  
+  source("functions/input/text_mining.R", local = TRUE)
+
   # API ####
-  output$url_checker <- renderText({ # this component needs to be in landing page in order to be observed on page load
-    tryCatch({
-      
-      query <- parseQueryString(session$clientData$url_search)
-      if (length(query$f) > 0){ # GET json file from POST request
-        updateTabItems (session, "sideBarId", selected ="file_handler") # change tab to file input
-        
-        error_flag <- parse_import_data(paste0(POST_REQUEST_PATH, query$f), session)
-        if (!error_flag) output$url_checked <- renderText({"Gene list(s) loaded from url."})
-        
-        paste("") # empty string to not print anything on landing page
-      } else if (length(query$url_genes) > 0){ # GET request with written gene lists
-        updateTabItems (session, "sideBarId", selected ="file_handler") # change tab to file input
-        
-        lists <- str_split(query$url_genes, ";")[[1]]
-        for (list in lists) {
-          flag <- handleTextSubmit(list, "url_gene_list", session)
-          if (!flag) break
-        }
-        
-        output$url_checked <- renderText({"Gene list(s) loaded from url."})
-        paste("") # empty string to not print anything on landing page
-      }
-      
-    }, error = function(e) {
-      print(paste("Error :  ", e))
-      renderError("Problem with url query handling.")
-    })
+  observeEvent(session$clientData$url_search, {
+    resolveAPI()
   })
   
+  # START ####
+  initializeServerApp()
+
+  # ~Welcome ####
   observeEvent(input$link_to_fileinput, {
-    updateTabItems (session, "sideBarId", selected = "file_handler")
+    updateTabItems(session, "sideBarId", selected = "file_handler")
   }, ignoreInit = T)
   
-  # File Input ####
-  observeEvent(input$files,{
-    handleInputFiles(input$files)
-  }, ignoreInit = T)
-  
-  observeEvent(input$textSubmit,{
-    handleTextSubmit(input$text, "gene_list")
-  }, ignoreInit = T)
-  
+  # INPUT ####
   observeEvent(input$example,{
     handleRandomExample()
   }, ignoreInit = T)
   
   observeEvent(input$clear, {
-    handleClearExample()
+    handleClearText()
   }, ignoreInit = T)
   
+  observeEvent(input$textSubmit,{
+    handleTextSubmit()
+  }, ignoreInit = T)
+  
+  observeEvent(input$fileUpload,{
+    handleInputFiles()
+  }, ignoreInit = T)
+
   observeEvent(input$selectAll,{
-    handleSelectAllFiles(input$selectAll)
+    handleSelectAllLists()
   }, ignoreInit = T)
   
   observeEvent(input$rename, {
-    handlePrepareRename(input$checkboxFiles)
+    handlePrepareRenameLists()
   }, ignoreInit = T)
   
-  observeEvent(input$js_fileNames, {
-    handleRename(input$js_fileNames)
+  observeEvent(input$js_listNames, {
+    handleRenameLists()
   }, ignoreInit = T)
   
   observeEvent(input$remove, {
-    handleRemove(input$checkboxFiles)
-  }, ignoreInit = T)
-  
-  observeEvent(input$submitUpset, {
-    handleSubmitUpset()
-  }, ignoreInit = T)
-  
-  observeEvent(input$mode, {
-    handleModeUpset(input$mode)
-  }, ignoreInit = T)
-  
-  observeEvent(input$upsetjs_hover, {
-    handleUpsetHover(input$upsetjs_hover)
-  }, ignoreInit = T)
-  
-  observeEvent(input$upsetjs_click,{
-    handleUpsetClick(input$mode, input$upsetjs_click)
-  }, ignoreInit = T)
-  
-  observeEvent(input$intersection_ok,{
-    handleIntersection(input$upsetjs_click)
-  }, ignoreInit = T)
-  
-  observeEvent(input$distinct_ok,{
-    handleDistinct(input$upsetjs_click)
-  }, ignoreInit = T)
-  
-  observeEvent(input$union_ok,{
-    handleUnion(input$upsetjs_click)
-  }, ignoreInit = T)
-  
-  observeEvent(input$distinct_per_file_ok,{
-    handleDistinctPerFile(input$upsetjs_click)
+    handleRemoveLists()
   }, ignoreInit = T)
   
   observeEvent(input$selectView,{
-    handleSelectView(input$selectView)
+    handleSelectView()
   }, ignoreInit = T)
   
-  # Functional Enrichment ####
+  # ~Text-mining ####
+  observeEvent(input$textmining_addExample, {
+    loadTextMiningExample()
+  }, ignoreInit = T)
+
+  observeEvent(input$textmining_clearText, {
+    resetTextMiningFields()
+  }, ignoreInit = T)
+  
+  observeEvent(input$textmining_submit, {
+    handleTextMining()
+  }, ignoreInit = T)
+  
+  observeEvent(input$textmining_addList,{
+    addTextMiningToFiles()
+  }, ignoreInit = T)  
+  
+  observeEvent(input$textmining_delete, {
+    deleteTextmining()
+  }, ignoreInit = T)
+  
+  # ~Upset ####
+  observeEvent(input$submitUpset, {
+    handleUpset()
+  }, ignoreInit = T)
+  
+  observeEvent(input$upsetjsView_hover, {
+    handleUpsetHover()
+  }, ignoreInit = T)
+  
+  observeEvent(input$upsetjsView_click, {
+    handleUpsetClick()
+  }, ignoreInit = T)
+  
+  observeEvent(input$upsetClick_ok, {
+    handleUpsetListAccept()
+  }, ignoreInit = T)
+  
+  # ~Volcano ####
+  observeEvent(input$volcanoUpload, {
+    handleVolcanoPlot(readVolcanoInput)
+  }, ignoreInit = T)
+
+  observeEvent(input$volcano_addExample, {
+    handleVolcanoPlot(readVolcanoExample)
+  }, ignoreInit = T)
+  
+  observeEvent(input$volcanoRepaint, {
+    handleVolcanoRepaint()
+  }, ignoreInit = T)
+  
+  observeEvent(event_data("plotly_selected", source = "Volcano"), {
+    triggeredEvent <- event_data("plotly_selected", source = "Volcano")
+    volcanoSelectedItems <<- triggeredEvent$customdata
+    renderShinyText("volcanoSelected",
+                    paste(volcanoSelectedItems, collapse = ", "))
+  }, ignoreInit = T)
+
+  observeEvent(input$volcanoSubmit, {
+    handleVolcanoSubmit()
+  }, ignoreInit = T)
+
+  observeEvent(input$volcano_ok,{
+    handleVolcanoListAccept()
+  }, ignoreInit = T)
+  
+  # ENRICHMENT ####
   observeEvent(input$functional_enrichment_tool,{
     handleFunctionalEnrichmentToolSelection()
   }, ignoreInit = T, ignoreNULL = F)
@@ -143,8 +159,8 @@ function(input, output, session) {
     }, ignoreInit = T)
   })
   
-  # Plots ####
-  # Networks
+  # ~Plots ####
+  # ~~Networks ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       lapply(NETWORK_IDS, function(networkId) {
@@ -160,7 +176,7 @@ function(input, output, session) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       lapply(NETWORK_IDS, function(networkId) {
         observeEvent(input[[paste(enrichmentType, toolName,
-                                  networkId, "visualizeNetwork", sep = "_")]], {
+                                  networkId, "button", sep = "_")]], {
           handleEnrichmentNetwork(enrichmentType, toolName, networkId)
         }, ignoreInit = T)
       })
@@ -178,7 +194,7 @@ function(input, output, session) {
     })
   })
   
-  # Heatmaps
+  # ~~Heatmaps ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       lapply(HEATMAP_IDS, function(heatmapId) {
@@ -193,14 +209,14 @@ function(input, output, session) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       lapply(HEATMAP_IDS, function(heatmapId) {
         observeEvent(input[[paste(enrichmentType, toolName,
-                                  heatmapId, "visualizeHeatmap", sep = "_")]], {
+                                  heatmapId, "button", sep = "_")]], {
           handleHeatmap(enrichmentType, toolName, heatmapId)
         }, ignoreInit = T)
       })
     })
   })
   
-  # Barchart
+  # ~~Barchart ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       observeEvent(input[[paste(enrichmentType, toolName, "barchart_sourceSelect", sep = "_")]], {
@@ -218,11 +234,11 @@ function(input, output, session) {
     })
   })
   
-  # Scatter
+  # ~~Scatter ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
-      observeEvent(input[[paste(enrichmentType, toolName, "scatter_sourceSelect", sep = "_")]], {
-        handleDatasourcePicker(enrichmentType, toolName, "scatter")
+      observeEvent(input[[paste(enrichmentType, toolName, "scatterPlot_sourceSelect", sep = "_")]], {
+        handleDatasourcePicker(enrichmentType, toolName, "scatterPlot")
       }, ignoreInit = T, ignoreNULL = F)
     })
   })
@@ -230,24 +246,28 @@ function(input, output, session) {
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       observeEvent(input[[paste(enrichmentType, toolName,
-                                "scatter_button", sep = "_")]], {
+                                "scatterPlot_button", sep = "_")]], {
         handleScatterPlot(enrichmentType, toolName)
       }, ignoreInit = T)
     })
   })
 
-  # Manhattan
+  # ~~Manhattan ####
   observeEvent(input$manhattan_button, {
     # TODO convert to generic manhattan plot outside gprofiler
     handleManhattanPlot()
   }, ignoreInit = T)
   
-  observeEvent(event_data("plotly_click"), {
-    handleManhattanClick()
+  observeEvent(event_data("plotly_click", source = "A"), { # "A" = "Manhattan"
+    triggeredEvent <- event_data("plotly_click", source = "A")
+    if (isEventFromManhattan(triggeredEvent))
+      handleManhattanClick(triggeredEvent$key)
   }, ignoreInit = T)
   
-  observeEvent(event_data("plotly_selected"), {
-    handleManhattanSelect()
+  observeEvent(event_data("plotly_selected", source = "A"), {
+    triggeredEvent <- event_data("plotly_selected", source = "A")
+    if (isEventFromManhattan(triggeredEvent))
+      handleManhattanSelect(triggeredEvent$key)
   }, ignoreInit = T)
   
   # STRING ####
@@ -255,7 +275,7 @@ function(input, output, session) {
     handleStringNetwork()
   }, ignoreInit = T)
   
-  # Conversion ####
+  # CONVERSION ####
   observeEvent(input$gconvert_button,{
     handle_gconvert()
   }, ignoreInit = T)

@@ -1,10 +1,20 @@
 # Configuration variables ####
 # Input
-FILE_LIMIT <- 10
+options(shiny.maxRequestSize = 1.0 * 1024^2) # uploaded files < 1MB each
+LISTNAME_NCHAR_LIMIT <- 100
+LIST_LIMIT <- 10
+GENE_LIST_LIMIT <- 3000
+OBJECT_SIZE_LIMIT <- 1000000 # bytes, 1MB
 STRING_LIMIT <- 500
-OBJECT_SIZE_LIMIT <- 1048576
-options(shiny.maxRequestSize = 1.0 * 1024^2) # uploaded files <1MB each
-RANDOM_GENES_NUMBER <- 100 # currently 322 max
+RANDOM_GENES_NUMBER <- 200 # currently 674 max
+GENE_LIST_PREFIX <- "gene_list"
+# Volcano
+VOLCANO_COLORS <- c("default" = "#000000",
+                    "overexpressed" = "#eb6e6c", "underexpressed" = "#64e4ed")
+DEFAULT_VOLCANO_10LOGPVALUE_THRESHOLD <- 1.3
+DEFAULT_VOLCANO_10LOGPVALUE_STEP <- 0.00001
+DEFAULT_VOLCANO_LOGFC_THRESHOLD <- 0.6
+DEFAULT_VOLCANO_LOGFC_STEP <- 0.001
 # Enrichment
 ENRICHMENT_TYPES <- c("functional", "literature")
 UI_TERM_KEYWORD <- list(
@@ -114,9 +124,18 @@ LAYOUT_CHOICES <- list(
   `layout_in_circle`  =	"Circle", `layout_on_grid` = "Grid",
   `layout_randomly`  =	"Random"
 )
+LEGEND_ITEMS <- list(
+  list("GO:MF", "GO:BP", "GO:CC"),
+  list("KEGG", "REAC", "WP"),
+  list("INTERPRO", "PFAM", "UNIPROT"),
+  list("DO", "BTO", "HP"),
+  list("TF", "MIRNA", "HPA"),
+  list("CORUM", "GENE", "PUBMED")
+)
 NETWORK_IDS <- c("network1", "network2", "network3")
 # Heatmap
 HEATMAP_IDS <- c("heatmap1", "heatmap2", "heatmap3")
+PLOT_TABNAMES <- c("Network", "Heatmap", "Barchart", "Scatter Plot", "Manhattan")
 # Interoperability
 POST_REQUEST_PATH <- 'tmp/'
 ARENA_API_LINK <- "https://bib.fleming.gr/bib/api/arena3dweb" #"http://127.0.0.1:8080/api/arena3dweb"
@@ -131,22 +150,24 @@ DATASOURCE_COLORS <- c(
   "INTERPRO" = "#8a5103", "PFAM" = "#b3b000", "UNIPROT" = "#55edeb",
   "DO" = "#f7c8fa", "BTO" = "#f0d871",
   "TF" = "#5574a6", "MIRNA" = "#22aa99",
-  "HPA" = "#6633cc", "CORUM" = "#66aa00",
-  "HP" = "#990099", "PUBMED" = LITERATURE_NODE_COLOR
+  "HPA" = "#6633cc", "CORUM" = "#66aa00", "HP" = "#990099",
+  "PUBMED" = LITERATURE_NODE_COLOR, "GENE" = GENE_NODE_COLOR
 )
 # About
 YEAR <- substr(Sys.Date(), 1, 4)
 
 # User variables ####
-file_names <- list()
-global_positions <- list() # Saved positions for files to be renamed, needed for JS
-upset_list <- "" # Saved files that are going to be handled for Upset plots (re-initialized when pushing the Submit Upset plot button)
 userInputLists <- list()
+checkedListNames <- list()
+volcanoSelectedItems <- c()
 
 gprofilerResult <- list() # for gprofiler ManhattanPlot only
 enrichmentResults <- list()
 arenaEdgelist <- list()
 
+currentTextminingResult <- c()
+currentUpsetMode <- ""
+currentVolcano <- data.frame()
 currentEnrichmentType <- ""
 currentUserList <- c()
 currentOrganism <- ""

@@ -26,7 +26,6 @@ welcomePage <- fluidRow(
       Get started by uploading your gene lists"
     ),
     actionLink("link_to_fileinput", " here."),
-    HTML("</h4>"),
-    textOutput("url_checker"),
+    HTML("</h4>")
   )
 )

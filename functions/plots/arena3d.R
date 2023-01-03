@@ -1,7 +1,6 @@
 arenaHandler <- function(enrichmentType, enrichmentTool, networkId) {
   tryCatch({
-    showModal(modalDialog(HTML("<h2>Please wait.</h2>
-                                 <p>Building network for Arena3Dweb</p>"), footer = NULL))
+    renderModal("<h2>Please wait.</h2><p>Building network for Arena3Dweb</p>")
     currentArenaEdgelist <- arenaEdgelist[[paste(enrichmentType, enrichmentTool,
                                                  networkId, sep = "_")]]
     if (existsNetwork(currentArenaEdgelist)){
@@ -129,12 +128,9 @@ appendNodeColors <- function(currentArenaEdgelist) {
 }
 
 appendDatasourceColorColumn <- function(currentArenaEdgelist, colorSourceColumn) {
-  if (currentArenaEdgelist[[colorSourceColumn]][1] %in% names(DATASOURCE_COLORS)){
-    colorList <- as.character(DATASOURCE_COLORS[
-      currentArenaEdgelist[[colorSourceColumn]]
-    ])
-  } else
-    colorList <- LITERATURE_NODE_COLOR
+  colorList <- as.character(DATASOURCE_COLORS[
+    currentArenaEdgelist[[colorSourceColumn]]
+  ])
   return(colorList)
 }
 

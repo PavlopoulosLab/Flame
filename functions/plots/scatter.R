@@ -3,15 +3,15 @@ handleScatterPlot <- function(enrichmentType, enrichmentTool) {
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Scatter Plot.</p>")
     if (existEnrichmentResults(enrichmentType, enrichmentTool)){
       type_Tool <- paste(enrichmentType, enrichmentTool, sep = "_")
-      sourceSelect <- input[[paste(type_Tool, "scatter_sourceSelect", sep = "_")]]
+      sourceSelect <- input[[paste(type_Tool, "scatterPlot_sourceSelect", sep = "_")]]
 
       if (isSourceNotNull(sourceSelect)) {
         enrichmentFilteredData <- filterAndPrintTable(
           enrichmentType, enrichmentTool,
           outputId = paste(type_Tool, "scatterPlot", sep = "_"),
           sourceSelect = sourceSelect,
-          mode = input[[paste(type_Tool, "scatter_mode", sep = "_")]],
-          slider = input[[paste(type_Tool, "scatter_slider", sep = "_")]])
+          mode = input[[paste(type_Tool, "scatterPlot_mode", sep = "_")]],
+          slider = input[[paste(type_Tool, "scatterPlot_slider", sep = "_")]])
         
         constructScatterPlot(type_Tool, enrichmentFilteredData)
       }

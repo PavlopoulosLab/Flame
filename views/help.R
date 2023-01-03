@@ -1,7 +1,7 @@
 POSTRequestHelp <- HTML('
 <p>
   To open <i>Flame</i> from an external application, we offer an API that allows a <b>POST</b> request along with a JSON object.
-  The API link is <b><u><i>http://bib.fleming.gr:8091/bib/api/flame</i></u></b>. Don\'t forget to set the <b>Header Content-Type</b> to <b>application/json</b>. Here, we provide an example of the required JSON object format:
+  The API link is <b><u><i>https://bib.fleming.gr/bib/api/flame</i></u></b>. Don\'t forget to set the <b>Header Content-Type</b> to <b>application/json</b>. Here, we provide an example of the required JSON object format:
 </p>
 <h3>Simple 3 gene list example</h3>
 <pre>
@@ -16,13 +16,13 @@ POSTRequestHelp <- HTML('
 </p>
 <pre>
 {
-  "url": "http://bib.fleming.gr:8084/app/flame?f=110407183nWHu5VfeP9fM.json"
+  "url": "https://bib.fleming.gr:8084/app/flame?f=110407183nWHu5VfeP9fM.json"
 }
 </pre>
 ')
 
 GETRequestHelp <- HTML('
-For shorter gene lists, we also allow <b>GET</b> requests in the following format <b><u><i>http://bib.fleming.gr:8084/app/flame/?url_genes=MCL1,TTR;APOE,ACE2;TLR4,HMOX1,TP73</i></u></b> where gene lists are separated with semicolon (;) and genes with comma (,).
+For shorter gene lists, we also allow <b>GET</b> requests in the following format <b><u><i>https://bib.fleming.gr:8084/app/flame/?url_genes=MCL1,TTR;APOE,ACE2;TLR4,HMOX1,TP73</i></u></b> where gene lists are separated with semicolon (;) and genes with comma (,).
 ')
 
 fileInputTab <-  HTML('<b>Flame</b> provides the option to select and upload <b>multiple files</b> simultaneously and/or write in a text area field.
@@ -36,7 +36,7 @@ fileInputTab <-  HTML('<b>Flame</b> provides the option to select and upload <b>
                         <h3>2. Paste your gene list</h3>
                       The text area field forms a basic <b>text input area</b>, enabling the creation of <b>custom list</b> by writing or pasting a section of a list. 
                       Input can consist of mixed typed of IDs separated by comma, space, new line or tab.
-                      By pressing the <b><i>Add to files</b></i> button the formed text can be added to the list of files for further analysis, whereas the <b><i>Clear</b></i> button can be used to discard the unwanted text area input. Clicking
+                      By pressing the <b><i>Add to lists</b></i> button the formed text can be added to the input lists for further analysis, whereas the <b><i>Clear</b></i> button can be used to discard the unwanted text area input. Clicking
                       the <b><i>Example</i></b> button will generate an example of 100 genes in the form. Every single time a different gene list is generated.
                       <br>
                       <b>Notes:</b><br>
@@ -63,8 +63,7 @@ upsetTab<- HTML('     The <b>UpSet plot</b> is a sophisticated alternative of a 
                       To this end, each column corresponds to a set whereas each row to one segment in a Venn diagram. <br>
                       In its current version, Flame supports four UpSet plot modes:<br>
                       &bull; intersection<br>
-                      &bull; distinct intersection<br>
-                      &bull; distinct per file and<br> 
+                      &bull; distinct combinations<br>
                       &bull; union 
                       
                       <div class="col-md-12"><hr></div>
@@ -88,8 +87,7 @@ upsetTab<- HTML('     The <b>UpSet plot</b> is a sophisticated alternative of a 
                       <b>Flame</b> supports four UpSet plot modes: <br>
                                 
                                  &bull;<b>Intersections:</b> creates all file combinations as long as they share at least one element, allowing an element to participate in more than one combination.  <br> 
-                                 &bull;<b>Distinct intersections:</b> creates file combinations only for distinct elements that do not participate in other lists.  <br> 
-                                 &bull;<b>Distinct elements per file:</b> shows the distinct elements of each input list. <br> 
+                                 &bull;<b>Distinct Combinations:</b> creates file combinations only for distinct elements that do not participate in other lists.  <br> 
                                  &bull;<b>Unions:</b> constructs all available file combinations, showing their total unique elements.  
                        <br>
                        </p>

@@ -6,7 +6,7 @@ generateConvertPage <- function() {
       column(
         4,
         selectInput("gconvert_select", "Select file to convert", choices = NULL),
-        actionButton("gconvert_button", "Convert IDs", class = "btn-submit"),
+        actionButton("gconvert_button", "Convert IDs", class = "submit_button"),
         tags$br()
       ),
       column(
@@ -50,7 +50,7 @@ generateOrthologyPage <- function() {
       column(
         4, 
         selectInput("gorth_select", "Select file for orthology search", choices = NULL),
-        actionButton("gorth_button", "Orthology search", class = "btn-submit")),
+        actionButton("gorth_button", "Orthology search", class = "submit_button")),
       column(
         8, 
         selectizeInput(

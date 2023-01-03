@@ -1,3 +1,26 @@
+attachTextMiningDBLinks <- function(df) {
+  df$ID_noLINKS <- df$ID 
+  df$ID[grep("^ENS", df$ID_noLINKS)] <- 
+    paste0(
+      "<a href='",
+      sprintf('https://www.ensembl.org/id/%s',
+              df$ID_noLINKS[grep("^ENS", df$ID_noLINKS)]),
+      "' target = '_blank'>",
+      df$ID_noLINKS[grep("^ENS", df$ID_noLINKS)],
+      "</a>"
+    )
+  df$ID[grep("^hsa-", df$ID_noLINKS)] <-
+    paste0(
+      "<a href='",
+      sprintf('https://www.mirbase.org/textsearch.shtml?q=%s',
+              df$ID_noLINKS[grep("^hsa-", df$ID_noLINKS)]),
+      "' target = '_blank'>",
+      df$ID_noLINKS[grep("^hsa-", df$ID_noLINKS)],
+      "</a>"
+    )
+  return(df)
+}
+
 attachDBLinks <- function() { # Transfac HPA CORUMLinks, unavailable
   attachInterProLinks()
   attachPFAMLinks()

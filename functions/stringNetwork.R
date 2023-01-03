@@ -1,7 +1,8 @@
 handleStringNetwork <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Generating STRING network.</p>")
-    create_string_network()
+    if (existInputGeneLists())
+      create_string_network()
   }, error = function(e) {
     print(paste("Error :  ", e))
     renderError("Problem with STRING network.")
@@ -18,7 +19,7 @@ create_string_network <- function() {
   score <- input$STRINGnetworkScore
   
   #1. Get input IDs from dataset
-  input_ids_initial<-unlist(userInputLists[file_names==dataset][[1]])
+  input_ids_initial<-unlist(userInputLists[names(userInputLists)==dataset][[1]])
   
   #2. Convert them to ENSEMBL protein IDs for STRING
   #2.1 get the gprofiler ID from the ORGANISMS_FROM_FILE global

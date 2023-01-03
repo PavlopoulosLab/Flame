@@ -1,13 +1,31 @@
-function shinyRenameFiles(selectedFileNames){
-  var i;
-  if (typeof(selectedFileNames) == "object"){
-    for (i=0; i<selectedFileNames.length; i++){
-      newNames[i] = prompt("Rename file: ", selectedFileNames[i]);
-    }
-  } else newNames = prompt("Rename file: ", selectedFileNames);
-  updateFileNames(newNames);
+let LISTNAME_NCHAR_LIMIT = 0;
+
+const setListLimit = (limit) => {
+  LISTNAME_NCHAR_LIMIT = limit;
   return true;
-}
+};
+
+const shinyRenameLists = (selectedListNames) => {
+  let i;
+  if (typeof(selectedListNames) == "object") {
+    for (i = 0; i < selectedListNames.length; i++) {
+      newListNames[i] = parseNewListName(selectedListNames[i]);
+    }
+  } else
+    newListNames = parseNewListName(selectedListNames);
+  updateRenamedListNames(newListNames);
+  return true;
+};
+
+const parseNewListName = (listName) => {
+  return(
+    prompt(
+      "Rename list ".concat(listName).concat(" (").concat(
+        LISTNAME_NCHAR_LIMIT).concat(" characters max):"),
+      listName
+    )
+  )
+};
 
 const hideSourceTabs = (prefix) => {
   let i;
@@ -29,7 +47,8 @@ const browseUrl = url => {
   window.open(url, "_blank");
 };
 
-Shiny.addCustomMessageHandler("handler_rename", shinyRenameFiles);
+Shiny.addCustomMessageHandler("handler_setListLimit", setListLimit);
+Shiny.addCustomMessageHandler("handler_renameLists", shinyRenameLists);
 Shiny.addCustomMessageHandler("handler_hideSourceTabs", hideSourceTabs);
 Shiny.addCustomMessageHandler("handler_showSourceTab", showSourceTab);
 Shiny.addCustomMessageHandler("handler_browseUrl", browseUrl);

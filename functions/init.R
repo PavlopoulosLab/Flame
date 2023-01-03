@@ -21,9 +21,11 @@ initializeServerApp <- function() {
     session$sendCustomMessage("handler_hideSourceTabs",
                               paste0("functional_", toolName))
   })
+  session$sendCustomMessage("handler_setListLimit", LISTNAME_NCHAR_LIMIT)
   initializeOrganismsData()
   initializeEnrichmentResults()
   initializeArenaEdgelist()
+  shinyjs::hide("volcanoPanel")
   shinyjs::hide("functional_conversionBoxes")
   shinyjs::hide("literature_conversionBoxes")
   hideVisNetworks()

@@ -1,3 +1,10 @@
+isEventFromManhattan <- function(triggeredEvent) {
+  isFromManhattan <- T
+  if (is.null(triggeredEvent$key)) # key only in Manhattan
+    isFromManhattan <- F
+  return(isFromManhattan)
+}
+
 handleManhattanPlot <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Manhattan Plot.</p>")
@@ -17,9 +24,8 @@ handleManhattanPlot <- function() {
   })
 }
 
-handleManhattanClick <- function() {
+handleManhattanClick <- function(currentTermID) {
   tryCatch({
-    currentTermID <- event_data("plotly_click")$key
     manhattanTable <- enrichmentResults[[currentType_Tool]][match(
       currentTermID, enrichmentResults[[currentType_Tool]]$Term_ID_noLinks), ]
     renderManhattanEnrichmentTable(manhattanTable)
@@ -29,9 +35,8 @@ handleManhattanClick <- function() {
   })
 }
 
-handleManhattanSelect <- function() {
+handleManhattanSelect <- function(currentTermIDs) {
   tryCatch({
-    currentTermIDs <- event_data("plotly_selected")$key
     manhattanTable <- 
       enrichmentResults[[currentType_Tool]][which(
         enrichmentResults[[currentType_Tool]]$Term_ID_noLinks %in% currentTermIDs
