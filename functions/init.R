@@ -22,6 +22,7 @@ initializeServerApp <- function() {
                               paste0("functional_", toolName))
   })
   session$sendCustomMessage("handler_setListLimit", LISTNAME_NCHAR_LIMIT)
+  initializeVolcanoMetricsConversionText() 
   initializeOrganismsData()
   initializeEnrichmentResults()
   initializeArenaEdgelist()
@@ -29,6 +30,11 @@ initializeServerApp <- function() {
   shinyjs::hide("functional_conversionBoxes")
   shinyjs::hide("literature_conversionBoxes")
   hideVisNetworks()
+}
+
+initializeVolcanoMetricsConversionText <- function() {
+  updateVolcanoMetricsConversionText(DEFAULT_VOLCANO_LOG10PVALUE_THRESHOLD,
+                                     DEFAULT_VOLCANO_LOG2FC_THRESHOLD)
 }
 
 initializeEnrichmentResults <- function() {

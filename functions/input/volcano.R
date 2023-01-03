@@ -4,7 +4,6 @@ handleVolcanoPlot <- function(readCallBackFunction) {
     volcanoInput <- readCallBackFunction()
     if (isValidVolcanoInput(volcanoInput)) {
       updateTabItems(session, "inputPlots", selected = "Volcano Plot")
-      
       renderShinyDataTable("volcanoViewer", volcanoInput,
                            fileName = "volcano")
       currentVolcano <<- prepareVolcanoPlot(volcanoInput)
@@ -62,7 +61,8 @@ prepareVolcanoPlot <- function(volcanoInput) {
   colnames(volcanoInput) <- tolower(colnames(volcanoInput))
   volcanoInput$pvalue <- -log10(volcanoInput$pvalue)
   colnames(volcanoInput)[colnames(volcanoInput) == "pvalue"] <- "-log10Pvalue"
-  updateVolcanoSliders(max(volcanoInput$`-log10Pvalue`), max(volcanoInput$logfc))
+  maxAbsoluteLogFC <- max(max(volcanoInput$logfc), abs(min(volcanoInput$logfc)))
+  updateVolcanoSliders(max(volcanoInput$`-log10Pvalue`), maxAbsoluteLogFC)
   return(volcanoInput)
 }
 
@@ -80,14 +80,14 @@ appendVolcanoColorColumn <- function() {
                    (currentVolcano$`-log10Pvalue` > pvalueThreshold), ]$expression <<- "underexpressed"
 }
 
-handleVolcanoRepaint <- function() {
+handleVolcanoRedraw <- function() {
   tryCatch({
-    renderModal("<h2>Please wait.</h2><br /><p>Repainting Volcano Plot.</p>")
+    renderModal("<h2>Please wait.</h2><br /><p>Redrawing Volcano Plot.</p>")
     appendVolcanoColorColumn()
     renderVolcano()
   }, error = function(e) {
-    cat(paste("Volcano repaint error:  ", e))
-    renderError("Volcano repaint error.")
+    cat(paste("Volcano redraw error:  ", e))
+    renderError("Volcano redraw error.")
   }, finally = {
     removeModal()
   })

@@ -129,8 +129,13 @@ function(input, output, session) {
     handleVolcanoPlot(readVolcanoExample)
   }, ignoreInit = T)
   
-  observeEvent(input$volcanoRepaint, {
-    handleVolcanoRepaint()
+  observeEvent(c(input$volcano_pvalue_slider, input$volcano_fc_slider), {
+    updateVolcanoMetricsConversionText(input$volcano_pvalue_slider,
+                                       input$volcano_fc_slider)
+  }, ignoreInit = T)
+  
+  observeEvent(input$volcanoRedraw, {
+    handleVolcanoRedraw()
   }, ignoreInit = T)
   
   observeEvent(event_data("plotly_selected", source = "Volcano"), {

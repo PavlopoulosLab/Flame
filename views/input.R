@@ -229,19 +229,26 @@ generateVolcanoPlotPanel <- function() {
             inputId = "volcano_pvalue_slider",
             label = "Choose -log10Pvalue threshold:",
             min = 0, max = 5,
-            value = DEFAULT_VOLCANO_10LOGPVALUE_THRESHOLD,
-            step = DEFAULT_VOLCANO_10LOGPVALUE_STEP,
+            value = DEFAULT_VOLCANO_LOG10PVALUE_THRESHOLD,
+            step = DEFAULT_VOLCANO_LOG10PVALUE_STEP,
             width = "100%"
-          ),
+          ) %>%
+            shinyInput_label_embed(
+              shiny_iconlink("circle-info") %>%
+                bs_embed_popover(
+                  title = "0.05 pvalue == 1.30103 -log10pvalue\n0.01 pvalue == 2 -log10pvalue"
+                )
+            ),
+          verbatimTextOutput("volcanoMetricConversions"),
           sliderInput(
             inputId = "volcano_fc_slider",
-            label = "Choose |logFC| threshold:",
+            label = "Choose |log2FC| threshold:",
             min = 0, max = 5,
-            value = DEFAULT_VOLCANO_LOGFC_THRESHOLD,
-            step = DEFAULT_VOLCANO_LOGFC_STEP,
+            value = DEFAULT_VOLCANO_LOG2FC_THRESHOLD,
+            step = DEFAULT_VOLCANO_LOG2FC_STEP,
             width = "100%"
           ),
-          actionButton("volcanoRepaint", "Repaint",
+          actionButton("volcanoRedraw", "Redraw",
                        icon("palette"), class = "submit_button"),
           actionButton("volcanoSubmit", "Add to lists", icon("paper-plane")),
           tags$br(),

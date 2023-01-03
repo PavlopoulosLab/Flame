@@ -22,14 +22,23 @@ updateVolcanoSliders <- function(maxLog10PValue, maxLogFC) {
     shinyOutputId = "volcano_pvalue_slider",
     minSliderValue = 0, maxSliderValue = ceiling(maxLog10PValue),
     value = input$volcano_pvalue_slider,
-    step = DEFAULT_VOLCANO_10LOGPVALUE_STEP
+    step = DEFAULT_VOLCANO_LOG10PVALUE_STEP
   )
   updateShinySliderInput(
     shinyOutputId = "volcano_fc_slider",
     minSliderValue = 0, maxSliderValue = ceiling(maxLogFC),
     value = input$volcano_fc_slider,
-    step = DEFAULT_VOLCANO_LOGFC_STEP
+    step = DEFAULT_VOLCANO_LOG2FC_STEP
   )
+}
+
+updateVolcanoMetricsConversionText <- function(log10pvalue, log2fc) {
+  conversionText <- sprintf(
+    "pvalue = %f\nFC = %f",
+    10 ^ -log10pvalue,
+    2 ^ log2fc
+  )
+  renderShinyText("volcanoMetricConversions", conversionText)
 }
 
 updateAvailableTools <- function() {

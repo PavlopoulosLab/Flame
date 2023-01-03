@@ -68,6 +68,12 @@ renderUpset <- function(upsetList, upsetModeFunction) {
 }
 
 renderVolcano <- function() {
+  minLog10PValue <- min(currentVolcano$`-log10Pvalue`)
+  maxLog10PValue <- max(currentVolcano$`-log10Pvalue`)
+  maxLog2FC <- max(currentVolcano$logfc)
+  pvalueThreshold <- input$volcano_pvalue_slider
+  logFCThreshold <- input$volcano_fc_slider
+  
   output$volcanoPlot <- renderPlotly({
     plot_ly(
       data = currentVolcano,
@@ -86,11 +92,27 @@ renderVolcano <- function() {
       source = "Volcano"
     ) %>%
       layout(
-        xaxis = list(title = "logFC"),
+        xaxis = list(title = "log2FC"),
         yaxis = list(title = "-log10Pvalue"),
-        showlegend = F
+        showlegend = F,
+        shapes = list(
+          renderLine(minLog10PValue, maxLog10PValue, logFCThreshold, logFCThreshold),
+          renderLine(minLog10PValue, maxLog10PValue, -logFCThreshold, -logFCThreshold),
+          renderLine(pvalueThreshold, pvalueThreshold, -maxLog2FC, maxLog2FC)
+        )
       )
   })
+}
+
+renderLine <- function(y0, y1, x0, x1) {
+  list(
+    type = "line",
+    y0 = y0,
+    y1 = y1,
+    x0 = x0,
+    x1 = x1,
+    line = list(color = "red")
+  )
 }
 
 renderEnrichmentTable <- function(shinyOutputId, input_table,
