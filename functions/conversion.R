@@ -1,87 +1,77 @@
 handle_gconvert <- function() {
   tryCatch({
-    renderModal("<h2>Please wait.</h2><br /><p>Converting your list.</p>")
-    gconvert_select <- input$gconvert_select
-    gconvert_organism <- input$gconvert_organism
-    gconvert_target <- input$gconvert_target
-    
+    renderModal("<h2>Please wait.</h2><br /><p>Converting list.</p>")
+    gconvertSelect <- input$gconvert_select
+    gconvertOrganism <- input$gconvert_organism
+    gconvertTarget <- input$gconvert_target
     if (existInputGeneLists()) {
-      genesForconvert <- userInputLists[names(userInputLists)==gconvert_select][[1]]
-      gconvert_organism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gconvert_organism,]$gprofiler_ID
-      converted_genes <- gconvert(unlist(genesForconvert), organism = gconvert_organism, target = c(gconvert_target), numeric_ns = "", mthreshold = Inf, filter_na = T)
-      if (!identical(converted_genes, NULL)){
-        converted_genes <- converted_genes[-c(1,3,7)]
-        for (i in nrow(converted_genes ):1){ # remove nan rows from table
-          if (identical(converted_genes$target [i], "nan")) converted_genes <- converted_genes[-i, ]
-        }
-        output$gconvert_table <- DT::renderDataTable(converted_genes, server = FALSE, 
-                                                     extensions = 'Buttons',
-                                                     options = list(
-                                                       pageLength = 10,
-                                                       "dom" = 'T<"clear">lBfrtip',
-                                                       buttons = list(list(extend='excel',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                      list(extend= 'csv',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                      list(extend='copy',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                      list(extend='pdf',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")),
-                                                                      list(extend='print',filename=paste('Conversion_IDs_Results_', gconvert_select, sep="")))
-                                                     ),rownames= FALSE, escape = FALSE
-        )
+      selectedListItems <- userInputLists[[gconvertSelect]][[1]]
+      gconvertOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gconvertOrganism, ]$gprofiler_ID
+      convertedOutput <- gconvert(
+        selectedListItems, organism = gconvertOrganism, target = gconvertTarget
+      )
+      if (existsConverteOutput(convertedOutput)) {
+        convertedOutput <- convertedOutput[c("input", "target", "name", "description")]
+        convertedOutput <- convertedOutput[convertedOutput$target != "nan", ]
+        renderShinyDataTable("gconvert_table", convertedOutput,
+                             fileName = paste0('conversion_', gconvertSelect))
       }
-      else
-        renderWarning("No results found. Please try another organism (input/target) or list input.")
     }
   }, error = function(e) {
-    print(paste("Error :  ", e))
-    renderError("Problem with conversion.")
+    print(paste("Conversion error: ", e))
+    renderError("Error while converting the list input.")
   }, finally = {
     removeModal()
   })
 }
 
+existsConverteOutput <- function(convertedOutput) {
+  exist <- T
+  if (is.null(convertedOutput)) {
+    exist <- F
+    renderWarning("No results found. Please try another organism (input/target) or list input.")
+  }
+  return(exist)
+}
+
 handle_gorthOrganism <- function() {
   tryCatch({
-    gorth_organism <- input$gorth_organism
-    
-    org_choices <- ORGANISMS_FROM_FILE$print_name
-    updateSelectInput(session, "gorth_target", choices = org_choices[org_choices!=gorth_organism])
+    gorthOrganism <- input$gorth_organism
+    gorthTarget <- input$gorth_target
+    if (gorthOrganism == gorthTarget) {
+      organismChoices <- ORGANISMS_FROM_FILE$print_name
+      updateSelectInput(session, "gorth_target",
+                        choices = organismChoices[organismChoices != gorthOrganism])
+    }
   }, error = function(e) {
-    print(paste("Error :  ", e))
-    renderError("Problem with organism selection.")
+    print(paste("Organism update error: ", e))
+    renderError("Error while choosing organism.")
   })
 }
 
 handle_gorth <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Searching for homologs.</p>")
-    gorth_select <- input$gorth_select
-    gorth_organism <- input$gorth_organism
-    gorth_target <- input$gorth_target
-    
+    gorthSelect <- input$gorth_select
+    gorthOrganism <- input$gorth_organism
+    gorthTarget <- input$gorth_target
     if (existInputGeneLists()) {
-      genesForgorth <- userInputLists[names(userInputLists)==gorth_select][[1]]
-      gorth_organism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorth_organism,]$gprofiler_ID
-      gorth_target <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorth_target,]$gprofiler_ID
-      gorth_genes <- gorth(unlist(genesForgorth), source_organism = gorth_organism, target_organism = c(gorth_target), numeric_ns = "", mthreshold = Inf, filter_na = T)
-      gorth_genes <- gorth_genes[-c(1,4)]
-      if (!identical(gorth_genes, NULL)){
-        output$gorth_table<- DT::renderDataTable(gorth_genes, server = FALSE, 
-                                                 extensions = 'Buttons',
-                                                 options = list(
-                                                   pageLength = 10,
-                                                   "dom" = 'T<"clear">lBfrtip',
-                                                   buttons = list(list(extend='excel',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                                  list(extend= 'csv',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                                  list(extend='copy',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                                  list(extend='pdf',filename=paste('Orthology_Results_', gorth_select, sep="")),
-                                                                  list(extend='print',filename=paste('Orthology_Results_', gorth_select, sep="")))
-                                                 ),rownames= FALSE, escape = FALSE)
+      selectedListItems <- userInputLists[[gorthSelect]][[1]]
+      gorthOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorthOrganism,]$gprofiler_ID
+      gorthTarget <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorthTarget,]$gprofiler_ID
+      convertedOutput <- gorth(selectedListItems, source_organism = gorthOrganism,
+                           target_organism = gorthTarget)
+      if (existsConverteOutput(convertedOutput)) {
+        convertedOutput <- convertedOutput[c(
+          "input", "input_ensg", "ortholog_name", "ortholog_ensg", "description"
+        )]
+        renderShinyDataTable("gorth_table", convertedOutput,
+                             fileName = paste0('orthology_', gorthSelect))
       }
-      else
-        renderWarning("No results found. Please try another organism (input/target) or list input.")
     }
   }, error = function(e) {
-    print(paste("Error :  ", e))
-    renderError("Problem with orthology search")
+    print(paste("Orthology error: ", e))
+    renderError("Error while searching for homologs.")
   }, finally = {
     removeModal()
   })

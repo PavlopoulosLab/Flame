@@ -49,7 +49,7 @@ fileInputTab <-  HTML('<b>Flame</b> provides the option to select and upload <b>
                               <p>
                                 <img src = "help_images/fileinput2.png" style="float:left;border: 1px solid black;margin-right:20px;">
                                 <br>
-                                <h3>3.  Select files for Upset plot / Rename / Remove</h3>
+                                <h3>3.  Select lists for Upset plot / Rename / Remove</h3>
                                 After file submission, a <b>checkbox list</b> will appear, containing all uploaded files and/or submitted texts <i>(Figure 2)</i>. Any additional uploaded or created files are appended to the selection list.
                                 <br>
                                 Files can be selected and manipulated by clicking the checkboxes next to their names. One or multiple files can be:<br>
@@ -68,7 +68,7 @@ upsetTab<- HTML('     The <b>UpSet plot</b> is a sophisticated alternative of a 
                       
                       <div class="col-md-12"><hr></div>
                       <p>
-                      <h3>1. Select files to create upset plot</h3>
+                      <h3>1. Select lists to create upset plot</h3>
                       Files can be selected  by clicking the checkboxes next to their names in the checkbox file list.
                       You should select at least 2 files to create the plot. After the selection of the files, click the <b><i>Create Upset plot </b></i> button.
                       <br>
@@ -128,7 +128,7 @@ gconvertTab <- HTML('<p><b>Gene ID Conversion</b> is a gene ID mapping tool that
                                 <img src = "help_images/gconvert.png" style="border: 1px solid black">
                          
                       <ul>
-                       <li>The user needs to select the file for conversion from the <b>Select file to convert</b> option. </li>
+                       <li>The user needs to select the list for conversion from the <b>Select file to convert</b> option. </li>
                       <li>The file may consist of a mixture of IDs of different types</li>
                       <li>The user needs to select an organism that matches with the input gene list from the <b>Select input organism</b> option and the target database from the <b>Target namespace</b> option to which all input IDs will be converted to. 
                       Default target database is Entrez Gene Names. </li>
@@ -147,7 +147,7 @@ gorthTab <- HTML('<p><b>Orthology Search</b> is a tool for mapping orthologous g
                                 <img src = "help_images/gorth.png" style="border: 1px solid black">
                                 
                       <ul>
-                       <li>The user needs to select the file for conversion from the <b>Select file for orthology search</b> option. </li>
+                       <li>The user needs to select the list for conversion from the <b>Select file for orthology search</b> option. </li>
                       <li>The input can be a mixed list of IDs for genes or other biomolecules of the organism of interest that the user also needs to select as a target organism.</li>
                       <li>The user needs to select an organism that matches with the input gene list from the <b>Select input organism</b> option and the target organism from the <b>Select target organism</b> option.
                       All genes from the input are then mapped to the orthologous genes of the target organism. </li>
@@ -171,7 +171,7 @@ proteinNetwork <- HTML('<p>The network view summarizes the network of predicted 
                             
                                 <h3>1. Network Parameters</h3>
                                 <ul>
-                                  <li>The user needs to select the file from the <b>Select file for analysis</b> option. </li>
+                                  <li>The user needs to select the list from the <b>Select list</b> option. </li>
                                   <li>The user needs to select an organism that matches with the input list from the <b>Select input organism</b> option and the<b> parameters:</b>.</li>
                                   <ul>
                                   <li><b>Confidence:</b> edge thickness indicates the strength of data support based on the interaction score. </li>
@@ -207,7 +207,7 @@ gprofInput <- HTML(' <p style = "text-align:justify"><b>Functional Enrichment An
                                <div class="col-md-12">
                                <h3>1. Select the Parameters</h3>
                       <ol type="1">
-                                 <li><b>Select file for analysis.</b> </li> 
+                                 <li><b>Select list.</b> </li> 
                                  <li><b>Select organism:</b> select organism that matches your input query gene list. A choice among 197 species is given. Default organism is human (Homo sapiens). </li> 
                                  <li><b>Select datasources:</b> </li> 
                                     <ul>
@@ -341,7 +341,7 @@ aGoInput <- HTML('
                                <p>
                                <h3>1. Select the Parameters</h3>
                       <ol type="1">
-                                 <li><b>Select file for analysis.</b> </li> 
+                                 <li><b>Select list.</b> </li> 
                                  <li><b>Select organism:</b> select organism that matches your input query gene list. A choice among 197 species is given. Default organism is human (Homo sapiens). </li> 
                                  <li><b>Select datasources:</b> </li> 
                                     <ul>
@@ -391,7 +391,7 @@ aGoOutput <- HTML(' <p style = "text-align:justify">The results are displayed in
                    ')
 literatureInput <- HTML('   <p><h3>1. Select the Parameters</h3>
                                 <ol type="1">
-                                 <li><b>Select file for analysis.</b> </li> 
+                                 <li><b>Select list.</b> </li> 
                                  <li><b>Select organism:</b> select organism that matches your input query gene list. A choice among 197 species is given. Default organism is human (Homo sapiens). </li> 
                                  <li><b>PubMed Publications</b> is used as a source for Literature Enrichment </li> 
                                  <li><b>Select ID type for output:</b> Define the ID type that will be used in the analysis, as well as in the output.

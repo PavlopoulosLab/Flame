@@ -238,9 +238,21 @@ label:has(> #selectAll) {
   background-color: #eb4310;
 }
 
+#volcanoSelectionInfo {
+  font-weight: 500;
+  font-style: italic;
+  color: red;
+  background-color: white;
+  text-align: right;
+}
+
 #volcanoSelected {
   max-height: 500px;
   white-space: pre-wrap;
+}
+
+#string_viewer {
+  background-color: white;
 }
 
 #stringEmbedded {

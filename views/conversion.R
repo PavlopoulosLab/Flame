@@ -1,79 +1,61 @@
-generateConvertPage <- function() {
-  tags$div(
-    fluidRow(
-      tags$h3("Gene ID Conversion"),
-      tags$br(),
-      column(
-        4,
-        selectInput("gconvert_select", "Select file to convert", choices = NULL),
-        actionButton("gconvert_button", "Convert IDs", class = "submit_button"),
-        tags$br()
-      ),
-      column(
-        8,
-        selectizeInput(
-          "gconvert_organism",
-          label = " Select input organism:",
-          choices = ORGANISMS_FROM_FILE$print_name,
-          multiple = F,
-          selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
-          width = "35%",
-          options = list(placeholder = 'Select an option or start typing...')
-        ),
-        selectInput(
-          "gconvert_target",
-          label = "Target namespace",
-          selected = "ENTREZGENE",
-          width = "35%",
-          choices = c(
-            "ChEMBL"="CHEMBL", "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
-            "Entrez Gene Transcript Name" = "ENTREZGENE_TRANS_NAME", "UniProt Accession" = "UNIPROT_GN_ACC",
-            "UniProt Gene Name" = "UNIPROT_GN", "EMBL Accession" = "EMBL", "ENSEMBL Protein ID" = "ENSP",
-            "ENSEMBL Gene ID" = "ENSG", "ENSEMBL Transcript ID" = "ENST", "UniProt Archive" ="UNIPARC",
-            "WIKIGENE ID" = " WIKIGENE", "RefSeq mRNA" = "REFSEQ_MRNA", "RefSeq mRNA Accession" = "REFSEQ_MRNA_ACC",
-            "RefSeq Protein Accession" = "REFSEQ_PEPTIDE_ACC", "RefSeq Non-coding RNA Accession" = "REFSEQ_NCRNA_ACC",
-            "BEEBASE" = "BEEBASE"
-          )
-        )
+generateConvertDiv <- function(prefix) {
+  switch(
+    prefix,
+    "gconvert" = {
+      title <- "Gene ID Conversion"
+      listLabel <- "1. Select list to convert:"
+      buttonLabel <- "Convert IDs"
+      selectComponent <- selectInput(
+        paste0(prefix, "_target"),
+        label = "3. Select target namespace:",
+        selected = "ENTREZGENE",
+        width = "80%",
+        choices = c(CORE_NAMESPACES, "BEEBASE" = "BEEBASE")
       )
-    ),
-    tags$hr(),
-    DT::dataTableOutput("gconvert_table")
+    },
+    "gorth" = {
+      title <- "Orthology Search"
+      listLabel <- "1. Select list for orthology search:"
+      buttonLabel <- "Orthology search"
+      selectComponent <- selectizeInput(
+        paste0(prefix, "_target"),
+        label = "3. Select target organism:",
+        choices = ORGANISMS_FROM_FILE$print_name,
+        multiple = F,
+        selected = "Mus musculus (Mouse) [NCBI Tax. ID: 10090]",
+        width = "80%",
+        options = list(placeholder = 'Select an option or start typing...')
+      )
+    }
   )
-}
-
-generateOrthologyPage <- function() {
-  tags$div(
-    tags$h3("Orthology Search"),
-    tags$br(),
-    fluidRow(
-      column(
-        4, 
-        selectInput("gorth_select", "Select file for orthology search", choices = NULL),
-        actionButton("gorth_button", "Orthology search", class = "submit_button")),
-      column(
-        8, 
-        selectizeInput(
-          "gorth_organism",
-          label = " Select input organism:",
-          choices = ORGANISMS_FROM_FILE$print_name,
-          multiple = F,
-          selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
-          width = "35%",
-          options = list(placeholder = 'Select an option or start typing...')
+  
+  return(
+    tags$div(
+      tags$h3(title),
+      tags$br(),
+      fluidRow(
+        column(
+          4,
+          selectInput(paste0(prefix, "_select"), listLabel, choices = NULL),
+          actionButton(paste0(prefix, "_button"), buttonLabel,
+                       icon = icon("paper-plane"), class = "submit_button")
         ),
-        selectizeInput(
-          "gorth_target",
-          label = " Select target organism:",
-          choices = ORGANISMS_FROM_FILE$print_name,
-          multiple = F,
-          selected = "Mus musculus (Mouse) [NCBI Tax. ID: 10090]",
-          width = "35%",
-          options = list(placeholder = 'Select an option or start typing...')
+        column(
+          8,
+          selectizeInput(
+            inputId = paste0(prefix, "_organism"),
+            label = "2. Select input organism:",
+            choices = ORGANISMS_FROM_FILE$print_name,
+            multiple = F,
+            selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
+            width = "80%",
+            options = list(placeholder = 'Select an option or start typing...')
+          ),
+          selectComponent,
         )
-      )
-    ),
-    tags$hr(),
-    DT::dataTableOutput("gorth_table")
+      ),
+      tags$hr(),
+      DT::dataTableOutput(paste0(prefix, "_table"))
+    )
   )
 }

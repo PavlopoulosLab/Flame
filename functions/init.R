@@ -22,17 +22,26 @@ initializeServerApp <- function() {
                               paste0("functional_", toolName))
   })
   session$sendCustomMessage("handler_setListLimit", LISTNAME_NCHAR_LIMIT)
-  initializeVolcanoMetricsConversionText() 
+  initializeVolcanoPanel()
   initializeOrganismsData()
   initializeEnrichmentResults()
   initializeArenaEdgelist()
-  shinyjs::hide("volcanoPanel")
   shinyjs::hide("functional_conversionBoxes")
   shinyjs::hide("literature_conversionBoxes")
   hideVisNetworks()
 }
 
+initializeVolcanoPanel <- function() {
+  output$volcanoSelectionInfo <- renderText({
+    "Pick the box or lasso from the plot toolbar and then select items. Double-click to reset view."
+  })
+  shinyjs::hide("volcanoSelectionInfo")
+  initializeVolcanoMetricsConversionText()
+  shinyjs::hide("volcanoPanel")
+}
+
 initializeVolcanoMetricsConversionText <- function() {
+  
   updateVolcanoMetricsConversionText(DEFAULT_VOLCANO_LOG10PVALUE_THRESHOLD,
                                      DEFAULT_VOLCANO_LOG2FC_THRESHOLD)
 }

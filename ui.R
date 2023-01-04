@@ -58,8 +58,8 @@ dashboardPage(
       tabItem("functional_enrichment", generateEnrichmentPage("functional")),
       tabItem("literature_enrichment", generateEnrichmentPage("literature")),
       tabItem("string_network", generateStringNetworkPage()),
-      tabItem("gconvert", generateConvertPage()),
-      tabItem("gorth", generateOrthologyPage()),
+      tabItem("gconvert", generateConvertDiv("gconvert")),
+      tabItem("gorth", generateConvertDiv("gorth")),
       tabItem("help", helpPage),
       tabItem("about", aboutPage)
     ),

@@ -11,6 +11,7 @@ handleVolcanoPlot <- function(readCallBackFunction) {
       renderVolcano()
       renderShinyText("volcanoSelected", "")
       volcanoSelectedItems <<- c()
+      shinyjs::show("volcanoSelectionInfo")
       shinyjs::show("volcanoPanel")
     }
   }, error = function(e) {

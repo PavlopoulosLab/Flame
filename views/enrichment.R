@@ -39,7 +39,7 @@ generateEnrichmentControlPanel <- function() {
           4,
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_file"),
-            label = "1. Select file:",
+            label = "1. Select list:",
             choices = NULL,
             width = "80%"
           ),

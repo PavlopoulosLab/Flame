@@ -89,8 +89,8 @@ GPROFILER_DATASOURCES_PRINT <- list(
   'Human Phenotype Ontology' = list("Human Phenotype Ontology" = "HP")
 )
 GPROFILER_DATASOURCES_DEFAULT_SELECTED <- list("GO:MF", "GO:CC", "GO:BP", "KEGG")
-GPROFILER_NAMESPACES <- list(
-  "User Input" = "USERINPUT", "ENSEMBL Gene ID" = "ENSG",
+CORE_NAMESPACES <- list(
+  "ENSEMBL Gene ID" = "ENSG",
   "ENSEMBL Protein ID" = "ENSP", "ENSEMBL Transcript ID" = "ENST",
   "Entrez Gene Name" = "ENTREZGENE", "Entrez Gene Accession" = "ENTREZGENE_ACC",
   "Entrez Gene Transcript Name" = "ENTREZGENE_TRANS_NAME",
@@ -101,6 +101,7 @@ GPROFILER_NAMESPACES <- list(
   "EMBL Accession" = "EMBL", "ChEMBL" = "CHEMBL", 
   "WIKIGENE ID" = "WIKIGENE" 
 )
+GPROFILER_NAMESPACES <- c("User Input" = "USERINPUT", CORE_NAMESPACES)
 GPROFILER_METRICS <- list(
   "g:SCS threshold" = "gSCS",
   "False discovery rate" = "fdr",

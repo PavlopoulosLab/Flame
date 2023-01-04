@@ -219,6 +219,7 @@ generateVolcanoPlotPanel <- function() {
     fluidRow(
       column(
         9,
+        textOutput("volcanoSelectionInfo"),
         plotlyOutput("volcanoPlot", height = "750px")
       ),
       column(
