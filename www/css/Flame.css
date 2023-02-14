@@ -2,6 +2,10 @@
   font-family: "Segoe UI";
 }
 
+p, ol {
+	font-size: 18px;  
+}
+
 hr {
   border-top: 1px solid #383f4f;
 }
@@ -34,6 +38,24 @@ caption {
 
 [class*="fillNotMember-upset"] {
   fill: rgba(0, 0, 0, 0.05) !important;
+}
+
+.sideBySide {
+	width: 49%;
+	display: inline-block;
+	vertical-align: top;
+}
+
+.wholeRow {
+	width: 98%;
+}
+
+.helpImage_div {
+	overflow-x: auto;
+}
+
+.expandText {
+	line-height: 30px;
 }
 
 .modal-content {
@@ -165,6 +187,7 @@ caption {
   border-bottom-left-radius: 25px;
   border-bottom-right-radius: 25px;
   padding: 5px;
+  overflow-x: auto;
 }
 
 .networkOutput > .visNetwork {
@@ -180,15 +203,6 @@ caption {
 
 .drawUp {
   margin-top: -30px;
-}
-
-.floatLeft {
-  float: left;
-  margin-right: 10px;
-}
-
-.inputControlRow {
-  height: 500px;
 }
 
 .checkListDiv {
@@ -210,6 +224,10 @@ caption {
     margin-bottom: 200px;
 }
 
+[id$="_conversionTable"] {
+	overflow-x: auto
+}
+
 input[type=checkbox] {
   margin-top: 10px;
 }
@@ -228,12 +246,12 @@ label:has(> #selectAll) {
   font-weight: bold;
 }
 
-#textSubmit, #textmining_submit, #textmining_addList, #volcanoSubmit, #rename {
+[id$="_submit"], [id$="_addList"], #rename {
   color: #fff;
   background-color: #158794;
 }
 
-#remove, #textmining_clearText, #textmining_delete, #clear {
+[id$="_clear"], [id$="_delete"], #remove {
   color: #fff;
   background-color: #eb4310;
 }
@@ -246,7 +264,7 @@ label:has(> #selectAll) {
   text-align: right;
 }
 
-#volcanoSelected {
+.conversionBox > pre, #volcanoSelected {
   max-height: 500px;
   white-space: pre-wrap;
 }

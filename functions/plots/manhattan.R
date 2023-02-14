@@ -10,7 +10,7 @@ handleManhattanPlot <- function() {
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Manhattan Plot.</p>")
     if (existEnrichmentResults("functional", "gProfiler")) {
       resetManhattanTable()
-      if (validGprofilerResult())
+      if (isGprofilerResultValid())
         renderManhattanPlot()
       else
         renderWarning("The Manhattan plot is currently available
@@ -26,6 +26,7 @@ handleManhattanPlot <- function() {
 
 handleManhattanClick <- function(currentTermID) {
   tryCatch({
+    currentTermID <- mapGProfilerIDs(currentTermID)
     manhattanTable <- enrichmentResults[[currentType_Tool]][match(
       currentTermID, enrichmentResults[[currentType_Tool]]$Term_ID_noLinks), ]
     renderManhattanEnrichmentTable(manhattanTable)
@@ -37,6 +38,7 @@ handleManhattanClick <- function(currentTermID) {
 
 handleManhattanSelect <- function(currentTermIDs) {
   tryCatch({
+    currentTermIDs <- mapGProfilerIDs(currentTermIDs)
     manhattanTable <- 
       enrichmentResults[[currentType_Tool]][which(
         enrichmentResults[[currentType_Tool]]$Term_ID_noLinks %in% currentTermIDs
@@ -46,4 +48,14 @@ handleManhattanSelect <- function(currentTermIDs) {
     cat(paste0("Error: ", e))
     renderWarning("Could not print selected entries.")
   })
+}
+
+mapGProfilerIDs <- function(currentTermIDs) {
+  currentTermIDs[grep("KEGG:", currentTermIDs)] <- 
+    paste0("map", gsub("[^0-9.-]", "", currentTermIDs[grep("KEGG:", currentTermIDs)]))
+  currentTermIDs[grep("REAC:", currentTermIDs)] <-
+    gsub("REAC:", "", currentTermIDs[grep("REAC:", currentTermIDs)])
+  currentTermIDs[grep("WP:", currentTermIDs)] <-
+    gsub("WP:", "", currentTermIDs[grep("WP:", currentTermIDs)])
+  return(currentTermIDs)
 }

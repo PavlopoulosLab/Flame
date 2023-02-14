@@ -9,3 +9,14 @@ mapRange <- function(numericList, newMin, newMax) {
     )
   return(numericList)
 }
+
+isPOSTResponseValid <- function(request) {
+  isValid <- T
+  if (request$status_code != 200) {
+    isValid <- F
+    renderWarning("Invalid response from the called API.
+                  Please try again in a while.")
+  } else if (identical(request$content, raw(0)))
+    isValid <- F
+  return(isValid)
+}

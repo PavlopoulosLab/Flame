@@ -9,9 +9,9 @@ generateStringNetworkPage <- function() {
         selectInput("STRINGnetworkSelect", "1. Select list:",
                     choices = NULL, width = "80%",),
         selectizeInput(
-          inputId = "STRINGnetworkOrganism", 
+          inputId = "string_network_organism", 
           label = "2. Select organism:",
-          choices = ORGANISMS_FROM_FILE$print_name,
+          choices = NULL,
           multiple = F,
           selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
           width = "80%",
@@ -26,9 +26,9 @@ generateStringNetworkPage <- function() {
           choiceNames = list("Full network", "Physical subnetwork"),
           choiceValues = list("functional", "physical")
         ) %>%
-          shinyInput_label_embed(
-            shiny_iconlink("circle-info") %>%
-              bs_embed_popover(
+          bsplus::shinyInput_label_embed(
+            bsplus::shiny_iconlink("circle-info") %>%
+              bsplus::bs_embed_popover(
                 title = "Full network: edges indicate both functional and physical associations.\nPhysical subnetwork: edges indicate existence of a physical complex."
               )
           ),
@@ -38,9 +38,9 @@ generateStringNetworkPage <- function() {
           choiceNames = list ("Evidence", "Confidence"),
           choiceValues = list("evidence", "confidence")
         ) %>%
-          shinyInput_label_embed(
-            shiny_iconlink("circle-info") %>%
-              bs_embed_popover(
+          bsplus::shinyInput_label_embed(
+            bsplus::shiny_iconlink("circle-info") %>%
+              bsplus::bs_embed_popover(
                 title = "Evidence: edge colors indicate the type of interaction evidence.\nConfidence: edge thickness indicates the strength of data support based on the interaction score"
               )
           )

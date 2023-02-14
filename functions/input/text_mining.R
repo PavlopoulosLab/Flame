@@ -22,7 +22,9 @@ resetTextMiningFields <- function() {
 handleTextMining <- function() {
   tryCatch({
     text <- input$textmining_textinput
-    species <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == input$textmining_organism, ]$Taxonomy_ID
+    species <- ORGANISMS[ORGANISMS$print_name == input$textmining_organism, ]$taxid
+    # js call to change the default TAGGER_SPECIES VALUE to species
+    shinyjs::runjs(sprintf("updateSpecies(%s)", species))
     if (areEnoughTextCharacters(text)) {
       renderModal("<h2>Please wait.</h2><p>Contacting the EXTRACT web server...</p>")
       parsedText <- parseTextForPOSTRequests(text, species)
@@ -69,7 +71,7 @@ getEntities <- function(text_enc, entity_types_txt) {
   params <- sprintf("document=%s&entity_types=%s&auto_detect=0&format=tsv",
                     text_enc, entity_types_txt)
   request <- httr::POST(url, body = params)
-  if (request$status_code == 200) {
+  if (isPOSTResponseValid(request)) {
     request_res <- data.table::fread(
       sprintf("%s\n", rawToChar(httr::content(request,"raw"))), header = F
     )
@@ -85,7 +87,7 @@ existTaggedProteins <- function(extracted_terms) {
   exist <- T
   if (is.null(extracted_terms)) {
     exist <- F
-    renderWarning("No genes/proteins found in the submitted text.")
+    renderWarning("No genes/proteins found in the submitted text for the selected organism.")
   }
   return(exist)
 }
@@ -95,8 +97,8 @@ getHTML <- function(text_enc, entity_types_txt) {
   params <- sprintf("document=%s&entity_types=%s&auto_detect=0",
                     text_enc, entity_types_txt)
   request <- httr::POST(url, body = params)
-  if (request$status_code == 200)
-    request_res <- rawToChar(httr::content(request,"raw"))
+  if (isPOSTResponseValid(request))
+    request_res <- rawToChar(httr::content(request, "raw"))
   else
     request_res <- NULL
   return(request_res)
@@ -111,7 +113,8 @@ prepareExtractedTermsForPrint <- function(extracted_terms) {
 
 printExtractResults <- function(enriched_text, extracted_terms) {
   output$extracted_text <- renderUI({ HTML(enriched_text) })
-  renderTextMiningResult(extracted_terms)
+  renderShinyDataTable("extracted_terms", extracted_terms,
+                       scrollY = "200px", fileName = "text-mining")
   shinyjs::show("textmining_tagger_results")
 }
 

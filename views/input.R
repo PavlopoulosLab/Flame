@@ -9,15 +9,17 @@ generateInputPage <- function() {
         8,
         tabsetPanel(
           generateUploadPanel(),
+          generateVariantPanel(),
           generateTextMiningPanel(),
-          generateVolcanoPanel(),
-          generateViewPanel()
+          generateVolcanoPanel()
         )
       )
     ),
     tags$hr(),
+    tags$h3("View and Filter Options"),
     tabsetPanel(
       id = "inputPlots",
+      generateViewPanel(),
       generateUpsetPlotPanel(),
       generateVolcanoPlotPanel()
     )
@@ -47,30 +49,30 @@ generateUploadPanel <- function() {
     icon = icon("upload"),
     tags$br(),
     tags$div(
-      class = "floatLeft",
       textAreaInput(
         inputId = "textAreaList",
         label = "Paste input list:",
         placeholder = "Write or paste your list here.\nClick the Example Button to load an example list.",
-        height = "270px",
-        width = "290px") %>%
-        shinyInput_label_embed(
-          shiny_iconlink("circle-info") %>%
-            bs_embed_popover(
+        height = "250px",
+        width = "290px"
+      ) %>%
+        bsplus::shinyInput_label_embed(
+          bsplus::shiny_iconlink("circle-info") %>%
+            bsplus::bs_embed_popover(
               title = "Input can consist of mixed typed of IDs separated by comma, space, new line or tab."
             )
         ),
-      actionButton("textSubmit", "Add to lists", icon("paper-plane")),
+      actionButton("text_submit", "Add to lists", icon("paper-plane")),
       actionButton("example", "Example", icon("bookmark")),
-      actionButton("clear", "Clear", icon("broom"))
+      actionButton("input_clear", "Clear", icon("broom"))
     ),
+    tags$br(),
     tags$div(
-      class = "floatLeft",
       fileInput("fileUpload", "or Upload from file(s):", multiple = T,
                 accept = c(".tsv", ".csv", ".txt")) %>%
-        shinyInput_label_embed(
-          shiny_iconlink("circle-info") %>%
-            bs_embed_popover(
+        bsplus::shinyInput_label_embed(
+          bsplus::shiny_iconlink("circle-info") %>%
+            bsplus::bs_embed_popover(
               title = "Upload up to 10 files (up to 1MB each)."
             )
         )
@@ -96,7 +98,7 @@ generateTextMiningPanel <- function() {
             selectizeInput(
               inputId = "textmining_organism",
               label = "2. Select organism:",
-              choices = ORGANISMS_FROM_FILE$print_name,
+              choices = NULL,
               selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
               multiple = F,
               width = "90%",
@@ -104,7 +106,7 @@ generateTextMiningPanel <- function() {
             ),
             actionButton("textmining_submit", "Submit", icon("paper-plane")),
             actionButton("textmining_addExample", "Example", icon("bookmark")),
-            actionButton("textmining_clearText", "Clear", icon("broom"))
+            actionButton("textmining_clear", "Clear", icon("broom"))
           )
         ),
         column(
@@ -142,9 +144,9 @@ generateVolcanoPanel <- function() {
         4,
         fileInput("volcanoUpload", "Upload gene fold change file:", multiple = F,
                   accept = c(".tsv", ".csv", ".txt")) %>%
-          shinyInput_label_embed(
-            shiny_iconlink("circle-info") %>%
-              bs_embed_popover(
+          bsplus::shinyInput_label_embed(
+            bsplus::shiny_iconlink("circle-info") %>%
+              bsplus::bs_embed_popover(
                 title = "Upload a 3-column file (symbol, logFC, pvalue)."
               )
           ),
@@ -153,6 +155,65 @@ generateVolcanoPanel <- function() {
       column(
         8,
         dataTableOutput(outputId = "volcanoViewer")
+      )
+    )
+  )
+}
+
+generateVariantPanel <- function() {
+  tabPanel(
+    title = "SNPs",
+    icon = icon("dna"),
+    tags$br(),
+    tags$h5(HTML("<b>Note:</b> this feature is currently available <u>only</u> for <i>Homo sapiens</i> (human) variants.")),
+    fluidRow(
+      column(
+        3,
+        tags$div(
+          textAreaInput(
+            inputId = "snp_textAreaList",
+            label = "Paste SNP list:",
+            placeholder = "Write or paste your list here.\nClick the Example Button to load an example list.",
+            resize = "vertical", height = "200px", width = "90%") %>%
+            bsplus::shinyInput_label_embed(
+              bsplus::shiny_iconlink("circle-info") %>%
+                bsplus::bs_embed_popover(
+                  title = "Input consists of dbSNP ids separated by spaces, new lines, tabs or commas."
+                )
+            ),
+          actionButton("snp_submit", "Submit", icon("paper-plane")),
+          actionButton("snp_example", "Example", icon("bookmark")),
+          actionButton("snp_clear", "Clear", icon("broom"))
+        ),
+        tags$br(),
+        tags$div(
+          fileInput("snp_fileUpload", "or Upload from file(s):", multiple = T,
+                    accept = c(".tsv", ".csv", ".txt")) %>%
+            bsplus::shinyInput_label_embed(
+              bsplus::shiny_iconlink("circle-info") %>%
+                bsplus::bs_embed_popover(
+                  title = "Upload up to 10 files (up to 1MB each)."
+                )
+            )
+        )
+      ),
+      column(
+        9,
+        tags$div(
+          id = "snp_results", style = "display:none",
+          dataTableOutput(outputId = "snpViewer"),
+          tags$br(),
+          radioButtons(
+            inputId = "snp_choose_column", 
+            label = "Select column:", 
+            choiceNames = c("Gene", "ENSEMBL ID"), 
+            choiceValues = c("gene_names", "ensgs"), 
+            selected = "gene_names",
+            inline = T
+          ),
+          actionButton("snp_addList", "Add to lists", icon("paper-plane")),
+          actionButton("snp_delete", "Delete", icon("broom"))
+        )
       )
     )
   )
@@ -175,7 +236,7 @@ generateViewPanel <- function() {
 
 generateUpsetPlotPanel <- function() {
   tabPanel(
-    title = "Upset Plot",
+    title = "UpSet Plot",
     icon = icon("chart-column"),
     tags$div(
       tags$br(),
@@ -185,9 +246,9 @@ generateUpsetPlotPanel <- function() {
         choices = c("Intersection", "Distinct Combinations", "Union"),
         inline = TRUE
       ) %>%
-        shinyInput_label_embed(
-          shiny_iconlink("circle-info") %>%
-            bs_embed_popover(
+        bsplus::shinyInput_label_embed(
+          bsplus::shiny_iconlink("circle-info") %>%
+            bsplus::bs_embed_popover(
               title = "Select at least 2 files to create the Upset plot from the checkbox file list.
                   \nThe UpSet plot Intersection option visualizes the total number of common elements amongthe selected sets, even though they may also participate in other sets.
                   \nThe Distinct Combinations option visualizes the common number of genes, among chosen sets, that do not exist in any other set. This option is the closest to a Venn diagram.
@@ -196,7 +257,7 @@ generateUpsetPlotPanel <- function() {
         ),
       actionButton(inputId = "submitUpset", label = "Generate",
                    icon = icon("palette"), class = "submit_button"),
-      upsetjsOutput("upsetjsView"),
+      upsetjs::upsetjsOutput("upsetjsView"),
       tags$br(),
       tags$br(),
       fluidRow(
@@ -234,9 +295,9 @@ generateVolcanoPlotPanel <- function() {
             step = DEFAULT_VOLCANO_LOG10PVALUE_STEP,
             width = "100%"
           ) %>%
-            shinyInput_label_embed(
-              shiny_iconlink("circle-info") %>%
-                bs_embed_popover(
+            bsplus::shinyInput_label_embed(
+              bsplus::shiny_iconlink("circle-info") %>%
+                bsplus::bs_embed_popover(
                   title = "0.05 pvalue == 1.30103 -log10pvalue\n0.01 pvalue == 2 -log10pvalue"
                 )
             ),
@@ -251,7 +312,7 @@ generateVolcanoPlotPanel <- function() {
           ),
           actionButton("volcanoRedraw", "Redraw",
                        icon("palette"), class = "submit_button"),
-          actionButton("volcanoSubmit", "Add to lists", icon("paper-plane")),
+          actionButton("volcano_submit", "Add to lists", icon("paper-plane")),
           tags$br(),
           tags$br(),
           verbatimTextOutput("volcanoSelected")

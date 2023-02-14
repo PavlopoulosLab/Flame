@@ -25,9 +25,25 @@ calculateEnrichmentScore <- function(hitGenesCount, databaseGenesCount) {
   return(enrichmentScore)
 }
 
-validResult <- function(result) {
-  valid <- F
-  if (nrow(result) > 0)
-    valid <- T
-  return(valid)
+isResultValid <- function(result) {
+  isValid <- F
+  if (!is.null(result) && nrow(result) > 0)
+    isValid <- T
+  return(isValid)
+}
+
+unlistDatasourceCodes <- function(sources, codes) {
+  return(
+    unlist(lapply(sources, function(sourceName) {
+      names(codes[codes == sourceName])
+    }))
+  )
+}
+
+mapKEGGIds <- function(df) {
+  if (length(df$Source[which(df$Source == "KEGG")]) > 0) {
+    df[df$Source == "KEGG", ]$Term_ID <-
+      paste0("map", gsub("[^0-9.-]", "", df[df$Source == "KEGG", ]$Term_ID))
+  }
+  return(df)
 }

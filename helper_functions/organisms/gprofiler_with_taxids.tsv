@@ -1,0 +1,822 @@
+scientific_name	display_name	id	version	datasources	ncbi
+Acanthocheilonema viteae	Acanthocheilonema viteae (PRJEB1697)	acviteprjeb1697	ASM90053725v1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6277
+Acanthochromis polyacanthus	Spiny chromis	apolyacanthus	ASM210954v1	GO:MF, GO:CC, GO:BP, HP	80966
+Acrobeloides nanus	Acrobeloides nanus (PRJEB26554)	acnanuprjeb26554	v1 (2018-08-WormBase)	GO:MF, GO:CC, GO:BP	290746
+Actinia equina	Actinia equina (AE1) - GCA_011057435.1	aegca011057435	equina_smartden.arrow4.noredun	GO:MF, GO:CC, GO:BP	6106
+Actinidia chinensis var. chinensis	Actinidia chinensis	achinensis	Red5_PS1_1.69.0	GO:MF, GO:CC, GO:BP	1590841
+Acyrthosiphon pisum	Acyrthosiphon pisum (AL4f)	apisum	pea_aphid_22Mar2018_4r6ur	GO:MF, GO:CC, GO:BP, KEGG	7029
+Adineta vaga	Adineta vaga	avaga	AMS_PRJEB1171_v1	GO:MF, GO:CC, GO:BP	104782
+Aedes aegypti	Aedes aegypti (LVP_AGWG)	aalvpagwg	AaegL5	GO:MF, GO:CC, GO:BP, KEGG	7159
+Aedes albopictus	Aedes albopictus	aalbopictus	AaloF1	GO:MF, GO:CC, GO:BP, KEGG	7160
+Aegilops tauschii subsp. strangulata	Aegilops tauschii	atauschii	Aet v4.0	GO:MF, GO:CC, GO:BP	200361
+Agrilus planipennis	Agrilus planipennis (Emerald ash borer, EAB-ADULT) - GCA_000699045.2	apgca000699045v2	Apla_2.0	GO:MF, GO:CC, GO:BP	224129
+Ailuropoda melanoleuca	Giant panda	amelanoleuca	ASM200744v2	GO:MF, GO:CC, GO:BP, KEGG, HP	9646
+Albugo laibachii Nc14	Albugo laibachii	alaibachii	ENA 1	GO:MF, GO:CC, GO:BP	890382
+Amborella trichopoda	Amborella trichopoda	atrichopoda	AMTR1.0	GO:MF, GO:CC, GO:BP, KEGG	13333
+Amphilophus citrinellus	Midas cichlid	acitrinellus	Midas_v5	GO:MF, GO:CC, GO:BP, HP	61819
+Amphimedon queenslandica	Amphimedon queenslandica	aqueenslandica	Aqu1	GO:MF, GO:CC, GO:BP, KEGG	400682
+Amphiprion ocellaris	Clown anemonefish	aocellaris	AmpOce1.0	GO:MF, GO:CC, GO:BP, HP	80972
+Amphiprion percula	Orange clownfish	apercula	Nemo_v1	GO:MF, GO:CC, GO:BP, HP	161767
+Anabas testudineus	Climbing perch	atestudineus	fAnaTes1.2	GO:MF, GO:CC, GO:BP, HP	64144
+Ananas comosus	Ananas comosus	acomosus	F153	GO:MF, GO:CC, GO:BP	4615
+Anas platyrhynchos	Mallard	aplatyrhynchos	ASM874695v1	GO:MF, GO:CC, GO:BP, KEGG	8839
+Anas platyrhynchos platyrhynchos	Duck	applatyrhynchos	CAU_duck1.0	GO:MF, GO:CC, GO:BP, HP	8840
+Ancylostoma caninum	Ancylostoma caninum (PRJNA72585)	ancaniprjna72585	A_caninum_9.3.2.ec.cg.pg (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	29170
+Ancylostoma ceylanicum	Ancylostoma ceylanicum (PRJNA231479)	anceylprjna231479	Acey_2013.11.30.genDNA (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	53326
+Ancylostoma ceylanicum	Ancylostoma ceylanicum (PRJNA72583)	anceylprjna72583	A_ceylanicum1.3.ec.cg.pg (2020-04-WormBase)	GO:MF, GO:CC, GO:BP	53326
+Ancylostoma duodenale	Ancylostoma duodenale (PRJNA72581)	anduodprjna72581	A_duodenale_2.2.ec.cg.pg (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	51022
+Angiostrongylus cantonensis	Angiostrongylus cantonensis (PRJEB493)	ancantprjeb493	A_cantonensis_Taipei_v1_5_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6313
+Angiostrongylus cantonensis	Angiostrongylus cantonensis (PRJNA350391)	ancantprjna350391	ACgenome_NGS_v2 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	6313
+Angiostrongylus costaricensis	Angiostrongylus costaricensis (PRJEB494)	ancostprjeb494	A_costaricensis_Costa_Rica_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	334426
+Angiostrongylus vasorum	Angiostrongylus vasorum (PRJNA663250)	anvasoprjna663250	UZH_Avas_1.0 (2021-10-WormBase)	GO:MF, GO:CC, GO:BP	321387
+Anisakis simplex	Anisakis simplex (PRJEB496)	ansimpprjeb496	A_simplex_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6269
+Anneissia japonica	Anneissia japonica (Sea lily, Jap-2015-1) - GCA_011630105.1	ajgca011630105v1	GCA011630105v1	GO:MF, GO:CC, GO:BP	1529436
+Anolis carolinensis	Green anole	acarolinensis	AnoCar2.0v2	GO:MF, GO:CC, GO:BP, KEGG, HP	28377
+Anopheles albimanus	Anopheles albimanus	aalbimanus	AalbS2	GO:MF, GO:CC, GO:BP	7167
+Anopheles arabiensis	Anopheles arabiensis	aarabiensis	AaraD1	GO:MF, GO:CC, GO:BP	7173
+Anopheles atroparvus	Anopheles atroparvus	aatroparvus	AatrE3	GO:MF, GO:CC, GO:BP	41427
+Anopheles atroparvus	Anopheles atroparvus (EBRE) - GCA_914969975.1	aagca914969975	atroparvus_hifiasm_n225_277Mb	GO:MF, GO:CC, GO:BP	41427
+Anopheles christyi	Anopheles christyi	achristyi	AchrA1	GO:MF, GO:CC, GO:BP	43041
+Anopheles coluzzii	Anopheles coluzzii	acoluzzii	AcolM1	GO:MF, GO:CC, GO:BP	1518534
+Anopheles coluzzii	Anopheles coluzzii (Ngousso)	acngousso	AcolN1	GO:MF, GO:CC, GO:BP	1518534
+Anopheles culicifacies	Anopheles culicifacies	aculicifacies	AculA1	GO:MF, GO:CC, GO:BP	139723
+Anopheles darlingi	Anopheles darlingi	adarlingi	AdarC3	GO:MF, GO:CC, GO:BP	43151
+Anopheles dirus	Anopheles dirus	adirus	AdirW1	GO:MF, GO:CC, GO:BP	7168
+Anopheles epiroticus	Anopheles epiroticus	aepiroticus	AepiE1	GO:MF, GO:CC, GO:BP	199890
+Anopheles farauti	Anopheles farauti	afarauti	AfarF2	GO:MF, GO:CC, GO:BP	69004
+Anopheles funestus	Anopheles funestus	afunestus	AfunF3	GO:MF, GO:CC, GO:BP	62324
+Anopheles gambiae	Anopheles gambiae	agambiae	AgamP4	GO:MF, GO:CC, GO:BP, KEGG	7165
+Anopheles maculatus	Anopheles maculatus	amaculatus	AmacM1	GO:MF, GO:CC, GO:BP	74869
+Anopheles melas	Anopheles melas	amelas	AmelC2	GO:MF, GO:CC, GO:BP	34690
+Anopheles merus	Anopheles merus	amerus	AmerM2	GO:MF, GO:CC, GO:BP	30066
+Anopheles minimus	Anopheles minimus	aminimus	AminM1	GO:MF, GO:CC, GO:BP	112268
+Anopheles quadriannulatus	Anopheles quadriannulatus	aquadriannulatus	AquaS1	GO:MF, GO:CC, GO:BP	34691
+Anopheles sinensis	Anopheles sinensis	asinensis	AsinS2	GO:MF, GO:CC, GO:BP	74873
+Anopheles sinensis	Anopheles sinensis (China)	aschina	AsinC2	GO:MF, GO:CC, GO:BP	74873
+Anopheles stephensi	Anopheles stephensi	astephensi	AsteS1	GO:MF, GO:CC, GO:BP	30069
+Anopheles stephensi	Anopheles stephensi (Indian)	asindian	AsteI2	GO:MF, GO:CC, GO:BP	30069
+Anoplophora glabripennis	Anoplophora glabripennis (ALB-LARVAE)	aglabripennis	Agla_2.0	GO:MF, GO:CC, GO:BP	217634
+Anser brachyrhynchus	Pink-footed goose	abrachyrhynchus	ASM259213v1	GO:MF, GO:CC, GO:BP, HP	132585
+Aotus nancymaae	Ma's night monkey	anancymaae	Anan_2.0	GO:MF, GO:CC, GO:BP, HP	37293
+Aphanomyces astaci	Aphanomyces astaci	aastaci	GCA000520075v1	GO:MF, GO:CC, GO:BP	112090
+Aphanomyces invadans	Aphanomyces invadans	ainvadans	GCA000520115v1	GO:MF, GO:CC, GO:BP	157072
+Aphidius gifuensis	Aphidius gifuensis (Parasitoid wasp, YNYX2018) - GCA_014905175.1	aggca014905175v1	GCA014905175v1	GO:MF, GO:CC, GO:BP	684658
+Apis mellifera	Apis mellifera (DH4)	amellifera	Amel_HAv3.1	GO:MF, GO:CC, GO:BP, KEGG	7460
+Aplysia californica	Aplysia californica (California sea hare, F4 #8) - GCA_000002075.2	acgca000002075v2	AplCal3.0	GO:MF, GO:CC, GO:BP	6500
+Aquila chrysaetos chrysaetos	Golden eagle	acchrysaetos	bAquChr1.2	GO:MF, GO:CC, GO:BP, HP	223781
+Arabidopsis halleri subsp. gemmifera	Arabidopsis halleri	ahalleri	Ahal2.2	GO:MF, GO:CC, GO:BP	63677
+Arabidopsis lyrata subsp. lyrata	Arabidopsis lyrata	alyrata	v.1.0	GO:MF, GO:CC, GO:BP, KEGG	81972
+Arabidopsis thaliana	Arabidopsis thaliana	athaliana	TAIR10	GO:MF, GO:CC, GO:BP, KEGG, MIRNA, WP	3702
+Arabis alpina	Arabis alpina	aalpina	A_alpina_V4	GO:MF, GO:CC, GO:BP	50452
+Ascaris lumbricoides	Ascaris lumbricoides (PRJEB4950)	aslumbprjeb4950	A_lumbricoides_Ecuador_v1_5_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6252
+Ascaris suum	Ascaris suum (PRJNA62057)	assuumprjna62057	ASM18702v3 (2018-04-WormBase)	GO:MF, GO:CC, GO:BP	6253
+Ascaris suum	Ascaris suum (PRJNA62057)	asuum	ASM18702v3	GO:MF, GO:CC, GO:BP	6253
+Ascaris suum	Ascaris suum (PRJNA80881)	assuumprjna80881	AscSuum_1.0_submitted (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6253
+Asparagus officinalis	Asparagus officinalis	aofficinalis	Aspof.V1	GO:MF, GO:CC, GO:BP	4686
+Aspergillus clavatus NRRL 1	Aspergillus clavatus NRRL 1	aclavatus	ASM271v1	GO:MF, GO:CC, GO:BP, KEGG	344612
+Aspergillus fischeri NRRL 181	Aspergillus fischeri NRRL 181	nfischeri	ASM14964v1	GO:MF, GO:CC, GO:BP, KEGG	331117
+Aspergillus flavus NRRL3357	Aspergillus flavus NRRL3357	aflavus	JCVI-afl1-v2.0	GO:MF, GO:CC, GO:BP, KEGG	332952
+Aspergillus fumigatus A1163	Aspergillus fumigatus A1163	afumigatusa1163	ASM15014v1	GO:MF, GO:CC, GO:BP	451804
+Aspergillus fumigatus Af293	Aspergillus fumigatus Af293	afumigatus	ASM265v1	GO:MF, GO:CC, GO:BP, KEGG	330879
+Aspergillus nidulans FGSC A4	Aspergillus nidulans	anidulans	ASM1142v1	GO:MF, GO:CC, GO:BP, KEGG	227321
+Aspergillus niger	Aspergillus niger	aniger	ASM285v2	GO:MF, GO:CC, GO:BP	5061
+Aspergillus oryzae RIB40	Aspergillus oryzae RIB40	aoryzae	ASM18445v3	GO:MF, GO:CC, GO:BP, KEGG	510516
+Aspergillus terreus NIH2624	Aspergillus terreus NIH2624	aterreus	ASM14961v1	GO:MF, GO:CC, GO:BP	341663
+Astatotilapia calliptera	Eastern happy	acalliptera	fAstCal1.2	GO:MF, GO:CC, GO:BP, HP	8154
+Astyanax mexicanus	Mexican tetra	amexicanus	Astyanax_mexicanus-2.0	GO:MF, GO:CC, GO:BP, KEGG, HP	7994
+Athalia rosae	Athalia rosae (Coleseed sawfly, CS-ADULT) - GCA_000344095.2	argca000344095v2	Aros_2.0	GO:MF, GO:CC, GO:BP	37344
+Atriophallophorus winterbourni	Atriophallophorus winterbourni (PRJNA636673)	atwintprjna636673	ASM1340708v1 (2021-03-WormBase)	GO:MF, GO:CC, GO:BP	2682772
+Atta cephalotes	Atta cephalotes	acephalotes	Attacep1.0	GO:MF, GO:CC, GO:BP, KEGG	12957
+Bactrocera dorsalis	Bactrocera dorsalis (Oriental fruit fly, Punador) - GCA_000789215.2	bdgca000789215v2	GCA000789215v2	GO:MF, GO:CC, GO:BP	27457
+Bactrocera latifrons	Bactrocera latifrons (Solanum fruit fly, USDA-ARS-PBARC rearing strain) - GCA_001853355.1	blgca001853355v1	GCA001853355v1	GO:MF, GO:CC, GO:BP	174628
+Bactrocera tryoni	Bactrocera tryoni (Queensland fruitfly, S06) - GCA_016617805.2	btgca016617805v2	CSIRO_BtryS06_freeze1	GO:MF, GO:CC, GO:BP	59916
+Balaenoptera musculus	Blue whale	bmusculus	mBalMus1.v2	GO:MF, GO:CC, GO:BP, HP	9771
+Beauveria bassiana	Beauveria bassiana	bbassiana	ASM168263v1	GO:MF, GO:CC, GO:BP	176275
+Belgica antarctica	Belgica antarctica	bantarctica	ASM77530v1	GO:MF, GO:CC, GO:BP	315563
+Bemisia tabaci	Bemisia tabaci (ASIAII-5)	btasiaii5	ASIAII5_n227_616Mb	GO:MF, GO:CC, GO:BP	7038
+Bemisia tabaci	Bemisia tabaci (SSA1-SG1 NG)	btssa1nig	SSA1SG1_Nigeria_n4493_656Mb	GO:MF, GO:CC, GO:BP	7038
+Bemisia tabaci	Bemisia tabaci (SSA1-SG1 UG)	btssa1ug	SSA1_SG1_Uganda_n955_657Mb	GO:MF, GO:CC, GO:BP	7038
+Bemisia tabaci	Bemisia tabaci (SSA2 NG)	btssa2nig	SSA2_Nigeria_n785_625mb	GO:MF, GO:CC, GO:BP	7038
+Bemisia tabaci	Bemisia tabaci (SSA3 NG)	btssa3nig	SSA3_Nigeria_2278n_648mb	GO:MF, GO:CC, GO:BP	7038
+Bemisia tabaci	Bemisia tabaci (Uganda 1)	btsweetpotug	Uganda1_n5713_630Mb	GO:MF, GO:CC, GO:BP	7038
+Beta vulgaris subsp. vulgaris	Beta vulgaris	bvulgaris	RefBeet-1.2.2	GO:MF, GO:CC, GO:BP, KEGG	3555
+Betta splendens	Siamese fighting fish	bsplendens	fBetSpl5.2	GO:MF, GO:CC, GO:BP, HP	158456
+Bigelowiella natans CCMP2755	Bigelowiella natans	bnatans	Bigna1	GO:MF, GO:CC, GO:BP	753081
+Biomphalaria glabrata	Biomphalaria glabrata	bglabrata	BglaB1	GO:MF, GO:CC, GO:BP	6526
+Bison bison bison	American bison	bbbison	Bison_UMD1.0	GO:MF, GO:CC, GO:BP, HP	43346
+Blumeria hordei DH14	Blumeria graminis	bgraminis	EF2	GO:MF, GO:CC, GO:BP	546991
+Bombus impatiens	Bombus impatiens	bimpatiens	BIMP_2.2	GO:MF, GO:CC, GO:BP, KEGG	132113
+Bombus terrestris	Bombus terrestris	bterrestris	Bter_1.0	GO:MF, GO:CC, GO:BP, KEGG	30195
+Bombyx mori	Bombyx mori (p50T)	bmori	Bmori_2016v1.0	GO:MF, GO:CC, GO:BP, KEGG, MIRNA	7091
+Bos grunniens	Domestic yak	bgrunniens	LU_Bosgru_v3.0	GO:MF, GO:CC, GO:BP, HP	30521
+Bos indicus x Bos taurus	Hybrid - Bos Indicus	bihybrid	UOA_Brahman_1	GO:MF, GO:CC, GO:BP, HP	30522
+Bos mutus	Wild yak	bmutus	BosGru_v2.0	GO:MF, GO:CC, GO:BP, KEGG, HP	72004
+Bos taurus	Cow	btaurus	ARS-UCD1.2	GO:MF, GO:CC, GO:BP, KEGG, REAC, MIRNA, CORUM, HP, WP	9913
+Botrytis cinerea B05.10	Botrytis cinerea B05.10	bcinerea	ASM83294v1	GO:MF, GO:CC, GO:BP, KEGG	332648
+Brachypodium distachyon	Brachypodium distachyon	bdistachyon	Brachypodium_distachyon_v3.0	GO:MF, GO:CC, GO:BP, KEGG	15368
+Branchiostoma lanceolatum	Branchiostoma lanceolatum	blanceolatum	BraLan2	GO:MF, GO:CC, GO:BP	7740
+Brassica napus	Brassica napus	bnapus	AST_PRJEB5043_v1	GO:MF, GO:CC, GO:BP, KEGG	3708
+Brassica oleracea var. oleracea	Brassica oleracea	boleracea	BOL	GO:MF, GO:CC, GO:BP, KEGG	109376
+Brassica rapa	Brassica rapa	brapa	Brapa_1.0	GO:MF, GO:CC, GO:BP, KEGG	3711
+Brassica rapa subsp. trilocularis	Brassica rapa R-o-18	brro18	SCU_BraROA_2.3	GO:MF, GO:CC, GO:BP	1813537
+Brugia malayi	Brugia malayi (PRJNA10729)	bmalayi	Bmal-4.0	GO:MF, GO:CC, GO:BP, KEGG	6279
+Brugia malayi	Brugia malayi (PRJNA10729) [WS282]	brmalaprjna10729	Bmal-4.0 (WS282)	GO:MF, GO:CC, GO:BP, KEGG	6279
+Brugia pahangi	Brugia pahangi (PRJEB497)	brpahaprjeb497	B_pahangi_Glasgow_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6280
+Brugia timori	Brugia timori (PRJEB4663)	brtimoprjeb4663	B_timori_Indonesia_v1_0_4_001_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	42155
+Bursaphelenchus okinawaensis	Bursaphelenchus okinawaensis (PRJEB40023)	buokinprjeb40023	BOKI2 (2021-03-WormBase)	GO:MF, GO:CC, GO:BP	465554
+Bursaphelenchus xylophilus	Bursaphelenchus xylophilus (PRJEA64437)	buxyloprjea64437	ASM23113v1_submitted (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6326
+Bursaphelenchus xylophilus	Bursaphelenchus xylophilus (PRJEB40022)	buxyloprjeb40022	BXYJ5 (2021-03-WormBase)	GO:MF, GO:CC, GO:BP	6326
+Caenorhabditis angaria	Caenorhabditis angaria (PRJNA51225)	caangaprjna51225	13mar2012 (2012-12-Caltech)	GO:MF, GO:CC, GO:BP	860376
+Caenorhabditis becei	Caenorhabditis becei (PRJEB28243)	cabeceprjeb28243	CBECE_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	2301260
+Caenorhabditis bovis	Caenorhabditis bovis (PRJEB34497)	caboviprjeb34497	CBOVIS_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	2654633
+Caenorhabditis brenneri	Caenorhabditis brenneri (PRJNA20035)	cbrenneri	C_brenneri-6.0.1b	GO:MF, GO:CC, GO:BP	135651
+Caenorhabditis brenneri	Caenorhabditis brenneri (PRJNA20035) [WS282]	cabrenprjna20035	C_brenneri-6.0.1b (WS279)	GO:MF, GO:CC, GO:BP	135651
+Caenorhabditis briggsae	Caenorhabditis briggsae (PRJNA10731)	cbriggsae	CB4	GO:MF, GO:CC, GO:BP, KEGG	6238
+Caenorhabditis briggsae	Caenorhabditis briggsae (PRJNA10731) [WS282]	cabrigprjna10731	CB4 (WS282)	GO:MF, GO:CC, GO:BP, KEGG	6238
+Caenorhabditis elegans	Caenorhabditis elegans (PRJNA13758)	celegans	WBcel235	GO:MF, GO:CC, GO:BP, KEGG, TF, MIRNA, HP, WP	6239
+Caenorhabditis elegans	Caenorhabditis elegans (PRJNA13758) [WS282]	caelegprjna13758	WBcel235 (WS282)	GO:MF, GO:CC, GO:BP, KEGG	6239
+Caenorhabditis inopinata	Caenorhabditis inopinata (PRJDB5687)	cainopprjdb5687	Sp34_v7 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	1978547
+Caenorhabditis japonica	Caenorhabditis japonica (PRJNA12591) [WS282]	cajapoprjna12591	C_japonica-7.0.1 (WS279)	GO:MF, GO:CC, GO:BP	281687
+Caenorhabditis latens	Caenorhabditis latens (PRJNA248912)	calateprjna248912	CaeLat1.0 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	1503980
+Caenorhabditis nigoni	Caenorhabditis nigoni (PRJNA384657)	canigoprjna384657	nigoni.pc_2016.07.14 (2018-01-WormBase)	GO:MF, GO:CC, GO:BP	1611254
+Caenorhabditis panamensis	Caenorhabditis panamensis (PRJEB28259)	capanaprjeb28259	CPANA_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	2301259
+Caenorhabditis remanei	Caenorhabditis remanei (PRJNA248909)	caremaprjna248909	ASM164373v2 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	31234
+Caenorhabditis remanei	Caenorhabditis remanei (PRJNA248911)	caremaprjna248911	CaeRem1.0 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	31234
+Caenorhabditis remanei	Caenorhabditis remanei (PRJNA53967)	cremanei	C_remanei-15.0.1	GO:MF, GO:CC, GO:BP	31234
+Caenorhabditis remanei	Caenorhabditis remanei (PRJNA53967) [WS282]	caremaprjna53967	C_remanei-15.0.1 (WS279)	GO:MF, GO:CC, GO:BP	31234
+Caenorhabditis remanei	Caenorhabditis remanei (PRJNA577507)	caremaprjna577507	CRPX506 (2021-04-WormBase)	GO:MF, GO:CC, GO:BP	31234
+Caenorhabditis sinica	Caenorhabditis sinica (PRJNA194557)	casiniprjna194557	1.0 (2011-12-Edinburgh)	GO:MF, GO:CC, GO:BP	1550068
+Caenorhabditis sp. 21 LS-2015	Caenorhabditis parvicauda (PRJEB12595)	caparvprjeb12595	CPARV_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1737332
+Caenorhabditis sp. 26 LS-2015	Caenorhabditis zanzibari (PRJEB12596)	cazanzprjeb12596	CZANZ_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1737333
+Caenorhabditis sp. 31 LS-2015	Caenorhabditis uteleia (PRJEB12600)	cautelprjeb12600	CUTEL_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1737334
+Caenorhabditis sp. 32 LS-2015	Caenorhabditis sulstoni (PRJEB12601)	casulsprjeb12601	CSULS_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1737335
+Caenorhabditis sp. 38 MB-2015	Caenorhabditis quiockensis (PRJEB11354)	caquioprjeb11354	CQUIO_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1729975
+Caenorhabditis sp. 39 LS-2015	Caenorhabditis waitukubuli (PRJEB12602)	cawaitprjeb12602	CWAIT_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1737336
+Caenorhabditis sp. 40 LS-2015	Caenorhabditis tribulationis (PRJEB12608)	catribprjeb12608	CTRIB_v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	1737337
+Caenorhabditis tropicalis	Caenorhabditis tropicalis (PRJNA53597)	catropprjna53597	Caenorhabditis_sp11_JU1373-3.0.1 (2011-04-WormBase)	GO:MF, GO:CC, GO:BP	1561998
+Callithrix jacchus	White-tufted-ear marmoset	cjacchus	mCalJac1.pat.X	GO:MF, GO:CC, GO:BP, KEGG, HP	9483
+Callorhinchus milii	Elephant shark	cmilii	Callorhinchus_milii-6.1.3	GO:MF, GO:CC, GO:BP, HP	7868
+Camelina sativa	Camelina sativa	csativa	Cs	GO:MF, GO:CC, GO:BP, KEGG	90675
+Camelus dromedarius	Arabian camel	cdromedarius	CamDro2	GO:MF, GO:CC, GO:BP, KEGG, HP	9838
+Candida albicans SC5314	Candida albicans	calbicans	GCA000182965v3	GO:MF, GO:CC, GO:BP	237561
+[Candida] auris	Candida auris	cauris	GCA002759435v2	GO:MF, GO:CC, GO:BP	498019
+[Candida] duobushaemulonis	Candida duobushaemulonis	cduobushaemulonis	GCA002926085v1	GO:MF, GO:CC, GO:BP	1231522
+[Candida] glabrata CBS 138	Candida glabrata	cglabrata	GCA000002545v2	GO:MF, GO:CC, GO:BP	284593
+[Candida] haemuloni	[Candida] haemuloni	chaemuloni	GCA002926055v1	GO:MF, GO:CC, GO:BP	45357
+Candida parapsilosis CDC317	Candida parapsilosis	cparapsilosis	GCA000182765v2	GO:MF, GO:CC, GO:BP	578454
+[Candida] pseudohaemulonii	[Candida] pseudohaemulonii	cpseudohaemulonis	GCA003013735v1	GO:MF, GO:CC, GO:BP	418784
+Candida tropicalis MYA-3404	Candida tropicalis	ctropicalis	GCA000006335v3	GO:MF, GO:CC, GO:BP	294747
+Canis lupus dingo	Dingo	cldingo	ASM325472v1	GO:MF, GO:CC, GO:BP, HP	286419
+Canis lupus familiaris	Dog	clfamiliaris	ROS_Cfam_1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	9615
+Cannabis sativa	Cannabis sativa female	csfemale	cs10	GO:MF, GO:CC, GO:BP	3483
+Capitella teleta	Capitella teleta	cteleta	Capitella teleta v1.0	GO:MF, GO:CC, GO:BP	283909
+Capra hircus	Goat	chircus	ARS1	GO:MF, GO:CC, GO:BP, KEGG, HP	9925
+Capsicum annuum	Capsicum annuum	cannuum	ASM51225v2	GO:MF, GO:CC, GO:BP, KEGG	4072
+Carassius auratus	Goldfish	cauratus	ASM336829v1	GO:MF, GO:CC, GO:BP, HP	7957
+Carlito syrichta	Tarsier	csyrichta	Tarsius_syrichta-2.0.1	GO:MF, GO:CC, GO:BP, HP	1868482
+Catagonus wagneri	Chacoan peccary	cwagneri	CatWag_v2_BIUU_UCD	GO:MF, GO:CC, GO:BP, HP	51154
+Cavia porcellus	Guinea Pig	cporcellus	Cavpor3.0	GO:MF, GO:CC, GO:BP, HP	10141
+Cebus imitator	Capuchin	ccapucinus	Cebus_imitator-1.0	GO:MF, GO:CC, GO:BP, HP	2715852
+Centruroides sculpturatus	Centruroides sculpturatus (CEXI.00-Female) - GCA_000671375.2	csgca000671375v2	Cexi_2.0	GO:MF, GO:CC, GO:BP	218467
+Ceratitis capitata	Ceratitis capitata (Mediterranean fruit fly) - GCA_000347755.4	ccgca000347755v4	Ccap_2.0	GO:MF, GO:CC, GO:BP	7213
+Cercocebus atys	Sooty mangabey	catys	Caty_1.0	GO:MF, GO:CC, GO:BP, HP	9531
+Cercopithifilaria johnstoni	Cercopithifilaria johnstoni (PRJEB47283)	cejohnprjeb47283	SD210906 (2021-11-WormBase)	GO:MF, GO:CC, GO:BP	2874296
+Cervus hanglu yarkandensis	Yarkand deer	chyarkandensis	CEY_v1	GO:MF, GO:CC, GO:BP, HP	84702
+Chara braunii	Chara braunii	cbraunii	Cbr_1.0	GO:MF, GO:CC, GO:BP	69332
+Chelonoidis abingdonii	Abingdon island giant tortoise	cabingdonii	ASM359739v1	GO:MF, GO:CC, GO:BP, HP	106734
+Chenopodium quinoa	Chenopodium quinoa	cquinoa	ASM168347v1	GO:MF, GO:CC, GO:BP	63459
+Chinchilla lanigera	Long-tailed chinchilla	clanigera	ChiLan1.0	GO:MF, GO:CC, GO:BP, HP	34839
+Chlamydomonas reinhardtii	Chlamydomonas reinhardtii	creinhardtii	Chlamydomonas_reinhardtii_v5.5	GO:MF, GO:CC, GO:BP, KEGG	3055
+Chlorocebus sabaeus	Vervet-AGM	csabaeus	ChlSab1.1	GO:MF, GO:CC, GO:BP, KEGG, HP	60711
+Choloepus hoffmanni	Sloth	choffmanni	choHof1	GO:MF, GO:CC, GO:BP, HP	9358
+Chondrus crispus	Chondrus crispus	ccrispus	ASM35022v2	GO:MF, GO:CC, GO:BP, KEGG	2769
+Chrysemys picta bellii	Painted turtle	cpbellii	Chrysemys_picta_bellii-3.0.3	GO:MF, GO:CC, GO:BP, KEGG, HP	8478
+Cimex lectularius	Cimex lectularius (Harlan)	clectularius	Clec_2.0	GO:MF, GO:CC, GO:BP, KEGG	79782
+Ciona intestinalis	C.intestinalis	cintestinalis	KH	GO:MF, GO:CC, GO:BP, KEGG, HP	7719
+Ciona savignyi	C.savignyi	csavignyi	CSAV 2.0	GO:MF, GO:CC, GO:BP, HP	51511
+Citrullus lanatus	Citrullus lanatus	clanatus	Cla97_v1	GO:MF, GO:CC, GO:BP	3654
+Citrus clementina	Citrus clementina	cclementina	Citrus_clementina_v1.0	GO:MF, GO:CC, GO:BP, KEGG	85681
+Clonorchis sinensis	Clonorchis sinensis (PRJDA72781)	clsineprjda72781	C_sinensis-2.0 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	79923
+Clonorchis sinensis	Clonorchis sinensis (PRJNA386618)	clsineprjna386618	CSKR.v2 (2021-04-WormBase)	GO:MF, GO:CC, GO:BP	79923
+Clupea harengus	Atlantic herring	charengus	Ch_v2.0.2	GO:MF, GO:CC, GO:BP, HP	7950
+Clytia hemisphaerica	Clytia hemisphaerica (Z4C2)	chgca902728285	GCA902728285v1	GO:MF, GO:CC, GO:BP	252671
+Coffea canephora	Coffea canephora	ccanephora	AUK_PRJEB4211_v1	GO:MF, GO:CC, GO:BP	49390
+Colletotrichum fructicola Nara gc5	Colletotrichum gloeosporioides	cgloeosporioides	Colletotrichum gloeosporioides Nara gc-5	GO:MF, GO:CC, GO:BP	1213859
+Colletotrichum graminicola M1.001	Colletotrichum graminicola	cgraminicola	C_graminicola_M1_001_V1	GO:MF, GO:CC, GO:BP	645133
+Colletotrichum higginsianum	Colletotrichum higginsianum	chigginsianum	ASM31379v2	GO:MF, GO:CC, GO:BP	80884
+Colletotrichum orbiculare MAFF 240422	Colletotrichum orbiculare	corbiculare	Corbiculare240422v01	GO:MF, GO:CC, GO:BP	1213857
+Copidosoma floridanum	Copidosoma floridanum (CFLO.00-Male) - GCA_000648655.2	cfgca000648655v2	Cflo_2.0	GO:MF, GO:CC, GO:BP	29053
+Corchorus capsularis	Corchorus capsularis	ccapsularis	CCACVL1_1.0	GO:MF, GO:CC, GO:BP	210143
+Corylus avellana	Corylus avellana	cavellana	CavTom2PMs-1.0	GO:MF, GO:CC, GO:BP	13451
+Corymbia citriodora subsp. variegata	Corymbia citriodora	ccitriodora	Ccitriodora_v2_1	GO:MF, GO:CC, GO:BP	360336
+Cotesia glomerata	Cotesia glomerata (CgM1) - GCA_020080835.1	cggca020080835v1	MPM_Cglom_v2.3	GO:MF, GO:CC, GO:BP	32391
+Cottoperca gobio	Channel bull blenny	cgobio	fCotGob3.1	GO:MF, GO:CC, GO:BP, HP	56716
+Coturnix japonica	Japanese quail	cjaponica	Coturnix_japonica_2.0	GO:MF, GO:CC, GO:BP, KEGG, HP	93934
+Crassostrea gigas	Crassostrea gigas (Pacific oyster) - GCA_902806645.1	cgigas	GCA902806645v1	GO:MF, GO:CC, GO:BP, KEGG	29159
+Crassostrea virginica	Crassostrea virginica (RU13XGHG1-28) - GCA_002022765.4	cvgca002022765v4	C_virginica_3.0	GO:MF, GO:CC, GO:BP	6565
+Cricetulus griseus	Chinese hamster CHOK1GS	cgchok1gshd	CHOK1GS_HDv1	GO:MF, GO:CC, GO:BP, KEGG, HP	10029
+Crocodylus porosus	Australian saltwater crocodile	cporosus	CroPor_comp1	GO:MF, GO:CC, GO:BP, HP	8502
+Cryptococcus neoformans var. neoformans JEC21	Cryptococcus neoformans var. neoformans JEC21	cneoformans	ASM9104v1	GO:MF, GO:CC, GO:BP, KEGG	214684
+Cucumis melo	Cucumis melo	cmelo	Melonv4	GO:MF, GO:CC, GO:BP, KEGG	3656
+Cucumis sativus	Cucumis sativus	csativus	ASM407v2	GO:MF, GO:CC, GO:BP, KEGG	3659
+Culex quinquefasciatus	Culex quinquefasciatus	cquinquefasciatus	CpipJ2	GO:MF, GO:CC, GO:BP, KEGG	7176
+Culex quinquefasciatus	Culex quinquefasciatus (JHB)	cqgca015732765v1	VPISU_Cqui_1.0_pri_paternal	GO:MF, GO:CC, GO:BP	7176
+Culicoides sonorensis	Culicoides sonorensis	csonorensis	Cson1	GO:MF, GO:CC, GO:BP	179676
+Cyanidioschyzon merolae strain 10D	Cyanidioschyzon merolae	cmerolae	ASM9120v1	GO:MF, GO:CC, GO:BP, KEGG	280699
+Cyclopterus lumpus	Lumpfish	clumpus	fCycLum1.pri	GO:MF, GO:CC, GO:BP, HP	8103
+Cylicostephanus goldi	Cylicostephanus goldi (PRJEB498)	cygoldprjeb498	C_goldi_Cheshire_0011 (2014-06-WormBase)	GO:MF, GO:CC, GO:BP	71465
+Cynara cardunculus var. scolymus	Cynara cardunculus	ccardunculus	CcrdV1	GO:MF, GO:CC, GO:BP, KEGG	59895
+Cynoglossus semilaevis	Tongue sole	csemilaevis	Cse_v1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	244447
+Cyprinodon variegatus	Sheepshead minnow	cvariegatus	C_variegatus-1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	28743
+Cyprinus carpio	Common carp	ccarpio	common_carp_genome	GO:MF, GO:CC, GO:BP, KEGG	7962
+Cyprinus carpio carpio	Common carp	cccarpio	Cypcar_WagV4.0	GO:MF, GO:CC, GO:BP, HP	630221
+Danaus plexippus plexippus	Danaus plexippus plexippus (F-2)	dplexippus	Dplex_v4	GO:MF, GO:CC, GO:BP	278856
+Danio rerio	Zebrafish	drerio	GRCz11	GO:MF, GO:CC, GO:BP, KEGG, REAC, TF, MIRNA, HP	7955
+Daphnia magna	Daphnia magna	dmagna	daphmag2.4	GO:MF, GO:CC, GO:BP	35525
+Daphnia pulex	Daphnia pulex	dpulex	V1.0	GO:MF, GO:CC, GO:BP, KEGG	6669
+Dasypus novemcinctus	Armadillo	dnovemcinctus	Dasnov3.0	GO:MF, GO:CC, GO:BP, HP	9361
+Daucus carota subsp. sativus	Daucus carota	dcarota	ASM162521v1	GO:MF, GO:CC, GO:BP, KEGG	79200
+Delphinapterus leucas	Beluga whale	dleucas	ASM228892v3	GO:MF, GO:CC, GO:BP, HP	9749
+Dendroctonus ponderosae	Dendroctonus ponderosae (Mountain pine beetle) - GCA_000355655.1	dpgca000355655v1	DendPond_male_1.0	GO:MF, GO:CC, GO:BP	77166
+Dendronephthya gigantea	Dendronephthya gigantea (DGI-Jeju-01) - GCA_004324835.1	dggca004324835v1	DenGig_1.0	GO:MF, GO:CC, GO:BP	151771
+Denticeps clupeoides	Denticle herring	dclupeoides	fDenClu1.1	GO:MF, GO:CC, GO:BP, HP	299321
+Dermacentor silvarum	Dermacentor silvarum (Dsil-2018)	dsgca013339745v1	GCA013339745v1	GO:MF, GO:CC, GO:BP	543639
+Dermatophagoides pteronyssinus	Dermatophagoides pteronyssinus (airmid) - GCA_001901225.2	dpgca001901225v2	GCA001901225v2	GO:MF, GO:CC, GO:BP	6956
+Diabrotica virgifera virgifera	Diabrotica virgifera virgifera (Ped12-6-A-3) - GCA_003013835.2	dvgca003013835v2	Dvir_v2.0	GO:MF, GO:CC, GO:BP	50390
+Dibothriocephalus latus	Dibothriocephalus latus (PRJEB1206)	dilatuprjeb1206	D_latum_Geneva_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	60516
+Dicentrarchus labrax	European seabass	dlabrax	dlabrax2021	GO:MF, GO:CC, GO:BP, HP	13489
+Dictyocaulus viviparus	Dictyocaulus viviparus (PRJEB5116)	diviviprjeb5116	nDv.1.0 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	29172
+Dictyocaulus viviparus	Dictyocaulus viviparus (PRJNA72587)	diviviprjna72587	D_viviparus_9.2.1.ec.pg (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	29172
+Dictyostelium discoideum AX4	Dictyostelium discoideum	ddiscoideum	dicty_2.7	GO:MF, GO:CC, GO:BP, KEGG, REAC	352472
+Dinothrombium tinctorium	Dinothrombium tinctorium	dtinctorium	DtinU1	GO:MF, GO:CC, GO:BP	1965070
+Dioscorea cayenensis subsp. rotundata	Dioscorea rotundata	drotundata	TDr96_F1_v2_PseudoChromosome	GO:MF, GO:CC, GO:BP	55577
+Diploscapter coronatus	Diploscapter coronatus (PRJDB3143)	dicoroprjdb3143	ASM220778v1 (2018-02-WormBase)	GO:MF, GO:CC, GO:BP	288516
+Diploscapter pachys	Diploscapter pachys (PRJNA280107)	dipachprjna280107	DipSp1Ass11Ann3 (2018-01-WormBase)	GO:MF, GO:CC, GO:BP	2018661
+Dipodomys ordii	Kangaroo rat	dordii	Dord_2.0	GO:MF, GO:CC, GO:BP, HP	10020
+Dirofilaria immitis	Dirofilaria immitis (PRJEB1797)	diimmiprjeb1797	nDi.2.2 (2021-04-WormBase)	GO:MF, GO:CC, GO:BP	6287
+Ditylenchus destructor	Ditylenchus destructor (PRJNA312427)	didestprjna312427	ASM157970v1 (2017-01-WormBase)	GO:MF, GO:CC, GO:BP	166010
+Ditylenchus dipsaci	Ditylenchus dipsaci (PRJNA498219)	didipsprjna498219	D.dipsaci.v1.0 (2019-05-WormBase)	GO:MF, GO:CC, GO:BP	166011
+Diuraphis noxia	Diuraphis noxia (RWA2) - GCA_001186385.1	dngca001186385v1	Dnoxia_1.0	GO:MF, GO:CC, GO:BP	143948
+Dothistroma septosporum NZE10	Dothistroma septosporum	dseptosporum	Dothistroma septosporum NZE10 v1.0	GO:MF, GO:CC, GO:BP	675120
+Dracunculus medinensis	Dracunculus medinensis (PRJEB500)	drmediprjeb500	D_medinensis_Ghana_v2_0_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	318479
+Drosophila ananassae	Drosophila ananassae (TSC#14024-0371.13)	dananassae	dana_caf1	GO:MF, GO:CC, GO:BP, KEGG	7217
+Drosophila erecta	Drosophila erecta (TSC#14021-0224.01)	derecta	dere_caf1	GO:MF, GO:CC, GO:BP, KEGG	7220
+Drosophila grimshawi	Drosophila grimshawi (TSC#15287-2541.00)	dgrimshawi	dgri_caf1	GO:MF, GO:CC, GO:BP, KEGG	7222
+Drosophila melanogaster	Drosophila melanogaster	dmelanogaster	BDGP6.32	GO:MF, GO:CC, GO:BP, KEGG, TF, MIRNA, HP, WP	7227
+Drosophila mojavensis	Drosophila mojavensis (TSC#15081-1352.22)	dmojavensis	dmoj_caf1	GO:MF, GO:CC, GO:BP, KEGG	7230
+Drosophila persimilis	Drosophila persimilis (MSH-3)	dpersimilis	dper_caf1	GO:MF, GO:CC, GO:BP, KEGG	7234
+Drosophila pseudoobscura pseudoobscura	Drosophila pseudoobscura pseudoobscura (MV2-25)	dpseudoobscura	Dpse_3.0	GO:MF, GO:CC, GO:BP, KEGG	46245
+Drosophila sechellia	Drosophila sechellia (Rob3c)	dsechellia	dsec_caf1	GO:MF, GO:CC, GO:BP, KEGG	7238
+Drosophila simulans	Drosophila simulans (w501)	dsimulans	ASM75419v3	GO:MF, GO:CC, GO:BP, KEGG	7240
+Drosophila virilis	Drosophila virilis (TSC#15010-1051.87)	dvirilis	dvir_caf1	GO:MF, GO:CC, GO:BP, KEGG	7244
+Drosophila willistoni	Drosophila willistoni (TSC#14030-0811.24)	dwillistoni	dwil_caf1	GO:MF, GO:CC, GO:BP, KEGG	7260
+Drosophila yakuba	Drosophila yakuba (Tai18E2)	dyakuba	dyak_caf1	GO:MF, GO:CC, GO:BP, KEGG	7245
+Echinococcus canadensis	Echinococcus canadensis (PRJEB8992)	eccanaprjeb8992	ECANG7 (2017-05-WormBase)	GO:MF, GO:CC, GO:BP	519352
+Echinococcus granulosus	Echinococcus granulosus (PRJEB121)	ecgranprjeb121	EGRAN001 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6210
+Echinococcus granulosus	Echinococcus granulosus (PRJNA182977)	ecgranprjna182977	ASM52419v1 (2016-04-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6210
+Echinococcus multilocularis	Echinococcus multilocularis (PRJEB122)	ecmultprjeb122	EMULTI002 (2015-12-WormBase)	GO:MF, GO:CC, GO:BP	6211
+Echinococcus oligarthrus	Echinococcus oligarthrus (PRJEB31222)	ecoligprjeb31222	v2 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	6212
+Echinops telfairi	Lesser hedgehog tenrec	etelfairi	TENREC	GO:MF, GO:CC, GO:BP, HP	9371
+Echinostoma caproni	Echinostoma caproni (PRJEB1207)	eccaprprjeb1207	E_caproni_Egypt_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	27848
+Elaeophora elaphi	Elaeophora elaphi (PRJEB502)	elelapprjeb502	E_elaphi_v1_0_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	1147741
+Electrophorus electricus	Electric eel	eelectricus	Ee_SOAP_WITH_SSPACE	GO:MF, GO:CC, GO:BP, KEGG, HP	8005
+Emiliania huxleyi CCMP1516	Emiliania huxleyi	ehuxleyi	Emiliana huxleyi CCMP1516 main genome assembly v1.0	GO:MF, GO:CC, GO:BP, KEGG	280463
+Entamoeba histolytica HM-1:IMSS	Entamoeba histolytica	ehistolytica	JCVI-ESG2-1.0	GO:MF, GO:CC, GO:BP, KEGG	294381
+Enterobius vermicularis	Enterobius vermicularis (PRJEB503)	envermprjeb503	E_vermicularis_Canary_Islands_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	51028
+Eptatretus burgeri	Hagfish	eburgeri	Eburgeri_3.2	GO:MF, GO:CC, GO:BP, HP	7764
+Equus asinus asinus	Donkey	eaasinus	ASM303372v1	GO:MF, GO:CC, GO:BP, HP	83772
+Equus caballus	Horse	ecaballus	EquCab3.0	GO:MF, GO:CC, GO:BP, KEGG, HP, WP	9796
+Eragrostis curvula	Eragrostis curvula	ecurvula	CERZOS_E.curvula1.0	GO:MF, GO:CC, GO:BP	38414
+Eragrostis tef	Eragrostis tef	etef	ASM97063v1	GO:MF, GO:CC, GO:BP	110835
+Eremothecium gossypii ATCC 10895	Ashbya gossypii	agossypii	ASM9102v1	GO:MF, GO:CC, GO:BP, KEGG	284811
+Erinaceus europaeus	Hedgehog	eeuropaeus	eriEur1	GO:MF, GO:CC, GO:BP, HP	9365
+Erpetoichthys calabaricus	Reedfish	ecalabaricus	fErpCal1.1	GO:MF, GO:CC, GO:BP, HP	27687
+Esox lucius	Northern pike	elucius	Eluc_v4	GO:MF, GO:CC, GO:BP, KEGG, HP	8010
+Eucalyptus grandis	Eucalyptus grandis	egrandis	Egrandis1_0	GO:MF, GO:CC, GO:BP	71139
+Eutrema salsugineum	Eutrema salsugineum	esalsugineum	Eutsalg1_0	GO:MF, GO:CC, GO:BP	72664
+Fasciola gigantica	Fasciola gigantica (PRJNA230515)	fagigaprjna230515	F_gigantica_1.0.allpaths (2020-02-WormBase)	GO:MF, GO:CC, GO:BP	46835
+Fasciola hepatica	Fasciola hepatica (PRJEB25283)	fahepaprjeb25283	Fasciola_10x_pilon (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	6192
+Fasciola hepatica	Fasciola hepatica (PRJNA179522)	fahepaprjna179522	F_hepatica_1.0.allpaths.pg (2021-12-WormBase)	GO:MF, GO:CC, GO:BP	6192
+Fasciolopsis buski	Fasciolopsis buski (PRJNA284521)	fabuskprjna284521	F_buski_1.0.allpaths-lg (2021-12-WormBase)	GO:MF, GO:CC, GO:BP	27845
+Felis catus	Cat	fcatus	Felis_catus_9.0	GO:MF, GO:CC, GO:BP, KEGG, HP	9685
+Ficedula albicollis	Collared flycatcher	falbicollis	FicAlb1.5	GO:MF, GO:CC, GO:BP, KEGG, HP	59894
+Ficus carica	Ficus carica	fcarica	UNIPI_FiCari_1.0	GO:MF, GO:CC, GO:BP	3494
+Folsomia candida	Folsomia candida str. VU population	fcandida	ASM221717v1	GO:MF, GO:CC, GO:BP, KEGG	158441
+Fundulus heteroclitus	Mummichog	fheteroclitus	Fundulus_heteroclitus-3.0.2	GO:MF, GO:CC, GO:BP, HP	8078
+Fusarium culmorum CS7071	Fusarium culmorum UK99	fculmorum	EF 1	GO:MF, GO:CC, GO:BP	1318462
+Fusarium fujikuroi	Fusarium fujikuroi	ffujikuroi	EF 1	GO:MF, GO:CC, GO:BP	5127
+Fusarium graminearum	Fusarium graminearum str. PH-1	fgraminearum	RR1	GO:MF, GO:CC, GO:BP	5518
+Fusarium oxysporum f. sp. lycopersici 4287	Fusarium oxysporum	foxysporum	FO2	GO:MF, GO:CC, GO:BP, KEGG	426428
+Fusarium pseudograminearum CS3096	Fusarium pseudograminearum	fpseudograminearum	FP7	GO:MF, GO:CC, GO:BP, KEGG	1028729
+Fusarium vanettenii 77-13-4	Fusarium solani	fsolani	v2.0	GO:MF, GO:CC, GO:BP, KEGG	660122
+Fusarium verticillioides 7600	Fusarium verticillioides	fverticillioides	ASM14955v1	GO:MF, GO:CC, GO:BP, KEGG	334819
+Gadus morhua	Atlantic cod	gmorhua	gadMor3.0	GO:MF, GO:CC, GO:BP, HP	8049
+Gaeumannomyces tritici R3-111a-1	Gaeumannomyces tritici R3-111a-1	ggraminis	Gae_graminis_V2	GO:MF, GO:CC, GO:BP	644352
+Galdieria sulphuraria	Galdieria sulphuraria	gsulphuraria	ASM34128v1	GO:MF, GO:CC, GO:BP, KEGG	130081
+Galendromus occidentalis	Metaseiulus occidentalis (Western predatory mite) - GCA_000255335.1	mogca000255335v1	Mocc_1.0	GO:MF, GO:CC, GO:BP	34638
+Gallus gallus	Chicken (maternal Broiler)	ggallus	bGalGal1.mat.broiler.GRCg7b	GO:MF, GO:CC, GO:BP, KEGG, TF, MIRNA, HP, WP	9031
+Gasterosteus aculeatus	Stickleback	gaculeatus	BROAD S1	GO:MF, GO:CC, GO:BP, HP	69293
+Geospiza fortis	Medium ground-finch	gfortis	GeoFor_1.0	GO:MF, GO:CC, GO:BP, HP	48883
+Giardia lamblia ATCC 50803	Giardia lamblia	glamblia	GL2	GO:MF, GO:CC, GO:BP, KEGG	184922
+Gigantopelta aegis	Gigantopelta aegis (Deep sea snail, Gae_Host) - GCA_016097555.1	gagca016097555v1	Gae_host_genome	GO:MF, GO:CC, GO:BP	1735272
+Globisporangium irregulare DAOM BR486	Pythium irregulare	pirregulare	pir_scaffolds_v1	GO:MF, GO:CC, GO:BP	1223557
+Globisporangium iwayamae DAOM BR242034	Pythium iwayamai	piwayamai	piw_scaffolds_v1	GO:MF, GO:CC, GO:BP	1223558
+Globisporangium ultimum DAOM BR144	Globisporangium ultimum	gultimum	GCA000143045v1	GO:MF, GO:CC, GO:BP	431595
+Globisporangium ultimum DAOM BR144	Pythium ultimum	pultimum	pug	GO:MF, GO:CC, GO:BP	431595
+Globodera pallida	Globodera pallida (PRJEB123)	glpallprjeb123	GPAL001 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	36090
+Globodera rostochiensis	Globodera rostochiensis (L19PRJNA695196)	l19prjna695196	WUR_GloGros_L19 (2021-11-WormBase)	GO:MF, GO:CC, GO:BP	31243
+Globodera rostochiensis	Globodera rostochiensis (L22 PRJNA695196)	l22prjna695196	WUR_GloGros_L22 (2021-11-WormBase)	GO:MF, GO:CC, GO:BP	31243
+Globodera rostochiensis	Globodera rostochiensis (PRJEB13504)	glrostprjeb13504	nGr (2016-09-WormBase)	GO:MF, GO:CC, GO:BP	31243
+Glossina austeni	Glossina austeni	gausteni	GausT1	GO:MF, GO:CC, GO:BP	7395
+Glossina brevipalpis	Glossina brevipalpis	gbrevipalpis	GbreI1	GO:MF, GO:CC, GO:BP	37001
+Glossina fuscipes	Glossina fuscipes (IAEA_lab_2018)	gfuscipes	Yale_Gfus_2	GO:MF, GO:CC, GO:BP	7396
+Glossina morsitans morsitans	Glossina morsitans	gmorsitans	GmorY1	GO:MF, GO:CC, GO:BP	37546
+Glossina pallidipes	Glossina pallidipes	gpallidipes	GpalI1	GO:MF, GO:CC, GO:BP	7398
+Glossina palpalis gambiensis	Glossina palpalis	gpalpalis	GpapI1	GO:MF, GO:CC, GO:BP	67801
+Glycine max	Glycine max	gmax	Glycine_max_v2.1	GO:MF, GO:CC, GO:BP, KEGG	3847
+Gongylonema pulchrum	Gongylonema pulchrum (PRJEB505)	gopulcprjeb505	G_pulchrum_Hokkaido_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	637853
+Gopherus evgoodei	Goodes thornscrub tortoise	gevgoodei	rGopEvg1_v1.p	GO:MF, GO:CC, GO:BP, HP	1825980
+Gorilla gorilla gorilla	Gorilla	ggorilla	gorGor4	GO:MF, GO:CC, GO:BP, KEGG, HP	9595
+Gossypium raimondii	Gossypium raimondii	graimondii	Graimondii2_0_v6	GO:MF, GO:CC, GO:BP, KEGG	29730
+Guillardia theta CCMP2712	Guillardia theta CCMP2712	gtheta	Guith1	GO:MF, GO:CC, GO:BP, KEGG	905079
+Gyrodactylus bullatarudis	Gyrodactylus bullatarudis (PRJNA532341)	gybullprjna532341	ASM1206441v1 (2022-02-WormBase)	GO:MF, GO:CC, GO:BP	82660
+Gyrodactylus salaris	Gyrodactylus salaris (PRJNA244375)	gysalaprjna244375	Gsalaris_v1 (2016-09-WormBase)	GO:MF, GO:CC, GO:BP	37629
+Haemaphysalis longicornis	Haemaphysalis longicornis (HaeL-2018)	hlgca013339765v1	GCA013339765v1	GO:MF, GO:CC, GO:BP	44386
+Haemonchus contortus	Haemonchus contortus (PRJEB506)	hacontprjeb506	haemonchus_contortus_MHCO3ISE_4.0 (2021-04-WormBase)	GO:MF, GO:CC, GO:BP	6289
+Haemonchus contortus	Haemonchus contortus (PRJNA205202)	hacontprjna205202	Hco_v4_coding_submitted (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6289
+Haemonchus placei	Haemonchus placei (PRJEB509)	haplacprjeb509	H_placei_MHpl1_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6290
+Halicephalobus sp. NKZ332	Halicephalobus nkz332 (PRJNA555616)	hankz3prjna555616	ASM976126v1 (2021-12-WormBase)	GO:MF, GO:CC, GO:BP	2598192
+Halicephalobus sp. WB-2010a	Halicephalobus mephisto (PRJNA528747)	hamephprjna528747	SWDT01000000 (2019-05-WormBase)	GO:MF, GO:CC, GO:BP	703951
+Haplochromis burtoni	Burton's mouthbrooder	hburtoni	AstBur1.0	GO:MF, GO:CC, GO:BP, HP	8153
+Helianthus annuus	Helianthus annuus	hannuus	HanXRQr2.0-SUNRISE	GO:MF, GO:CC, GO:BP, KEGG	4232
+Heliconius melpomene	Heliconius melpomene	hmelpomene	Hmel1	GO:MF, GO:CC, GO:BP	34740
+Heligmosomoides polygyrus	Heligmosomoides polygyrus (PRJEB1203)	hepolyprjeb1203	H_bakeri_Edinburgh_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6339
+Heligmosomoides polygyrus	Heligmosomoides polygyrus (PRJEB15396)	hepolyprjeb15396	nHp_v2.0 (2016-09-WormBase)	GO:MF, GO:CC, GO:BP	6339
+Helobdella robusta	Helobdella robusta	hrobusta	Helro1	GO:MF, GO:CC, GO:BP, KEGG	6412
+Hermetia illucens	Hermetia illucens (Black soldier fly) - GCA_905115235.1	higca905115235v1	GCA905115235v1	GO:MF, GO:CC, GO:BP	343691
+Heterocephalus glaber	Naked mole-rat female	hgfemale	HetGla_female_1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	10181
+Heterodera glycines	Heterodera glycines (PRJNA381081)	heglycprjna381081	ASM414822v2 (2021-12-WormBase)	GO:MF, GO:CC, GO:BP	51029
+Heterodera schachtii	Heterodera schachtii (PRJNA722882)	heschaprjna722882	Hsch_Bonn_V1.0 (2021-10-WormBase)	GO:MF, GO:CC, GO:BP	97005
+Heterorhabditis bacteriophora	Heterorhabditis bacteriophora (PRJNA13977)	hebactprjna13977	Heterorhabditis_bacteriophora-7.0 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	37862
+Hippocampus comes	Tiger tail seahorse	hcomes	H_comes_QL1_v1	GO:MF, GO:CC, GO:BP, KEGG, HP	109280
+Histoplasma capsulatum	Histoplasma capsulatum	hcapsulatum	GCA000170615v1	GO:MF, GO:CC, GO:BP	5037
+Hofstenia miamia	Hofstenia miamia	hmiamia	HmiaM1	GO:MF, GO:CC, GO:BP	442651
+Homo sapiens	Human	hsapiens	GRCh38.p13	GO:MF, GO:CC, GO:BP, KEGG, REAC, TF, MIRNA, HPA, CORUM, HP, WP	9606
+Hordeum vulgare subsp. vulgare	Hordeum vulgare GoldenPromise	hvgoldenpromise	GPv1	GO:MF, GO:CC, GO:BP	112509
+Hordeum vulgare subsp. vulgare	Hordeum vulgare	hvulgare	MorexV3_pseudomolecules_assembly	GO:MF, GO:CC, GO:BP	112509
+Hordeum vulgare subsp. vulgare	Hordeum vulgare TRITEX	hvtritex	Morex_V2_scaf	GO:MF, GO:CC, GO:BP	112509
+Hucho hucho	Huchen	hhucho	ASM331708v1	GO:MF, GO:CC, GO:BP, HP	62062
+Hyalomma asiaticum	Hyalomma asiaticum (Hyas-2018)	hagca013339685v1	GCA013339685v1	GO:MF, GO:CC, GO:BP	266040
+Hyaloperonospora arabidopsidis Emoy2	Hyaloperonospora arabidopsidis	harabidopsidis	HyaAraEmoy2_2.0	GO:MF, GO:CC, GO:BP	559515
+Hydatigera taeniaeformis	Hydatigera taeniaeformis (PRJEB534)	hytaenprjeb534	H_taeniaeformis_Canary_Islands_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6205
+Hydra vulgaris	Hydra vulgaris (Swiftwater hydra, 105) - GCA_000004095.1	hvgca000004095v1	GCA000004095v1	GO:MF, GO:CC, GO:BP	6087
+Hymenolepis diminuta	Hymenolepis diminuta (PRJEB30942)	hydimiprjeb30942	H.diminuta_WMSil1 (2020-04-WormBase)	GO:MF, GO:CC, GO:BP	6216
+Hymenolepis diminuta	Hymenolepis diminuta (PRJEB507)	hydimiprjeb507	H_diminuta_Denmark_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6216
+Hymenolepis microstoma	Hymenolepis microstoma (PRJEB124)	hmicrostoma	HMN_v3	GO:MF, GO:CC, GO:BP	85433
+Hymenolepis microstoma	Hymenolepis microstoma (PRJEB124)	hymicrprjeb124	HMN_v3 (2018-10-WormBase)	GO:MF, GO:CC, GO:BP	85433
+Ictalurus punctatus	Channel catfish	ipunctatus	IpCoco_1.2	GO:MF, GO:CC, GO:BP, KEGG, HP	7998
+Ictidomys tridecemlineatus	Squirrel	itridecemlineatus	SpeTri2.0	GO:MF, GO:CC, GO:BP, HP	43179
+Ipomoea triloba	Ipomoea triloba	itriloba	ASM357664v1	GO:MF, GO:CC, GO:BP	35885
+Ixodes persulcatus	Ixodes persulcatus (Iper-2018)	ipgca013358835v1	BIME_Iper_1.3	GO:MF, GO:CC, GO:BP	34615
+Ixodes scapularis	Ixodes scapularis (ISE6)	isise6	IscaI1	GO:MF, GO:CC, GO:BP, KEGG	6945
+Ixodes scapularis	Ixodes scapularis	iscapularis	IscaW1	GO:MF, GO:CC, GO:BP, KEGG	6945
+Ixodes scapularis	Ixodes scapularis (PalLabHiFi)	isgca016920785v2	GCA016920785v2	GO:MF, GO:CC, GO:BP	6945
+Jaculus jaculus	Lesser Egyptian jerboa	jjaculus	JacJac1.0	GO:MF, GO:CC, GO:BP, HP	51337
+Juglans regia	Juglans regia	jregia	Walnut_2.0	GO:MF, GO:CC, GO:BP	51240
+Kalanchoe fedtschenkoi	Kalanchoe fedtschenkoi	kfedtschenkoi	K_fedtschenkoi_M2_v1	GO:MF, GO:CC, GO:BP	63787
+Komagataella phaffii GS115	Komagataella pastoris	kpastoris	ASM2700v1	GO:MF, GO:CC, GO:BP, KEGG	644223
+Kryptolebias marmoratus	Mangrove rivulus	kmarmoratus	ASM164957v1	GO:MF, GO:CC, GO:BP, HP	37003
+Labrus bergylta	Ballan wrasse	lbergylta	BallGen_V1	GO:MF, GO:CC, GO:BP, HP	56723
+Lactuca sativa	Lactuca sativa	lsativa	Lsat_Salinas_v7	GO:MF, GO:CC, GO:BP	4236
+Larimichthys crocea	Large yellow croaker	lcrocea	L_crocea_2.0	GO:MF, GO:CC, GO:BP, KEGG, HP	215358
+Lates calcarifer	Barramundi perch	lcalcarifer	ASB_HGAPassembly_v1	GO:MF, GO:CC, GO:BP, KEGG, HP	8187
+Laticauda laticaudata	Blue-ringed sea krait	llaticaudata	latLat_1.0	GO:MF, GO:CC, GO:BP, HP	8630
+Latimeria chalumnae	Coelacanth	lchalumnae	LatCha1	GO:MF, GO:CC, GO:BP, KEGG, HP	7897
+Leersia perrieri	Leersia perrieri	lperrieri	Lperr_V1.4	GO:MF, GO:CC, GO:BP	77586
+Leishmania major strain Friedlin	Leishmania major	lmajor	ASM272v2	GO:MF, GO:CC, GO:BP, KEGG	347515
+Lepeophtheirus salmonis	Lepeophtheirus salmonis	lsalmonis	LSalAtl2s	GO:MF, GO:CC, GO:BP	72036
+Lepisosteus oculatus	Spotted gar	loculatus	LepOcu1	GO:MF, GO:CC, GO:BP, HP	7918
+Leptinotarsa decemlineata	Leptinotarsa decemlineata (Colorado potato beetle, Imidocloprid resistant) - GCA_000500325.2	ldgca000500325v2	Ldec_2.0	GO:MF, GO:CC, GO:BP	7539
+Leptobrachium leishanense	Leishan spiny toad	lleishanense	ASM966780v1	GO:MF, GO:CC, GO:BP, HP	445787
+Leptosphaeria maculans JN3	Leptosphaeria maculans	lmaculans	ASM23037v1	GO:MF, GO:CC, GO:BP	985895
+Leptotrombidium deliense	Leptotrombidium deliense	ldeliense	LdelU1	GO:MF, GO:CC, GO:BP	299467
+Limulus polyphemus	Limulus polyphemus (Atlantic horseshoe crab) - GCA_000517525.1	lpgca000517525v1	Limulus_polyphemus_2.1.2	GO:MF, GO:CC, GO:BP	6850
+Lingula anatina	Lingula anatina	lanatina	LinAna1.0	GO:MF, GO:CC, GO:BP, KEGG	7574
+Litomosoides sigmodontis	Litomosoides sigmodontis (PRJEB3075)	lisigmprjeb3075	ASM90053727v1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	42156
+Loa loa	Loa loa	lloa	Loa_loa_V3	GO:MF, GO:CC, GO:BP, KEGG	7209
+Loa loa	Loa loa (PRJNA24608)	loloaprjna246086	LLoa-hgap-1 (2015-06-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	7209
+Loa loa	Loa loa (PRJNA37757)	loloaprjna37757	Loa_loa_V3 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	7209
+Lottia gigantea	Lottia gigantea	lgigantea	Lotgi1	GO:MF, GO:CC, GO:BP, KEGG	225164
+Loxodonta africana	Elephant	lafricana	Loxafr3.0	GO:MF, GO:CC, GO:BP, KEGG, HP	9785
+Lucilia cuprina	Lucilia cuprina	lcuprina	ASM118794v1	GO:MF, GO:CC, GO:BP, KEGG	7375
+Lupinus angustifolius	Lupinus angustifolius	langustifolius	LupAngTanjil_v1.0	GO:MF, GO:CC, GO:BP, KEGG	3871
+Lutzomyia longipalpis	Lutzomyia longipalpis	llongipalpis	LlonJ1	GO:MF, GO:CC, GO:BP	7200
+Lytechinus variegatus	Lytechinus variegatus (Green sea urchin, NC3) - GCA_018143015.1	lvgca018143015v1	Lvar_3.0	GO:MF, GO:CC, GO:BP	7654
+Macaca fascicularis	Crab-eating macaque	mfascicularis	Macaca_fascicularis_6.0	GO:MF, GO:CC, GO:BP, KEGG, HP	9541
+Macaca mulatta	Macaque	mmulatta	Mmul_10	GO:MF, GO:CC, GO:BP, KEGG, HP	9544
+Macaca nemestrina	Pig-tailed macaque	mnemestrina	Mnem_1.0	GO:MF, GO:CC, GO:BP, HP	9545
+Macrostomum lignano	Macrostomum lignano (PRJNA284736)	malignprjna284736	ML2 (2016-02-WormBase)	GO:MF, GO:CC, GO:BP	282301
+Macrostomum lignano	Macrostomum lignano (PRJNA371498)	malignprjna371498	Mlig_3_7 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	282301
+Magnaporthiopsis poae ATCC 64411	Magnaporthe poae	mpoae	Mag_poae_ATCC_64411_V1	GO:MF, GO:CC, GO:BP	644358
+Malus domestica	Malus domestica Golden	mdgolden	ASM211411v1	GO:MF, GO:CC, GO:BP, KEGG	3750
+Mandrillus leucophaeus	Drill	mleucophaeus	Mleu.le_1.0	GO:MF, GO:CC, GO:BP, HP	9568
+Manihot esculenta	Manihot esculenta	mesculenta	Manihot esculenta v6	GO:MF, GO:CC, GO:BP, KEGG	3983
+Marchantia polymorpha	Marchantia polymorpha	mpolymorpha	Marchanta_polymorpha_v1	GO:MF, GO:CC, GO:BP	3197
+Marmota marmota marmota	Alpine marmot	mmmarmota	marMar2.1	GO:MF, GO:CC, GO:BP, HP	9994
+Mastacembelus armatus	Zig-zag eel	marmatus	fMasArm1.2	GO:MF, GO:CC, GO:BP, HP	205130
+Mayetiola destructor	Mayetiola destructor	mdestructor	Mdes_1.0	GO:MF, GO:CC, GO:BP	39758
+Maylandia zebra	Zebra mbuna	mzebra	M_zebra_UMD2a	GO:MF, GO:CC, GO:BP, KEGG, HP	106582
+Medicago truncatula	Medicago truncatula	mtruncatula	MedtrA17_4.0	GO:MF, GO:CC, GO:BP, KEGG	3880
+Megaselia scalaris	Megaselia scalaris	mscalaris	Msca1	GO:MF, GO:CC, GO:BP	36166
+Melampsora larici-populina 98AG31	Melampsora larici-populina	mlaricipopulina	v1.0	GO:MF, GO:CC, GO:BP, KEGG	747676
+Meleagris gallopavo	Turkey	mgallopavo	Turkey_5.1	GO:MF, GO:CC, GO:BP, KEGG, HP	9103
+Melitaea cinxia	Melitaea cinxia	mcinxia	MelCinx1.0	GO:MF, GO:CC, GO:BP	113334
+Meloidogyne arenaria	Meloidogyne arenaria (PRJEB8714)	mearenprjeb8714	ASM90000398v1 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	6304
+Meloidogyne arenaria	Meloidogyne arenaria (PRJNA340324)	mearenprjna340324	ASM369356v1 (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	6304
+Meloidogyne arenaria	Meloidogyne arenaria (PRJNA438575)	mearenprjna438575	ASM313380v1 (2018-08-WormBase)	GO:MF, GO:CC, GO:BP	6304
+Meloidogyne enterolobii	Meloidogyne enterolobii (PRJNA340324)	meenteprjna340324	ASM369367v1 (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	390850
+Meloidogyne floridensis	Meloidogyne floridensis (PRJEB6016)	meflorprjeb6016	nMf_1_1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	298350
+Meloidogyne floridensis	Meloidogyne floridensis (PRJNA340324)	meflorprjna340324	ASM369360v1 (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	298350
+Meloidogyne graminicola	Meloidogyne graminicola (PRJNA411966)	megramprjna411966	Mgraminicola_V1 (2018-09-WormBase)	GO:MF, GO:CC, GO:BP	189291
+Meloidogyne hapla	Meloidogyne hapla (PRJNA29083)	mehaplprjna29083	Freeze_1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6305
+Meloidogyne incognita	Meloidogyne incognita (PRJEB8714)	meincoprjeb8714	Meloidogyne_incognita_V3 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	6306
+Meloidogyne incognita	Meloidogyne incognita (PRJNA340324)	meincoprjna340324	ASM369364v1 (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	6306
+Meloidogyne javanica	Meloidogyne javanica (PRJEB8714)	mejavaprjeb8714	ASM90000394v1 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	6303
+Meloidogyne javanica	Meloidogyne javanica (PRJNA340324)	mejavaprjna340324	ASM369362v1 (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	6303
+Mesocestoides corti	Mesocestoides corti (PRJEB510)	mecortprjeb510	M_corti_Specht_Voge_0011_upd (2019-06-WormBase)	GO:MF, GO:CC, GO:BP	53468
+Mesocricetus auratus	Golden Hamster	mauratus	MesAur1.0	GO:MF, GO:CC, GO:BP, HP	10036
+Mesorhabditis belari	Mesorhabditis belari (PRJEB30104)	mebelaprjeb30104	M.Belari Hybrid genome (2019-05-WormBase)	GO:MF, GO:CC, GO:BP	2138241
+Micoletzkya japonica	Micoletzkya japonica (PRJEB27334)	mijapoprjeb27334	Micoletzkya japonica genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1250332
+Microbotryum lychnidis-dioicae p1A1 Lamole	Microbotryum violaceum	mviolaceum	M_violaceum_V1	GO:MF, GO:CC, GO:BP	683840
+Microcebus murinus	Mouse Lemur	mmurinus	Mmur_3.0	GO:MF, GO:CC, GO:BP, HP	30608
+Microtus ochrogaster	Prairie vole	mochrogaster	MicOch1.0	GO:MF, GO:CC, GO:BP, HP	79684
+Mnemiopsis leidyi	Mnemiopsis leidyi	mleidyi	MneLei_Aug2011	GO:MF, GO:CC, GO:BP	27923
+Monodelphis domestica	Opossum	mdomestica	ASM229v1	GO:MF, GO:CC, GO:BP, KEGG, HP	13616
+Monodon monoceros	Narwhal	mmonoceros	NGI_Narwhal_1	GO:MF, GO:CC, GO:BP, HP	40151
+Monomorium pharaonis	Monomorium pharaonis (Pharaoh ant, MP-MQ-018) - GCA_013373865.2	mpgca013373865v2	GCA013373865v2	GO:MF, GO:CC, GO:BP	307658
+Moschus moschiferus	Siberian musk deer	mmoschiferus	MosMos_v2_BIUU_UCD	GO:MF, GO:CC, GO:BP, HP	68415
+Musa acuminata subsp. malaccensis	Musa acuminata	macuminata	Musa_acuminata_v2	GO:MF, GO:CC, GO:BP, KEGG	214687
+Mus caroli	Ryukyu mouse	mcaroli	CAROLI_EIJ_v1.1	GO:MF, GO:CC, GO:BP, KEGG, HP	10089
+Mus musculus	Mouse	mmusculus	GRCm39	GO:MF, GO:CC, GO:BP, KEGG, REAC, TF, MIRNA, CORUM, HP, WP	10090
+Mus pahari	Shrew mouse	mpahari	PAHARI_EIJ_v1.1	GO:MF, GO:CC, GO:BP, KEGG, HP	10093
+Mus spicilegus	Steppe mouse	mspicilegus	MUSP714	GO:MF, GO:CC, GO:BP, HP	10103
+Mus spretus	Algerian mouse	mspretus	SPRET_EiJ_v1	GO:MF, GO:CC, GO:BP, HP	10096
+Mustela putorius furo	Ferret	mpfuro	MusPutFur1.0	GO:MF, GO:CC, GO:BP, HP	9669
+Myotis lucifugus	Microbat	mlucifugus	Myoluc2.0	GO:MF, GO:CC, GO:BP, HP	59463
+Myripristis murdjan	Pinecone soldierfish	mmurdjan	fMyrMur1.1	GO:MF, GO:CC, GO:BP, HP	586833
+Naja naja	Indian cobra	nnaja	Nana_v5	GO:MF, GO:CC, GO:BP, HP	35670
+Nannospalax galili	Upper Galilee mountains blind mole rat	ngalili	S.galili_v1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	1026970
+Nasonia vitripennis	Nasonia vitripennis (AsymCx)	nvitripennis	Nvit_psr_1.1	GO:MF, GO:CC, GO:BP, KEGG	7425
+Necator americanus	Necator americanus (PRJNA72135)	namericanus	N_americanus_v1	GO:MF, GO:CC, GO:BP	51031
+Necator americanus	Necator americanus (PRJNA72135)	neamerprjna72135	N__americanus_v1 (2021-11-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	51031
+Nematostella vectensis	Nematostella vectensis	nvectensis	ASM20922v1	GO:MF, GO:CC, GO:BP, KEGG	45351
+Neogale vison	American mink	nvison	NNQGG.v01	GO:MF, GO:CC, GO:BP, HP	452646
+Neolamprologus brichardi	Lyretail cichlid	nbrichardi	NeoBri1.0	GO:MF, GO:CC, GO:BP, HP	32507
+Neurospora crassa OR74A	Neurospora crassa	ncrassa	NC12	GO:MF, GO:CC, GO:BP, KEGG	367110
+Nicotiana attenuata	Nicotiana attenuata	nattenuata	NIATTr2	GO:MF, GO:CC, GO:BP, KEGG	49451
+Nippostrongylus brasiliensis	Nippostrongylus brasiliensis (PRJEB511)	nibrasprjeb511	N_brasiliensis_RM07_v1_5_4_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	27835
+Nomascus leucogenys	Gibbon	nleucogenys	Nleu_3.0	GO:MF, GO:CC, GO:BP, KEGG, HP	61853
+Notamacropus eugenii	Wallaby	neugenii	Meug_1.0	GO:MF, GO:CC, GO:BP, HP	9315
+Notechis scutatus	Mainland tiger snake	nscutatus	TS10Xv2-PRI	GO:MF, GO:CC, GO:BP, HP	8663
+Nothobranchius furzeri	Turquoise killifish	nfurzeri	Nfu_20140520	GO:MF, GO:CC, GO:BP, HP	105023
+Nymphaea colorata	Nymphaea colorata	ncolorata	ASM883128v1	GO:MF, GO:CC, GO:BP	210225
+Ochotona princeps	Pika	oprinceps	OchPri2.0-Ens	GO:MF, GO:CC, GO:BP, HP	9978
+Octodon degus	Degu	odegus	OctDeg1.0	GO:MF, GO:CC, GO:BP, HP	10160
+Octopus bimaculoides	Octopus bimaculoides	obimaculoides	PRJNA270931	GO:MF, GO:CC, GO:BP, KEGG	37653
+Oesophagostomum dentatum	Oesophagostomum dentatum (PRJNA72579)	oedentprjna72579	O_dentatum_10.0.ec.cg.pg (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	61180
+Olea europaea subsp. europaea	Olea europaea	oeuropaea	OLEA9	GO:MF, GO:CC, GO:BP	158383
+Olea europaea var. sylvestris	Olea europaea var. sylvestris	oesylvestris	O_europaea_v1	GO:MF, GO:CC, GO:BP, KEGG	158386
+Onchocerca flexuosa	Onchocerca flexuosa (PRJEB512)	onflexprjeb512	O_flexuosa_Cordoba_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	387005
+Onchocerca flexuosa	Onchocerca flexuosa (PRJNA230512)	onflexprjna230512	O_flexuosa_1.0.allpaths.pg.lrna (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	387005
+Onchocerca ochengi	Onchocerca ochengi (PRJEB1204)	onocheprjeb1204	O_ochengi_Ngaoundere (2016-04-WormBase)	GO:MF, GO:CC, GO:BP	42157
+Onchocerca ochengi	Onchocerca ochengi (PRJEB1465)	onocheprjeb1465	ASM90053720v1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	42157
+Onchocerca volvulus	Onchocerca volvulus (PRJEB513)	ovolvulus	ASM49940v2	GO:MF, GO:CC, GO:BP	6282
+Onchocerca volvulus	Onchocerca volvulus (PRJEB513) [WS282]	onvolvprjeb513	ASM49940v2 (WS279)	GO:MF, GO:CC, GO:BP	6282
+Oncorhynchus kisutch	Coho salmon	okisutch	Okis_V2	GO:MF, GO:CC, GO:BP, HP	8019
+Oncorhynchus mykiss	Rainbow trout	omykiss	USDA_OmykA_1.1	GO:MF, GO:CC, GO:BP, HP	8022
+Oncorhynchus tshawytscha	Chinook salmon	otshawytscha	Otsh_v1.0	GO:MF, GO:CC, GO:BP, HP	74940
+Onthophagus taurus	Onthophagus taurus (Dung beetle) - GCA_000648695.2	otgca000648695v2	Otau_2.0	GO:MF, GO:CC, GO:BP	166361
+Ooceraea biroi	Ooceraea biroi (Clonal raider ant, clonal line C1) - GCA_003672135.1	obgca003672135v1	Obir_v5.4	GO:MF, GO:CC, GO:BP	2015173
+Opisthorchis felineus	Opisthorchis felineus (PRJNA413383)	opfeliprjna413383	ICG_Ofel_1.0 (2019-05-WormBase)	GO:MF, GO:CC, GO:BP	147828
+Opisthorchis viverrini	Opisthorchis viverrini (PRJNA222628)	opviveprjna222628	OpiViv1.0 (2019-02-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6198
+Orbicella faveolata	Orbicella faveolata (Mountainous star coral, FL) - GCA_002042975.1	ofgca002042975v1	ofav_dov_v1	GO:MF, GO:CC, GO:BP	48498
+Orchesella cincta	Orchesella cincta	ocincta	ASM171814v1	GO:MF, GO:CC, GO:BP	48709
+Oreochromis niloticus	Nile tilapia	oniloticus	O_niloticus_UMD_NMBU	GO:MF, GO:CC, GO:BP, KEGG, HP	8128
+Ornithorhynchus anatinus	Platypus	oanatinus	mOrnAna1.p.v1	GO:MF, GO:CC, GO:BP, KEGG, HP	9258
+Orussus abietinus	Orussus abietinus (Parasitic wood wasp, OABI.00-Male) - GCA_000612105.2	oagca000612105v2	Oabi_2.0	GO:MF, GO:CC, GO:BP	222816
+Oryctolagus cuniculus	Rabbit	ocuniculus	OryCun2.0	GO:MF, GO:CC, GO:BP, KEGG, HP	9986
+Oryza barthii	Oryza barthii	obarthii	O.barthii_v1	GO:MF, GO:CC, GO:BP	65489
+Oryza brachyantha	Oryza brachyantha	obrachyantha	Oryza_brachyantha.v1.4b	GO:MF, GO:CC, GO:BP, KEGG	4533
+Oryza glaberrima	Oryza glaberrima	oglaberrima	Oryza_glaberrima_V1	GO:MF, GO:CC, GO:BP	4538
+Oryza glumipatula	Oryza glumipatula	oglumipatula	Oryza_glumaepatula_v1.5	GO:MF, GO:CC, GO:BP	40148
+Oryza longistaminata	Oryza longistaminata	olongistaminata	O_longistaminata_v1.0	GO:MF, GO:CC, GO:BP	4528
+Oryza meridionalis	Oryza meridionalis	omeridionalis	Oryza_meridionalis_v1.3	GO:MF, GO:CC, GO:BP	40149
+Oryza nivara	Oryza nivara	onivara	Oryza_nivara_v1.0	GO:MF, GO:CC, GO:BP	4536
+Oryza punctata	Oryza punctata	opunctata	Oryza_punctata_v1.2	GO:MF, GO:CC, GO:BP	4537
+Oryza rufipogon	Oryza rufipogon	orufipogon	OR_W1943	GO:MF, GO:CC, GO:BP	4529
+Oryza sativa Indica Group	Oryza sativa Indica Group	oindica	ASM465v1	GO:MF, GO:CC, GO:BP	39946
+Oryza sativa Japonica Group	Oryza sativa Japonica Group	osativa	IRGSP-1.0	GO:MF, GO:CC, GO:BP, KEGG, MIRNA	39947
+Oryzias javanicus	Javanese ricefish	ojavanicus	OJAV_1.1	GO:MF, GO:CC, GO:BP, HP	123683
+Oryzias latipes	Japanese medaka HdrR	olatipes	ASM223467v1	GO:MF, GO:CC, GO:BP, KEGG, MIRNA, HP	8090
+Oryzias melastigma	Indian medaka	omelastigma	Om_v0.7.RACA	GO:MF, GO:CC, GO:BP, HP	30732
+Oryzias sinensis	Chinese medaka	osinensis	ASM858656v1	GO:MF, GO:CC, GO:BP, HP	183150
+Oscheius tipulae	Oscheius tipulae (PRJEB15512)	ostipuprjeb15512	Oscheius_tipulae_assembly_v2 (2018-05-WormBase)	GO:MF, GO:CC, GO:BP	141969
+Oscheius tipulae	Oscheius tipulae (PRJNA644888)	ostipuprjna644888	ASM1342590v1 (2021-03-WormBase)	GO:MF, GO:CC, GO:BP	141969
+Ostreococcus lucimarinus CCE9901	Ostreococcus lucimarinus	olucimarinus	ASM9206v1	GO:MF, GO:CC, GO:BP, KEGG	436017
+Otolemur garnettii	Bushbaby	ogarnettii	OtoGar3	GO:MF, GO:CC, GO:BP, HP	30611
+Ovis aries	Sheep	oarambouillet	Oar_rambouillet_v1.0	GO:MF, GO:CC, GO:BP, HP	9940
+Ovis aries	Sheep (texel)	oaries	Oar_v3.1	GO:MF, GO:CC, GO:BP, KEGG, MIRNA	9940
+Panagrellus redivivus	Panagrellus redivivus (PRJNA186477)	parediprjna186477	Pred3 (2013-09-Caltech)	GO:MF, GO:CC, GO:BP	6233
+Panagrolaimus davidi	Panagrolaimus davidi (PRJEB32708)	padaviprjeb32708	PDA_v2 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	227884
+Panagrolaimus sp. ES5	Panagrolaimus es5 (PRJEB32708)	paes5prjeb32708	ES5_v2 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	591445
+Panagrolaimus sp. JU765	Propanagrolaimus ju765 (PRJEB32708)	prju76prjeb32708	JU765_v2 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	591449
+Panagrolaimus sp. PS1159	Panagrolaimus ps1159 (PRJEB32708)	paps11prjeb32708	PS1159_v2 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	55785
+Panagrolaimus superbus	Panagrolaimus superbus (PRJEB32708)	pasupeprjeb32708	PSU_v2 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	310955
+Panicum hallii	Panicum hallii FIL2	phfil2	PHallii_v3.1	GO:MF, GO:CC, GO:BP	206008
+Panicum hallii var. hallii	Panicum hallii HAL2	phallii	PhalliiHAL_v2.1	GO:MF, GO:CC, GO:BP	1504633
+Pan paniscus	Bonobo	ppaniscus	panpan1.1	GO:MF, GO:CC, GO:BP, KEGG, HP	9597
+Panthera leo	Lion	pleo	PanLeo1.0	GO:MF, GO:CC, GO:BP, HP	9689
+Panthera pardus	Leopard	ppardus	PanPar1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	9691
+Panthera tigris altaica	Tiger	ptaltaica	PanTig1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	74533
+Pan troglodytes	Chimpanzee	ptroglodytes	Pan_tro_3.0	GO:MF, GO:CC, GO:BP, KEGG, TF, HP, WP	9598
+Papaver somniferum	Papaver somniferum	psomniferum	ASM357369v1	GO:MF, GO:CC, GO:BP	3469
+Papio anubis	Olive baboon	panubis	Panubis1.0	GO:MF, GO:CC, GO:BP, HP	9555
+Paragonimus westermani	Paragonimus westermani (PRJNA454344)	pawestprjna454344	ASM850834v1 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	34504
+Paramecium tetraurelia	Paramecium tetraurelia	ptetraurelia	ASM16542v1	GO:MF, GO:CC, GO:BP	5888
+Paramormyrops kingsleyae	Paramormyrops kingsleyae	pkingsleyae	PKINGS_0.1	GO:MF, GO:CC, GO:BP, HP	1676925
+Parapristionchus giblindavisi	Parapristionchus giblindavisi (PRJEB27334)	pagiblprjeb27334	Parapristionchus genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1187980
+Parascaris equorum	Parascaris equorum (PRJEB514)	paequoprjeb514	P_equorum_v1_0_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6256
+Parascaris univalens	Parascaris univalens (PRJNA386823)	paunivprjna386823	ASM225920v1 (2020-05-WormBase)	GO:MF, GO:CC, GO:BP	6257
+Parastagonospora nodorum SN15	Phaeosphaeria nodorum	pnodorum	ASM14691v1	GO:MF, GO:CC, GO:BP, KEGG	321614
+Parasteatoda tepidariorum	Parasteatoda tepidariorum (Goettingen) - GCA_000365465.3	ptgca000365465v3	Ptep_3.0	GO:MF, GO:CC, GO:BP	114398
+Parastrongyloides trichosuri	Parastrongyloides trichosuri (PRJEB515)	patricprjeb515	P_trichosuri_KNP (2015-05-WormBase)	GO:MF, GO:CC, GO:BP	131310
+Parus major	Great Tit	pmajor	Parus_major1.1	GO:MF, GO:CC, GO:BP, HP	9157
+Pediculus humanus corporis	Pediculus humanus	phumanus	PhumU2	GO:MF, GO:CC, GO:BP, KEGG	121224
+Pelodiscus sinensis	Chinese softshell turtle	psinensis	PelSin_1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	13735
+Penaeus monodon	Penaeus monodon (SGIC_2016) - GCA_015228065.1	pmgca015228065v1	NSTDA_Pmon_1	GO:MF, GO:CC, GO:BP	6687
+Peromyscus maniculatus bairdii	Northern American deer mouse	pmbairdii	HU_Pman_2.1	GO:MF, GO:CC, GO:BP, HP	230844
+Petromyzon marinus	Lamprey	pmarinus	Pmarinus_7.0	GO:MF, GO:CC, GO:BP, HP	7757
+Phaeodactylum tricornutum CCAP 1055/1	Phaeodactylum tricornutum	ptricornutum	ASM15095v2	GO:MF, GO:CC, GO:BP, KEGG	556484
+Phanerochaete chrysosporium RP-78	Phanerochaete chrysosporium	pchrysosporium	GCA000167175v1	GO:MF, GO:CC, GO:BP	273507
+Phascolarctos cinereus	Koala	pcinereus	phaCin_unsw_v4.1	GO:MF, GO:CC, GO:BP, KEGG, HP	38626
+Phaseolus vulgaris	Phaseolus vulgaris	pvulgaris	PhaVulg1_0	GO:MF, GO:CC, GO:BP, KEGG	3885
+Phlebotomus papatasi	Phlebotomus papatasi	ppapatasi	PpapI1	GO:MF, GO:CC, GO:BP	29031
+Phlebotomus perniciosus	Phlebotomus perniciosus (Murcia) - GCA_918844115.1	ppgca918844115	pperniciosus_illum_n82538_165Mb	GO:MF, GO:CC, GO:BP	13204
+Phocoena sinus	Vaquita	psinus	mPhoSin1.pri	GO:MF, GO:CC, GO:BP, HP	42100
+Physcomitrium patens	Physcomitrium patens	ppatens	Phypa V3	GO:MF, GO:CC, GO:BP, KEGG	3218
+Physeter catodon	Sperm whale	pcatodon	ASM283717v2	GO:MF, GO:CC, GO:BP, HP	9755
+Phytophthora infestans T30-4	Phytophthora infestans	pinfestans	ASM14294v1	GO:MF, GO:CC, GO:BP, KEGG	403677
+Phytophthora kernoviae 00238/432	Phytophthora kernoviae	pkernoviae	PhyKer238/432v1	GO:MF, GO:CC, GO:BP	1284355
+Phytophthora lateralis MPF4	Phytophthora lateralis	plateralis	MPF4_v1.0	GO:MF, GO:CC, GO:BP	1254522
+Phytophthora parasitica P1569	Phytophthora parasitica	pparasitica	Phyt_para_P1569_V1	GO:MF, GO:CC, GO:BP	1317065
+Phytophthora ramorum	Phytophthora ramorum	pramorum	ASM14973v1	GO:MF, GO:CC, GO:BP	164328
+Phytophthora sojae	Phytophthora sojae	psojae	P.sojae V3.0	GO:MF, GO:CC, GO:BP, KEGG	67593
+Phytopythium vexans DAOM BR484	Pythium vexans	pvexans	pve_scaffolds_v1	GO:MF, GO:CC, GO:BP	1223560
+Pistacia vera	Pistacia vera	pvera	PisVer_v2	GO:MF, GO:CC, GO:BP	55513
+Pisum sativum	Pisum sativum	psativum	Pisum_sativum_v1a	GO:MF, GO:CC, GO:BP	3888
+Plasmodium berghei ANKA	Plasmodium berghei	pberghei	PBANKA01	GO:MF, GO:CC, GO:BP, KEGG	5823
+Plasmodium chabaudi chabaudi	Plasmodium chabaudi	pchabaudi	PCHAS01	GO:MF, GO:CC, GO:BP, KEGG	31271
+Plasmodium falciparum 3D7	Plasmodium falciparum 3D7	pfalciparum	ASM276v2	GO:MF, GO:CC, GO:BP, KEGG, REAC	36329
+Plasmodium knowlesi strain H	Plasmodium knowlesi	pknowlesi	ASM635v1	GO:MF, GO:CC, GO:BP, KEGG	5851
+Plasmodium vivax	Plasmodium vivax	pvivax	ASM241v2	GO:MF, GO:CC, GO:BP	5855
+Plectus sambesii	Plectus sambesii (PRJNA390260)	plsambprjna390260	Psam_v1.0 (2018-09-WormBase)	GO:MF, GO:CC, GO:BP	2011161
+Pocillopora damicornis	Pocillopora damicornis (RSMAS) - GCA_003704095.1	pdgca003704095v1	GCA003704095v1	GO:MF, GO:CC, GO:BP	46731
+Podarcis muralis	Common wall lizard	pmuralis	PodMur_1.0	GO:MF, GO:CC, GO:BP, HP	64176
+Poecilia formosa	Amazon molly	pformosa	Poecilia_formosa-5.1.2	GO:MF, GO:CC, GO:BP, HP	48698
+Poecilia latipinna	Sailfin molly	platipinna	P_latipinna-1.0	GO:MF, GO:CC, GO:BP, HP	48699
+Poecilia reticulata	Guppy	preticulata	Guppy_female_1.0_MT	GO:MF, GO:CC, GO:BP, KEGG, HP	8081
+Pomacea canaliculata	Pomacea canaliculata (SZHN2017) - GCA_003073045.1	pcgca003073045v1	GCA003073045v1	GO:MF, GO:CC, GO:BP	400727
+Pongo abelii	Sumatran orangutan	pabelii	Susie_PABv2	GO:MF, GO:CC, GO:BP, KEGG, HP	9601
+Populus trichocarpa	Populus trichocarpa	ptrichocarpa	Pop_tri_v3	GO:MF, GO:CC, GO:BP, KEGG, WP	3694
+Priapulus caudatus	Priapulus caudatus (Penis worm) - GCA_000485595.2	pcgca000485595v2	Priapulus_caudatus-5.0.1	GO:MF, GO:CC, GO:BP	37621
+Pristionchus arcanus	Pristionchus arcanus (PRJEB27334)	prarcaprjeb27334	P. arcanus genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1195655
+Pristionchus entomophagus	Pristionchus entomophagus (PRJEB27334)	prentoprjeb27334	P. entomophagus genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	358040
+Pristionchus exspectatus	Pristionchus exspectatus (PRJEB24288)	prexspprjeb24288	Pristionchus_exspectatus_de_novo_assembly (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1195656
+Pristionchus fissidentatus	Pristionchus fissidentatus (PRJEB27334)	prfissprjeb27334	Pristionchus fissidentatus genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1538716
+Pristionchus japonicus	Pristionchus japonicus (PRJEB27334)	prjapoprjeb27334	Pristionchus japonicus genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1195657
+Pristionchus maxplancki	Pristionchus maxplancki (PRJEB27334)	prmaxpprjeb27334	Prisstionchus maxplancki genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1317128
+Pristionchus mayeri	Pristionchus mayeri (PRJEB27334)	prmayeprjeb27334	Pristionchus mayeri genome (2021-01-WormBase)	GO:MF, GO:CC, GO:BP	1317129
+Pristionchus pacificus	Pristionchus pacificus (PRJNA12644)	ppacificus	El_Paco	GO:MF, GO:CC, GO:BP	54126
+Pristionchus pacificus	Pristionchus pacificus (PRJNA12644) [WS282]	prpaciprjna12644	El_Paco (WS279)	GO:MF, GO:CC, GO:BP	54126
+Procavia capensis	Hyrax	pcapensis	proCap1	GO:MF, GO:CC, GO:BP, HP	9813
+Prolemur simus	Greater bamboo lemur	psimus	Prosim_1.0	GO:MF, GO:CC, GO:BP, HP	1328070
+Propithecus coquereli	Coquerel's sifaka	pcoquereli	Pcoq_1.0	GO:MF, GO:CC, GO:BP, HP	379532
+Protopolystoma xenopodis	Protopolystoma xenopodis (PRJEB1201)	prxenoprjeb1201	P_xenopodis_South_Africa_v1_0_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	117903
+Prunus avium	Prunus avium	pavium	PAV_r1.0	GO:MF, GO:CC, GO:BP, KEGG	42229
+Prunus dulcis	Prunus dulcis	pdulcis	ALMONDv2	GO:MF, GO:CC, GO:BP	3755
+Prunus persica	Prunus persica	ppersica	Prunus_persica_NCBIv2	GO:MF, GO:CC, GO:BP, KEGG	3760
+Pseudonaja textilis	Eastern brown snake	ptextilis	EBS10Xv2-PRI	GO:MF, GO:CC, GO:BP, HP	8673
+Pseudo-nitzschia multistriata	Pseudo-nitzschia multistriata	pmultistriata	ASM90066040v1	GO:MF, GO:CC, GO:BP	183589
+Pteropus vampyrus	Megabat	pvampyrus	pteVam1	GO:MF, GO:CC, GO:BP, HP	132908
+Puccinia graminis f. sp. tritici 04KEN156/4	Puccinia graminis Ug99	pgraminisug99	v1	GO:MF, GO:CC, GO:BP	1040990
+Puccinia graminis f. sp. tritici CRL 75-36-700-3	Puccinia graminis	pgraminis	ASM14992v1	GO:MF, GO:CC, GO:BP, KEGG	418459
+Puccinia striiformis f. sp. tritici PST-130	Puccinia striiformis f. sp. tritici PST-130 str. Race 130	pstriiformis	PST-130_1.0	GO:MF, GO:CC, GO:BP	875184
+Puccinia triticina 1-1 BBBD Race 1	Puccinia triticina	ptriticina	ASM15152v1	GO:MF, GO:CC, GO:BP	630390
+Pundamilia nyererei	Makobe Island cichlid	pnyererei	PunNye1.0	GO:MF, GO:CC, GO:BP, HP	303518
+Pygocentrus nattereri	Red-bellied piranha	pnattereri	Pygocentrus_nattereri-1.0.2	GO:MF, GO:CC, GO:BP, HP	42514
+Pyrenophora teres f. teres 0-1	Pyrenophora teres	pteres	PyrTer_1.0	GO:MF, GO:CC, GO:BP, KEGG	861557
+Pyrenophora tritici-repentis Pt-1C-BFP	Pyrenophora tritici-repentis Pt-1C-BFP	ptriticirepentis	ASM14998v1	GO:MF, GO:CC, GO:BP	426418
+Pyricularia oryzae	Magnaporthe oryzae	poryzae	GCA900474545v2	GO:MF, GO:CC, GO:BP	318829
+Pyricularia oryzae 70-15	Magnaporthe oryzae	moryzae	MG8	GO:MF, GO:CC, GO:BP, KEGG	242507
+Pythium aphanidermatum DAOM BR444	Pythium aphanidermatum	paphanidermatum	pag1_scaffolds_v1	GO:MF, GO:CC, GO:BP	1223555
+Pythium arrhenomanes ATCC 12531	Pythium arrhenomanes	parrhenomanes	par_scaffolds_v1	GO:MF, GO:CC, GO:BP	1223556
+Quercus lobata	Quercus lobata	qlobata	ValleyOak3.0	GO:MF, GO:CC, GO:BP	97700
+Rattus norvegicus	Rat	rnorvegicus	mRatBN7.2	GO:MF, GO:CC, GO:BP, KEGG, REAC, TF, MIRNA, CORUM, HP, WP	10116
+Rhabditophanes sp. KR3021	Rhabditophanes sp. KR3021 (PRJEB1297)	rhkr30prjeb1297	Rhabditophanes_sp_KR3021 (2015-05-WormBase)	GO:MF, GO:CC, GO:BP	114890
+Rhagoletis pomonella	Rhagoletis pomonella (Grant_MI) - GCA_013731165.1	rpgca013731165v1	Rhpom_1.0	GO:MF, GO:CC, GO:BP	28610
+Rhinolophus ferrumequinum	Greater horseshoe bat	rferrumequinum	mRhiFer1_v1.p	GO:MF, GO:CC, GO:BP, HP	59479
+Rhinopithecus bieti	Black snub-nosed monkey	rbieti	ASM169854v1	GO:MF, GO:CC, GO:BP, KEGG, HP	61621
+Rhinopithecus roxellana	Golden snub-nosed monkey	rroxellana	Rrox_v1	GO:MF, GO:CC, GO:BP, KEGG, HP	61622
+Rhipicephalus microplus	Rhipicephalus microplus (Rmic-2018)	rmgca013339725v1	GCA013339725v1	GO:MF, GO:CC, GO:BP	6941
+Rhipicephalus sanguineus	Rhipicephalus sanguineus (Rsan-2018)	rsgca013339695v1	GCA013339695v1	GO:MF, GO:CC, GO:BP	34632
+Rhodnius prolixus	Rhodnius prolixus	rprolixus	RproC3	GO:MF, GO:CC, GO:BP	13249
+Rhopalosiphum maidis	Rhopalosiphum maidis (BTI-1) - GCA_003676215.3	rmgca003676215v3	GCA003676215v3	GO:MF, GO:CC, GO:BP	43146
+Rodentolepis nana	Hymenolepis nana (PRJEB508)	hynanaprjeb508	H_nana_Japan_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	102285
+Romanomermis culicivorax	Romanomermis culicivorax (PRJEB1358)	roculiprjeb1358	nRc.2.0 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	13658
+Rosa chinensis	Rosa chinensis	rchinensis	RchiOBHm-V2	GO:MF, GO:CC, GO:BP, KEGG	74649
+Saccharomyces cerevisiae S288C	Saccharomyces cerevisiae	scerevisiae	R64-1-1	GO:MF, GO:CC, GO:BP, KEGG, TF, HP, WP	559292
+Saccharum spontaneum	Saccharum spontaneum	sspontaneum	Sspon.HiC_chr_asm	GO:MF, GO:CC, GO:BP	62335
+Saccoglossus kowalevskii	Saccoglossus kowalevskii (Acorn worm) - GCA_000003605.1	skgca000003605v1	GCA000003605v1	GO:MF, GO:CC, GO:BP	10224
+Saimiri boliviensis boliviensis	Bolivian squirrel monkey	sbboliviensis	SaiBol1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	39432
+Salmo salar	Atlantic salmon	ssalar	Ssal_v3.1	GO:MF, GO:CC, GO:BP, KEGG, HP	8030
+Salmo trutta	Brown trout	strutta	fSalTru1.1	GO:MF, GO:CC, GO:BP, HP	8032
+Salvator merianae	Argentine black and white tegu	smerianae	HLtupMer3	GO:MF, GO:CC, GO:BP, HP	96440
+Sander lucioperca	Pike-perch	slucioperca	SLUC_FBN_1	GO:MF, GO:CC, GO:BP, HP	283035
+Sarcophilus harrisii	Tasmanian devil	sharrisii	mSarHar1.11	GO:MF, GO:CC, GO:BP, KEGG, HP	9305
+Sarcoptes scabiei	Sarcoptes scabiei (SSS_KF_BRIS2020)	sscabiei	GCA014595675v1	GO:MF, GO:CC, GO:BP	52283
+Schistocephalus solidus	Schistocephalus solidus (PRJEB527)	scsoliprjeb527	S_solidus_NST_G2_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	70667
+Schistosoma bovis	Schistosoma bovis (PRJNA451066)	scboviprjna451066	ASM395894v1 (2019-05-WormBase)	GO:MF, GO:CC, GO:BP	6184
+Schistosoma curassoni	Schistosoma curassoni (PRJEB519)	sccuraprjeb519	S_curassoni_Dakar_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6186
+Schistosoma haematobium	Schistosoma haematobium (PRJNA78265)	schaemprjna78265	SchHae_2.0 (2020-04-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6185
+Schistosoma japonicum	Schistosoma japonicum (PRJEA34885)	scjapoprjea34885	ASM15177v1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6182
+Schistosoma japonicum	Schistosoma japonicum (PRJNA520774)	scjapoprjna520774	ASM636876v1 (2020-03-WormBase)	GO:MF, GO:CC, GO:BP	6182
+Schistosoma mansoni	Schistosoma mansoni (PRJEA36577)	scmansprjea36577	SM_V9 (2022-01-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6183
+Schistosoma mansoni	Schistosoma mansoni (PRJEA36577)	smansoni	Smansoni_v7	GO:MF, GO:CC, GO:BP, KEGG	6183
+Schistosoma margrebowiei	Schistosoma margrebowiei (PRJEB522)	scmargprjeb522	S_margrebowiei_Zambia_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	48269
+Schistosoma mattheei	Schistosoma mattheei (PRJEB523)	scmattprjeb523	S_mattheei_Denwood_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	31246
+Schistosoma rodhaini	Schistosoma rodhaini (PRJEB526)	scrodhprjeb526	S_rodhaini_Burundi_v1_0_4 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6188
+Schizosaccharomyces cryophilus OY26	Schizosaccharomyces cryophilus	scryophilus	SCY4	GO:MF, GO:CC, GO:BP	653667
+Schizosaccharomyces japonicus yFS275	Schizosaccharomyces japonicus	sjaponicus	SJ5	GO:MF, GO:CC, GO:BP	402676
+Schizosaccharomyces octosporus yFS286	Schizosaccharomyces octosporus	soctosporus	SO6	GO:MF, GO:CC, GO:BP	483514
+Schizosaccharomyces pombe 972h-	Schizosaccharomyces pombe	spombe	ASM294v2	GO:MF, GO:CC, GO:BP, KEGG	284812
+Schmidtea mediterranea	Schmidtea mediterranea (PRJNA12585)	scmediprjna12585	SmedGD_c1.3 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	79327
+Schmidtea mediterranea	Schmidtea mediterranea (PRJNA379262)	scmediprjna379262	ASM260089v1 (2019-05-WormBase)	GO:MF, GO:CC, GO:BP	79327
+Sciurus vulgaris	Eurasian red squirrel	svulgaris	mSciVul1.1	GO:MF, GO:CC, GO:BP, HP	55149
+Scleropages formosus	Asian bonytongue	sformosus	fSclFor1.1	GO:MF, GO:CC, GO:BP, KEGG, HP	113540
+Sclerotinia sclerotiorum 1980 UF-70	Sclerotinia sclerotiorum	ssclerotiorum	ASM14694v1	GO:MF, GO:CC, GO:BP, KEGG	665079
+Scophthalmus maximus	Turbot	smaximus	ASM1334776v1	GO:MF, GO:CC, GO:BP, HP	52904
+Secale cereale	Secale cereale	scereale	Rye_Lo7_2018_v1p1p1	GO:MF, GO:CC, GO:BP	4550
+Selaginella moellendorffii	Selaginella moellendorffii	smoellendorffii	v1.0	GO:MF, GO:CC, GO:BP, KEGG	88036
+Serinus canaria	Common canary	scanaria	SCA1	GO:MF, GO:CC, GO:BP, KEGG, HP	9135
+Seriola dumerili	Greater amberjack	sdumerili	Sdu_1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	41447
+Seriola lalandi dorsalis	Yellowtail amberjack	sldorsalis	Sedor1	GO:MF, GO:CC, GO:BP, KEGG, HP	1841481
+Sesamum indicum	Sesamum indicum	sindicum	S_indicum_v1.0	GO:MF, GO:CC, GO:BP	4182
+Setaria digitata	Setaria digitata (PRJNA479729)	sedigiprjna479729	ASM364038v1 (2020-04-WormBase)	GO:MF, GO:CC, GO:BP	48799
+Setaria italica	Setaria italica	sitalica	Setaria_italica_v2.0	GO:MF, GO:CC, GO:BP, KEGG	4555
+Setaria viridis	Setaria viridis	sviridis	Setaria_viridis_v2.0	GO:MF, GO:CC, GO:BP	4556
+Sinocyclocheilus grahami	Golden-line barbel	sgrahami	SAMN03320097.WGS_v1.1	GO:MF, GO:CC, GO:BP, HP	75366
+Sipha flava	Sipha flava (LNK) - GCA_003268045.1	sfgca003268045v1	YSA_version1	GO:MF, GO:CC, GO:BP	143950
+Soboliphyme baturini	Soboliphyme baturini (PRJEB516)	sobatuprjeb516	S_baturini_Dall_Island_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	241478
+Solanum lycopersicum	Solanum lycopersicum	slycopersicum	SL3.0	GO:MF, GO:CC, GO:BP, KEGG	4081
+Solanum tuberosum	Solanum tuberosum	stuberosum	SolTub_3.0	GO:MF, GO:CC, GO:BP, KEGG	4113
+Solenopsis invicta	Solenopsis invicta (M01_SB)	sinvicta	UNIL_Sinv_3.0	GO:MF, GO:CC, GO:BP, KEGG	13686
+Sorex araneus	Shrew	saraneus	sorAra1	GO:MF, GO:CC, GO:BP, HP	42254
+Sorghum bicolor	Sorghum bicolor	sbicolor	Sorghum_bicolor_NCBIv3	GO:MF, GO:CC, GO:BP, KEGG	4558
+Sparus aurata	Gilthead seabream	saurata	fSpaAur1.1	GO:MF, GO:CC, GO:BP, HP	8175
+Sphenodon punctatus	Tuatara	spunctatus	ASM311381v1	GO:MF, GO:CC, GO:BP, HP	8508
+Spirometra erinaceieuropaei	Spirometra erinaceieuropaei (PRJEB1202)	sperinprjeb1202	S_erinaceieuropaei (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	99802
+Sporisorium reilianum SRZ2	Sporisorium reilianum	sreilianum	ASM23024v1	GO:MF, GO:CC, GO:BP	999809
+Stegastes partitus	Bicolor damselfish	spartitus	Stegastes_partitus-1.0.2	GO:MF, GO:CC, GO:BP, HP	144197
+Stegodyphus mimosarum	Stegodyphus mimosarum	smimosarum	Stegodyphus_mimosarum_v1	GO:MF, GO:CC, GO:BP	407821
+Steinernema carpocapsae	Steinernema carpocapsae (PRJNA202318)	stcarpprjna202318	ASM75764v3 (2020-04-WormBase)	GO:MF, GO:CC, GO:BP	34508
+Steinernema carpocapsae	Steinernema carpocapsae (v1 PRJNA202318)	stcav1prjna202318	S_carpo_v1_submitted (2014-12-WormBase)	GO:MF, GO:CC, GO:BP	34508
+Steinernema feltiae	Steinernema feltiae (PRJNA204661)	stfeltprjna204661	S_felt_v1_submitted (2014-12-WormBase)	GO:MF, GO:CC, GO:BP	52066
+Steinernema feltiae	Steinernema feltiae (PRJNA353610)	stfeltprjna353610	S_feltiae_NW_1.0 (2020-04-WormBase)	GO:MF, GO:CC, GO:BP	52066
+Steinernema glaseri	Steinernema glaseri (PRJNA204943)	stglasprjna204943	S_glas_v1_submitted (2014-12-WormBase)	GO:MF, GO:CC, GO:BP	37863
+Steinernema monticolum	Steinernema monticolum (PRJNA205067)	stmontprjna205067	S_monti_v1_submitted (2014-12-WormBase)	GO:MF, GO:CC, GO:BP	90984
+Steinernema scapterisci	Steinernema scapterisci (PRJNA204942)	stscapprjna204942	S_scapt_v1_submitted (2014-12-WormBase)	GO:MF, GO:CC, GO:BP	90986
+Stomoxys calcitrans	Stomoxys calcitrans	scalcitrans	ScalU1	GO:MF, GO:CC, GO:BP	35570
+Strigamia maritima	Strigamia maritima	smaritima	Smar1	GO:MF, GO:CC, GO:BP	126957
+Strigops habroptila	Kakapo	shabroptila	bStrHab1_v1.p	GO:MF, GO:CC, GO:BP, HP	2489341
+Strongylocentrotus purpuratus	Strongylocentrotus purpuratus (Spur 01)	spurpuratus	Spur_5.0	GO:MF, GO:CC, GO:BP, KEGG	7668
+Strongyloides papillosus	Strongyloides papillosus (PRJEB525)	stpapiprjeb525	S_papillosus_LIN_v2_1_4 (2015-05-WormBase)	GO:MF, GO:CC, GO:BP	174720
+Strongyloides ratti	Strongyloides ratti (PRJEB125)	sratti	S_ratti_ED321_v5_0_4	GO:MF, GO:CC, GO:BP	34506
+Strongyloides ratti	Strongyloides ratti (PRJEB125) [WS282]	strattprjeb125	S_ratti_ED321_v5_0_4 (WS279)	GO:MF, GO:CC, GO:BP	34506
+Strongyloides stercoralis	Strongyloides stercoralis (PRJEB528)	ststerprjeb528	S_stercoralis_PV0001_v2_0_4 (2022-01-WormBase)	GO:MF, GO:CC, GO:BP	6248
+Strongyloides venezuelensis	Strongyloides venezuelensis (PRJEB530)	stveneprjeb530	S_venezuelensis_HH1 (2015-05-WormBase)	GO:MF, GO:CC, GO:BP	75913
+Strongylus vulgaris	Strongylus vulgaris (PRJEB531)	stvulgprjeb531	S_vulgaris_Kentucky_0011_upd (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	40348
+Struthio camelus australis	African ostrich	scaustralis	ASM69896v1	GO:MF, GO:CC, GO:BP, HP	441894
+Stylophora pistillata	Stylophora pistillata (CSM Monaco) - GCA_002571385.1	spgca002571385v1	Stylophora_pistillata_v1	GO:MF, GO:CC, GO:BP	50429
+Sus scrofa	Pig - Bamei	ssbamei	Bamei_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Berkshire	ssberkshire	Berkshire_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Duroc	sscrofa	Sscrofa11.1	GO:MF, GO:CC, GO:BP, KEGG, MIRNA, HP, WP	9823
+Sus scrofa	Pig - Hampshire	sshampshire	Hampshire_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Jinhua	ssjinhua	Jinhua_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Landrace	sslandrace	Landrace_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Largewhite	sslargewhite	Large_White_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Meishan	ssmeishan	Meishan_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Pietrain	sspietrain	Pietrain_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Rongchang	ssrongchang	Rongchang_pig_v1	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Tibetan	sstibetan	Tibetan_Pig_v2	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig USMARC	ssusmarc	USMARCv1.0	GO:MF, GO:CC, GO:BP, KEGG	9823
+Sus scrofa	Pig - Wuzhishan	sswuzhishan	minipig_v1.0	GO:MF, GO:CC, GO:BP, KEGG	9823
+Syphacia muris	Syphacia muris (PRJEB524)	symuriprjeb524	S_muris_Valencia_v1_0_4 (2019-01-WormBase)	GO:MF, GO:CC, GO:BP	451379
+Taenia asiatica	Taenia asiatica (PRJEB532)	taasiaprjeb532	T_asiatica_South_Korea_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	60517
+Taenia asiatica	Taenia asiatica (PRJNA299871)	taasiaprjna299871	Taenia_asiatica_TASYD01_v1 (2016-10-WormBase)	GO:MF, GO:CC, GO:BP	60517
+Taenia multiceps	Taenia multiceps (PRJNA307624)	tamultprjna307624	ASM192302v3 (2018-09-WormBase)	GO:MF, GO:CC, GO:BP	94034
+Taenia saginata	Taenia saginata (PRJNA71493)	tasagiprjna71493	ASM169307v2 (2016-10-WormBase)	GO:MF, GO:CC, GO:BP	6206
+Taenia solium	Taenia solium (PRJNA170813)	tasoliprjna170813	Tsolium_Mexico_v1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6204
+Taeniopygia guttata	Zebra finch	tguttata	bTaeGut1_v1.p	GO:MF, GO:CC, GO:BP, KEGG, MIRNA, HP	59729
+Takifugu rubripes	Fugu	trubripes	fTakRub1.2	GO:MF, GO:CC, GO:BP, KEGG, HP	31033
+Teladorsagia circumcincta	Teladorsagia circumcincta (PRJNA72569)	tecircprjna72569	T_circumcincta.14.0.ec.cg.pg (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	45464
+Teleopsis dalmanni	Teleopsis dalmanni (2A)	tdalmanni	GCA002237135v2	GO:MF, GO:CC, GO:BP	139649
+Terrapene carolina triunguis	Three-toed box turtle	tctriunguis	T_m_triunguis-2.0	GO:MF, GO:CC, GO:BP, HP	2587831
+Tetrahymena thermophila SB210	Tetrahymena thermophila	tthermophila	JCVI-TTA1-2.2	GO:MF, GO:CC, GO:BP, KEGG	312017
+Tetranychus urticae	Tetranychus urticae	turticae	ASM23943v1	GO:MF, GO:CC, GO:BP, KEGG	32264
+Tetraodon nigroviridis	Tetraodon	tnigroviridis	TETRAODON 8.0	GO:MF, GO:CC, GO:BP, KEGG, HP	99883
+Thalassiosira pseudonana CCMP1335	Thalassiosira pseudonana	tpseudonana	ASM14940v2	GO:MF, GO:CC, GO:BP, KEGG	296543
+Thelazia callipaeda	Thelazia callipaeda (PRJEB1205)	thcallprjeb1205	T_callipaeda_Ticino_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	103827
+Thelohanellus kitauei	Thelohanellus kitauei	tkitauei	ASM82789v1	GO:MF, GO:CC, GO:BP	669202
+Theobroma cacao	Theobroma cacao Belizian Criollo B97-61/B2	tccriollo	Criollo_cocoa_genome_V2	GO:MF, GO:CC, GO:BP, KEGG	3641
+Theobroma cacao	Theobroma cacao Matina 1-6	tcacao	Theobroma_cacao_20110822	GO:MF, GO:CC, GO:BP	3641
+Tigriopus californicus	Tigriopus californicus (San Diego)	tcgca007210705	Tcal_SD_v2.1	GO:MF, GO:CC, GO:BP	6832
+Toxocara canis	Toxocara canis (PRJEB533)	tocaniprjeb533	T_canis_Equador_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6265
+Toxocara canis	Toxocara canis (PRJNA248777)	tocaniprjna248777	Toxocara_canis_adult_r1.0 (2016-04-WormBase)	GO:MF, GO:CC, GO:BP	6265
+Toxoplasma gondii ME49	Toxoplasma gondii ME49	tgondii	TGA4	GO:MF, GO:CC, GO:BP, KEGG	508771
+Trialeurodes vaporariorum	Trialeurodes vaporariorum (IVF)	tvgca011764245	GCA011764245v1	GO:MF, GO:CC, GO:BP	88556
+Tribolium castaneum	Tribolium castaneum	tcastaneum	Tcas5.2	GO:MF, GO:CC, GO:BP, KEGG	7070
+Trichinella britovi	Trichinella britovi (PRJNA257433)	trbritprjna257433	T3_ISS120_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	45882
+Trichinella murrelli	Trichinella murrelli (PRJNA257433)	trmurrprjna257433	T5_ISS417_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	144512
+Trichinella nativa	Trichinella nativa (PRJNA179527)	trnatiprjna179527	T_nativa_rf_gd (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	6335
+Trichinella nativa	Trichinella nativa (PRJNA257433)	trnatiprjna257433	T2_ISS10_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6335
+Trichinella nelsoni	Trichinella nelsoni (PRJNA257433)	trnelsprjna257433	T7_ISS37_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6336
+Trichinella papuae	Trichinella papuae (PRJNA257433)	trpapuprjna257433	T10_ISS1980_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	268474
+Trichinella patagoniensis	Trichinella patagoniensis (PRJNA257433)	trpataprjna257433	T12_ISS2496_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	990121
+Trichinella pseudospiralis	Trichinella pseudospiralis (ISS13 PRJNA257433)	iss13prjna257433	T4_ISS13_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6337
+Trichinella pseudospiralis	Trichinella pseudospiralis (ISS141 PRJNA257433)	iss141prjna257433	T4_ISS141_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6337
+Trichinella pseudospiralis	Trichinella pseudospiralis (ISS176 PRJNA257433)	iss176prjna257433	T4_ISS176_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6337
+Trichinella pseudospiralis	Trichinella pseudospiralis (ISS470 PRJNA257433)	iss470prjna257433	T4_ISS470_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6337
+Trichinella pseudospiralis	Trichinella pseudospiralis (ISS588 PRJNA257433)	iss588prjna257433	T4_ISS588_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6337
+Trichinella spiralis	Trichinella spiralis (PRJNA12603)	trspirprjna12603	Trichinella_spiralis-3.7.1 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6334
+Trichinella spiralis	Trichinella spiralis (PRJNA257433)	trspirprjna257433	T1_ISS3_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP, KEGG	6334
+Trichinella spiralis	Trichinella spiralis	tspiralis	Tspiralis1	GO:MF, GO:CC, GO:BP, KEGG	6334
+Trichinella sp. T6	Trichinella sp. T6 (PRJNA257433)	trt6prjna257433	T6_ISS34_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	92179
+Trichinella sp. T8	Trichinella sp. T8 (PRJNA257433)	trt8prjna257433	T8_ISS272_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	92180
+Trichinella sp. T9	Trichinella sp. T9 (PRJNA257433)	trt9prjna257433	T9_ISS409_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	181606
+Trichinella zimbabwensis	Trichinella zimbabwensis (PRJNA257433)	trzimbprjna257433	T11_ISS1029_r1.0 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	268475
+Trichobilharzia regenti	Trichobilharzia regenti (PRJEB4662)	trregeprjeb4662	T_regenti_v1_0_4_001_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	157069
+Trichoderma reesei QM6a	Trichoderma reesei	treesei	v2.0	GO:MF, GO:CC, GO:BP, KEGG	431241
+Trichoderma virens Gv29-8	Trichoderma virens	tvirens	ASM17099v1	GO:MF, GO:CC, GO:BP	413071
+Trichogramma pretiosum	Trichogramma pretiosum (Unisexual culture from Peru) - GCA_000599845.3	tpgca000599845v3	Tpre_2.0	GO:MF, GO:CC, GO:BP	7493
+Trichoplax adhaerens	Trichoplax adhaerens	tadhaerens	ASM15027v1	GO:MF, GO:CC, GO:BP, KEGG	10228
+Trichuris muris	Trichuris muris (PRJEB126)	tmuris	TMUE3.0	GO:MF, GO:CC, GO:BP	70415
+Trichuris muris	Trichuris muris (PRJEB126) [WS282]	trmuriprjeb126	TMUE3.0 (WS279)	GO:MF, GO:CC, GO:BP	70415
+Trichuris suis	Trichuris suis (PRJNA179528)	trsuisprjna179528	T_suis_1.0.allpaths (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	68888
+Trichuris suis	Trichuris suis (PRJNA208415 - male)	trsuisprjna208415	Tsuis_adult_male_v1.0 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	68888
+Trichuris suis	Trichuris suis (PRJNA208416 - female)	trsuisprjna208416	Tsuis_adult_female_1.0 (2014-05-WormBase)	GO:MF, GO:CC, GO:BP	68888
+Trichuris trichiura	Trichuris trichiura (PRJEB535)	trtricprjeb535	TTRE2.1 (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	36087
+Trifolium pratense	Trifolium pratense	tpratense	Trpr	GO:MF, GO:CC, GO:BP	57577
+Triticum aestivum	Triticum aestivum Arinalrfor	taarinalrfor	PGSBv2.0_Arinalrfor	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Cadenza	tacadenza	TGAC_cadenza	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Claire	taclaire	TGAC_paragon	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Jagger	tajagger	PGSBv2.0_Jagger	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Julius	tajulius	PGSBv2.0_Julius	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Lancer	talancer	PGSBv2.0_Lancer	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Landmark	talandmark	PGSBv2.0_Landmark	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Mace	tamace	PGSBv2.0_Mace	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Norin61	tanorin61	PGSBv2.0_Norin61	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Paragon	taparagon	EI_paragon	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Robigus	tarobigus	TGAC_robigus	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Stanley	tastanley	PGSBv2.2_Stanley	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Sy Mattis	tamattis	PGSBv2.0_Mattis	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum	taestivum	IWGSC	GO:MF, GO:CC, GO:BP	4565
+Triticum aestivum	Triticum aestivum Weebill	taweebil	EI_WeebilV1	GO:MF, GO:CC, GO:BP	4565
+Triticum dicoccoides	Triticum dicoccoides	tdicoccoides	WEWSeq v.1.0	GO:MF, GO:CC, GO:BP	85692
+Triticum spelta	Triticum spelta	tspelta	PGSBv2.0_Spelta	GO:MF, GO:CC, GO:BP	58933
+Triticum turgidum subsp. durum	Triticum turgidum	tturgidum	svevo	GO:MF, GO:CC, GO:BP	4567
+Triticum urartu	Triticum urartu	turartu	Tu2.0	GO:MF, GO:CC, GO:BP	4572
+Trypanosoma brucei	Trypanosoma brucei	tbrucei	TryBru_Apr2005_chr11	GO:MF, GO:CC, GO:BP	5691
+Tuber melanosporum Mel28	Tuber melanosporum	tmelanosporum	ASM15164v1	GO:MF, GO:CC, GO:BP, KEGG	656061
+Tupaia belangeri	Tree Shrew	tbelangeri	tupBel1	GO:MF, GO:CC, GO:BP, HP	37347
+Tursiops truncatus	Dolphin	ttruncatus	turTru1	GO:MF, GO:CC, GO:BP, HP	9739
+Urocitellus parryii	Arctic ground squirrel	uparryii	ASM342692v1	GO:MF, GO:CC, GO:BP, HP	9999
+Ursus americanus	American black bear	uamericanus	ASM334442v1	GO:MF, GO:CC, GO:BP, HP	9643
+Ursus maritimus	Polar bear	umaritimus	UrsMar_1.0	GO:MF, GO:CC, GO:BP, KEGG, HP	29073
+Ustilago maydis 521	Ustilago maydis	umaydis	Umaydis521_2.0	GO:MF, GO:CC, GO:BP, KEGG	237631
+Varroa destructor	Varroa destructor	vdgca002443255	Vdes_3.0	GO:MF, GO:CC, GO:BP	109461
+Verticillium dahliae JR2	Verticillium dahliae JR2	vdahliaejr2	VDAG_JR2v.4.0	GO:MF, GO:CC, GO:BP	1202531
+Verticillium dahliae VdLs.17	Verticillium dahliae	vdahliae	ASM15067v2	GO:MF, GO:CC, GO:BP, KEGG	498257
+Vicugna pacos	Alpaca	vpacos	vicPac1	GO:MF, GO:CC, GO:BP, HP	30538
+Vigna angularis	Vigna angularis	vangularis	Vigan1.1	GO:MF, GO:CC, GO:BP, KEGG	3914
+Vigna radiata var. radiata	Vigna radiata	vradiata	Vradiata_ver6	GO:MF, GO:CC, GO:BP, KEGG	3916
+Vitis vinifera	Vitis vinifera	vvinifera	PN40024.v4	GO:MF, GO:CC, GO:BP, KEGG	29760
+Vombatus ursinus	Common wombat	vursinus	bare-nosed_wombat_genome_assembly	GO:MF, GO:CC, GO:BP, HP	29139
+Vulpes vulpes	Red fox	vvulpes	VulVul2.2	GO:MF, GO:CC, GO:BP, KEGG, HP	9627
+Wuchereria bancrofti	Wuchereria bancrofti (PRJEB536)	wubancprjeb536	W_bancrofti_Jakarta_0011_upd (2014-06-50HGPpatch)	GO:MF, GO:CC, GO:BP	6293
+Wuchereria bancrofti	Wuchereria bancrofti (PRJNA275548)	wubancprjna275548	Wb_PNG_Genome_assembly_pt22 (2016-05-WormBase)	GO:MF, GO:CC, GO:BP	6293
+Xenopus tropicalis	Tropical clawed frog	xtropicalis	UCB_Xtro_10.0	GO:MF, GO:CC, GO:BP, KEGG, MIRNA, HP	8364
+Xiphophorus maculatus	Platyfish	xmaculatus	X_maculatus-5.0-male	GO:MF, GO:CC, GO:BP, HP	8083
+Yarrowia lipolytica CLIB122	Yarrowia lipolytica	ylipolytica	ASM252v1	GO:MF, GO:CC, GO:BP, KEGG	284591
+Zea mays	Zea mays	zmays	Zm-B73-REFERENCE-NAM-5.0	GO:MF, GO:CC, GO:BP, KEGG	4577
+Zootermopsis nevadensis	Zootermopsis nevadensis	znevadensis	ZooNev1.0	GO:MF, GO:CC, GO:BP, KEGG	136037
+Zymoseptoria tritici IPO323	Zymoseptoria tritici	ztritici	MG2	GO:MF, GO:CC, GO:BP, KEGG	336722

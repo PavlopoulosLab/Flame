@@ -3,6 +3,7 @@ handleVolcanoPlot <- function(readCallBackFunction) {
     renderModal("<h2>Please wait.</h2><br /><p>Rendering Volcano Plot.</p>")
     volcanoInput <- readCallBackFunction()
     if (isValidVolcanoInput(volcanoInput)) {
+      showTab("inputPlots", "Volcano Plot")
       updateTabItems(session, "inputPlots", selected = "Volcano Plot")
       renderShinyDataTable("volcanoViewer", volcanoInput,
                            fileName = "volcano")

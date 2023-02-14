@@ -1,9 +1,9 @@
 runAGoTool <- function(userInputList, taxid) {
   requestBody <- buildAGoToolRequestBody(userInputList, taxid)
   response <- sendAGoToolPOSTRequest(requestBody)
-  if (validResponse(response)) {
+  if (isResponseValid(response)) {
     aGoToolParsedResult <- parseAGoToolResult(response, taxid)
-    if (validResult(aGoToolParsedResult))
+    if (isResultValid(aGoToolParsedResult))
       enrichmentResults[[currentType_Tool]] <<-
         transformEnrichmentResultTable(aGoToolParsedResult)
   }
@@ -19,11 +19,11 @@ buildAGoToolRequestBody <- function(userInputList, taxid) {
   }
   limit_2_entity_type <- 
     paste0(
-      AGOTOOL_DATASOURCES_CODES[
+      DATASOURCES_CODES[["AGOTOOL"]][
         input[[paste0(currentEnrichmentType, "_enrichment_datasources")]]
       ], collapse = ";"
     )
-  foreground <- paste0(paste0(taxid, ".", userInputList), collapse = "%0d")
+  foreground <- paste0(userInputList, collapse = "%0d")
   enrichment_method <- "genome"
   requestBody <- list(
     taxid = taxid,
@@ -41,14 +41,14 @@ sendAGoToolPOSTRequest <- function(requestBody) {
   return(response)
 }
 
-validResponse <- function(response) {
-  valid <- F
-  if (response$status_code == 200)
-    valid <- T
-  else
+isResponseValid <- function(response) {
+  isValid <- T
+  if (response$status_code != 200) {
+    isValid <- F
     renderWarning("Connection to aGoTool could not be established.
                   Please try again later.")
-  return(valid)
+  }
+  return(isValid)
 }
 
 parseAGoToolResult <- function(response, taxid) {
@@ -64,9 +64,7 @@ parseAGoToolResult <- function(response, taxid) {
     aGoToolResult[, c(
       "category", "term", "description", significanceColumnName,
       "background_count", "foreground_n", "foreground_count", "foreground_ids")]
-  colnames(aGoToolResult) <-
-    c("Source", "Term_ID", "Function", "P-value",
-      "Term Size", "Query size", "Intersection Size", "Positive Hits")
+  colnames(aGoToolResult) <- ENRICHMENT_DF_COLNAMES
   aGoToolResult <- parseAGoToolPositiveHits(aGoToolResult, taxid)
   if (currentEnrichmentType == "functional") {
     aGoToolResult <- alterSourceKeywords(aGoToolResult)
@@ -77,8 +75,6 @@ parseAGoToolResult <- function(response, taxid) {
 }
 
 parseAGoToolPositiveHits <- function(aGoToolResult, taxid) {
-  aGoToolResult$`Positive Hits` <- 
-    gsub(sprintf("%s.", taxid), "", aGoToolResult$`Positive Hits`)
   aGoToolResult$`Positive Hits` <- 
     gsub(";", ",", aGoToolResult$`Positive Hits`)
   return(aGoToolResult)
@@ -113,7 +109,7 @@ updateReactomeTerms <- function(aGoToolResult) {
     aGoToolResult[grepl("REAC", aGoToolResult$Source), ]$Term_ID
   if (length(termsVector) > 0) {
     aGoToolResult[grepl("REAC", aGoToolResult$Source), ]$Term_ID <-
-      paste0("REAC:R-", termsVector)
+      paste0("R-", termsVector)
   }
   return(aGoToolResult)
 }

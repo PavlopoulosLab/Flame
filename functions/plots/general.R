@@ -3,7 +3,7 @@ handleDatasourcePicker <- function(enrichmentType, toolName, componentId) {
     type_Tool <- paste(enrichmentType, toolName, sep = "_")
     datasources <- input[[paste(type_Tool, componentId, "sourceSelect", sep = "_")]]
     maxSliderValue <- calculateMaxSliderValue(enrichmentType, toolName, datasources)
-    
+
     sliderId <- paste(type_Tool, componentId, "slider", sep = "_")
     updateShinySliderInput(shinyOutputId = sliderId,
                            min = 1, maxSliderValue)
@@ -28,6 +28,8 @@ calculateMaxSliderValue <- function(enrichmentType, toolName, datasources) {
       Source %in% datasources
     )
   )
+  if (maxSliderValue > MAX_SLIDER_VALUE)
+    maxSliderValue <- MAX_SLIDER_VALUE
   return(maxSliderValue)
 }
 
@@ -88,7 +90,7 @@ filterTopData <- function(enrichmentType, enrichmentTool,
 
 separateRows <- function(enrichmentData) {
   enrichmentData <- enrichmentData[, c(
-    "Source", "Term_ID_noLinks", "Function", "Positive Hits",
+    "Source", "Term_ID", "Term_ID_noLinks", "Function", "Positive Hits",
     "Enrichment Score %", "-log10Pvalue", "Intersection Size")]
   enrichmentData <-
     tidyr::separate_rows(enrichmentData, `Positive Hits`, sep = ", ")

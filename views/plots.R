@@ -4,9 +4,9 @@ generatePlotsPanel <- function() {
     icon = icon("chart-bar"),
     do.call(
       tabsetPanel,
-      (lapply(PLOT_TABNAMES, function(tabName) {
+      lapply(PLOT_TABNAMES, function(tabName) {
         generatePlotPanel(tabName)
-      }))
+      })
     )
   )
 }
@@ -16,17 +16,15 @@ generatePlotPanel <- function(tabName) {
     tabName,
     "Network" = do.call(
       tabsetPanel,
-      (lapply(NETWORK_IDS, function(plotId) {
+      lapply(NETWORK_IDS, function(plotId) {
         generatePlotPanelOrDiv(plotId)
       })
-      )
     ),
     "Heatmap" = do.call(
       tabsetPanel,
-      (lapply(HEATMAP_IDS, function(plotId) {
+      lapply(HEATMAP_IDS, function(plotId) {
         generatePlotPanelOrDiv(plotId)
       })
-      )
     ),
     "Barchart" = generatePlotPanelOrDiv("barchart"),
     "Scatter Plot" = generatePlotPanelOrDiv("scatterPlot"),
@@ -56,12 +54,22 @@ generatePlotPanelOrDiv <- function(plotId) {
   title <- NULL
   multipleDatasources <- T
   plotExtraFluidRow <- NULL
-  actionButtonColumns <- 12
+  actionButtonColumns <- 4
+  plotDrawFormatControl <- column(
+    4,
+    radioButtons(
+      inputId = paste(currentType_Tool, plotId, "drawFormat", sep = "_"),
+      label = paste0("Choose format of ",
+                     UI_TERM_KEYWORD[[currentEnrichmentType]], " to draw:"),
+      choices = list("ID" = "Term_ID", "Name" = "Function"),
+      inline = TRUE
+    )
+  )
   plotExtraControl <- NULL
   plotOutputDiv <- plotlyOutput(paste(currentType_Tool, plotId, sep = "_"))
   plotExtraOutputDiv <- NULL
   
-  uiTermKeyword <- str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]])
+  uiTermKeyword <- stringr::str_to_title(UI_TERM_KEYWORD[[currentEnrichmentType]])
   # conditions
   if (plotId %in% c("barchart", "scatterPlot"))
     returnType <- "tags$div"
@@ -107,14 +115,17 @@ generatePlotPanelOrDiv <- function(plotId) {
         )
       )
     )
-    actionButtonColumns <- 8
   }
-  if (plotId == "barchart") 
+  if (plotId == "barchart")
     plotOutputDiv <- tags$div(
       class = "barchartOutput",
       plotlyOutput(paste(currentType_Tool, "barchart", sep = "_"))
     )
-
+  if (plotId %in% c("network3", "heatmap3", "scatterPlot")) {
+    actionButtonColumns <- 12
+    plotDrawFormatControl <- NULL
+  }
+    
   return(
     # returnType is either "tabPanel" or "tags$div"
     eval(parse(text = returnType))( 
@@ -137,7 +148,13 @@ generatePlotPanelOrDiv <- function(plotId) {
             label = paste0("Filter number of top ",
                            UI_TERM_KEYWORD[[currentEnrichmentType]], ":"),
             min = 1, max = 10, value = 10, step = 1
-          )
+          ) %>% 
+            bsplus::shinyInput_label_embed(
+              bsplus::shiny_iconlink("circle-info") %>%
+                bsplus::bs_embed_popover(
+                  title = "Upper cap of 200 terms."
+                )
+            )
         ),
         column(
           4, 
@@ -159,6 +176,7 @@ generatePlotPanelOrDiv <- function(plotId) {
             label = "Generate", icon("palette"), class = "submit_button"
           )
         ),
+        plotDrawFormatControl,
         plotExtraControl
       ),
       tags$hr(),
@@ -229,7 +247,8 @@ generateColorCodingLegend <- function() {
               width = 2,
               lapply(legendList, function(source) {
                 fontColor <- "white"
-                if (source %in% c("GENE", "DO", "GO:BP", "UNIPROT", "BTO"))
+                if (source %in% c("GENE", "DO", "GO:BP", "UNIPROT",
+                                  "DISGENET", "OMIM", "BTO", "WBP"))
                   fontColor <- "black"
                 tags$div(
                   tags$p(source),

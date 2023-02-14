@@ -5,72 +5,44 @@ resetTextMiningResults <- function() {
   shinyjs::hide("textmining_tagger_results")
 }
 
-resetEnrichmentResults <- function() {
-  resetGlobalVariables()
-  resetResultBoxes()
-  resetTables()
-  resetPlots()
+resetCombination <- function() {
+  combinationResult <<- data.frame()
+  hideTab(inputId = "toolTabsPanel", target = "Combination")
 }
 
-resetGlobalVariables <- function() {
-  enrichmentResults[[currentType_Tool]] <<- data.frame()
-  if (currentEnrichmentTool == "gProfiler")
+resetEnrichmentResults <- function(type, tool) {
+  type_tool <- paste(type, tool, sep = "_")
+  resetGlobalVariables(type_tool, tool)
+  resetResultBoxes(type_tool)
+  resetTables(type, tool)
+  resetPlots(type_tool)
+}
+
+resetGlobalVariables <- function(type_tool, tool) {
+  enrichmentResults[[type_tool]] <<- data.frame()
+  if (tool == "gProfiler")
     gprofilerResult <<- list()
   lapply(NETWORK_IDS, function(networkId){
-    arenaEdgelist[[paste(currentEnrichmentType, currentEnrichmentTool,
-                         networkId, sep = "_")]] <<- data.frame()
+    arenaEdgelist[[paste(type_tool, networkId, sep = "_")]] <<- data.frame()
   })
 }
 
-resetResultBoxes <- function() {
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "enrichment_parameters", sep = "_")]] <- renderText("")
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "genesNotFound", sep = "_")]] <- renderText("")
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "notConverted", sep = "_")]] <- renderText("")
-  shinyjs::hide(paste(currentEnrichmentType, currentEnrichmentTool,
-                      "conversionBoxes", sep = "_"))
-  renderShinyDataTable(paste(currentEnrichmentType, currentEnrichmentTool,
-                             "conversionTable", sep = "_"), data.frame())
+resetResultBoxes <- function(type_tool) {
+  output[[paste(type_tool, "enrichment_parameters", sep = "_")]] <- renderText("")
+  output[[paste(type_tool, "genesNotFound", sep = "_")]] <- renderText("")
+  output[[paste(type_tool, "notConverted", sep = "_")]] <- renderText("")
+  shinyjs::hide(paste(type_tool, "conversionBoxes", sep = "_"))
+  renderShinyDataTable(paste(type_tool, "conversionTable", sep = "_"), data.frame())
 }
 
-resetTables <- function() {
+resetTables <- function(type, tool) {
   switch(
-    currentEnrichmentType,
+    type,
     "functional" = {
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_all", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_gomf", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_gocc", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_gobp", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_kegg", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_reac", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_wp", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_tf", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_mirna", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_corum", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_hpa", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_hp", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_uniprot", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_pfam", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_interpro", sep = "_")]] <- renderDataTable(c())
-      output[[paste("functional", currentEnrichmentTool,
-                    "table_do", sep = "_")]] <- renderDataTable(c())
+      lapply(TAB_NAMES, function(tabName) {
+        output[[paste("functional", tool, "table", tabName, sep = "_")]] <-
+          renderDataTable(c())
+      })
     },
     "literature" = {
       output$literature_aGoTool_table_pubmed <- renderDataTable(c())
@@ -78,74 +50,65 @@ resetTables <- function() {
   )
 }
 
-resetPlots <- function() {
-  resetNetworkPlots()
-  resetNetworkTables()
-  resetHeatmapPlots()
-  resetHeatmapTables()
-  resetBarchartPlot()
-  resetBarchartTable()
-  resetScatterPlot()
-  resetScatterTable()
+resetPlots <- function(type_tool) {
+  resetNetworkPlots(type_tool)
+  resetNetworkTables(type_tool)
+  resetHeatmapPlots(type_tool)
+  resetHeatmapTables(type_tool)
+  resetBarchartPlot(type_tool)
+  resetBarchartTable(type_tool)
+  resetScatterPlot(type_tool)
+  resetScatterTable(type_tool)
   resetManhattanPlot()
   resetManhattanTable()
 }
 
-resetNetworkPlots <- function() {
+resetNetworkPlots <- function(type_tool) {
   lapply(NETWORK_IDS, function(networkId) {
-    outputId <- paste(currentEnrichmentType, currentEnrichmentTool,
-                      networkId, sep = "_")
+    outputId <- paste(type_tool, networkId, sep = "_")
     output[[outputId]] <- renderVisNetwork({})
     shinyjs::hide(outputId)
   })
 }
 
-resetNetworkTables <- function() {
+resetNetworkTables <- function(type_tool) {
   lapply(NETWORK_IDS, function(networkId) {
-    output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                  networkId, "table", sep = "_")]] <-
+    output[[paste(type_tool, networkId, "table", sep = "_")]] <-
       renderDataTable(c())
   })
   lapply(NETWORK_IDS, function(networkId) {
-    output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                  networkId, "edgelist", sep = "_")]] <-
+    output[[paste(type_tool, networkId, "edgelist", sep = "_")]] <-
       renderDataTable(c())
   })
 }
 
-resetHeatmapPlots <- function() {
+resetHeatmapPlots <- function(type_tool) {
   lapply(HEATMAP_IDS, function(heatmapId) {
-    output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                  heatmapId, sep = "_")]] <-
+    output[[paste(type_tool, heatmapId, sep = "_")]] <-
       renderPlotly(c())
   })
 }
 
-resetHeatmapTables <- function() {
+resetHeatmapTables <- function(type_tool) {
   lapply(HEATMAP_IDS, function(heatmapId) {
-    output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                  heatmapId, "table", sep = "_")]] <- renderDataTable(c())
+    output[[paste(type_tool, heatmapId, "table", sep = "_")]] <- renderDataTable(c())
   })
 }
 
-resetBarchartPlot <- function() {
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "barchart", sep = "_")]] <- renderPlotly(c())
+resetBarchartPlot <- function(type_tool) {
+  output[[paste(type_tool, "barchart", sep = "_")]] <- renderPlotly(c())
 }
 
-resetBarchartTable <- function() {
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "barchart_table", sep = "_")]] <- DT::renderDataTable(data.frame())
+resetBarchartTable <- function(type_tool) {
+  output[[paste(type_tool, "barchart_table", sep = "_")]] <- DT::renderDataTable(data.frame())
 }
 
-resetScatterPlot <- function() {
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "scatterPlot", sep = "_")]] <- renderPlotly(c())
+resetScatterPlot <- function(type_tool) {
+  output[[paste(type_tool, "scatterPlot", sep = "_")]] <- renderPlotly(c())
 }
 
-resetScatterTable <- function() {
-  output[[paste(currentEnrichmentType, currentEnrichmentTool,
-                "scatterPlot_table", sep = "_")]] <- DT::renderDataTable(data.frame())
+resetScatterTable <- function(type_tool) {
+  output[[paste(type_tool, "scatterPlot_table", sep = "_")]] <- DT::renderDataTable(data.frame())
 }
 
 resetManhattanPlot <- function() {

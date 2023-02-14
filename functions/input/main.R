@@ -253,6 +253,8 @@ handleRemoveLists <- function() {
     positions <- which(names(userInputLists) %in% input$checkboxLists)
     if (!identical(positions, integer(0))) {
       userInputLists <<- userInputLists[-positions]
+      if (length(userInputLists) == 0)
+        renderShinyDataTable("selectedListView", data.frame())
       updateListBoxes()
       updateCheckboxInput(session, "selectAll", value = 0)
     }

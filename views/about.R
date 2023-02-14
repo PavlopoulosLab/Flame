@@ -7,10 +7,9 @@ aboutPage <- fluidRow(
       <p>Flame is actively developed and maintained by the Bioinformatics and Integrative Biology Lab</p>
       <h3> Developers </h3>
       <ul>
-          <li> Evangelos Karatzas, karatzas[at]fleming[dot]gr 
-          <li> Foteini Thanati, fotinithanati[at]gmail[dot]com
-        	<li> Fotis A. Baltoumas, baltoumas[at]fleming[dot]gr 
-      	  <li> Georgios A. Pavlopoulos, pavlopoulos[at]fleming[dot]gr 
+          <li> Evangelos Karatzas, karatzas[at]fleming[dot]gr </li>
+        	<li> Fotis A. Baltoumas, baltoumas[at]fleming[dot]gr </li>
+      	  <li> Georgios A. Pavlopoulos, pavlopoulos[at]fleming[dot]gr </li>
       </ul>
       <h3>Code Availability</h3>
       <p>The source code for Flame can be found in <a href='https://github.com/PavlopoulosLab/Flame/' target='_blank'>GitHub</a> repository.</p>

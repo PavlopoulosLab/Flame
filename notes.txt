@@ -1,1 +1,0 @@
-2022/11/11	visNetwork updated 2.1.2

@@ -29,7 +29,10 @@ var cpr_tagger_url = "https://tagger.jensenlab.org/";
 var extract_popup_mouseover_waiting_period = 1000;  
 var extract_popup_mouseover_timer = 1000; // timer to handle this delay
 var debug = false;
-var entity_types = "-1+-2+-3+-21+-22+-23+-25+-26+-27+-36+9606&auto_detect=1";
+var entities = "-1+-2+-3+-21+-22+-23+-25+-26+-27+-36";
+var species = 9606;
+var auto_detect ="&auto_detect=1";
+
  
  
 
@@ -38,6 +41,9 @@ var entity_types = "-1+-2+-3+-21+-22+-23+-25+-26+-27+-36+9606&auto_detect=1";
 Helper functions
 */
 
+function updateSpecies(taxid) {
+  species = taxid;
+}
 
 function startReflectPopupTimer(){
     var tag_matched_text = arguments[1];
@@ -72,7 +78,7 @@ function extract_show_popup( user_selected_text ) {
 
     var selected_text = arguments[0];
     var extract_body = document.getElementsByTagName('body')[0];
-    
+    var entity_types = entities + "+" + species + auto_detect;
     //get the source page url
     var source_page_uri = encodeURIComponent ( window.location.href );
     

@@ -3,7 +3,7 @@ generateEnrichmentPage <- function(enrichmentType) {
   
   return(
     tags$div(
-      tags$h3(paste0(str_to_title(currentEnrichmentType), " Enrichment Analysis")),
+      tags$h3(paste0(stringr::str_to_title(currentEnrichmentType), " Enrichment Analysis")),
       tags$br(),
       generateEnrichmentControlPanel(),
       tags$hr(),
@@ -16,12 +16,9 @@ generateEnrichmentControlPanel <- function() {
   availableTools <- switch(
     currentEnrichmentType,
     "functional" = {
-      datasourceChoices <- eval(
-        parse(text = paste0(DEFAULT_TOOL_UPPER, "_DATASOURCES_PRINT")))
-      datasourceSelected <- eval(
-        parse(text = paste0(DEFAULT_TOOL_UPPER, "_DATASOURCES_DEFAULT_SELECTED")))
-      metrics <- eval(
-        parse(text = paste0(DEFAULT_TOOL_UPPER, "_METRICS")))
+      datasourceChoices <- NULL
+      datasourceSelected <- NULL
+      metrics <- NULL
       ENRICHMENT_TOOLS
     },
     "literature" = {
@@ -46,7 +43,7 @@ generateEnrichmentControlPanel <- function() {
           selectizeInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_organism"),
             label = "2. Select organism:",
-            choices = ORGANISMS_FROM_FILE$print_name,
+            choices = NULL,
             selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
             multiple = F,
             width = "80%",
@@ -76,10 +73,18 @@ generateEnrichmentControlPanel <- function() {
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_namespace"),
             label = "5. Select namespace conversion:",
-            choices = eval(
-              parse(text = paste0(DEFAULT_TOOL_UPPER, "_NAMESPACES"))
-            ),
+            choices = NAMESPACES[["AGOTOOL"]],
             width = "80%"
+          ) %>% 
+            bsplus::shinyInput_label_embed(
+            bsplus::shiny_iconlink("circle-info") %>%
+              bsplus::bs_embed_popover(
+                title = "Default tool namespace conversions:
+aGOtool: ENSEMBL Protein ID
+gProfiler: User Input
+WebGestalt: Entrez Gene Accession
+enrichR: Entrez Gene Name"
+              )
           )
         ),
         column(
@@ -95,6 +100,12 @@ generateEnrichmentControlPanel <- function() {
             label = "7. Select significance threshold:",
             choices = c(0.05, 0.01),
             width = "80%"
+          ),
+          radioButtons(
+            inputId = paste0(currentEnrichmentType, "_enrichment_inputConversion"),
+            label = "8. Select result namespace:",
+            choices = c("Original input names", "Converted input names"),
+            inline = TRUE
           )
         )
       ),
@@ -117,13 +128,14 @@ generateEnrichmentResultsPanel <- function() {
       tags$div(
         class = "toolTabs",
         do.call(
-          tabsetPanel,
-          (lapply(ENRICHMENT_TOOLS, function(toolName) {
-            tabPanel(
-              title = toolName,
-              generateToolPanel(toolName)
-            )
-          })
+          tabsetPanel, c(
+            id = "toolTabsPanel",
+            lapply(c(ENRICHMENT_TOOLS, "Combination"), function(toolName) {
+              tabPanel(
+                title = toolName,
+                generateToolPanel(toolName)
+              )
+            })
           )
         )
       )
@@ -134,19 +146,23 @@ generateEnrichmentResultsPanel <- function() {
 }
 
 generateToolPanel <- function(toolName) {
-  currentEnrichmentTool <<- toolName
-  currentType_Tool <<- paste(currentEnrichmentType, currentEnrichmentTool, sep = "_")
-  
-  return(
-    tags$div(
-      tags$br(),
-      generateParametersBox(),
-      tabsetPanel(
-        generateResultsPanel(),
-        generatePlotsPanel()
+  if (toolName != "Combination") {
+    currentEnrichmentTool <<- toolName
+    currentType_Tool <<- paste(currentEnrichmentType, currentEnrichmentTool, sep = "_")
+    
+    return(
+      tags$div(
+        tags$br(),
+        generateParametersBox(),
+        tabsetPanel(
+          generateResultsPanel(),
+          generatePlotsPanel()
+        )
       )
     )
-  )
+  } else {
+    generateCombinationPanel()
+  }
 }
 
 generateParametersBox <- function() {
@@ -158,7 +174,8 @@ generateParametersBox <- function() {
     collapsible = T,
     verbatimTextOutput(
       outputId = paste(currentType_Tool, "enrichment_parameters", sep = "_")
-    )
+    ),
+    actionButton(paste(currentType_Tool, "clear", sep = "_"), "Clear", icon("broom"))
   )
 }
 
@@ -166,42 +183,13 @@ generateResultsPanel <- function() {
   sourcesPanel <- switch(
     currentEnrichmentType,
     "functional" = {
-      tabsetPanel(
-        id = paste(currentType_Tool, "sources_panel", sep = "_"),
-        tabPanel("ALL", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_all", sep = "_"))),
-        tabPanel("INTERPRO", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_interpro", sep = "_"))),
-        tabPanel("PFAM", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_pfam", sep = "_"))),
-        tabPanel("UNIPROT", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_uniprot", sep = "_"))),
-        tabPanel("GO:MF", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_gomf", sep = "_"))),
-        tabPanel("GO:CC", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_gocc", sep = "_"))),
-        tabPanel("GO:BP", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_gobp", sep = "_"))),
-        tabPanel("KEGG", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_kegg", sep = "_"))),
-        tabPanel("REAC", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_reac", sep = "_"))),
-        tabPanel("WP", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_wp", sep = "_"))),
-        tabPanel("DO", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_do", sep = "_"))),
-        tabPanel("BTO", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_brenda", sep = "_"))),
-        tabPanel("TF", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_tf", sep = "_"))),
-        tabPanel("MIRNA", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_mirna", sep = "_"))),
-        tabPanel("CORUM", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_corum", sep = "_"))),
-        tabPanel("HPA", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_hpa", sep = "_"))),
-        tabPanel("HP", tags$br(),
-                 DT::dataTableOutput(paste(currentType_Tool, "table_hp", sep = "_")))
+      do.call(
+        tabsetPanel, c(
+          id = paste(currentType_Tool, "sources_panel", sep = "_"),
+          lapply(TAB_NAMES_CODES, function(tabName) {
+            generateEnrichmentTab(tabName)
+          })
+        )
       )
     },
     "literature" = {
@@ -235,7 +223,8 @@ generateResultsPanel <- function() {
           DT::dataTableOutput(paste(currentType_Tool, "conversionTable", sep = "_"))
         ),
         box(
-          title = "Unconverted Genes", 
+          title = "Unconverted Inputs",
+          class = "conversionBox",
           width = NULL,
           status = "primary", 
           solidHeader = TRUE,
@@ -244,12 +233,52 @@ generateResultsPanel <- function() {
         )
       ),
       box(
-        title = "No-hit Inputs", 
+        title = "No-hit Inputs",
+        class = "conversionBox",
         width = NULL,
         status = "primary", 
         solidHeader = TRUE,
         collapsible = TRUE,
         verbatimTextOutput(paste(currentType_Tool, "genesNotFound", sep = "_"))
+      )
+    )
+  )
+}
+
+generateEnrichmentTab <- function(tabName) {
+  tabPanel(
+    title = names(TAB_NAMES[TAB_NAMES == tabName]),
+    tags$br(),
+    DT::dataTableOutput(paste(currentType_Tool, "table",
+                              tabName, sep = "_"))
+  )
+}
+
+generateCombinationPanel <- function() {
+  return(
+    tags$div(
+      tags$br(),
+      pickerInput(
+        inputId = "combo_datasources",
+        label = "Select datasources:", 
+        choices = NULL,
+        selected = NULL,
+        multiple = T,
+        options = list('actions-box' = TRUE)
+      ),
+      tags$br(),
+      tabsetPanel(
+        tabPanel(
+          title = "Table",
+          icon = icon("table"),
+          DT::dataTableOutput("combo_table")
+        ),
+        tabPanel(
+          title = "UpSet Plot",
+          icon = icon("chart-column"),
+          upsetjs::upsetjsOutput("upsetjsCombo"),
+          DT::dataTableOutput("combo_upsetClick_table")
+        )
       )
     )
   )

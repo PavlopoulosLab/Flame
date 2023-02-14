@@ -70,7 +70,7 @@ constructVisNetwork <- function(type_Tool, networkId, networkEdgelist,
   nodes <- data$nodes
   row.names(nodes) <- NULL
   nodes$font.size <- 24
-  nodes <- appendGroupsAndTitles(networkId, nodes, networkEdgelist)
+  nodes <- appendGroupsAndTitles(type_Tool, networkId, nodes, networkEdgelist)
   edges <- data$edges
   edges <- appendWidth(edges)
   layout <- names(LAYOUT_CHOICES)[match(
@@ -91,7 +91,7 @@ createGraph <- function(networkEdgelist, sourceColumnName,
   return(graph)
 }
 
-appendGroupsAndTitles <- function(networkId, nodes, networkEdgelist) {
+appendGroupsAndTitles <- function(type_Tool, networkId, nodes, networkEdgelist) {
   nodes$group <-
     networkEdgelist$`Source Database`[match(
       nodes$label, networkEdgelist$`Source Id`)]
@@ -99,12 +99,22 @@ appendGroupsAndTitles <- function(networkId, nodes, networkEdgelist) {
     nodes$label, networkEdgelist$`Source Id`)]
   if (networkId == "network1") {
     nodes$group[is.na(nodes$group)] <- "Gene"
+    if (input[[paste(type_Tool, networkId, "drawFormat", sep = "_")]] == "Function") {
+      temp <- nodes$label[nodes$group != "Gene"]
+      nodes$label[nodes$group != "Gene"] <- nodes$title[nodes$group != "Gene"]
+      nodes$title[nodes$group != "Gene"] <- temp
+    }
   } else if (networkId == "network2") {
     nodes$group[is.na(nodes$group)] <-
       networkEdgelist$`Target Database`[match(
         nodes$label[is.na(nodes$group)], networkEdgelist$`Target Id`)]
     nodes$title[is.na(nodes$title)] <- networkEdgelist$`Target Name`[match(
       nodes$label[is.na(nodes$title)], networkEdgelist$`Target Id`)]
+    if (input[[paste(type_Tool, networkId, "drawFormat", sep = "_")]] == "Function") {
+      temp <- nodes$label
+      nodes$label <- nodes$title
+      nodes$title <- temp
+    }
   } else if (networkId == "network3") {
     nodes$group <- "Gene"
   }

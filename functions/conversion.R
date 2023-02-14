@@ -5,16 +5,18 @@ handle_gconvert <- function() {
     gconvertOrganism <- input$gconvert_organism
     gconvertTarget <- input$gconvert_target
     if (existInputGeneLists()) {
-      selectedListItems <- userInputLists[[gconvertSelect]][[1]]
-      gconvertOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gconvertOrganism, ]$gprofiler_ID
-      convertedOutput <- gconvert(
-        selectedListItems, organism = gconvertOrganism, target = gconvertTarget
-      )
-      if (existsConverteOutput(convertedOutput)) {
-        convertedOutput <- convertedOutput[c("input", "target", "name", "description")]
-        convertedOutput <- convertedOutput[convertedOutput$target != "nan", ]
-        renderShinyDataTable("gconvert_table", convertedOutput,
-                             fileName = paste0('conversion_', gconvertSelect))
+      if (isConversionOrganismValid()) {
+        selectedListItems <- userInputLists[[gconvertSelect]][[1]]
+        gconvertOrganism <- ORGANISMS[ORGANISMS$print_name == gconvertOrganism, ]$short_name
+        convertedOutput <- gprofiler2::gconvert(
+          selectedListItems, organism = gconvertOrganism, target = gconvertTarget,
+          mthreshold = 1, filter_na = T
+        )
+        if (existsConverteOutput(convertedOutput)) {
+          convertedOutput <- convertedOutput[c("input", "target", "name", "description")]
+          renderShinyDataTable("gconvert_table", convertedOutput,
+                               fileName = paste0('conversion_', gconvertSelect))
+        }
       }
     }
   }, error = function(e) {
@@ -23,6 +25,15 @@ handle_gconvert <- function() {
   }, finally = {
     removeModal()
   })
+}
+
+isConversionOrganismValid <- function() {
+  isValid <- T
+  if (input$gconvert_organism == "") {
+    isValid <- F
+    renderWarning("Select an input organism.")
+  }
+  return(isValid)
 }
 
 existsConverteOutput <- function(convertedOutput) {
@@ -39,9 +50,9 @@ handle_gorthOrganism <- function() {
     gorthOrganism <- input$gorth_organism
     gorthTarget <- input$gorth_target
     if (gorthOrganism == gorthTarget) {
-      organismChoices <- ORGANISMS_FROM_FILE$print_name
-      updateSelectInput(session, "gorth_target",
-                        choices = organismChoices[organismChoices != gorthOrganism])
+      organismChoices <- ORGANISMS$print_name
+      updateSelectizeInput(session, "gorth_target", server = T,
+                           choices = organismChoices[organismChoices != gorthOrganism])
     }
   }, error = function(e) {
     print(paste("Organism update error: ", e))
@@ -56,17 +67,22 @@ handle_gorth <- function() {
     gorthOrganism <- input$gorth_organism
     gorthTarget <- input$gorth_target
     if (existInputGeneLists()) {
-      selectedListItems <- userInputLists[[gorthSelect]][[1]]
-      gorthOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorthOrganism,]$gprofiler_ID
-      gorthTarget <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == gorthTarget,]$gprofiler_ID
-      convertedOutput <- gorth(selectedListItems, source_organism = gorthOrganism,
-                           target_organism = gorthTarget)
-      if (existsConverteOutput(convertedOutput)) {
-        convertedOutput <- convertedOutput[c(
-          "input", "input_ensg", "ortholog_name", "ortholog_ensg", "description"
-        )]
-        renderShinyDataTable("gorth_table", convertedOutput,
-                             fileName = paste0('orthology_', gorthSelect))
+      if (areOrthologyOrganismsValid()) {
+        selectedListItems <- userInputLists[[gorthSelect]][[1]]
+        gorthOrganism <- ORGANISMS[ORGANISMS$print_name == gorthOrganism,]$short_name
+        gorthTarget <- ORGANISMS[ORGANISMS$print_name == gorthTarget,]$short_name
+        convertedOutput <- 
+          gprofiler2::gorth(selectedListItems, 
+                            source_organism = gorthOrganism,
+                            target_organism = gorthTarget,
+                            mthreshold = 1, filter_na = T)
+        if (existsConverteOutput(convertedOutput)) {
+          convertedOutput <- convertedOutput[c(
+            "input", "input_ensg", "ortholog_name", "ortholog_ensg", "description"
+          )]
+          renderShinyDataTable("gorth_table", convertedOutput,
+                               fileName = paste0('orthology_', gorthSelect))
+        }
       }
     }
   }, error = function(e) {
@@ -75,4 +91,13 @@ handle_gorth <- function() {
   }, finally = {
     removeModal()
   })
+}
+
+areOrthologyOrganismsValid <- function() {
+  areValid <- T
+  if (input$gorth_organism == "" || input$gorth_target == "") {
+    areValid <- F
+    renderWarning("Select both an input and target organism.")
+  }
+  return(areValid)
 }

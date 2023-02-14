@@ -10,7 +10,7 @@ generateConvertDiv <- function(prefix) {
         label = "3. Select target namespace:",
         selected = "ENTREZGENE",
         width = "80%",
-        choices = c(CORE_NAMESPACES, "BEEBASE" = "BEEBASE")
+        choices = c(NAMESPACES[["CORE"]], unlist(NAMESPACES[["SPECIAL"]]))
       )
     },
     "gorth" = {
@@ -20,9 +20,9 @@ generateConvertDiv <- function(prefix) {
       selectComponent <- selectizeInput(
         paste0(prefix, "_target"),
         label = "3. Select target organism:",
-        choices = ORGANISMS_FROM_FILE$print_name,
+        choices = NULL,
         multiple = F,
-        selected = "Mus musculus (Mouse) [NCBI Tax. ID: 10090]",
+        selected = NULL,
         width = "80%",
         options = list(placeholder = 'Select an option or start typing...')
       )
@@ -45,9 +45,9 @@ generateConvertDiv <- function(prefix) {
           selectizeInput(
             inputId = paste0(prefix, "_organism"),
             label = "2. Select input organism:",
-            choices = ORGANISMS_FROM_FILE$print_name,
+            choices = NULL,
             multiple = F,
-            selected = "Homo sapiens (Human) [NCBI Tax. ID: 9606]",
+            selected = NULL,
             width = "80%",
             options = list(placeholder = 'Select an option or start typing...')
           ),

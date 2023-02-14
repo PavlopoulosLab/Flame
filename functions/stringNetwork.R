@@ -1,10 +1,19 @@
+handleStringOrganismSelection <- function() {
+  tryCatch({
+    updateAvailableStringNamespaces()
+  }, error = function(e) {
+    print(paste("String organism error: ", e))
+    renderError("Organism selection error. Please try again in a while.")
+  })
+}
+
 handleStringNetwork <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Generating STRING network.</p>")
     if (existInputGeneLists())
       createSTRINGNetwork()
   }, error = function(e) {
-    print(paste("Error :  ", e))
+    print(paste("Error: ", e))
     renderError("Problem with STRING network.")
   }, finally = {
     removeModal()
@@ -13,15 +22,15 @@ handleStringNetwork <- function() {
 
 createSTRINGNetwork <- function() {
   dataset <- input$STRINGnetworkSelect
-  organism <- input$STRINGnetworkOrganism
+  organism <- input$string_network_organism
   type <- input$STRINGnetworkType
   edges <- input$STRINGnetworkEdges
   score <- input$STRINGnetworkScore
   
   printSTRINGParameters(organism, type, edges, score)
-  string_taxid <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == organism, ]$Taxonomy_ID
+  string_taxid <- ORGANISMS[ORGANISMS$print_name == organism, ]$taxid
   selectedListItems <- userInputLists[[dataset]][[1]]
-  result_ids <- convertInputsForSTRINGRequest(selectedListItems, organism, string_taxid)
+  result_ids <- parseInputsForSTRINGRequest(selectedListItems, string_taxid)
   ids_interactive <- result_ids$ids_interactive
   ids_post <- result_ids$ids_post
   output$string_legend <- createSTRINGNetworkLegend(edges)
@@ -42,20 +51,14 @@ printSTRINGParameters <- function(organism, type, edges, score) {
   renderShinyText("networkParameters", stringParameters)
 }
 
-convertInputsForSTRINGRequest <- function(selectedListItems, organism, string_taxid) {
-  gconvertOrganism <- ORGANISMS_FROM_FILE[ORGANISMS_FROM_FILE$print_name == organism, ]$gprofiler_ID
-  convertedOutput <- gconvert(selectedListItems, organism = gconvertOrganism, target = "ENSP")
-  # keeping first targets only per input
-  converted_ids <- dplyr::distinct(convertedOutput, input, .keep_all = T)$target
-  # remove 'nan' fields, otherwise the STRING call WILL crash!
-  converted_ids <- converted_ids[grep('nan', converted_ids, invert = T)]
+parseInputsForSTRINGRequest <- function(selectedListItems, string_taxid) {
+  selectedListItems <- stringPOSTConvertENSP(selectedListItems,
+                                             string_taxid)$target
   # STRING's API request have a limit at 500.
-  if (length(converted_ids) > STRING_LIMIT)
-    converted_ids <- converted_ids[1:STRING_LIMIT]
-  # format as taxid.ENSP00XXXXX
-  string_ids <- paste(string_taxid, converted_ids, sep = ".")
-  ids_interactive <- paste(unlist(string_ids), collapse = "','")
-  ids_post <- paste(unlist(string_ids), collapse = "%0d") 
+  if (length(selectedListItems) > STRING_LIMIT)
+    selectedListItems <- selectedListItems[1:STRING_LIMIT]
+  ids_interactive <- paste(selectedListItems, collapse = "','")
+  ids_post <- paste(selectedListItems, collapse = "%0d") 
   return(list(ids_interactive = ids_interactive, ids_post = ids_post))
 }
 
@@ -131,14 +134,17 @@ createSTRINGActionButtonParameters <- function(ids_post, string_taxid,
                                   type, edges, score)
   string_tsv <- createSTRINGFile(ids_post, string_taxid,
                                  type, edges, score)
+  if (strsplit(string_tsv, "\t")[[1]][1] == "Error")
+    renderWarning("STRING did not return any valid results.
+                  Make sure the input is in ENSP namespace.")
   svg_to_png_js_code <- createSTRINGPNGCode()
   return(list(string_link = string_link, string_tsv = string_tsv,
               svg_to_png_js_code = svg_to_png_js_code))
 }
 
 createSTRINGLink <- function(ids_post, string_taxid, type, edges, score) {
-  h_open <- new_handle(url="https://string-db.org/api/tsv-no-header/get_link")
-  handle_setform(
+  h_open <- curl::new_handle(url="https://string-db.org/api/tsv-no-header/get_link")
+  curl::handle_setform(
     h_open,
     identifiers = ids_post,
     species = sprintf("%s", string_taxid),
@@ -147,15 +153,15 @@ createSTRINGLink <- function(ids_post, string_taxid, type, edges, score) {
     required_score = score,
     caller_identity = "Flame@bib.fleming"
   )
-  h_open_curl <- curl_fetch_memory("https://string-db.org/api/tsv-no-header/get_link", h_open)
+  h_open_curl <- curl::curl_fetch_memory("https://string-db.org/api/tsv-no-header/get_link", h_open)
   string_link <- rawToChar(h_open_curl$content)
   string_link <- trimws(string_link)
   return(string_link)
 }
 
 createSTRINGFile <- function(ids_post, string_taxid, type, edges, score) {
-  h_tsv <- new_handle(url="https://string-db.org/api/tsv/network")
-  handle_setform(
+  h_tsv <- curl::new_handle(url="https://string-db.org/api/tsv/network")
+  curl::handle_setform(
     h_tsv,
     identifiers = ids_post,
     species = sprintf("%s", string_taxid),
@@ -164,7 +170,7 @@ createSTRINGFile <- function(ids_post, string_taxid, type, edges, score) {
     required_score = score,
     caller_identity = "Flame@bib.fleming"
   )
-  h_tsv_curl <- curl_fetch_memory("https://string-db.org/api/tsv/network", h_tsv)
+  h_tsv_curl <- curl::curl_fetch_memory("https://string-db.org/api/tsv/network", h_tsv)
   string_tsv <- rawToChar(h_tsv_curl$content)
   return(string_tsv)
 }

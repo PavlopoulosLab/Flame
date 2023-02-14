@@ -17,53 +17,48 @@ renderShinyText <- function(shinyOutputId, prompt) {
 }
 
 renderShinyDataTable <- function(shinyOutputId, outputData,
-                                 caption = NULL, fileName = "") {
+                                 caption = NULL, fileName = "",
+                                 scrollY = NULL, hiddenColumns = c(),
+                                 filter = "none") {
   output[[shinyOutputId]] <- DT::renderDataTable(
     outputData,
     server = F, 
     extensions = 'Buttons',
     caption = caption,
     options = list(
+      scrollY = scrollY, 
+      scroller = T,
       "dom" = 'Blfiprt',
       buttons = list(
         list(extend = 'excel', filename = fileName),
         list(extend = 'csv', filename = fileName),
         list(extend = 'copy', filename = fileName),
         list(extend = 'pdf', filename = fileName),
-        list(extend = 'print', filename = fileName))
+        list(extend = 'print', filename = fileName)
+      ),
+      columnDefs = list(
+        list(visible = F, targets = hiddenColumns)
+      )
     ),
+    filter = filter,
     rownames = F,
     escape = F
   )
 }
 
-renderTextMiningResult <- function(extracted_terms) {
-  output$extracted_terms <- DT::renderDataTable(
-    extracted_terms,
-    server = F, 
-    options = list(
-      paging = F, 
-      scrollY = "200px", 
-      scroller = T,
-      dom = "t"
-    ),
-    escape = F
-  )
-}
-
-renderUpset <- function(upsetList, upsetModeFunction) {
-  output$upsetjsView <- renderUpsetjs({
-    upsetjs() %>%
-      fromList(upsetList) %>%
-      interactiveChart() %>%
+renderUpset <- function(shinyOutputId, upsetList, upsetModeFunction) {
+  output[[shinyOutputId]] <- upsetjs::renderUpsetjs({
+    upsetjs::upsetjs() %>%
+      upsetjs::fromList(upsetList) %>%
+      upsetjs::interactiveChart() %>%
       upsetModeFunction() %>%
-      chartLabels(combination.name = paste0(currentUpsetMode, " Size")) %>% 
-      chartFontSizes(
+      upsetjs::chartLabels(combination.name = paste0(currentUpsetMode, " Size")) %>% 
+      upsetjs::chartFontSizes(
         font.family = "Segoe UI",
         chart.label = "18px",
         set.label = "10px") %>%
-      chartTheme(color = "#383f4f") %>%
-      chartLayout(width.ratios = c(0.2, 0.1, 0.7), bar.padding = 0.3)
+      upsetjs::chartTheme(color = "#383f4f") %>%
+      upsetjs::chartLayout(width.ratios = c(0.2, 0.1, 0.7), bar.padding = 0.3)
   })
 }
 
@@ -173,24 +168,34 @@ renderShinyVisNetwork <- function(networkId, nodes, edges, layout) {
   output[[networkId]] <- renderVisNetwork({
     set.seed(123)
     visNetwork(nodes = nodes, edges = edges, background = "white") %>%
-      visGroups(groupname = "Gene", color = GENE_NODE_COLOR, shape = "square") %>%
-      visGroups(groupname = "PUBMED", color = LITERATURE_NODE_COLOR, shape = "square") %>%
       visGroups(groupname = "GO:MF", color = DATASOURCE_COLORS["GO:MF"][[1]], shape = "hexagon") %>%
       visGroups(groupname = "GO:BP", color = DATASOURCE_COLORS["GO:BP"][[1]], shape = "hexagon") %>%
       visGroups(groupname = "GO:CC", color = DATASOURCE_COLORS["GO:CC"][[1]], shape = "hexagon") %>%
+      visGroups(groupname = "UNIPROT", color = DATASOURCE_COLORS["UNIPROT"][[1]], shape = "hexagon") %>%
       visGroups(groupname = "KEGG", color = DATASOURCE_COLORS["KEGG"][[1]], shape = "diamond") %>%
       visGroups(groupname = "REAC", color = DATASOURCE_COLORS["REAC"][[1]], shape = "diamond") %>%
       visGroups(groupname = "WP", color = DATASOURCE_COLORS["WP"][[1]], shape = "diamond") %>%
+      visGroups(groupname = "PANTHER", color = DATASOURCE_COLORS["PANTHER"][[1]], shape = "diamond") %>%
+      visGroups(groupname = "DO", color = DATASOURCE_COLORS["DO"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "DISGENET", color = DATASOURCE_COLORS["DISGENET"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "OMIM", color = DATASOURCE_COLORS["OMIM"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "GLAD4U_DISEASE", color = DATASOURCE_COLORS["GLAD4U_DISEASE"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "ORPHA", color = DATASOURCE_COLORS["ORPHA"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "DRUGBANK", color = DATASOURCE_COLORS["DRUGBANK"][[1]], shape = "star") %>%
+      visGroups(groupname = "GLAD4U_DRUG", color = DATASOURCE_COLORS["GLAD4U_DRUG"][[1]], shape = "star") %>%
       visGroups(groupname = "INTERPRO", color = DATASOURCE_COLORS["INTERPRO"][[1]], shape = "star") %>%
       visGroups(groupname = "PFAM", color = DATASOURCE_COLORS["PFAM"][[1]], shape = "star") %>%
-      visGroups(groupname = "UNIPROT", color = DATASOURCE_COLORS["UNIPROT"][[1]], shape = "star") %>%
-      visGroups(groupname = "TF", color = DATASOURCE_COLORS["TF"][[1]], shape = "star") %>%
-      visGroups(groupname = "MIRNA", color = DATASOURCE_COLORS["MIRNA"][[1]], shape = "star") %>%
       visGroups(groupname = "BTO", color = DATASOURCE_COLORS["BTO"][[1]], shape = "triangle") %>%
-      visGroups(groupname = "HPA", color = DATASOURCE_COLORS["HPA"][[1]], shape = "triangle") %>%
+      visGroups(groupname = "WBBT", color = DATASOURCE_COLORS["WBBT"][[1]], shape = "triangle") %>%
+      visGroups(groupname = "TF", color = DATASOURCE_COLORS["TF"][[1]], shape = "triangle") %>%
+      visGroups(groupname = "MIRNA", color = DATASOURCE_COLORS["MIRNA"][[1]], shape = "triangle") %>%
       visGroups(groupname = "CORUM", color = DATASOURCE_COLORS["CORUM"][[1]], shape = "triangle") %>%
-      visGroups(groupname = "DO", color = DATASOURCE_COLORS["DO"][[1]], shape = "triangleDown") %>%
-      visGroups(groupname = "HP", color = DATASOURCE_COLORS["HP"][[1]], shape = "triangleDown") %>%
+      visGroups(groupname = "HPA", color = DATASOURCE_COLORS["HPA"][[1]], shape = "square") %>%
+      visGroups(groupname = "HP", color = DATASOURCE_COLORS["HP"][[1]], shape = "square") %>%
+      visGroups(groupname = "WBP", color = DATASOURCE_COLORS["WBP"][[1]], shape = "square") %>%
+      visGroups(groupname = "MGI", color = DATASOURCE_COLORS["MGI"][[1]], shape = "square") %>%
+      visGroups(groupname = "Gene", color = GENE_NODE_COLOR, shape = "square") %>%
+      visGroups(groupname = "PUBMED", color = LITERATURE_NODE_COLOR, shape = "square") %>%
       visEdges(color = "black") %>%
       visIgraphLayout(layout = layout) %>%
       visInteraction(navigationButtons = T, hover = T)
@@ -240,17 +245,20 @@ generateHeatmapHoverText <- function(shinyOutputId) {
   return(hoverText)
 }
 
-renderBarchart <- function(shinyOutputId, barchartData, column, height) {
+renderBarchart <- function(shinyOutputId, barchartData, column,
+                           drawFormatColumun, height) {
   output[[shinyOutputId]] <- renderPlotly({
     plot_ly(
       data = barchartData,
       x = barchartData[[column]],
-      y = ~Term_ID,
+      y = barchartData[[drawFormatColumun]],
       type = 'bar',
       orientation = 'h',
       color = ~Source,
       colors = DATASOURCE_COLORS,
-      text = ~`Intersection Size`,
+      text = sprintf("%s/%s",
+                     barchartData[["Intersection Size"]],
+                     barchartData[["Term Size"]]),
       textfont = list(color = '#000000', size = 16),
       textposition = 'outside',
       hoverinfo = "text",
@@ -296,7 +304,7 @@ renderScatterPlot <- function(shinyOutputId, scatterData) {
 
 renderManhattanPlot <- function() { 
   output$manhattan <- renderPlotly({
-    gostplot(
+    gprofiler2::gostplot(
       gprofilerResult,
       capped = T,
       interactive = T,

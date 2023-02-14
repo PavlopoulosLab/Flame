@@ -40,14 +40,15 @@ constructFunctionsVsGeneHeatmap <- function(enrichmentType,
   heatmapTable <- separateRows(enrichmentFilteredData)
   heatmapTable$GeneExists <- 1
   
-  uiTermKeyword <- str_to_title(UI_TERM_KEYWORD[[enrichmentType]])
+  uiTermKeyword <- stringr::str_to_title(UI_TERM_KEYWORD[[enrichmentType]])
   heatmap1_axis <- input[[paste(type_Tool, "heatmap1_axis", sep = "_")]]
+  drawFormatColumun <- input[[paste(type_Tool, "heatmap1_drawFormat", sep = "_")]]
   if (heatmap1_axis == paste0(uiTermKeyword, "-Genes")) {
-    yAxisColumn <- "Term_ID_noLinks"
+    yAxisColumn <- drawFormatColumun
     xAxisColumn <- "Positive Hits"
   } else {
     yAxisColumn <- "Positive Hits"
-    xAxisColumn <- "Term_ID_noLinks"
+    xAxisColumn <- drawFormatColumun
   }
   entriesCount <- length(unique(heatmapTable[[yAxisColumn]]))
   height <- calculatePlotHeight(entriesCount)
@@ -80,13 +81,20 @@ constructFunctionsVsFunctionHeatmap <- function(enrichmentType, enrichmentTool,
   heatmapTable <- extractFunctionVsFunctionEdgelist(enrichmentType, enrichmentTool,
                                                     enrichmentFilteredData)
   
+  drawFormatColumun <- switch(
+    input[[paste(type_Tool, "heatmap2_drawFormat", sep = "_")]],
+    "Term_ID" = "Id",
+    "Function" = "Name"
+  )
+  yAxisColumn <- paste0("Source ", drawFormatColumun)
+  xAxisColumn <- paste0("Target ", drawFormatColumun)
   entriesCount <- length(unique(heatmapTable$`Source Name`))
   height <- calculatePlotHeight(entriesCount)
   renderHeatmap(type_Tool, "heatmap2", heatmapTable,
                 color = DATASOURCE_COLORS[[input[[paste(
                   type_Tool, "heatmap2_sourceSelect", sep = "_")]]]],
-                yAxisColumn = "Source Id",
-                xAxisColumn = "Target Id",
+                yAxisColumn = yAxisColumn,
+                xAxisColumn = xAxisColumn,
                 weightColumn = "Similarity Score %",
                 height = height)
 }

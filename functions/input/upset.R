@@ -1,6 +1,6 @@
 handleUpset <- function() {
   tryCatch({
-    renderModal("<h2>Please wait.</h2><br /><p>Generating Upset Plot.</p>")
+    renderModal("<h2>Please wait.</h2><br /><p>Generating UpSet Plot.</p>")
     checkboxLists <- input$checkboxLists
     
     if (isValidUpsetSelection()) {
@@ -30,11 +30,11 @@ createUpset <- function(upsetList){
   currentUpsetMode <<- input$upsetMode
   upsetModeFunction <- switch(
     currentUpsetMode,
-    "Intersection" = generateIntersections,
-    "Distinct Combinations" = generateDistinctIntersections,
-    "Union" = generateUnions
+    "Intersection" = upsetjs::generateIntersections,
+    "Distinct Combinations" = upsetjs::generateDistinctIntersections,
+    "Union" = upsetjs::generateUnions
   )
-  renderUpset(upsetList, upsetModeFunction)
+  renderUpset("upsetjsView", upsetList, upsetModeFunction)
   renderShinyText("hoveredInfoLabel", "Hovered set:")
 }
 
@@ -78,15 +78,29 @@ handleUpsetListAccept <- function() {
       "Distinct Combinations" = "distinct",
       "Union" = "union"
     )
-    listName <- limitListName(paste(prefix, upsetjs_click$name, sep = "_"))
-    if (notExistsListName(listName)) {
-      updateUserInputLists(as.data.frame(as.character(upsetjs_click$elems)), listName)
-      updateCheckboxInput(session, "selectAll", value = 0)
-      updateListBoxes()
+    clickedElements <- as.data.frame(as.character(upsetjs_click$elems))
+    if (isInputWithinLimit(clickedElements)) { # might not be within limits after Unions
+      listName <- limitListName(paste(prefix, upsetjs_click$name, sep = "_"))
+      if (notExistsListName(listName)) {
+        updateUserInputLists(clickedElements, listName)
+        updateCheckboxInput(session, "selectAll", value = 0)
+        updateListBoxes()
+      }
+      
     }
     removeModal()
   }, error = function(e) {
     print(paste0("Error: ", e))
     renderError("Problem with UpSet Plot list selection.")
   })
+}
+
+isInputWithinLimit <- function(clickedElements) {
+  isWithinLimits <- T
+  if (nrow(clickedElements) > GENE_LIST_LIMIT) {
+    isWithinLimits <- F
+    renderWarning(sprintf("Input limit is %d. Cannot append this list.",
+                         GENE_LIST_LIMIT))
+  }
+  return(isWithinLimits)
 }

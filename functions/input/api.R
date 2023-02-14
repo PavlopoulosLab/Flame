@@ -23,7 +23,7 @@ apiCallExists <- function(query) {
 }
 
 handleGETFileFromPOSTRequest <- function(jsonFile) {
-  jsonLists <- fromJSON(jsonFile)
+  jsonLists <- jsonlite::fromJSON(jsonFile)
   jsonLists <- limitLists(jsonLists)
   for (i in 1:length(jsonLists)) {
     jsonList <- jsonLists[i]

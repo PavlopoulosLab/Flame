@@ -1,36 +1,43 @@
 function(input, output, session) {
-  source("global_variables.R", local = TRUE)
-  source("functions/general.R", local = TRUE)
-  source("functions/init.R", local = TRUE)
-  source("functions/render.R", local = TRUE)
-  source("functions/update.R", local = TRUE)
-  source("functions/reset.R", local = TRUE)
+  source("config/global_settings.R", local = T)
+  source("config/global_variables.R", local = T)
+  source("config/server_variables.R", local = T)
+  source("config/static_variables.R", local = T)
   
-  source("functions/input/main.R", local = TRUE)
-  source("functions/input/upset.R", local = TRUE)
-  source("functions/input/text_mining.R", local = TRUE)
-  source("functions/input/volcano.R", local = TRUE)
-  source("functions/input/api.R", local = TRUE)
+  source("functions/general.R", local = T)
+  source("functions/init.R", local = T)
+  source("functions/render.R", local = T)
+  source("functions/update.R", local = T)
+  source("functions/reset.R", local = T)
   
-  source("functions/enrichment/inputs_panel.R", local = TRUE)
-  source("functions/enrichment/main.R", local = TRUE)
-  source("functions/enrichment/general.R", local = TRUE)
-  source("functions/enrichment/gprofiler.R", local = TRUE)
-  source("functions/enrichment/agotool.R", local = TRUE)
-  source("functions/links.R", local = TRUE)
+  source("functions/input/main.R", local = T)
+  source("functions/input/upset.R", local = T)
+  source("functions/input/text_mining.R", local = T)
+  source("functions/input/snps.R", local = T)
+  source("functions/input/volcano.R", local = T)
+  source("functions/input/api.R", local = T)
   
-  source("functions/plots/general.R", local = TRUE)
-  source("functions/plots/networks.R", local = TRUE)
-  source("functions/plots/heatmaps.R", local = TRUE)
-  source("functions/plots/barchart.R", local = TRUE)
-  source("functions/plots/scatter.R", local = TRUE)
-  source("functions/plots/manhattan.R", local = TRUE)
-  source("functions/plots/arena3d.R", local = TRUE)
+  source("functions/enrichment/inputs_panel.R", local = T)
+  source("functions/enrichment/main.R", local = T)
+  source("functions/enrichment/general.R", local = T)
+  source("functions/enrichment/agotool.R", local = T)
+  source("functions/enrichment/gprofiler.R", local = T)
+  source("functions/enrichment/webgestalt.R", local = T)
+  source("functions/enrichment/enrichr.R", local = T)
+  source("functions/enrichment/combination.R", local = T)
+  source("functions/links.R", local = T)
   
-  source("functions/stringNetwork.R", local = TRUE)
-  source("functions/conversion.R", local = TRUE)
+  source("functions/plots/general.R", local = T)
+  source("functions/plots/networks.R", local = T)
+  source("functions/plots/heatmaps.R", local = T)
+  source("functions/plots/barchart.R", local = T)
+  source("functions/plots/scatter.R", local = T)
+  source("functions/plots/manhattan.R", local = T)
+  source("functions/plots/arena3d.R", local = T)
   
-  source("functions/input/text_mining.R", local = TRUE)
+  source("functions/stringNetwork.R", local = T)
+  source("functions/conversion.R", local = T)
+  
 
   # API ####
   observeEvent(session$clientData$url_search, {
@@ -46,23 +53,23 @@ function(input, output, session) {
   }, ignoreInit = T)
   
   # INPUT ####
-  observeEvent(input$example,{
+  observeEvent(input$example, {
     handleRandomExample()
   }, ignoreInit = T)
   
-  observeEvent(input$clear, {
+  observeEvent(input$input_clear, {
     handleClearText()
   }, ignoreInit = T)
   
-  observeEvent(input$textSubmit,{
+  observeEvent(input$text_submit, {
     handleTextSubmit()
   }, ignoreInit = T)
   
-  observeEvent(input$fileUpload,{
+  observeEvent(input$fileUpload, {
     handleInputFiles()
   }, ignoreInit = T)
 
-  observeEvent(input$selectAll,{
+  observeEvent(input$selectAll, {
     handleSelectAllLists()
   }, ignoreInit = T)
   
@@ -78,7 +85,7 @@ function(input, output, session) {
     handleRemoveLists()
   }, ignoreInit = T)
   
-  observeEvent(input$selectView,{
+  observeEvent(input$selectView, {
     handleSelectView()
   }, ignoreInit = T)
   
@@ -87,7 +94,7 @@ function(input, output, session) {
     loadTextMiningExample()
   }, ignoreInit = T)
 
-  observeEvent(input$textmining_clearText, {
+  observeEvent(input$textmining_clear, {
     resetTextMiningFields()
   }, ignoreInit = T)
   
@@ -95,7 +102,7 @@ function(input, output, session) {
     handleTextMining()
   }, ignoreInit = T)
   
-  observeEvent(input$textmining_addList,{
+  observeEvent(input$textmining_addList, {
     addTextMiningToFiles()
   }, ignoreInit = T)  
   
@@ -118,6 +125,31 @@ function(input, output, session) {
   
   observeEvent(input$upsetClick_ok, {
     handleUpsetListAccept()
+  }, ignoreInit = T)
+
+  # ~SNPs ####
+  observeEvent(input$snp_example, {
+    loadVariantExample()
+  }, ignoreInit = T)
+  
+  observeEvent(input$snp_clear, {
+    resetVariantFields()
+  }, ignoreInit = T)
+  
+  observeEvent(input$snp_submit, {
+    handleVariantSubmit()
+  }, ignoreInit = T)
+  
+  observeEvent(input$snp_fileUpload, {
+    handleVariantUpload()
+  }, ignoreInit = T)
+  
+  observeEvent(input$snp_addList, {
+    addVariantsToFiles()
+  }, ignoreInit = T)  
+  
+  observeEvent(input$snp_delete, {
+    deleteVariants()
   }, ignoreInit = T)
   
   # ~Volcano ####
@@ -145,16 +177,20 @@ function(input, output, session) {
                     paste(volcanoSelectedItems, collapse = ", "))
   }, ignoreInit = T)
 
-  observeEvent(input$volcanoSubmit, {
+  observeEvent(input$volcano_submit, {
     handleVolcanoSubmit()
   }, ignoreInit = T)
 
-  observeEvent(input$volcano_ok,{
+  observeEvent(input$volcano_ok, {
     handleVolcanoListAccept()
   }, ignoreInit = T)
   
   # ENRICHMENT ####
-  observeEvent(input$functional_enrichment_tool,{
+  observeEvent(input$functional_enrichment_organism, {
+    handleFunctionalEnrichmentOrganismSelection()
+  }, ignoreInit = T)
+  
+  observeEvent(input$functional_enrichment_tool, {
     handleFunctionalEnrichmentToolSelection()
   }, ignoreInit = T, ignoreNULL = F)
   
@@ -164,19 +200,37 @@ function(input, output, session) {
     }, ignoreInit = T)
   })
   
-  # ~Plots ####
-  # ~~Networks ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
-      lapply(NETWORK_IDS, function(networkId) {
-        observeEvent(input[[paste(enrichmentType, toolName,
-                                  networkId, "sourceSelect", sep = "_")]], {
-          handleDatasourcePicker(enrichmentType, toolName, networkId)
-        }, ignoreInit = T, ignoreNULL = F)
+      observeEvent(input[[
+        paste(enrichmentType, toolName, "clear", sep = "_")]], {
+          handleEnrichmentResultClear(enrichmentType, toolName)
+        }, ignoreInit = T)
+    })
+  })
+  
+  # ~Combination ####
+  observeEvent(input$combo_datasources, {
+      handleComboSourceSelect()
+    }, ignoreInit = T, ignoreNULL = T)
+  
+  observeEvent(input$upsetjsCombo_click, {
+    handleComboUpsetClick()
+  }, ignoreInit = T)
+  
+  # ~Plots ####
+  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+    lapply(ENRICHMENT_TOOLS, function(toolName) {
+      lapply(ALL_PLOT_IDS, function(plotId) {
+        observeEvent(input[[
+          paste(enrichmentType, toolName, plotId, "sourceSelect", sep = "_")]], {
+            handleDatasourcePicker(enrichmentType, toolName, plotId)
+          }, ignoreInit = T, ignoreNULL = F)
       })
     })
   })
   
+  # ~~Networks ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       lapply(NETWORK_IDS, function(networkId) {
@@ -203,16 +257,6 @@ function(input, output, session) {
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       lapply(HEATMAP_IDS, function(heatmapId) {
-        observeEvent(input[[paste(enrichmentType, toolName, heatmapId, "sourceSelect", sep = "_")]], {
-          handleDatasourcePicker(enrichmentType, toolName, heatmapId)
-        }, ignoreInit = T, ignoreNULL = F)
-      })
-    })
-  })
-  
-  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(ENRICHMENT_TOOLS, function(toolName) {
-      lapply(HEATMAP_IDS, function(heatmapId) {
         observeEvent(input[[paste(enrichmentType, toolName,
                                   heatmapId, "button", sep = "_")]], {
           handleHeatmap(enrichmentType, toolName, heatmapId)
@@ -222,14 +266,6 @@ function(input, output, session) {
   })
   
   # ~~Barchart ####
-  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(ENRICHMENT_TOOLS, function(toolName) {
-      observeEvent(input[[paste(enrichmentType, toolName, "barchart_sourceSelect", sep = "_")]], {
-        handleDatasourcePicker(enrichmentType, toolName, "barchart")
-      }, ignoreInit = T, ignoreNULL = F)
-    })
-  })
-  
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
       observeEvent(input[[paste(enrichmentType, toolName,
@@ -242,14 +278,6 @@ function(input, output, session) {
   # ~~Scatter ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {
-      observeEvent(input[[paste(enrichmentType, toolName, "scatterPlot_sourceSelect", sep = "_")]], {
-        handleDatasourcePicker(enrichmentType, toolName, "scatterPlot")
-      }, ignoreInit = T, ignoreNULL = F)
-    })
-  })
-  
-  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
-    lapply(ENRICHMENT_TOOLS, function(toolName) {
       observeEvent(input[[paste(enrichmentType, toolName,
                                 "scatterPlot_button", sep = "_")]], {
         handleScatterPlot(enrichmentType, toolName)
@@ -259,7 +287,6 @@ function(input, output, session) {
 
   # ~~Manhattan ####
   observeEvent(input$manhattan_button, {
-    # TODO convert to generic manhattan plot outside gprofiler
     handleManhattanPlot()
   }, ignoreInit = T)
   
@@ -276,20 +303,24 @@ function(input, output, session) {
   }, ignoreInit = T)
   
   # STRING ####
+  observeEvent(input$string_network_organism, {
+    handleStringOrganismSelection()
+  }, ignoreInit = T)
+  
   observeEvent(input$runStringNetwork, {
     handleStringNetwork()
   }, ignoreInit = T)
   
   # CONVERSION ####
-  observeEvent(input$gconvert_button,{
+  observeEvent(input$gconvert_button, {
     handle_gconvert()
   }, ignoreInit = T)
   
-  observeEvent(input$gorth_organism,{
+  observeEvent(input$gorth_organism, {
     handle_gorthOrganism()
   }, ignoreInit = T)
   
-  observeEvent(input$gorth_button,{
+  observeEvent(input$gorth_button, {
     handle_gorth()
   }, ignoreInit = T)
 }

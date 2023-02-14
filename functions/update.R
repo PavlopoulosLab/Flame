@@ -15,6 +15,7 @@ updateListBoxes <- function() {
   updateSelectInput(session, "aGOtoolSelect", choices = names(userInputLists))
   updateSelectInput(session, "literatureSelect", choices = names(userInputLists))
   updateSelectInput(session, "STRINGnetworkSelect", choices = names(userInputLists))
+  toggleUpsetTab()
 }
 
 updateVolcanoSliders <- function(maxLog10PValue, maxLogFC) {
@@ -42,32 +43,130 @@ updateVolcanoMetricsConversionText <- function(log10pvalue, log2fc) {
 }
 
 updateAvailableTools <- function() {
-  # TODO
-  # updateSelectInput(session, "functional_enrichment_organism",
-  #                   choices = choices)
+  inputOrganism <- input$functional_enrichment_organism
+  if (inputOrganism != "") {
+    # always trigger a changed-tool event to correctly update namespaces
+    updatePickerInput(session, "functional_enrichment_tool",
+                      choices = NULL, selected = character(0))
+    taxid <- ORGANISMS[ORGANISMS$print_name == inputOrganism, ]$taxid
+    organismShortName <- ORGANISMS[ORGANISMS$print_name == inputOrganism, ]$short_name
+    choices <- names(which(sapply(TOOL_ORGANISMS, function(tool) taxid %in% tool)))
+    selected <- choices[1]
+    if (isSpecialOrganism(organismShortName))
+      selected <- SPECIAL_PREFERRED_TOOL[[organismShortName]]
+    updatePickerInput(session, "functional_enrichment_tool",
+                      choices = choices, selected = selected)
+  }
+}
+
+isSpecialOrganism <- function(organismShortName) {
+  return(organismShortName %in% SPECIAL_ORGANISMS)
 }
 
 updateAvailableDatasources <- function() {
   toolCapitalNames <- toupper(input$functional_enrichment_tool)
   choices <- getChoicesUnion(toolCapitalNames)
-  selected <- eval(
-    parse(text = paste0("AGOTOOL", "_DATASOURCES_DEFAULT_SELECTED")))
   updatePickerInput(session, "functional_enrichment_datasources",
-                    choices = choices, selected = selected)
+                    choices = choices, selected = DATASOURCES_DEFAULT_SELECTED)
 }
 
-updateAvailableNamespaces <- function() { # TODO organism/tool combination
-  toolCapitalNames <- toupper(input$functional_enrichment_tool)
-  choices <- getChoicesIntersection(toolCapitalNames)
-  selected <- decideChoiceSelected(toolCapitalNames)
-  updateSelectInput(session, "functional_enrichment_namespace",
-                    choices = choices, selected = selected)
+getChoicesUnion <- function(toolCapitalNames) {
+  choices <- c()
+  for (tool in toolCapitalNames) {
+    prefix <- ""
+    if (tool == "ENRICHR") {
+      prefix <- getEnrichrVariablePrefix()
+    }
+    choices <- c(choices, DATASOURCES[[paste0(prefix, tool)]])
+  }
+  choices <- filterDatasourcePrintChoices(unique(choices))
+  return(choices)
+}
+
+filterDatasourcePrintChoices <- function(choices) {
+  filtered_DATASOURCES_PRINT <- DATASOURCES_PRINT
+  for (i in length(DATASOURCES_PRINT):1) {
+    filtered_DATASOURCES_PRINT[[i]][!filtered_DATASOURCES_PRINT[[i]] %in% choices] <- NULL
+    if (length(filtered_DATASOURCES_PRINT[[i]]) == 0)
+      filtered_DATASOURCES_PRINT[[i]] <- NULL
+  }
+  return(filtered_DATASOURCES_PRINT)
+}
+
+addNewDatasourcesOnly <- function(toolCategoryChoices, choices) {
+  if (!identical(toolCategoryChoices[[1]], choices[[names(toolCategoryChoices)]]))
+    for (i in 1:length(toolCategoryChoices[[1]])) {
+      if (!toolCategoryChoices[[1]][[i]] %in% choices[[names(toolCategoryChoices)]])
+        choices[[names(toolCategoryChoices)]] <-
+          c(choices[[names(toolCategoryChoices)]], toolCategoryChoices[[1]][i])
+    }
+  return(choices)
+}
+
+updateAvailableNamespaces <- function() {
+  organismShortName <-
+    ORGANISMS[ORGANISMS$print_name == input$functional_enrichment_organism, ]$short_name
+  if (!is.na(organismShortName)) {
+    toolCapitalNames <- toupper(input$functional_enrichment_tool)
+    choices <- getNamespaceChoices(toolCapitalNames)
+    selected <- choices[1]
+    if (isSpecialOrganism(organismShortName) &&
+        all(toolCapitalNames == "ENRICHR"))
+      selected <- SPECIAL_PREFERRED_NAMESPACE[[organismShortName]]
+    updateSelectInput(session, "functional_enrichment_namespace",
+                      choices = choices, selected = selected)
+  } else {
+    shinyjs::disable("functional_enrichment_namespace")
+    updateSelectInput(session, "functional_enrichment_namespace",
+                      choices = c("ENSEMBL Protein ID" = "ENSP"),
+                      selected = "ENSP")
+  }
+}
+
+getNamespaceChoices <- function(toolCapitalNames) {
+  if (length(toolCapitalNames) == 1) {
+    shinyjs::enable("functional_enrichment_namespace")
+    prefix <- getNamespacePrefix(toolCapitalNames)
+    choices <- NAMESPACES[[paste0(prefix, toolCapitalNames)]]
+    organismShortName <-
+      ORGANISMS[ORGANISMS$print_name == input$functional_enrichment_organism, ]$short_name
+    if (isSpecialOrganism(organismShortName) && toolCapitalNames == "GPROFILER")
+      choices <- c(NAMESPACES[["SPECIAL"]][[organismShortName]], choices)
+  } else {
+    shinyjs::disable("functional_enrichment_namespace")
+    choices <- DEFAULT_NAMESPACE_TEXT
+  }
+  return(choices)
+}
+
+getNamespacePrefix <- function(toolCapitalNames) {
+  prefix <- ""
+  if (toolCapitalNames == "ENRICHR") {
+    prefix <- switch(
+      ORGANISMS[ORGANISMS$print_name ==
+                  input[["functional_enrichment_organism"]], ]$short_name,
+      "dmelanogaster" = "FLY_",
+      "scerevisiae" = "YEAST_"
+    )
+  }
+  return(prefix)
 }
 
 updateAvailableSignificanceMetrics <- function() {
   toolCapitalNames <- toupper(input$functional_enrichment_tool)
   choices <- getAvailableSignificanceMetrics(toolCapitalNames)
   updateSelectInput(session, "functional_enrichment_metric", choices = choices)
+}
+
+getAvailableSignificanceMetrics <- function(toolCapitalNames) {
+  if (length(toolCapitalNames) == 1) {
+    shinyjs::enable("functional_enrichment_metric")
+    choices <- METRICS[[toolCapitalNames]]
+  } else {
+    shinyjs::disable("functional_enrichment_metric")
+    choices <- DEFAULT_METRIC_TEXT
+  }
+  return(choices)
 }
 
 updatePlotControlPanels <- function() {
@@ -78,13 +177,14 @@ updatePlotControlPanels <- function() {
 updatePlotDataSources <- function(){
   sources <- switch(
     currentEnrichmentType,
-    "functional" = unique(enrichmentResults[[currentType_Tool]]$Source),
+    "functional" = ENRICHMENT_DATASOURCES[
+      which(ENRICHMENT_DATASOURCES %in% unique(enrichmentResults[[currentType_Tool]]$Source))
+    ],
     "literature" = "PUBMED"
   )
   selected <- sources[1]
   
-  allPlotIds <- c(NETWORK_IDS, HEATMAP_IDS, "barchart", "scatterPlot")
-  lapply(allPlotIds, function(plotId) {
+  lapply(ALL_PLOT_IDS, function(plotId) {
     updatePickerInput(
       session, paste(currentType_Tool, plotId, "sourceSelect", sep = "_"),
       choices = sources, selected = selected
@@ -100,31 +200,14 @@ updatePlotSliderInputs <- function(selectedDataSource) {
         selectedDataSource, enrichmentResults[[currentType_Tool]]$Source), ]),
     "literature" = nrow(enrichmentResults[[currentType_Tool]])
   )
+  if (maxSliderValue > MAX_SLIDER_VALUE)
+    maxSliderValue <- MAX_SLIDER_VALUE
   
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "scatterPlot_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "barchart_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "heatmap1_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "heatmap2_slider", sep = "_"),
-    minSliderValue = 2, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "heatmap3_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "network1_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "network2_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
-  updateShinySliderInput(
-    shinyOutputId = paste(currentType_Tool, "network3_slider", sep = "_"),
-    minSliderValue = 1, maxSliderValue)
+  lapply(ALL_PLOT_IDS, function(plotId) {
+    updateShinySliderInput(
+      shinyOutputId = paste(currentType_Tool, plotId, "slider", sep = "_"),
+      minSliderValue = 1, maxSliderValue)
+  })
   updateShinySliderInput(
     shinyOutputId = paste(currentType_Tool, "network3_thresholdSlider", sep = "_"),
     minSliderValue = 1, maxSliderValue)
@@ -137,4 +220,22 @@ updateShinySliderInput <- function(shinyOutputId, minSliderValue, maxSliderValue
     min = minSliderValue, max = maxSliderValue,
     value = value, step = step
   )
+}
+
+updateAvailableStringNamespaces <- function() {
+  if (input$string_network_organism != "") {
+    if (!is.na(
+      ORGANISMS[ORGANISMS$print_name == input$string_network_organism, ]$short_name
+    )) {
+      shinyjs::enable("STRING_namespace")
+      updateSelectInput(session, "STRING_namespace",
+                        choices = NAMESPACES[["AGOTOOL"]],
+                        selected = "ENSP")
+    } else {
+      shinyjs::disable("STRING_namespace")
+      updateSelectInput(session, "STRING_namespace",
+                        choices = c("User Input" = "USERINPUT"),
+                        selected = "USERINPUT")
+    }
+  }
 }
