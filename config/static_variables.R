@@ -14,6 +14,8 @@ currentVariantResults <- data.frame()
 currentTextminingResult <- c()
 currentVolcano <- data.frame()
 currentUpsetMode <- ""
+currentConversionResult <- data.frame()
+currentOrthologyResult <- data.frame()
 
 currentUserList <- c()
 currentEnrichmentType <- ""

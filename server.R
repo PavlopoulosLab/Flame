@@ -16,6 +16,7 @@ function(input, output, session) {
   source("functions/input/snps.R", local = T)
   source("functions/input/volcano.R", local = T)
   source("functions/input/api.R", local = T)
+  source("functions/input/conversion.R", local = T)
   
   source("functions/enrichment/inputs_panel.R", local = T)
   source("functions/enrichment/main.R", local = T)
@@ -322,5 +323,15 @@ function(input, output, session) {
   
   observeEvent(input$gorth_button, {
     handle_gorth()
+  }, ignoreInit = T)
+  
+  observeEvent(input$gconvert_addList, {
+    dType <- input$gconvert_dType
+    addConversionResultToInput("gconvert", dType)
+  }, ignoreInit = T)
+  
+  observeEvent(input$gorth_addList, {
+    dType <- input$gorth_dType
+    addConversionResultToInput("gorth", dType)
   }, ignoreInit = T)
 }

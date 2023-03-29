@@ -115,8 +115,8 @@ addVariantsToFiles <- function() {
     }
     buildUserListFromText(paste(list_of_ids, collapse = "\n"), nametype)
   }, error = function(e) {
-    cat(paste("Extracting list from text-mining error: ", e))
-    renderError("Extracting list from text-mining error.")
+    cat(paste("Extracting list from SNPs error: ", e))
+    renderError("Extracting list from SNPs error.")
   }, finally = {
     removeModal()
   })

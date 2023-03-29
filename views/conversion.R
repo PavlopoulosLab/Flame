@@ -12,6 +12,12 @@ generateConvertDiv <- function(prefix) {
         width = "80%",
         choices = c(NAMESPACES[["CORE"]], unlist(NAMESPACES[["SPECIAL"]]))
       )
+      selectResultToAddComponent <- radioGroupButtons(
+        inputId = paste0(prefix, "_dType"),
+        label = "Select column to add:",
+        choiceNames = c("Name", "Target"),
+        choiceValues = c("name", "target")
+      )
     },
     "gorth" = {
       title <- "Orthology Search"
@@ -25,6 +31,12 @@ generateConvertDiv <- function(prefix) {
         selected = NULL,
         width = "80%",
         options = list(placeholder = 'Select an option or start typing...')
+      )
+      selectResultToAddComponent <- radioGroupButtons(
+        inputId = paste0(prefix, "_dType"),
+        label = "Select column to add:",
+        choiceNames = c("Ortholog Name", "Ortholog ID"),
+        choiceValues = c("name", "id"),
       )
     }
   )
@@ -55,7 +67,26 @@ generateConvertDiv <- function(prefix) {
         )
       ),
       tags$hr(),
-      DT::dataTableOutput(paste0(prefix, "_table"))
+      tags$div(id=paste0(prefix, "_resultsPanel"), style="display:none",
+               DT::dataTableOutput(paste0(prefix, "_table")),
+               fluidRow(
+              column(2,
+               selectResultToAddComponent
+               ),
+              column(2,
+              tags$br(),
+               actionButton(
+                 inputId = paste0(prefix,"_addList"),
+                 label = "Add result to input",
+                 icon("paper-plane")
+               )
+              ),
+              column(6,
+              tags$br(),
+              tags$p(id=paste0(prefix, "_addedInfo"), style="display:none; font-size:12px", "Selected column has been added to the list of inputs!")
+              )
+               )
+      )
     )
   )
 }

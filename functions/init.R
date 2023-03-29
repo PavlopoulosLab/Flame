@@ -26,9 +26,12 @@ toggleUpsetTab <- function() {
 }
 
 initialiazeOrganismSelectors <- function() {
+  ORGANISMS <- ORGANISMS[order(ORGANISMS$print_name),]
+  print(nrow(ORGANISMS))
   selected <- "Homo sapiens (Human) [NCBI Tax. ID: 9606]"
   gProfiler_printNames <- ORGANISMS[!is.na(ORGANISMS$short_name), ]$print_name
   aGoTool_printNames <- ORGANISMS[ORGANISMS$taxid %in% TOOL_ORGANISMS$aGOtool, ]$print_name
+  print(length(aGoTool_printNames))
   updateSelectizeInput(session, 'textmining_organism',
                        choices = aGoTool_printNames, selected = selected, server = T)
   updateSelectizeInput(session, 'functional_enrichment_organism',

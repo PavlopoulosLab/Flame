@@ -14,6 +14,9 @@ handle_gconvert <- function() {
         )
         if (existsConverteOutput(convertedOutput)) {
           convertedOutput <- convertedOutput[c("input", "target", "name", "description")]
+          currentConversionResult <<- convertedOutput
+          colnames(convertedOutput) <- c("Input", "Target", "Name", "Description")
+          shinyjs::show("gconvert_resultsPanel")
           renderShinyDataTable("gconvert_table", convertedOutput,
                                fileName = paste0('conversion_', gconvertSelect))
         }
@@ -80,6 +83,9 @@ handle_gorth <- function() {
           convertedOutput <- convertedOutput[c(
             "input", "input_ensg", "ortholog_name", "ortholog_ensg", "description"
           )]
+          currentOrthologyResult <<- convertedOutput
+          colnames(convertedOutput) <- c("Input", "Input ID", "Ortholog Name", "Ortholog ID", "Description")
+          shinyjs::show("gorth_resultsPanel")
           renderShinyDataTable("gorth_table", convertedOutput,
                                fileName = paste0('orthology_', gorthSelect))
         }
