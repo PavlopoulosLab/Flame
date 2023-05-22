@@ -102,6 +102,16 @@ function(input, output, session) {
   observeEvent(input$textmining_submit, {
     handleTextMining()
   }, ignoreInit = T)
+
+  observeEvent(input$textmining_selectAll, {
+    shinyjs::runjs("textmining_selectAll(true);")
+    
+  }, ignoreInit = T)  
+    
+  observeEvent(input$textmining_selectNone, {
+    shinyjs::runjs("textmining_selectAll(false);")
+    
+  }, ignoreInit = T)  
   
   observeEvent(input$textmining_addList, {
     addTextMiningToFiles()

@@ -106,8 +106,11 @@ getHTML <- function(text_enc, entity_types_txt) {
 
 prepareExtractedTermsForPrint <- function(extracted_terms) {
   extracted_terms <- attachTextMiningDBLinks(extracted_terms)
-  extracted_terms <- subset(extracted_terms, select = -c(ID_noLINKS))
-  names(extracted_terms) <- c("Gene Name", "Species (TaxID)", "ID")
+  extracted_terms$check <- unlist(lapply(extracted_terms$ID_noLINKS, function(i) {
+    return(HTML(sprintf("<input type='checkbox' name='text_mining_result_table[]' value='%s' />", i)))
+  }))
+  extracted_terms <- subset(extracted_terms, select = c(check, Name, Type, ID))
+  names(extracted_terms) <- c("#", "Gene Name", "Species (TaxID)", "ID")
   return(extracted_terms)
 }
 
@@ -121,8 +124,10 @@ printExtractResults <- function(enriched_text, extracted_terms) {
 addTextMiningToFiles <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Parsing your input.</p>")
+    selected <- unlist(strsplit(as.character(input$textmining_selected), ","))
+    textMiningInputList <- currentTextminingResult[currentTextminingResult %in% selected]
     buildUserListFromText(paste(
-      currentTextminingResult, sep = "\n", collapse = "\n"
+      textMiningInputList, sep = "\n", collapse = "\n"
       ), "textmining")
   }, error = function(e) {
     cat(paste("Extracting list from text-mining error:  ", e))

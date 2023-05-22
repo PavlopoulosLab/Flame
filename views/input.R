@@ -124,8 +124,10 @@ generateTextMiningPanel <- function() {
                 wellPanel(htmlOutput(outputId = "extracted_text"))
               )
             ),
+            actionButton("textmining_selectAll", "Select All", icon("check")),
+            actionButton("textmining_selectNone", "De-select All", icon("x")),
             tags$br(),
-            actionButton("textmining_addList", "Add to lists", icon("paper-plane")),
+            actionButton("textmining_addList", "Add selected to lists", icon("paper-plane"), onclick='textmining_getAllSelected()'),
             actionButton("textmining_delete", "Delete", icon("broom"))
           )
         )
