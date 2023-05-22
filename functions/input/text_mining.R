@@ -25,7 +25,7 @@ handleTextMining <- function() {
     species <- ORGANISMS[ORGANISMS$print_name == input$textmining_organism, ]$taxid
     # js call to change the default TAGGER_SPECIES VALUE to species
     shinyjs::runjs(sprintf("updateSpecies(%s)", species))
-    if (areEnoughTextCharacters(text)) {
+    if (areEnoughTextCharacters(text) && belowWordLimit(text)) {
       renderModal("<h2>Please wait.</h2><p>Contacting the EXTRACT web server...</p>")
       parsedText <- parseTextForPOSTRequests(text, species)
       text_enc <- parsedText$text_enc
@@ -55,6 +55,16 @@ areEnoughTextCharacters <- function(text) {
   }
   return(areEnough)
 }
+
+belowWordLimit <- function(text) {
+  belowLimit <- T
+  if(stringr::str_count(text, "\\S+") > TEXTMINING_WORD_LIMIT) {
+    belowLimit <- F
+    renderWarning(sprintf("The submitted text must not be longer thasn %s words.", TEXTMINING_WORD_LIMIT))
+  }
+  return(belowLimit)
+}
+
 
 parseTextForPOSTRequests <- function(text, species) {
   entity_types <- c(-3)
