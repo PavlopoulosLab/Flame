@@ -54,7 +54,9 @@ generateEnrichmentControlPanel <- function() {
             label = "3. Select background:",
             choiceNames = c("Whole genome", "User-submitted list"),
             choiceValues = c("genome", "user_list"),
-            selected = "genome"
+            selected = "genome",
+            justified = T,
+            width = "80%"
             ),
           div(id=paste0(currentEnrichmentType, "_enrichment_background_container"),
               style="display:none",

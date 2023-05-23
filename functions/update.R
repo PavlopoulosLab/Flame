@@ -7,7 +7,9 @@ updateUserInputLists <- function(inputDF, listName) {
 updateListBoxes <- function() {
   updateCheckboxGroupInput(session, "checkboxLists", choices = names(userInputLists))
   updateSelectInput(session, "functional_enrichment_file", choices = names(userInputLists))
+  updateSelectInput(session, "functional_enrichment_background_list", choices = names(userInputLists))
   updateSelectInput(session, "literature_enrichment_file", choices = names(userInputLists))
+  updateSelectInput(session, "literature_enrichment_background_list", choices = names(userInputLists))
   updateSelectInput(session, "selectView", choices = names(userInputLists))
   updateSelectInput(session, "selectUpset", choices = names(userInputLists))
   updateSelectInput(session, "gconvert_select", choices = names(userInputLists))
@@ -242,8 +244,28 @@ updateAvailableStringNamespaces <- function() {
 
 
 updateBackgroundMode <- function(choice, enrichmentType) {
-  if (choice == "genome")
+  if (choice == "genome") {
     shinyjs::hide(paste0(enrichmentType, "_enrichment_background_container"))
-  else
+    # this is only for enrichmentType = 'functional',
+    # since 'literature' only has aGOtool anyway
+    updatePickerInput(session, "functional_enrichment_tool",
+                      choices = ENRICHMENT_TOOLS, selected = DEFAULT_TOOL)
+  }
+  else {
     shinyjs::show(paste0(enrichmentType, "_enrichment_background_container"))
+    # this is only for enrichmentType = 'functional',
+    # since 'literature' only has aGOtool anyway
+    updatePickerInput(session, "functional_enrichment_tool",
+                      choices = c("aGOtool", "gProfiler", "WebGestalt"), selected = DEFAULT_TOOL)
+  }
+}
+
+updateBackgroundListChoices <- function(enrichmentType) {
+  # the code below makes sure that the input list is NOT a choice for the background
+  # first, we get the user input value
+  userInputVal <- input[[paste0(enrichmentType, "_enrichment_file")]]
+  # then, we remove the user input from the list of choices (locally, not globally)
+  background_choices <- names(userInputLists)
+  background_choices <- background_choices[background_choices != userInputVal]
+  updateSelectInput(session, paste0(enrichmentType, "_enrichment_background_list"), choices = background_choices)
 }

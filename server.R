@@ -3,6 +3,7 @@ function(input, output, session) {
   source("config/global_variables.R", local = T)
   source("config/server_variables.R", local = T)
   source("config/static_variables.R", local = T)
+  source("config/ui_variables.R", local = T)
   
   source("functions/general.R", local = T)
   source("functions/init.R", local = T)
@@ -205,6 +206,12 @@ function(input, output, session) {
     handleFunctionalEnrichmentToolSelection()
   }, ignoreInit = T, ignoreNULL = F)
 
+  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+    observeEvent(input[[paste0(enrichmentType, "_enrichment_file")]], {
+      handleBackgroundListUpdate(enrichmentType)
+    }, ignoreInit = T)
+  })
+  
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     observeEvent(input[[paste0(enrichmentType, "_enrichment_background_choice")]], {
       choice <- input[[paste0(enrichmentType, "_enrichment_background_choice")]]
