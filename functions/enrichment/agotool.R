@@ -9,7 +9,7 @@ runAGoTool <- function(userInputList, taxid) {
   }
 }
 
-buildAGoToolRequestBody <- function(userInputList, taxid) {
+buildAGoToolRequestBody <- function(userInputList, taxid, user_reference = NULL) {
   if (currentSignificanceMetric == "False discovery rate") {
     FDR_cutoff <- input[[paste0(currentEnrichmentType, "_enrichment_threshold")]]
     p_value_cutoff <- 1
@@ -23,16 +23,31 @@ buildAGoToolRequestBody <- function(userInputList, taxid) {
         input[[paste0(currentEnrichmentType, "_enrichment_datasources")]]
       ], collapse = ";"
     )
+  
   foreground <- paste0(userInputList, collapse = "%0d")
-  enrichment_method <- "genome"
-  requestBody <- list(
-    taxid = taxid,
-    FDR_cutoff = FDR_cutoff,
-    limit_2_entity_type = limit_2_entity_type,
-    foreground = foreground,
-    enrichment_method = enrichment_method,
-    p_value_cutoff = p_value_cutoff
-  )
+  
+  if(is.null(user_reference)) {
+    requestBody <- list(
+      taxid = taxid,
+      FDR_cutoff = FDR_cutoff,
+      limit_2_entity_type = limit_2_entity_type,
+      foreground = foreground,
+      enrichment_method = "genome",
+      p_value_cutoff = p_value_cutoff
+    )    
+  }
+  else {
+    background <- paste0(user_reference, collapse = "%0d")
+    requestBody <- list(
+      FDR_cutoff = FDR_cutoff,
+      limit_2_entity_type = limit_2_entity_type,
+      foreground = foreground,
+      background = background,
+      enrichment_method = "compare_samples",
+      p_value_cutoff = p_value_cutoff
+    )
+  }
+
   return(requestBody)
 }
 
