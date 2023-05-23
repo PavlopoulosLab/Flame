@@ -1,5 +1,5 @@
-runAGoTool <- function(userInputList, taxid) {
-  requestBody <- buildAGoToolRequestBody(userInputList, taxid)
+runAGoTool <- function(userInputList, taxid, user_reference = NULL) {
+  requestBody <- buildAGoToolRequestBody(userInputList, taxid, user_reference)
   response <- sendAGoToolPOSTRequest(requestBody)
   if (isResponseValid(response)) {
     aGoToolParsedResult <- parseAGoToolResult(response, taxid)
@@ -33,18 +33,20 @@ buildAGoToolRequestBody <- function(userInputList, taxid, user_reference = NULL)
       limit_2_entity_type = limit_2_entity_type,
       foreground = foreground,
       enrichment_method = "genome",
-      p_value_cutoff = p_value_cutoff
+      p_value_cutoff = p_value_cutoff,
+      o_or_u_or_both = "overrepresented"
     )    
   }
   else {
     background <- paste0(user_reference, collapse = "%0d")
     requestBody <- list(
-      FDR_cutoff = FDR_cutoff,
+      FDR_cutoff = 1,
       limit_2_entity_type = limit_2_entity_type,
       foreground = foreground,
       background = background,
       enrichment_method = "compare_samples",
-      p_value_cutoff = p_value_cutoff
+      p_value_cutoff = 1,
+      o_or_u_or_both = "both"
     )
   }
 

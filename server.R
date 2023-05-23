@@ -221,6 +221,7 @@ function(input, output, session) {
     
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     observeEvent(input[[paste0(enrichmentType, "_enrichment_run")]], {
+      handleBackgroundListUpdate(input[[paste0(enrichmentType, "_enrichment_file")]])
       handleEnrichment(enrichmentType)
     }, ignoreInit = T)
   })

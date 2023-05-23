@@ -17,6 +17,8 @@ updateListBoxes <- function() {
   updateSelectInput(session, "aGOtoolSelect", choices = names(userInputLists))
   updateSelectInput(session, "literatureSelect", choices = names(userInputLists))
   updateSelectInput(session, "STRINGnetworkSelect", choices = names(userInputLists))
+  updateBackgroundListChoices("functional")
+  updateBackgroundListChoices("literature")
   toggleUpsetTab()
 }
 
