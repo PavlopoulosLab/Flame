@@ -239,3 +239,11 @@ updateAvailableStringNamespaces <- function() {
     }
   }
 }
+
+
+updateBackgroundMode <- function(choice, enrichmentType) {
+  if (choice == "genome")
+    shinyjs::hide(paste0(enrichmentType, "_enrichment_background_container"))
+  else
+    shinyjs::show(paste0(enrichmentType, "_enrichment_background_container"))
+}

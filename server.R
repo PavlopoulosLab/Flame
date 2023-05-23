@@ -204,7 +204,14 @@ function(input, output, session) {
   observeEvent(input$functional_enrichment_tool, {
     handleFunctionalEnrichmentToolSelection()
   }, ignoreInit = T, ignoreNULL = F)
-  
+
+  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+    observeEvent(input[[paste0(enrichmentType, "_enrichment_background_choice")]], {
+      choice <- input[[paste0(enrichmentType, "_enrichment_background_choice")]]
+      handleBackgroundModeSelection(choice, enrichmentType)
+    }, ignoreInit = T)
+  })
+    
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     observeEvent(input[[paste0(enrichmentType, "_enrichment_run")]], {
       handleEnrichment(enrichmentType)

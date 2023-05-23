@@ -17,3 +17,13 @@ handleFunctionalEnrichmentToolSelection <- function() {
     renderError("Unexpected error occured.")
   })
 }
+
+
+handleBackgroundModeSelection <- function(choice, enrichmentType) {
+  tryCatch({
+    updateBackgroundMode(choice, enrichmentType)
+  }, error = function(e) {
+    cat(paste("Error: ", e))
+    renderError("Unexpected error occured.")
+  })
+}

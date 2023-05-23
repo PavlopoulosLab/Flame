@@ -48,13 +48,28 @@ generateEnrichmentControlPanel <- function() {
             multiple = F,
             width = "80%",
             options = list(placeholder = 'Select an option or start typing...')
-          )
+          ),
+          radioGroupButtons(
+            inputId = paste0(currentEnrichmentType, "_enrichment_background_choice"),
+            label = "3. Select background:",
+            choiceNames = c("Whole genome", "User-submitted list"),
+            choiceValues = c("genome", "user_list"),
+            selected = "genome"
+            ),
+          div(id=paste0(currentEnrichmentType, "_enrichment_background_container"),
+              style="display:none",
+          selectInput(
+            inputId = paste0(currentEnrichmentType, "_enrichment_background_list"),
+            label = "Select background list:",
+            choices = NULL,
+            width = "80%"
+          )),
         ),
         column(
           4,
           pickerInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_tool"),
-            label = "3. Select enrichment tool:",
+            label = "4. Select enrichment tool:",
             choices = availableTools,
             selected = DEFAULT_TOOL,
             multiple = T,
@@ -63,7 +78,7 @@ generateEnrichmentControlPanel <- function() {
           ),
           pickerInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_datasources"),
-            label = "4. Select datasources:", 
+            label = "5. Select datasources:", 
             choices = datasourceChoices,
             selected = datasourceSelected,
             multiple = T,
@@ -72,7 +87,7 @@ generateEnrichmentControlPanel <- function() {
           ),
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_namespace"),
-            label = "5. Select namespace conversion:",
+            label = "6. Select namespace conversion:",
             choices = NAMESPACES[["AGOTOOL"]],
             width = "80%"
           ) %>% 
@@ -91,19 +106,19 @@ enrichR: Entrez Gene Name"
           4,
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_metric"),
-            label = "6. Select significance metric:",
+            label = "7. Select significance metric:",
             choices = metrics,
             width = "80%"
           ),
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_threshold"),
-            label = "7. Select significance threshold:",
+            label = "8. Select significance threshold:",
             choices = c(0.05, 0.01),
             width = "80%"
           ),
           radioButtons(
             inputId = paste0(currentEnrichmentType, "_enrichment_inputConversion"),
-            label = "8. Select result namespace:",
+            label = "9. Select result namespace:",
             choices = c("Original input names", "Converted input names"),
             inline = TRUE
           )
@@ -121,6 +136,7 @@ enrichR: Entrez Gene Name"
     )
   )
 }
+
 
 generateEnrichmentResultsPanel <- function() {
   if (currentEnrichmentType == "functional") {
