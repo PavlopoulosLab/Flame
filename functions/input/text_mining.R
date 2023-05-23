@@ -58,9 +58,9 @@ areEnoughTextCharacters <- function(text) {
 
 belowWordLimit <- function(text) {
   belowLimit <- T
-  if(stringr::str_count(text, "\\S+") > TEXTMINING_WORD_LIMIT) {
+  if(stringr::str_count(text, "\\S+") > TEXTMINING_WORD_LIMIT || nchar(text) > TEXTMINING_CHAR_LIMIT) {
     belowLimit <- F
-    renderWarning(sprintf("The submitted text must not be longer thasn %s words.", TEXTMINING_WORD_LIMIT))
+    renderWarning(sprintf("The submitted text must not be longer than %s words or %s characters.", TEXTMINING_WORD_LIMIT, TEXTMINING_CHAR_LIMIT))
   }
   return(belowLimit)
 }
