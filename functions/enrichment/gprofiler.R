@@ -1,12 +1,16 @@
-runGprofiler <- function(query, custom_bg = NULL) {
+runGprofiler <- function(query, user_reference = NULL) {
   gprofilerResult <<- list()
   sources <- DATASOURCES[["GPROFILER"]][
     DATASOURCES[["GPROFILER"]] %in% input$functional_enrichment_datasources
   ]
-  if(is.null(custom_bg))
+  if(is.null(custom_bg)) {
     domain_scope <- "annotated"
-  else
+    custom_bg <- NULL
+  }
+  else {
     domain_scope <- "custom"
+    custom_bg <- user_reference
+  }
 
   if (!identical(sources, character(0)))
     gprofilerResult <<- gprofiler2::gost(
