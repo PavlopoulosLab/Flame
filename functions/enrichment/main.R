@@ -276,7 +276,7 @@ printParameters <- function() {
   parametersOutput <- paste0(
     "File: ", input[[paste0(currentEnrichmentType, "_enrichment_file")]],
     "\nOrganism: ", ORGANISMS[ORGANISMS$taxid == currentOrganism, ]$print_name,
-    "\Background: ", input[[
+    "\nBackground: ", input[[
       paste0(currentEnrichmentType, "_enrichment_background_choice")]],
     "\nDatasources: ", decideToolSelectedDatasources(),
     "\nNamespace: ", currentNamespace,
