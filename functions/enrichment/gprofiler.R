@@ -1,8 +1,13 @@
-runGprofiler <- function(query) {
+runGprofiler <- function(query, custom_bg = NULL) {
   gprofilerResult <<- list()
   sources <- DATASOURCES[["GPROFILER"]][
     DATASOURCES[["GPROFILER"]] %in% input$functional_enrichment_datasources
   ]
+  if(is.null(custom_bg))
+    domain_scope <- "annotated"
+  else
+    domain_scope <- "custom"
+
   if (!identical(sources, character(0)))
     gprofilerResult <<- gprofiler2::gost(
       query = query,
@@ -10,7 +15,9 @@ runGprofiler <- function(query) {
       evcodes = T, # gene hits and intersection
       user_threshold = input$functional_enrichment_threshold,
       correction_method = currentSignificanceMetric,
-      sources = sources
+      sources = sources,
+      domain_scope = domain_scope,
+      custom_bg = custom_bg
     )
   
   if (isGprofilerResultValid()) {
