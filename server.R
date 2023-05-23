@@ -219,6 +219,10 @@ function(input, output, session) {
     handleComboUpsetClick()
   }, ignoreInit = T)
   
+  observeEvent(input$combo_visNetwork_run, {
+    handleComboNetwork()
+  }, ignoreInit = T)
+  
   # ~Plots ####
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     lapply(ENRICHMENT_TOOLS, function(toolName) {

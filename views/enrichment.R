@@ -278,6 +278,41 @@ generateCombinationPanel <- function() {
           icon = icon("chart-column"),
           upsetjs::upsetjsOutput("upsetjsCombo"),
           DT::dataTableOutput("combo_upsetClick_table")
+        ),
+        tabPanel(
+          title = "Combo Network",
+          icon = icon("network-wired"),
+          fluidRow(
+            column(
+              2,
+              sliderInput(
+                inputId = "combo_rank_slider",
+                label = "Choose minimum rank threshold:",
+                min = 1, max = 1,
+                value = 1,
+                step = 1,
+                width = "100%"
+              ),
+              actionButton(
+                inputId = "combo_visNetwork_run",
+                label = "Visualize Network",
+                icon("paper-plane"), class = "submit_button"
+              )
+            ),
+            column(
+              4,
+              selectInput(
+                inputId = "combo_network_layout",
+                label = "Choose layout algorithm:",
+                choices = as.vector(unlist(LAYOUT_CHOICES))
+              )
+            )
+          ),
+          tags$div(
+            class = "networkOutput",
+            visNetworkOutput("combo_visNetwork", height = VIS_NET_HEIGHT)
+          ),
+          DT::dataTableOutput("combo_network_table")
         )
       )
     )
