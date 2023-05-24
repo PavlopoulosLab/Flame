@@ -167,7 +167,8 @@ METRICS[["WEBGESTALT"]] <- list(
   "Holm" = "holm",
   "Hochberg" = "hochberg",
   "Hommel" = "hommel",
-  "Bonferroni adjustment" = "bonferroni"
+  "Bonferroni adjustment" = "bonferroni",
+  "Top 100" = "top"
 )
 METRICS[["ENRICHR"]] <- list("Adjusted P-value" = "adjusted_pvalue")
 DEFAULT_METRIC_TEXT <- "Default tool metrics"

@@ -158,19 +158,26 @@ getNamespacePrefix <- function(toolCapitalNames) {
 
 updateAvailableSignificanceMetrics <- function() {
   toolCapitalNames <- toupper(input$functional_enrichment_tool)
-  choices <- getAvailableSignificanceMetrics(toolCapitalNames)
-  updateSelectInput(session, "functional_enrichment_metric", choices = choices)
+  print(toolCapitalNames)
+  options <- getAvailableSignificanceMetrics(toolCapitalNames)
+  updateSelectInput(session, "functional_enrichment_metric", choices = options[["choices"]], selected = options[["selected"]])
 }
 
 getAvailableSignificanceMetrics <- function(toolCapitalNames) {
   if (length(toolCapitalNames) == 1) {
     shinyjs::enable("functional_enrichment_metric")
     choices <- METRICS[[toolCapitalNames]]
+    if(input$functional_enrichment_background_choice== "genome") {
+      selected <- DEFAULT_METRICS_GENOME[[toolCapitalNames[1]]]}
+    else {
+      selected <-  DEFAULT_METRICS_USERBACKGROUND[[toolCapitalNames[1]]] }
   } else {
     shinyjs::disable("functional_enrichment_metric")
     choices <- DEFAULT_METRIC_TEXT
+    selected <- DEFAULT_METRIC_TEXT
   }
-  return(choices)
+  options <- list("choices" = choices, "selected" = selected)
+  return(options)
 }
 
 updatePlotControlPanels <- function() {
