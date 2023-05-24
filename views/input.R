@@ -92,7 +92,7 @@ generateTextMiningPanel <- function() {
           tags$div(
             textAreaInput(
               inputId = "textmining_textinput",
-              label = "1. Input text (Max: 1000 words or 10000 characters):",
+              label = "1. Input text (Max: 100,000 words or 500,000 characters):",
               placeholder = "Write or paste a text here.\n\nClick the 'Load Example' button to load an example text.",
               resize = "vertical", height = "200px", width = "90%"),
             selectizeInput(
