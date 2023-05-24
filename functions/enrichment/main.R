@@ -116,8 +116,8 @@ handleEnrichmentWithTool <- function() {
         if (input[[paste0(currentEnrichmentType, "_enrichment_namespace")]] != "USERINPUT") {
           shinyjs::show(paste(currentType_Tool,
                               "conversionBoxes", sep = "_"))
-          printUnconvertedGenes(inputGenesConversionTable$input)
-          printConversionTable(inputGenesConversionTable)
+          printUnconvertedGenes(inputGenesConversionTable, backgroundGenesConversionTable)
+          printConversionTable(inputGenesConversionTable, backgroundGenesConversionTable)
         }
         findAndPrintNoHitGenes(noHitGenesCheckList)
         printResultTables()
@@ -305,10 +305,10 @@ decideToolSelectedDatasources <- function() {
   return(inputSelectedDatasources)
 }
 
-printUnconvertedGenes <- function(convertedInputs) {
+printUnconvertedGenes <- function(convertedInputs, convertedOutputs = NULL) {
   shinyOutputId <- paste(currentType_Tool,
-                         "notConverted", sep = "_")
-  unconvertedInputs <- currentUserList[!currentUserList %in% convertedInputs]
+                         "notConverted_input", sep = "_")
+  unconvertedInputs <- currentUserList[!currentUserList %in% convertedInputs$input]
   unconvertedInputsCount <- length(unconvertedInputs)
   if (unconvertedInputsCount > 0) {
     unconvertedInputs <- paste(unconvertedInputs, collapse=", ")
@@ -320,14 +320,51 @@ printUnconvertedGenes <- function(convertedInputs) {
     renderShinyText(shinyOutputId, prompt)
   } else
     renderShinyText(shinyOutputId, "-")
+  
+  if(!is.null(convertedOutputs)) {
+    shinyOutputId_ref <- paste(currentType_Tool,
+                           "notConverted_reference", sep = "_")
+    unconvertedOutputs <- currentBackgroundList[!currentBackgroundList %in% convertedOutputs$input]
+    unconvertedOutputsCount <- length(unconvertedOutputs)
+    if (unconvertedInputsCount > 0) {
+      unconvertedOutputs <- paste(unconvertedOutputs, collapse=", ")
+      prompt_ref <- sprintf(
+        "%d reference background item(s) could not be converted to the target namespace:\n%s",
+        unconvertedOutputsCount,
+        unconvertedOutputs
+      )
+      renderShinyText(shinyOutputId_ref, prompt_ref)
+    } else
+      renderShinyText(shinyOutputId_ref, "-")    
+    shinyjs::show(paste(currentType_Tool, "notConverted_reference_div", sep = "_"))
+  }
+  else {
+    shinyjs::hide(paste(currentType_Tool, "notConverted_reference_div", sep = "_"))
+  }
+  
 }
 
-printConversionTable <- function(conversionTable) {
-  shinyOutputId <- paste(currentType_Tool, "conversionTable", sep = "_")
+printConversionTable <- function(inputConversionTable, backgroundConversionTable = NULL) {
+  #first, for the input list
+  shinyOutputId <- paste(currentType_Tool, "conversionTable_input", sep = "_")
   fileName <- paste(currentType_Tool, "conversion_table", sep = "_")
-  colnames(conversionTable) <- c("Input", "Target", "Name")
-  renderShinyDataTable(shinyOutputId, conversionTable,
+  colnames(inputConversionTable) <- c("Input", "Target", "Name")
+  renderShinyDataTable(shinyOutputId, inputConversionTable,
                        fileName = fileName)
+  #then, check to see if a custom reference background exists and if so, do the same for the reference
+  if(is.null(backgroundConversionTable)) {
+    shinyjs::show(paste(currentType_Tool, "conversionTable_genome_div", sep = "_"))
+    shinyjs::hide(paste(currentType_Tool, "conversionTable_reference_div", sep = "_"))
+  }
+  else {
+    shinyjs::hide(paste(currentType_Tool, "conversionTable_genome_div", sep = "_"))
+    shinyOutputId <- paste(currentType_Tool, "conversionTable_reference", sep = "_")
+    fileName <- paste(currentType_Tool, "conversion_table_reference", sep = "_")
+    colnames(backgroundConversionTable) <- c("Input", "Target", "Name")
+    renderShinyDataTable(shinyOutputId, backgroundConversionTable,
+                         fileName = fileName)
+    shinyjs::show(paste(currentType_Tool, "conversionTable_reference_div", sep = "_"))
+  }
 }
 
 findAndPrintNoHitGenes <- function(convertedInputs) {

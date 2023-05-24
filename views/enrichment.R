@@ -238,7 +238,15 @@ generateResultsPanel <- function() {
           status = "primary", 
           solidHeader = TRUE,
           collapsible = TRUE,
-          DT::dataTableOutput(paste(currentType_Tool, "conversionTable", sep = "_"))
+          tabsetPanel(
+            tabPanel("Input List", DT::dataTableOutput(paste(currentType_Tool, "conversionTable_input", sep = "_"))),
+            tabPanel("Reference Background", 
+                     div(id=paste(currentType_Tool, "conversionTable_genome_div", sep = "_"),
+                         h3("No custom background was submitted by the user, the entire selected genome was used instead.")),
+                     div(id=paste(currentType_Tool, "conversionTable_reference_div", sep = "_"), style="display:none",
+                       DT::dataTableOutput(paste(currentType_Tool, "conversionTable_reference", sep = "_")))
+                     )
+            )
         ),
         box(
           title = "Unconverted Inputs",
@@ -247,7 +255,11 @@ generateResultsPanel <- function() {
           status = "primary", 
           solidHeader = TRUE,
           collapsible = TRUE,
-          verbatimTextOutput(paste(currentType_Tool, "notConverted", sep = "_"))
+          verbatimTextOutput(paste(currentType_Tool, "notConverted_input", sep = "_")),
+          tags$hr(),
+          div(id=paste(currentType_Tool, "notConverted_reference_div", sep = "_"), style="display:none",
+            verbatimTextOutput(paste(currentType_Tool, "notConverted_reference", sep = "_"))
+            )
         )
       ),
       box(
