@@ -3,9 +3,6 @@ prepareCombinationTab <- function() {
     showTab(inputId = "toolTabsPanel", target = "Combination")
     createGlobalComboTable()
     
-    maxRank <- max(combinationResult$Rank, na.rm = TRUE)
-    updateSliderInput(session, "combo_rank_slider",
-                      value = maxRank, max = maxRank)
     choices <- ENRICHMENT_DATASOURCES[
       which(ENRICHMENT_DATASOURCES %in% unique(combinationResult$Source))
     ]
@@ -13,6 +10,17 @@ prepareCombinationTab <- function() {
                       choices = choices, selected = NULL) # to always trigger the event
     updatePickerInput(session, "combo_datasources",
                       choices = choices, selected = choices)
+    
+    choices <- unlist(strsplit(unique(combinationResult$Tools), split = ","))
+    choices <- unique(trimws(choices))
+    updatePickerInput(session, "combo_tool_picker",
+                      choices = choices, selected = NULL) # trigger
+    updatePickerInput(session, "combo_tool_picker",
+                      choices = choices, selected = choices)
+    
+    maxRank <- max(combinationResult$Rank, na.rm = TRUE)
+    updateSliderInput(session, "combo_rank_slider",
+                      value = maxRank, max = maxRank)
   }
 }
 
@@ -117,17 +125,37 @@ handleComboUpsetClick <- function() {
 
 handleComboNetwork <- function() {
   tryCatch({
-    comboResult_forNetwork <- parseComboVisNetwork()
-    constructComboVisNetwork(comboResult_forNetwork)
-    renderShinyDataTable(
-      shinyOutputId = "combo_network_table",
-      comboResult_forNetwork,
-      caption = "Combination Network",
-      fileName = "combo_network")
+    if (areComboInputsNotEmpty()) {
+      comboResult_forNetwork <- parseComboVisNetwork()
+
+      if (nrow(comboResult_forNetwork) > 0) {
+        constructComboVisNetwork(comboResult_forNetwork)
+        renderShinyDataTable(
+          shinyOutputId = "combo_network_table",
+          comboResult_forNetwork,
+          caption = "Combination Network",
+          fileName = "combo_network")
+      } else
+        renderWarning("Filters resulted in empty table.")
+    }
   }, error = function(e) {
     print(paste0("Error: ", e))
     renderError("Problem with combinatorial network.")
   })
+}
+
+areComboInputsNotEmpty <- function() {
+  isNotEmpty <- F
+  if (!is.null(input$combo_datasources)){
+    isNotEmpty <- T
+  } else
+    renderWarning("Select at least one datasource.")
+  
+  if (is.null(input$combo_tool_picker)) {
+    isNotEmpty <- F
+    renderWarning("Select at least one tool.")
+  }
+  return(isNotEmpty)
 }
 
 parseComboVisNetwork <- function() {
@@ -137,9 +165,15 @@ parseComboVisNetwork <- function() {
                                               .id = "Tool")
   comboResult_forNetwork <- comboResult_forNetwork[, c("Source", "Function",
                                                         "Positive Hits", "Tool")]
-  comboResult_forNetwork <- filterComboTable(comboResult_forNetwork)
+
+  comboResult_forNetwork <- subset(comboResult_forNetwork,
+     Source %in% input$combo_datasources)
+
   comboResult_forNetwork$Tool <-
     sapply(strsplit(comboResult_forNetwork$Tool, "_"), "[[", 2)
+  comboResult_forNetwork <- subset(comboResult_forNetwork,
+    Tool %in% input$combo_tool_picker)
+  
   comboResult_forNetwork <- comboResult_forNetwork %>%
     tidyr::separate_rows(`Positive Hits`, sep = ",")
   comboResult_forNetwork <- comboResult_forNetwork %>%
@@ -152,6 +186,15 @@ parseComboVisNetwork <- function() {
   comboResult_forNetwork <- comboResult_forNetwork %>% arrange(desc(Rank))
   
   return(comboResult_forNetwork)
+}
+
+isToolNotNull <- function(sourceSelect) {
+  isNotNull <- F
+  if (!is.null(sourceSelect)){
+    isNotNull <- T
+  } else
+    renderWarning("Select at least one datasource.")
+  return(isNotNull)
 }
 
 constructComboVisNetwork <- function(comboResult_forNetwork) {
@@ -182,5 +225,6 @@ createComboGraph <- function(comboResult_forNetwork) {
   )
   E(graph)$weight <- 1
   E(graph)$title <- comboResult_forNetwork$Tool
+  E(graph)$width <- comboResult_forNetwork$Rank
   return(graph)
 }

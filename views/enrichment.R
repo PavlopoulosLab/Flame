@@ -284,14 +284,15 @@ generateCombinationPanel <- function() {
           icon = icon("network-wired"),
           fluidRow(
             column(
-              2,
-              sliderInput(
-                inputId = "combo_rank_slider",
-                label = "Choose minimum rank threshold:",
-                min = 1, max = 1,
-                value = 1,
-                step = 1,
-                width = "100%"
+              4,
+              pickerInput(
+                inputId = "combo_tool_picker",
+                label = "Select edges from tools:",
+                choices = c(),
+                selected = c(),
+                multiple = T,
+                width = "80%",
+                options = list('actions-box' = TRUE)
               ),
               actionButton(
                 inputId = "combo_visNetwork_run",
@@ -301,6 +302,14 @@ generateCombinationPanel <- function() {
             ),
             column(
               4,
+              sliderInput(
+                inputId = "combo_rank_slider",
+                label = "Choose minimum rank threshold:",
+                min = 1, max = 1,
+                value = 1,
+                step = 1,
+                width = "70%"
+              ),
               selectInput(
                 inputId = "combo_network_layout",
                 label = "Choose layout algorithm:",
