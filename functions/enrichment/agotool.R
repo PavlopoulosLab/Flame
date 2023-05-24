@@ -40,12 +40,12 @@ buildAGoToolRequestBody <- function(userInputList, taxid, user_reference = NULL)
   else {
     background <- paste0(user_reference, collapse = "%0d")
     requestBody <- list(
-      FDR_cutoff = 1,
+      FDR_cutoff = FDR_cutoff,
       limit_2_entity_type = limit_2_entity_type,
       foreground = foreground,
       background = background,
       enrichment_method = "compare_samples",
-      p_value_cutoff = 1,
+      p_value_cutoff = p_value_cutoff,
       o_or_u_or_both = "both"
     )
   }

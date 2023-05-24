@@ -171,6 +171,20 @@ METRICS[["WEBGESTALT"]] <- list(
 )
 METRICS[["ENRICHR"]] <- list("Adjusted P-value" = "adjusted_pvalue")
 DEFAULT_METRIC_TEXT <- "Default tool metrics"
+
+DEFAULT_METRICS_GENOME <- list(
+  "AGOTOOL" = "False discovery rate",
+  "GPROFILER" = "fdr",
+  "WEBGESTALT" = "BH",
+  "ENRICHR" = "adjusted_pvalue"
+)
+
+DEFAULT_METRICS_USERBACKGROUND <- list(
+  "AGOTOOL" = "P-value",
+  "GPROFILER" = "bonferroni",
+  "WEBGESTALT" = "top"  
+)
+
 ENRICHMENT_DF_COLNAMES <- c(
   "Source", "Term_ID", "Function", "P-value", "Term Size", 
   "Query size", "Intersection Size", "Positive Hits"

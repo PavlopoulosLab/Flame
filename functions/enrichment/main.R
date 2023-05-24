@@ -80,8 +80,12 @@ existEnrichmentTool <- function() {
 }
 
 decideToolMetric <- function() {
-  if (input[[paste0(currentEnrichmentType, "_enrichment_metric")]] == DEFAULT_METRIC_TEXT)
-    currentSignificanceMetric <<- METRICS[[toupper(currentEnrichmentTool)]][[1]]
+  if (input[[paste0(currentEnrichmentType, "_enrichment_metric")]] == DEFAULT_METRIC_TEXT) {
+    if(input[[paste0(currentEnrichmentType, "_enrichment_background_choice")]] == "genome")
+      currentSignificanceMetric <<- DEFAULT_METRICS_GENOME[[toupper(currentEnrichmentTool)]]
+    else
+      currentSignificanceMetric <<- DEFAULT_METRICS_USERBACKGROUND[[toupper(currentEnrichmentTool)]]
+  }
   else
     currentSignificanceMetric <<-
       input[[paste0(currentEnrichmentType, "_enrichment_metric")]]
