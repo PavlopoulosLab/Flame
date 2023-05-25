@@ -151,9 +151,9 @@ areComboInputsNotEmpty <- function() {
   } else
     renderWarning("Select at least one datasource.")
   
-  if (is.null(input$combo_tool_picker)) {
+  if (is.null(input$combo_tool_picker) || length(input$combo_tool_picker) < 2) {
     isNotEmpty <- F
-    renderWarning("Select at least one tool.")
+    renderWarning("Select at least two tools.")
   }
   return(isNotEmpty)
 }

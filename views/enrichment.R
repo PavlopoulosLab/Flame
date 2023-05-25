@@ -335,8 +335,8 @@ generateCombinationPanel <- function() {
               sliderInput(
                 inputId = "combo_rank_slider",
                 label = "Choose minimum rank threshold:",
-                min = 1, max = 1,
-                value = 1,
+                min = 2, max = 4,
+                value = 2,
                 step = 1,
                 width = "70%"
               ),
