@@ -31,7 +31,15 @@ echo "process agotool"
 #download species list from STRING
 wget https://stringdb-static.org/download/species.v11.5.txt
 #sort by taxid
-sort -k 1,1 -t $'\t' species.v11.5.txt > string_taxid_sorted
+sort -k 1,1 -t $'\t' species.v11.5.txt > default_string_taxid_sorted
+
+#download additional species from Viruses.STRING
+wget http://viruses.string-db.org/download/species.v10.5.txt
+#sort by taxid
+sort -k 1,1 -t $'\t' species.v10.5.txt > viruses_string_taxid_sorted
+# concatenate and remove duplicates
+cat default string_taxid_sorted viruses_string_taxid_sorted | sort -t $'\t' -k 1,1 -u > string_taxid_sorted
+
 
 #get the lines that have a common name
 join -1 1 -2 1 -t $'\t' string_taxid_sorted common_sorted | sort -k 1,1 -t $'\t' -u |awk -F "\t" '{print $1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$5}' > ago_common
