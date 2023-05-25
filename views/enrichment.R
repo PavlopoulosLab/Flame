@@ -52,7 +52,7 @@ generateEnrichmentControlPanel <- function() {
           radioGroupButtons(
             inputId = paste0(currentEnrichmentType, "_enrichment_background_choice"),
             label = "3. Select background:",
-            choiceNames = c("Whole genome", "User-submitted list"),
+            choiceNames = c("Whole genome", "Custom background list"),
             choiceValues = c("genome", "user_list"),
             selected = "genome",
             justified = T,

@@ -38,7 +38,7 @@ wget http://viruses.string-db.org/download/species.v10.5.txt
 #sort by taxid
 sort -k 1,1 -t $'\t' species.v10.5.txt > viruses_string_taxid_sorted
 # concatenate and remove duplicates
-cat default string_taxid_sorted viruses_string_taxid_sorted | sort -t $'\t' -k 1,1 -u > string_taxid_sorted
+cat default_string_taxid_sorted viruses_string_taxid_sorted | sort -t $'\t' -k 1,1 -u > string_taxid_sorted
 
 
 #get the lines that have a common name
