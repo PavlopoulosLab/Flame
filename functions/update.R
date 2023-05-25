@@ -158,7 +158,6 @@ getNamespacePrefix <- function(toolCapitalNames) {
 
 updateAvailableSignificanceMetrics <- function() {
   toolCapitalNames <- toupper(input$functional_enrichment_tool)
-  print(toolCapitalNames)
   options <- getAvailableSignificanceMetrics(toolCapitalNames)
   updateSelectInput(session, "functional_enrichment_metric", choices = options[["choices"]], selected = options[["selected"]])
 }
@@ -267,6 +266,7 @@ updateBackgroundMode <- function(choice, enrichmentType) {
     updatePickerInput(session, "functional_enrichment_tool",
                       choices = c("aGOtool", "gProfiler", "WebGestalt"), selected = DEFAULT_TOOL)
   }
+  updateAvailableSignificanceMetrics()
 }
 
 updateBackgroundListChoices <- function(enrichmentType) {
