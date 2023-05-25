@@ -20,6 +20,16 @@ handleStringNetwork <- function() {
   })
 }
 
+handleStringSubmitForEnrichment <- function(category) {
+  tryCatch({
+    sendSTRINGNetworkForEnrichment(category)
+    updateTabItems(session, "sideBarId", selected = sprintf("%s_enrichment", category))
+  }, error = function(e) {
+    print(paste("Error: ", e))
+    renderError("Problem with STRING network.")    
+  })
+}
+
 createSTRINGNetwork <- function() {
   dataset <- input$STRINGnetworkSelect
   organism <- input$string_network_organism
@@ -34,9 +44,9 @@ createSTRINGNetwork <- function() {
   ids_interactive <- result_ids$ids_interactive
   ids_post <- result_ids$ids_post
   output$string_legend <- createSTRINGNetworkLegend(edges)
-  buttonParameters <-
-    createSTRINGActionButtonParameters(ids_post, string_taxid, type, edges, score)
-  createSTRINGActionButtons(buttonParameters)
+  STRINGNetworkData <<-
+    createSTRINGNetworkData(ids_post, string_taxid, type, edges, score)
+  createSTRINGActionButtons(STRINGNetworkData)
   createSTRINGInteractiveViewer(ids_interactive, string_taxid, type,
                                 edges, score)
 }
@@ -128,7 +138,7 @@ createSTRINGNetworkLegend <- function(edge_meaning) {
   )
 }
 
-createSTRINGActionButtonParameters <- function(ids_post, string_taxid,
+createSTRINGNetworkData <- function(ids_post, string_taxid,
                                                type, edges, score) {
   string_link <- createSTRINGLink(ids_post, string_taxid,
                                   type, edges, score)
@@ -208,7 +218,8 @@ createSTRINGActionButtons <- function(buttonParameters) {
   svg_to_png_js_code <- buttonParameters$svg_to_png_js_code
   
   output$string_export_buttons <- renderUI({
-    fluidRow(
+    div(style="margin:10px !important", fluidRow(
+      
       actionButton(inputId = 'string_link', label = 'Open in STRING',
                    icon = icon('link'), style='md-flat',
                    onclick = sprintf("window.open('%s', '_blank')", string_link)),
@@ -216,8 +227,13 @@ createSTRINGActionButtons <- function(buttonParameters) {
                      icon = icon('download'), style = 'md-flat'),
       actionButton(inputId = 'dnl_png_string', label = 'Export Image',
                    icon = icon('image'),  style = 'md-flat',
-                   onclick = svg_to_png_js_code)
-    )
+                   onclick = svg_to_png_js_code),
+    ),
+    h5("Perform Enrichment on Network:"),
+    fluidRow(
+      actionButton(inputId = "string_submit_functional", label="Functional Enrichment", icon=icon("table"), style="md-flat" ),
+      actionButton(inputId = "string_submit_literature", label="Literature Enrichment", icon=icon("table"), style="book-open" ),
+    ))
   })
   
   output$dnl_tsv_string <- downloadHandler(
@@ -249,5 +265,23 @@ createSTRINGInteractiveViewer <- function(ids_interactive, string_taxid,
       tags$div(id = 'stringEmbedded')
     )
   })
+}
+
+
+getGenesFromSTRINGNetworkTSV <- function(tsv_str_obj) {
+  df <- read.table(text = tsv_str_obj, header=T)
+  unique_proteins <- unlist(unique(c(
+    unlist(df$preferredName_A),
+    unlist(df$preferredName_B)
+  )))
+  return(paste0(unique_proteins, paste="\n", collapse="\n"))
+}
+
+sendSTRINGNetworkForEnrichment <- function(category) {
+  stringGenes <- getGenesFromSTRINGNetworkTSV(STRINGNetworkData$string_tsv)
+  stringList <- buildUserListFromText(paste(
+    stringGenes, sep = "\n", collapse = "\n"
+  ), sprintf("string_%s", category))
+  updateSelectInput(session, sprintf("%s_enrichment_file", category), choices = stringList)
 }
 

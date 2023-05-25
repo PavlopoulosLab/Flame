@@ -42,6 +42,8 @@ buildUserListFromText <- function(inputText, prefix) {
     updateCheckboxInput(session, "selectAll", value = 0)
     if (prefix == GENE_LIST_PREFIX)
       renderShinyText("url_checked", "")
+    
+    return(randomListName)
   }
 }
 

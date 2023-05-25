@@ -11,6 +11,7 @@ initializeServerApp <- function() {
   initializeVolcanoPanel()
   initializeEnrichmentResults()
   initializeArenaEdgelist()
+  initializeSTRINGData()
   hideConversionBoxes()
   hideVisNetworks()
   hideEnrichmentTabs()
@@ -92,6 +93,10 @@ initializeArenaEdgelist <- function() {
     names(newItem) <- paste("literature", "aGoTool", networkId, sep = "_")
     arenaEdgelist <<- c(arenaEdgelist, newItem)
   }
+}
+
+initializeSTRINGData <- function() {
+  STRINGNetworkData <<- list()
 }
 
 hideConversionBoxes <- function() {

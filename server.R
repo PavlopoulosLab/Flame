@@ -341,6 +341,14 @@ function(input, output, session) {
     handleStringNetwork()
   }, ignoreInit = T)
   
+  observeEvent(input$string_submit_functional, {
+    handleStringSubmitForEnrichment("functional")
+  }, ignoreInit = T)
+
+  observeEvent(input$string_submit_literature, {
+    handleStringSubmitForEnrichment("literature")
+  }, ignoreInit = T)
+    
   # CONVERSION ####
   observeEvent(input$gconvert_button, {
     handle_gconvert()

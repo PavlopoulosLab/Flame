@@ -9,6 +9,10 @@ arenaEdgelist <- list()
 gprofilerResult <- list() # for gprofiler ManhattanPlot only
 combinationResult <- data.frame()
 
+# STRING Network
+STRINGNetworkData <- list()
+
+
 # Current
 currentVariantResults <- data.frame()
 currentTextminingResult <- c()
