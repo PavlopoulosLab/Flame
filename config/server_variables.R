@@ -1,6 +1,8 @@
 # Input ####
 LISTNAME_NCHAR_LIMIT <- 100
 LIST_LIMIT <- 10
+TEXTMINING_WORD_LIMIT <- 100000
+TEXTMINING_CHAR_LIMIT <- 500000
 GENE_LIST_LIMIT <- 3000
 OBJECT_SIZE_LIMIT <- 1000000 # bytes, 1MB
 STRING_LIMIT <- 500
@@ -165,10 +167,25 @@ METRICS[["WEBGESTALT"]] <- list(
   "Holm" = "holm",
   "Hochberg" = "hochberg",
   "Hommel" = "hommel",
-  "Bonferroni adjustment" = "bonferroni"
+  "Bonferroni adjustment" = "bonferroni",
+  "Top 100" = "top"
 )
 METRICS[["ENRICHR"]] <- list("Adjusted P-value" = "adjusted_pvalue")
 DEFAULT_METRIC_TEXT <- "Default tool metrics"
+
+DEFAULT_METRICS_GENOME <- list(
+  "AGOTOOL" = "False discovery rate",
+  "GPROFILER" = "fdr",
+  "WEBGESTALT" = "BH",
+  "ENRICHR" = "adjusted_pvalue"
+)
+
+DEFAULT_METRICS_USERBACKGROUND <- list(
+  "AGOTOOL" = "P-value",
+  "GPROFILER" = "bonferroni",
+  "WEBGESTALT" = "top"  
+)
+
 ENRICHMENT_DF_COLNAMES <- c(
   "Source", "Term_ID", "Function", "P-value", "Term Size", 
   "Query size", "Intersection Size", "Positive Hits"

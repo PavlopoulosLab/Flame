@@ -19,6 +19,16 @@ handleEnrichment <- function(enrichmentType) {
             ORGANISMS[ORGANISMS$print_name ==
                                   input[[paste0(currentEnrichmentType,
                                                 "_enrichment_organism")]], ]$taxid
+          
+          if(input[[paste0(currentEnrichmentType, "_enrichment_background_choice")]] == "genome") {
+            currentBackgroundList <<- c()
+          }
+          else {
+            currentBackgroundList <<-  unlist(userInputLists[names(userInputLists) ==
+                                    input[[paste0(currentEnrichmentType,
+                                                  "_enrichment_background_list")]]][[1]])
+          }
+          
           lapply(tools, function(toolName) {
             currentEnrichmentTool <<- toolName
             currentType_Tool <<-
@@ -70,8 +80,12 @@ existEnrichmentTool <- function() {
 }
 
 decideToolMetric <- function() {
-  if (input[[paste0(currentEnrichmentType, "_enrichment_metric")]] == DEFAULT_METRIC_TEXT)
-    currentSignificanceMetric <<- METRICS[[toupper(currentEnrichmentTool)]][[1]]
+  if (input[[paste0(currentEnrichmentType, "_enrichment_metric")]] == DEFAULT_METRIC_TEXT) {
+    if(input[[paste0(currentEnrichmentType, "_enrichment_background_choice")]] == "genome")
+      currentSignificanceMetric <<- DEFAULT_METRICS_GENOME[[toupper(currentEnrichmentTool)]]
+    else
+      currentSignificanceMetric <<- DEFAULT_METRICS_USERBACKGROUND[[toupper(currentEnrichmentTool)]]
+  }
   else
     currentSignificanceMetric <<-
       input[[paste0(currentEnrichmentType, "_enrichment_metric")]]
@@ -88,9 +102,13 @@ handleEnrichmentWithTool <- function() {
   if (existDataSources()) {
     session$sendCustomMessage("handler_hideSourceTabs", currentType_Tool)
     resetEnrichmentResults(currentEnrichmentType, currentEnrichmentTool)
-    inputGenesConversionTable <- geneConvert()
+    inputGenesConversionTable <- geneConvert(currentUserList)
     if (validInputGenesConversionTable(inputGenesConversionTable)) {
-      runEnrichmentAnalysis(inputGenesConversionTable$target)
+      if(length(currentBackgroundList)==0)
+        backgroundGenesConversionTable <- NULL
+      else
+        backgroundGenesConversionTable <- geneConvert(currentBackgroundList)
+      runEnrichmentAnalysis(inputGenesConversionTable$target, backgroundGenesConversionTable$target)
       if (validEnrichmentResult()) {
         showTab(inputId = "toolTabsPanel", target = currentEnrichmentTool)
         noHitGenesCheckList <- executeNamespaceRollback(inputGenesConversionTable)
@@ -98,8 +116,8 @@ handleEnrichmentWithTool <- function() {
         if (input[[paste0(currentEnrichmentType, "_enrichment_namespace")]] != "USERINPUT") {
           shinyjs::show(paste(currentType_Tool,
                               "conversionBoxes", sep = "_"))
-          printUnconvertedGenes(inputGenesConversionTable$input)
-          printConversionTable(inputGenesConversionTable)
+          printUnconvertedGenes(inputGenesConversionTable, backgroundGenesConversionTable)
+          printConversionTable(inputGenesConversionTable, backgroundGenesConversionTable)
         }
         findAndPrintNoHitGenes(noHitGenesCheckList)
         printResultTables()
@@ -119,21 +137,21 @@ existDataSources <- function() {
   return(exist)
 }
 
-geneConvert <- function() {
+geneConvert <- function(geneList) {
   currentNamespace <<- input[[paste0(currentEnrichmentType, "_enrichment_namespace")]]
   if (currentNamespace == DEFAULT_NAMESPACE_TEXT)
     currentNamespace <<- getDefaultTargetNamespace()
   if (currentNamespace != "USERINPUT") {
     if (currentEnrichmentTool == "aGOtool")
-      inputGenesConversionTable <- stringPOSTConvertENSP(currentUserList,
+      inputGenesConversionTable <- stringPOSTConvertENSP(geneList,
                                                          currentOrganism)
     else
-      inputGenesConversionTable <- gProfilerConvert(currentNamespace)
+      inputGenesConversionTable <- gProfilerConvert(geneList, currentNamespace)
   } else {
     inputGenesConversionTable <- data.frame(
-      "input" = currentUserList,
-      "target" = currentUserList,
-      "name" = currentUserList
+      "input" = geneList,
+      "target" = geneList,
+      "name" = geneList
     )
   }
   return(inputGenesConversionTable)
@@ -173,9 +191,9 @@ stringPOSTConvertENSP <- function(userList, organism) {
   return(inputGenesConversionTable)
 }
 
-gProfilerConvert <- function(target) {
+gProfilerConvert <- function(geneList, target) {
   inputGenesConversionTable <- gprofiler2::gconvert(
-    currentUserList,
+    geneList,
     organism = ORGANISMS[ORGANISMS$taxid == currentOrganism, ]$short_name,
     target = target, mthreshold = 1, filter_na = T
   )
@@ -192,14 +210,14 @@ validInputGenesConversionTable <- function(inputGenesConversionTable) {
   return(valid)
 }
 
-runEnrichmentAnalysis <- function(userInputList) {
+runEnrichmentAnalysis <- function(userInputList, user_reference = NULL) {
   tool <- toupper(currentEnrichmentTool)
   if (tool == "AGOTOOL") {
-    runAGoTool(userInputList, currentOrganism)
+    runAGoTool(userInputList, currentOrganism, user_reference)
   } else if (tool == "GPROFILER") {
-    runGprofiler(userInputList)
+    runGprofiler(userInputList, user_reference)
   } else if (tool == "WEBGESTALT") {
-    runWebgestalt(userInputList)
+    runWebgestalt(userInputList, user_reference)
   } else if (tool == "ENRICHR") {
     runEnrichr(userInputList)
   }
@@ -262,6 +280,8 @@ printParameters <- function() {
   parametersOutput <- paste0(
     "File: ", input[[paste0(currentEnrichmentType, "_enrichment_file")]],
     "\nOrganism: ", ORGANISMS[ORGANISMS$taxid == currentOrganism, ]$print_name,
+    "\nBackground: ", input[[
+      paste0(currentEnrichmentType, "_enrichment_background_choice")]],
     "\nDatasources: ", decideToolSelectedDatasources(),
     "\nNamespace: ", currentNamespace,
     "\nSignificance metric: ", currentSignificanceMetric, 
@@ -285,10 +305,10 @@ decideToolSelectedDatasources <- function() {
   return(inputSelectedDatasources)
 }
 
-printUnconvertedGenes <- function(convertedInputs) {
+printUnconvertedGenes <- function(convertedInputs, convertedOutputs = NULL) {
   shinyOutputId <- paste(currentType_Tool,
-                         "notConverted", sep = "_")
-  unconvertedInputs <- currentUserList[!currentUserList %in% convertedInputs]
+                         "notConverted_input", sep = "_")
+  unconvertedInputs <- currentUserList[!currentUserList %in% convertedInputs$input]
   unconvertedInputsCount <- length(unconvertedInputs)
   if (unconvertedInputsCount > 0) {
     unconvertedInputs <- paste(unconvertedInputs, collapse=", ")
@@ -300,14 +320,51 @@ printUnconvertedGenes <- function(convertedInputs) {
     renderShinyText(shinyOutputId, prompt)
   } else
     renderShinyText(shinyOutputId, "-")
+  
+  if(!is.null(convertedOutputs)) {
+    shinyOutputId_ref <- paste(currentType_Tool,
+                           "notConverted_reference", sep = "_")
+    unconvertedOutputs <- currentBackgroundList[!currentBackgroundList %in% convertedOutputs$input]
+    unconvertedOutputsCount <- length(unconvertedOutputs)
+    if (unconvertedInputsCount > 0) {
+      unconvertedOutputs <- paste(unconvertedOutputs, collapse=", ")
+      prompt_ref <- sprintf(
+        "%d reference background item(s) could not be converted to the target namespace:\n%s",
+        unconvertedOutputsCount,
+        unconvertedOutputs
+      )
+      renderShinyText(shinyOutputId_ref, prompt_ref)
+    } else
+      renderShinyText(shinyOutputId_ref, "-")    
+    shinyjs::show(paste(currentType_Tool, "notConverted_reference_div", sep = "_"))
+  }
+  else {
+    shinyjs::hide(paste(currentType_Tool, "notConverted_reference_div", sep = "_"))
+  }
+  
 }
 
-printConversionTable <- function(conversionTable) {
-  shinyOutputId <- paste(currentType_Tool, "conversionTable", sep = "_")
+printConversionTable <- function(inputConversionTable, backgroundConversionTable = NULL) {
+  #first, for the input list
+  shinyOutputId <- paste(currentType_Tool, "conversionTable_input", sep = "_")
   fileName <- paste(currentType_Tool, "conversion_table", sep = "_")
-  colnames(conversionTable) <- c("Input", "Target", "Name")
-  renderShinyDataTable(shinyOutputId, conversionTable,
+  colnames(inputConversionTable) <- c("Input", "Target", "Name")
+  renderShinyDataTable(shinyOutputId, inputConversionTable,
                        fileName = fileName)
+  #then, check to see if a custom reference background exists and if so, do the same for the reference
+  if(is.null(backgroundConversionTable)) {
+    shinyjs::show(paste(currentType_Tool, "conversionTable_genome_div", sep = "_"))
+    shinyjs::hide(paste(currentType_Tool, "conversionTable_reference_div", sep = "_"))
+  }
+  else {
+    shinyjs::hide(paste(currentType_Tool, "conversionTable_genome_div", sep = "_"))
+    shinyOutputId <- paste(currentType_Tool, "conversionTable_reference", sep = "_")
+    fileName <- paste(currentType_Tool, "conversion_table_reference", sep = "_")
+    colnames(backgroundConversionTable) <- c("Input", "Target", "Name")
+    renderShinyDataTable(shinyOutputId, backgroundConversionTable,
+                         fileName = fileName)
+    shinyjs::show(paste(currentType_Tool, "conversionTable_reference_div", sep = "_"))
+  }
 }
 
 findAndPrintNoHitGenes <- function(convertedInputs) {

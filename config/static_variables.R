@@ -24,3 +24,4 @@ currentEnrichmentTool <- ""
 currentType_Tool <- ""
 currentNamespace <- ""
 currentSignificanceMetric <- ""
+currentBackgroundList <- c()

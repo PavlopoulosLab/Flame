@@ -92,7 +92,7 @@ generateTextMiningPanel <- function() {
           tags$div(
             textAreaInput(
               inputId = "textmining_textinput",
-              label = "1. Input text:",
+              label = "1. Input text (Max: 100,000 words or 500,000 characters):",
               placeholder = "Write or paste a text here.\n\nClick the 'Load Example' button to load an example text.",
               resize = "vertical", height = "200px", width = "90%"),
             selectizeInput(
@@ -124,8 +124,10 @@ generateTextMiningPanel <- function() {
                 wellPanel(htmlOutput(outputId = "extracted_text"))
               )
             ),
+            actionButton("textmining_selectAll", "Select All", icon("check")),
+            actionButton("textmining_selectNone", "De-select All", icon("x")),
             tags$br(),
-            actionButton("textmining_addList", "Add to lists", icon("paper-plane")),
+            actionButton("textmining_addList", "Add selected to lists", icon("paper-plane"), onclick='textmining_getAllSelected()'),
             actionButton("textmining_delete", "Delete", icon("broom"))
           )
         )

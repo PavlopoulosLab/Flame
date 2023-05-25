@@ -7,7 +7,9 @@ updateUserInputLists <- function(inputDF, listName) {
 updateListBoxes <- function() {
   updateCheckboxGroupInput(session, "checkboxLists", choices = names(userInputLists))
   updateSelectInput(session, "functional_enrichment_file", choices = names(userInputLists))
+  updateSelectInput(session, "functional_enrichment_background_list", choices = names(userInputLists))
   updateSelectInput(session, "literature_enrichment_file", choices = names(userInputLists))
+  updateSelectInput(session, "literature_enrichment_background_list", choices = names(userInputLists))
   updateSelectInput(session, "selectView", choices = names(userInputLists))
   updateSelectInput(session, "selectUpset", choices = names(userInputLists))
   updateSelectInput(session, "gconvert_select", choices = names(userInputLists))
@@ -15,6 +17,8 @@ updateListBoxes <- function() {
   updateSelectInput(session, "aGOtoolSelect", choices = names(userInputLists))
   updateSelectInput(session, "literatureSelect", choices = names(userInputLists))
   updateSelectInput(session, "STRINGnetworkSelect", choices = names(userInputLists))
+  updateBackgroundListChoices("functional")
+  updateBackgroundListChoices("literature")
   toggleUpsetTab()
 }
 
@@ -154,19 +158,26 @@ getNamespacePrefix <- function(toolCapitalNames) {
 
 updateAvailableSignificanceMetrics <- function() {
   toolCapitalNames <- toupper(input$functional_enrichment_tool)
-  choices <- getAvailableSignificanceMetrics(toolCapitalNames)
-  updateSelectInput(session, "functional_enrichment_metric", choices = choices)
+  print(toolCapitalNames)
+  options <- getAvailableSignificanceMetrics(toolCapitalNames)
+  updateSelectInput(session, "functional_enrichment_metric", choices = options[["choices"]], selected = options[["selected"]])
 }
 
 getAvailableSignificanceMetrics <- function(toolCapitalNames) {
   if (length(toolCapitalNames) == 1) {
     shinyjs::enable("functional_enrichment_metric")
     choices <- METRICS[[toolCapitalNames]]
+    if(input$functional_enrichment_background_choice== "genome") {
+      selected <- DEFAULT_METRICS_GENOME[[toolCapitalNames[1]]]}
+    else {
+      selected <-  DEFAULT_METRICS_USERBACKGROUND[[toolCapitalNames[1]]] }
   } else {
     shinyjs::disable("functional_enrichment_metric")
     choices <- DEFAULT_METRIC_TEXT
+    selected <- DEFAULT_METRIC_TEXT
   }
-  return(choices)
+  options <- list("choices" = choices, "selected" = selected)
+  return(options)
 }
 
 updatePlotControlPanels <- function() {
@@ -238,4 +249,32 @@ updateAvailableStringNamespaces <- function() {
                         selected = "USERINPUT")
     }
   }
+}
+
+
+updateBackgroundMode <- function(choice, enrichmentType) {
+  if (choice == "genome") {
+    shinyjs::hide(paste0(enrichmentType, "_enrichment_background_container"))
+    # this is only for enrichmentType = 'functional',
+    # since 'literature' only has aGOtool anyway
+    updatePickerInput(session, "functional_enrichment_tool",
+                      choices = ENRICHMENT_TOOLS, selected = DEFAULT_TOOL)
+  }
+  else {
+    shinyjs::show(paste0(enrichmentType, "_enrichment_background_container"))
+    # this is only for enrichmentType = 'functional',
+    # since 'literature' only has aGOtool anyway
+    updatePickerInput(session, "functional_enrichment_tool",
+                      choices = c("aGOtool", "gProfiler", "WebGestalt"), selected = DEFAULT_TOOL)
+  }
+}
+
+updateBackgroundListChoices <- function(enrichmentType) {
+  # the code below makes sure that the input list is NOT a choice for the background
+  # first, we get the user input value
+  userInputVal <- input[[paste0(enrichmentType, "_enrichment_file")]]
+  # then, we remove the user input from the list of choices (locally, not globally)
+  background_choices <- names(userInputLists)
+  background_choices <- background_choices[background_choices != userInputVal]
+  updateSelectInput(session, paste0(enrichmentType, "_enrichment_background_list"), choices = background_choices)
 }

@@ -25,7 +25,7 @@ handleTextMining <- function() {
     species <- ORGANISMS[ORGANISMS$print_name == input$textmining_organism, ]$taxid
     # js call to change the default TAGGER_SPECIES VALUE to species
     shinyjs::runjs(sprintf("updateSpecies(%s)", species))
-    if (areEnoughTextCharacters(text)) {
+    if (areEnoughTextCharacters(text) && belowWordLimit(text)) {
       renderModal("<h2>Please wait.</h2><p>Contacting the EXTRACT web server...</p>")
       parsedText <- parseTextForPOSTRequests(text, species)
       text_enc <- parsedText$text_enc
@@ -55,6 +55,16 @@ areEnoughTextCharacters <- function(text) {
   }
   return(areEnough)
 }
+
+belowWordLimit <- function(text) {
+  belowLimit <- T
+  if(stringr::str_count(text, "\\S+") > TEXTMINING_WORD_LIMIT || nchar(text) > TEXTMINING_CHAR_LIMIT) {
+    belowLimit <- F
+    renderWarning(sprintf("The submitted text must not be longer than %s words or %s characters.", TEXTMINING_WORD_LIMIT, TEXTMINING_CHAR_LIMIT))
+  }
+  return(belowLimit)
+}
+
 
 parseTextForPOSTRequests <- function(text, species) {
   entity_types <- c(-3)
@@ -106,8 +116,11 @@ getHTML <- function(text_enc, entity_types_txt) {
 
 prepareExtractedTermsForPrint <- function(extracted_terms) {
   extracted_terms <- attachTextMiningDBLinks(extracted_terms)
-  extracted_terms <- subset(extracted_terms, select = -c(ID_noLINKS))
-  names(extracted_terms) <- c("Gene Name", "Species (TaxID)", "ID")
+  extracted_terms$check <- unlist(lapply(extracted_terms$ID_noLINKS, function(i) {
+    return(HTML(sprintf("<input type='checkbox' name='text_mining_result_table[]' value='%s' />", i)))
+  }))
+  extracted_terms <- subset(extracted_terms, select = c(check, Name, Type, ID))
+  names(extracted_terms) <- c("#", "Gene Name", "Species (TaxID)", "ID")
   return(extracted_terms)
 }
 
@@ -121,8 +134,10 @@ printExtractResults <- function(enriched_text, extracted_terms) {
 addTextMiningToFiles <- function() {
   tryCatch({
     renderModal("<h2>Please wait.</h2><br /><p>Parsing your input.</p>")
+    selected <- unlist(strsplit(as.character(input$textmining_selected), ","))
+    textMiningInputList <- currentTextminingResult[currentTextminingResult %in% selected]
     buildUserListFromText(paste(
-      currentTextminingResult, sep = "\n", collapse = "\n"
+      textMiningInputList, sep = "\n", collapse = "\n"
       ), "textmining")
   }, error = function(e) {
     cat(paste("Extracting list from text-mining error:  ", e))

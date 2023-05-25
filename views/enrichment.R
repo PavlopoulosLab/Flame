@@ -48,13 +48,30 @@ generateEnrichmentControlPanel <- function() {
             multiple = F,
             width = "80%",
             options = list(placeholder = 'Select an option or start typing...')
-          )
+          ),
+          radioGroupButtons(
+            inputId = paste0(currentEnrichmentType, "_enrichment_background_choice"),
+            label = "3. Select background:",
+            choiceNames = c("Whole genome", "User-submitted list"),
+            choiceValues = c("genome", "user_list"),
+            selected = "genome",
+            justified = T,
+            width = "80%"
+            ),
+          div(id=paste0(currentEnrichmentType, "_enrichment_background_container"),
+              style="display:none",
+          selectInput(
+            inputId = paste0(currentEnrichmentType, "_enrichment_background_list"),
+            label = "Select background list:",
+            choices = NULL,
+            width = "80%"
+          )),
         ),
         column(
           4,
           pickerInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_tool"),
-            label = "3. Select enrichment tool:",
+            label = "4. Select enrichment tool:",
             choices = availableTools,
             selected = DEFAULT_TOOL,
             multiple = T,
@@ -63,7 +80,7 @@ generateEnrichmentControlPanel <- function() {
           ),
           pickerInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_datasources"),
-            label = "4. Select datasources:", 
+            label = "5. Select datasources:", 
             choices = datasourceChoices,
             selected = datasourceSelected,
             multiple = T,
@@ -72,7 +89,7 @@ generateEnrichmentControlPanel <- function() {
           ),
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_namespace"),
-            label = "5. Select namespace conversion:",
+            label = "6. Select namespace conversion:",
             choices = NAMESPACES[["AGOTOOL"]],
             width = "80%"
           ) %>% 
@@ -91,19 +108,19 @@ enrichR: Entrez Gene Name"
           4,
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_metric"),
-            label = "6. Select significance metric:",
+            label = "7. Select significance metric:",
             choices = metrics,
             width = "80%"
           ),
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_threshold"),
-            label = "7. Select significance threshold:",
+            label = "8. Select significance threshold:",
             choices = c(0.05, 0.01),
             width = "80%"
           ),
           radioButtons(
             inputId = paste0(currentEnrichmentType, "_enrichment_inputConversion"),
-            label = "8. Select result namespace:",
+            label = "9. Select result namespace:",
             choices = c("Original input names", "Converted input names"),
             inline = TRUE
           )
@@ -121,6 +138,7 @@ enrichR: Entrez Gene Name"
     )
   )
 }
+
 
 generateEnrichmentResultsPanel <- function() {
   if (currentEnrichmentType == "functional") {
@@ -220,7 +238,15 @@ generateResultsPanel <- function() {
           status = "primary", 
           solidHeader = TRUE,
           collapsible = TRUE,
-          DT::dataTableOutput(paste(currentType_Tool, "conversionTable", sep = "_"))
+          tabsetPanel(
+            tabPanel("Input List", DT::dataTableOutput(paste(currentType_Tool, "conversionTable_input", sep = "_"))),
+            tabPanel("Reference Background", 
+                     div(id=paste(currentType_Tool, "conversionTable_genome_div", sep = "_"),
+                         h3("No custom background was submitted by the user, the entire selected genome was used instead.")),
+                     div(id=paste(currentType_Tool, "conversionTable_reference_div", sep = "_"), style="display:none",
+                       DT::dataTableOutput(paste(currentType_Tool, "conversionTable_reference", sep = "_")))
+                     )
+            )
         ),
         box(
           title = "Unconverted Inputs",
@@ -229,7 +255,11 @@ generateResultsPanel <- function() {
           status = "primary", 
           solidHeader = TRUE,
           collapsible = TRUE,
-          verbatimTextOutput(paste(currentType_Tool, "notConverted", sep = "_"))
+          verbatimTextOutput(paste(currentType_Tool, "notConverted_input", sep = "_")),
+          tags$hr(),
+          div(id=paste(currentType_Tool, "notConverted_reference_div", sep = "_"), style="display:none",
+            verbatimTextOutput(paste(currentType_Tool, "notConverted_reference", sep = "_"))
+            )
         )
       ),
       box(
@@ -278,6 +308,50 @@ generateCombinationPanel <- function() {
           icon = icon("chart-column"),
           upsetjs::upsetjsOutput("upsetjsCombo"),
           DT::dataTableOutput("combo_upsetClick_table")
+        ),
+        tabPanel(
+          title = "Combo Network",
+          icon = icon("network-wired"),
+          fluidRow(
+            column(
+              4,
+              pickerInput(
+                inputId = "combo_tool_picker",
+                label = "Select edges from tools:",
+                choices = c(),
+                selected = c(),
+                multiple = T,
+                width = "80%",
+                options = list('actions-box' = TRUE)
+              ),
+              actionButton(
+                inputId = "combo_visNetwork_run",
+                label = "Visualize Network",
+                icon("paper-plane"), class = "submit_button"
+              )
+            ),
+            column(
+              4,
+              sliderInput(
+                inputId = "combo_rank_slider",
+                label = "Choose minimum rank threshold:",
+                min = 1, max = 1,
+                value = 1,
+                step = 1,
+                width = "70%"
+              ),
+              selectInput(
+                inputId = "combo_network_layout",
+                label = "Choose layout algorithm:",
+                choices = as.vector(unlist(LAYOUT_CHOICES))
+              )
+            )
+          ),
+          tags$div(
+            class = "networkOutput",
+            visNetworkOutput("combo_visNetwork", height = VIS_NET_HEIGHT)
+          ),
+          DT::dataTableOutput("combo_network_table")
         )
       )
     )

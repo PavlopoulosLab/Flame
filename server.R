@@ -3,6 +3,7 @@ function(input, output, session) {
   source("config/global_variables.R", local = T)
   source("config/server_variables.R", local = T)
   source("config/static_variables.R", local = T)
+  source("config/ui_variables.R", local = T)
   
   source("functions/general.R", local = T)
   source("functions/init.R", local = T)
@@ -102,6 +103,16 @@ function(input, output, session) {
   observeEvent(input$textmining_submit, {
     handleTextMining()
   }, ignoreInit = T)
+
+  observeEvent(input$textmining_selectAll, {
+    shinyjs::runjs("textmining_selectAll(true);")
+    
+  }, ignoreInit = T)  
+    
+  observeEvent(input$textmining_selectNone, {
+    shinyjs::runjs("textmining_selectAll(false);")
+    
+  }, ignoreInit = T)  
   
   observeEvent(input$textmining_addList, {
     addTextMiningToFiles()
@@ -194,9 +205,23 @@ function(input, output, session) {
   observeEvent(input$functional_enrichment_tool, {
     handleFunctionalEnrichmentToolSelection()
   }, ignoreInit = T, ignoreNULL = F)
+
+  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+    observeEvent(input[[paste0(enrichmentType, "_enrichment_file")]], {
+      handleBackgroundListUpdate(enrichmentType)
+    }, ignoreInit = T)
+  })
   
   lapply(ENRICHMENT_TYPES, function(enrichmentType) {
+    observeEvent(input[[paste0(enrichmentType, "_enrichment_background_choice")]], {
+      choice <- input[[paste0(enrichmentType, "_enrichment_background_choice")]]
+      handleBackgroundModeSelection(choice, enrichmentType)
+    }, ignoreInit = T)
+  })
+    
+  lapply(ENRICHMENT_TYPES, function(enrichmentType) {
     observeEvent(input[[paste0(enrichmentType, "_enrichment_run")]], {
+      handleBackgroundListUpdate(input[[paste0(enrichmentType, "_enrichment_file")]])
       handleEnrichment(enrichmentType)
     }, ignoreInit = T)
   })
@@ -217,6 +242,10 @@ function(input, output, session) {
   
   observeEvent(input$upsetjsCombo_click, {
     handleComboUpsetClick()
+  }, ignoreInit = T)
+  
+  observeEvent(input$combo_visNetwork_run, {
+    handleComboNetwork()
   }, ignoreInit = T)
   
   # ~Plots ####

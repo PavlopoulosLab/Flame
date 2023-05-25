@@ -1,4 +1,4 @@
-runWebgestalt <- function(userInputList) {
+runWebgestalt <- function(userInputList, user_reference = NULL) {
   datasources <- as.character(DATASOURCES_CODES[["WEBGESTALT"]][
     input[[paste0(currentEnrichmentType, "_enrichment_datasources")]]
   ])
@@ -9,19 +9,43 @@ runWebgestalt <- function(userInputList) {
   namespace <- 
     ifelse(input[[paste0(currentEnrichmentType, "_enrichment_namespace")]] == "USERINPUT",
            "genesymbol", "entrezgene")
-
+  
+  if(currentSignificanceMetric == "top") {
+    sigMethod <- "top"
+    fdrMethod <- "BH"
+  }
+  else {
+    sigMethod <- "fdr"
+    fdrMethod <- currentSignificanceMetric
+  }
+  
+  
+  if(is.null(user_reference)) {
+    referenceSet <- "genome"
+    referenceGene <- NULL
+    referenceGeneType <- NULL
+  }
+  else {
+    referenceSet <- NULL
+    referenceGene <- user_reference
+    referenceGeneType <- namespace 
+  }
+  
   result <- suppressWarnings(WebGestaltR::WebGestaltR(
     organism = organism,
     enrichDatabase = datasources,
     interestGene = userInputList,
     interestGeneType = namespace,
-    referenceSet = "genome",
-    fdrMethod = currentSignificanceMetric,
+    referenceGene = referenceGene,
+    referenceGeneType = referenceGeneType,
+    referenceSet = referenceSet,
+    sigMethod = sigMethod,
+    fdrMethod = fdrMethod,
     fdrThr = as.numeric(input$functional_enrichment_threshold),
+    topThr = 100,
     isOutput = F, # doesn't create extra load with folders
     hostName = "https://www.webgestalt.org/"
   ))
-
   if (isResultValid(result)) {
     webgestaltResult <- parseWebgestaltResult(result, length(userInputList))
     enrichmentResults[[currentType_Tool]] <<-

@@ -1,18 +1,30 @@
-runGprofiler <- function(query) {
+runGprofiler <- function(query, user_reference = NULL) {
   gprofilerResult <<- list()
   sources <- DATASOURCES[["GPROFILER"]][
     DATASOURCES[["GPROFILER"]] %in% input$functional_enrichment_datasources
   ]
+  if(is.null(user_reference)) {
+    domain_scope <- "annotated"
+    custom_bg <- NULL
+    significant <- T
+  }
+  else {
+    domain_scope <- "custom"
+    custom_bg <- user_reference
+    significant <- F
+  }
   if (!identical(sources, character(0)))
     gprofilerResult <<- gprofiler2::gost(
       query = query,
       organism = ORGANISMS[ORGANISMS$taxid == currentOrganism, ]$short_name,
+      significant = significant,
       evcodes = T, # gene hits and intersection
       user_threshold = input$functional_enrichment_threshold,
       correction_method = currentSignificanceMetric,
-      sources = sources
+      sources = sources,
+      domain_scope = domain_scope,
+      custom_bg = custom_bg
     )
-  
   if (isGprofilerResultValid()) {
     gprofilerParsedResult <- parseGprofilerResult()
     enrichmentResults[[currentType_Tool]] <<-
