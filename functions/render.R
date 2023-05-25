@@ -125,7 +125,7 @@ renderEnrichmentTable <- function(shinyOutputId, input_table,
         list(extend = 'excel', filename = fileName),
         list(extend = 'csv', filename = fileName),
         list(extend = 'copy', filename = fileName),
-        list(extend = 'pdf', filename = fileName),
+        list(extend = 'pdf', filename = fileName, exportOptions = list(orthogonal = "export"), orientation = "landscape"),
         list(extend = 'print', filename = fileName)
       ),
       columnDefs = list(
