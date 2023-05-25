@@ -115,7 +115,7 @@ enrichR: Entrez Gene Name"
           selectInput(
             inputId = paste0(currentEnrichmentType, "_enrichment_threshold"),
             label = "8. Select significance threshold:",
-            choices = c(0.05, 0.01),
+            choices = c(0.05, 0.01, 1),
             width = "80%"
           ),
           radioButtons(
