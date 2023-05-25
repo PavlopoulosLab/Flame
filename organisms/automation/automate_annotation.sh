@@ -31,22 +31,30 @@ echo "process agotool"
 #download species list from STRING
 wget https://stringdb-static.org/download/species.v11.5.txt
 #sort by taxid
-sort -k 1,1 -t $'\t' species.v11.5.txt > default_string_taxid_sorted
-
-#download additional species from Viruses.STRING
-wget http://viruses.string-db.org/download/species.v10.5.txt
-#sort by taxid
-sort -k 1,1 -t $'\t' species.v10.5.txt > viruses_string_taxid_sorted
-# concatenate and remove duplicates
-cat default_string_taxid_sorted viruses_string_taxid_sorted | sort -t $'\t' -k 1,1 -u > string_taxid_sorted
-
+sort -k 1,1 -t $'\t' species.v11.5.txt > string_taxid_sorted
 
 #get the lines that have a common name
 join -1 1 -2 1 -t $'\t' string_taxid_sorted common_sorted | sort -k 1,1 -t $'\t' -u |awk -F "\t" '{print $1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$5}' > ago_common
 #get the rest of them
 join -1 1 -2 1 -t $'\t' -v 1 string_taxid_sorted common_sorted | sort -k 1,1 -t $'\t' -u | awk -F "\t" '{print $1"\t"$2"\t"$3"\t"$4"\t"$4"\t"$5}' > ago_rest
 #concatenate and sort
-cat ago_common ago_rest | sort -k 1,1 -t $'\t' -r  > agotool_display_names.tsv
+cat ago_common ago_rest | sort -k 1,1 -t $'\t' -r  > ago_string_display_names
+
+#download additional species from Viruses.STRING
+wget http://viruses.string-db.org/download/species.v10.5.txt
+#sort by taxid
+sort -k 1,1 -t $'\t' species.v10.5.txt | awk '{print $_"\tViruses"}' > viruses_string_taxid_sorted
+
+#get the lines that have a common name
+join -1 1 -2 1 -t $'\t' viruses_string_taxid_sorted common_sorted | sort -k 1,1 -t $'\t' -u |awk -F "\t" '{print $1"\t"$2"\t"$3"\t"$4"\t"$6"\t"$5}' > ago_common
+#get the rest of them
+join -1 1 -2 1 -t $'\t' -v 1 viruses_string_taxid_sorted common_sorted | sort -k 1,1 -t $'\t' -u | awk -F "\t" '{print $1"\t"$2"\t"$3"\t"$4"\t"$4"\t"$5}' > ago_rest
+#concatenate and sort
+cat ago_common ago_rest | sort -k 1,1 -t $'\t' -r  |grep -v "#" > ago_viruses_string_display_names
+
+#concatenate and remove duplicates
+cat ago_string_display_names ago_viruses_string_display_names| sort -t $'\t' -k 1,1 -ru | cut -f 1,2,4,5,6 | awk -F "\t" '{if ($4==""){print $1"\t"$2"\t"$3"\t"$3"\t"$5}else {print $_}}' > agotool_display_names.tsv
+
 
 echo "process KEGG"
 #download KEGG organisms json
