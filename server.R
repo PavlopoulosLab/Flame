@@ -235,6 +235,10 @@ function(input, output, session) {
     })
   })
   
+  observeEvent(input$functional_enrichment_all_clear, {
+    handleMultiClear()
+  }, ignoreInit = T)
+  
   # ~Combination ####
   observeEvent(input$combo_datasources, {
       handleComboSourceSelect()

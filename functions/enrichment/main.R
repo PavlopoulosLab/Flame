@@ -473,3 +473,10 @@ handleEnrichmentResultClear <- function(enrichmentType, toolName) {
   hideTab(inputId = "toolTabsPanel", target = toolName)
   prepareCombinationTab()
 }
+
+handleMultiClear <- function() {
+  lapply(input$functional_enrichment_tool, function(toolName) {
+    handleEnrichmentResultClear("functional", toolName)
+  })
+  shinyjs::hide("functional_enrichment_all_clear")
+}

@@ -132,7 +132,13 @@ enrichR: Entrez Gene Name"
           actionButton(
             inputId = paste0(currentEnrichmentType, "_enrichment_run"),
             label = "Run analysis",
-            icon("paper-plane"), class = "submit_button")
+            icon("paper-plane"), class = "submit_button"),
+          actionButton(
+            inputId = paste0(currentEnrichmentType, "_enrichment_all_clear"),
+            label = "Clear All",
+            icon("broom"),
+            style="display:none"
+          )
           )
       )
     )

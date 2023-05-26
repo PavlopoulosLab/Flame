@@ -21,6 +21,7 @@ prepareCombinationTab <- function() {
     maxRank <- max(combinationResult$Rank, na.rm = TRUE)
     updateSliderInput(session, "combo_rank_slider",
                       value = maxRank, max = maxRank)
+    shinyjs::show("functional_enrichment_all_clear")
   }
 }
 
