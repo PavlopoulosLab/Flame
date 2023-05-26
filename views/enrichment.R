@@ -338,7 +338,8 @@ generateCombinationPanel <- function() {
                 min = 2, max = 4,
                 value = 2,
                 step = 1,
-                width = "70%"
+                width = "70%",
+                ticks = F
               ),
               selectInput(
                 inputId = "combo_network_layout",
