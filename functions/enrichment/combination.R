@@ -37,7 +37,8 @@ existTwoToolResults <- function() {
 createGlobalComboTable <- function() {
   functionalEnrichmentResults <- enrichmentResults[grep("^functional", names(enrichmentResults))]
   combinationResult <<- dplyr::bind_rows(functionalEnrichmentResults, .id = "Tool")
-  combinationResult <<- combinationResult[, c("Source", "Term_ID", "Function", "Term_ID_noLinks", "Tool")]
+  combinationResult <<- combinationResult[, c("Source", "Term_ID", "Function",
+                                              "Term_ID_noLinks", "Tool", "P-value")]
   combinationResult$Tool <<- sapply(strsplit(combinationResult$Tool, "_"), "[[", 2)
   termToolMatching <- combinationResult %>%
     group_by(Term_ID_noLinks) %>%
@@ -46,15 +47,44 @@ createGlobalComboTable <- function() {
   
   combinationResult <<- plyr::join(termToolMatching, combinationResult, type = "left",
                                    by = "Term_ID_noLinks")
-  combinationResult <<- distinct(combinationResult , Term_ID_noLinks, Tools,
+  combinationResult <<- calculateFisherStats(combinationResult)
+  combinationResult <<- distinct(combinationResult, Term_ID_noLinks, Tools,
                                  .keep_all = T)
   combinationResult <<- combinationResult[, c("Source", "Term_ID", "Function",
-                                               "Term_ID_noLinks", "Tools")]
+                                              "Term_ID_noLinks", "Tools",
+                                              "Chisq", "P_value_combined")]
   combinationResult$Rank <<- lengths(
     regmatches(
       combinationResult$Tools, gregexpr(",", combinationResult$Tools)
     )
   ) + 1
+}
+
+calculateFisherStats <- function(combinationResult) {
+  combinationResult$`P-value` <- as.numeric(combinationResult$`P-value`)
+  combinedResults  <- do.call(rbind, 
+                              tapply(combinationResult$`P-value`, 
+                                     combinationResult$Term_ID_noLinks, 
+                                     FUN = combine_pvalues))
+  
+  combinedResults  <- as.data.frame(combinedResults)
+  colnames(combinedResults) <- c("P_value_combined", "Chisq")
+  combinedResults$Term_ID_noLinks <- row.names(combinedResults)
+  
+  # Merge the combined results back to the original data frame
+  combinationResult <- merge(combinationResult, combinedResults,
+                             by = "Term_ID_noLinks")
+  combinationResult$P_value_combined <-
+    formatC(combinationResult$P_value_combined, format = "e", digits = 3)
+  combinationResult$Chisq <-
+    formatC(combinationResult$Chisq, format = "e", digits = 3)
+  
+  return(combinationResult)
+}
+
+combine_pvalues <- function(pvalues) {
+  result <- poolr::fisher(pvalues)
+  return(c(result$p, result$statistic))
 }
 
 handleComboSourceSelect <- function() {
@@ -165,8 +195,9 @@ parseComboVisNetwork <- function() {
   comboResult_forNetwork <- dplyr::bind_rows(functionalEnrichmentResults,
                                               .id = "Tool")
   comboResult_forNetwork <- comboResult_forNetwork[, c("Source", "Function",
-                                                        "Positive Hits", "Tool")]
-
+                                                        "Positive Hits", "Tool",
+                                                       "P-value")]
+  # saveRDS(comboResult_forNetwork, "comboResult_forNetwork.RDS")
   comboResult_forNetwork <- subset(comboResult_forNetwork,
      Source %in% input$combo_datasources)
 

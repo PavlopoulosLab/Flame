@@ -6,7 +6,6 @@
 # options(repos=r)
 # })
 
-
 #step1 install all required packages from CRAN ####
 flame_all_packages <- c("devtools",
                "shiny",
@@ -29,7 +28,9 @@ flame_all_packages <- c("devtools",
                "igraph",
                "visNetwork",
                "upsetjs",
-               "plyr"
+               "plyr",
+               "poolr"
 )
 flame_new_packages <- subset(flame_all_packages, !(flame_all_packages %in% rownames(installed.packages())))
 install.packages(flame_new_packages)
+  
