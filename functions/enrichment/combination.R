@@ -197,7 +197,6 @@ parseComboVisNetwork <- function() {
   comboResult_forNetwork <- comboResult_forNetwork[, c("Source", "Function",
                                                         "Positive Hits", "Tool",
                                                        "P-value")]
-  # saveRDS(comboResult_forNetwork, "comboResult_forNetwork.RDS")
   comboResult_forNetwork <- subset(comboResult_forNetwork,
      Source %in% input$combo_datasources)
 
