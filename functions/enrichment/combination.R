@@ -19,8 +19,12 @@ prepareCombinationTab <- function() {
                       choices = choices, selected = choices)
     
     maxRank <- max(combinationResult$Rank, na.rm = TRUE)
+    if(maxRank <= 2)
+      value <- maxRank
+    else
+      value <- maxRank - 1
     updateSliderInput(session, "combo_rank_slider",
-                      value = maxRank, max = maxRank)
+                      value = value, max = maxRank)
     shinyjs::show("functional_enrichment_all_clear")
   }
 }
@@ -257,8 +261,9 @@ createComboGraph <- function(comboResult_forNetwork) {
     as.matrix(comboResult_forNetwork[, c("Function", "Positive Hits")]),
     directed = FALSE
   )
+  weights <- c(0, 1, 3, 6)
   E(graph)$weight <- 1
   E(graph)$title <- comboResult_forNetwork$Tool
-  E(graph)$width <- comboResult_forNetwork$Rank
+  E(graph)$width <- weights[comboResult_forNetwork$Rank]
   return(graph)
 }
