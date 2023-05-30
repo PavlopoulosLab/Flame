@@ -184,4 +184,15 @@ attachWebgestaltLinks <- function(links) {
       enrichmentResults[[currentType_Tool]]$Term_ID,
       "</a>"
     )
+  # quick and dirty fix for changed DISGENET links
+  if("DISGENET" %in% enrichmentResults[[currentType_Tool]]$Source) {
+    enrichmentResults[[currentType_Tool]][enrichmentResults[[currentType_Tool]]$Source == "DISGENET",]$Term_ID <<-
+      paste0(
+        "<a href='https://www.disgenet.org/search/0/",
+        enrichmentResults[[currentType_Tool]][enrichmentResults[[currentType_Tool]]$Source == "DISGENET",]$Term_ID_noLinks,
+        "/' target='_blank'>",
+        enrichmentResults[[currentType_Tool]][enrichmentResults[[currentType_Tool]]$Source == "DISGENET",]$Term_ID_noLinks,
+        "</a>"
+      )  
+  }
 }
