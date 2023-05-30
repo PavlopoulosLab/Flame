@@ -37,7 +37,7 @@ existTwoToolResults <- function() {
 createGlobalComboTable <- function() {
   functionalEnrichmentResults <- enrichmentResults[grep("^functional", names(enrichmentResults))]
   combinationResult <<- dplyr::bind_rows(functionalEnrichmentResults, .id = "Tool")
-  combinationResult <<- combinationResult[, c("Source", "Term_ID", "Function", "Term_ID_noLinks", "Tool", "P-value")]
+  combinationResult <<- combinationResult[, c("Source", "Term_ID", "Function", "Term_ID_noLinks", "Tool")]
   combinationResult$Tool <<- sapply(strsplit(combinationResult$Tool, "_"), "[[", 2)
   termToolMatching <- combinationResult %>%
     group_by(Term_ID_noLinks) %>%
@@ -55,9 +55,6 @@ createGlobalComboTable <- function() {
       combinationResult$Tools, gregexpr(",", combinationResult$Tools)
     )
   ) + 1
-  combinedStatistics <- calculateCombinedStatistics()
-  combinationResult <<- plyr::join(combinationResult, combinedStatistics, type = "left",
-                                   by = "Term_ID_noLinks")
 }
 
 handleComboSourceSelect <- function() {
@@ -231,51 +228,4 @@ createComboGraph <- function(comboResult_forNetwork) {
   E(graph)$title <- comboResult_forNetwork$Tool
   E(graph)$width <- comboResult_forNetwork$Rank
   return(graph)
-}
-
-calculateCombinedStatistics <- function() {
-  functionalEnrichmentResults <- enrichmentResults[grep("^functional", names(enrichmentResults))]
-  unique_terms <- unique(
-    unlist(
-      lapply(names(functionalEnrichmentResults), function(i) {
-        id_nolinks <- unlist(functionalEnrichmentResults[[i]]["Term_ID_noLinks"])
-        return(id_nolinks)
-      })
-    )
-  )
-  statistics <- data.frame(Term_ID_noLinks = unique_terms)
-  chi_squared <- c()
-  pvalues <- c()
-  logpvals <- c()
-  for (term in statistics$Term_ID_noLinks) {
-    pvals <- c()
-    for (i in names(functionalEnrichmentResults)) {
-      if(term %in% unlist(functionalEnrichmentResults[[i]]["Term_ID_noLinks"])) {
-        pval <- functionalEnrichmentResults[[i]][functionalEnrichmentResults[[i]]["Term_ID_noLinks"] == term,]["P-value"]
-        pvals <- c(pvals, as.numeric(pval))
-      }
-    }
-    if(length(pvals) > 1) {
-      # X^2 with Fisher's method
-      logps <- lapply(pvals, function(p) {
-        return(log(p))
-      })
-      chi <- -2 * sum(unlist(logps))
-      pvalue <- as.numeric(pchisq(chi, length(pvals), lower.tail = F)) # derive p-value from X^2
-      logp <- -1 * log10(pvalue)
-    }
-    else {
-      pvalue <- as.numeric(pvals[1])
-      chi <- NA
-      logp <- -1 * log10(pvalue)
-    }
-    chi_squared <- c(chi_squared, chi)
-    pvalues <- c(pvalues, pvalue)
-    logpvals <- c(logpvals, logp)
-  }
-  statistics$chi_squared <- formatC(chi_squared, format="g", digits = 3)
-  statistics$pvalues <- formatC(pvalues, format="e", digits = 2)
-  statistics$logpvals <- formatC(logpvals, format="e", digits = 3) 
-  names(statistics) <- c("Term_ID_noLinks", "X<sup>2</sup>", "P-value", "-log10Pvalue")
-  return(statistics)
 }
