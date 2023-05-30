@@ -53,6 +53,9 @@ createGlobalComboTable <- function() {
   combinationResult <<- combinationResult[, c("Source", "Term_ID", "Function",
                                               "Term_ID_noLinks", "Tools",
                                               "Chisq", "P_value_combined")]
+  names(combinationResult) <<- c("Source", "Term ID", "Function",
+                                 "Term_ID_noLinks", "Tools",
+                                 "X<sup>2</sup>", "Comb. P-value")
   combinationResult$Rank <<- lengths(
     regmatches(
       combinationResult$Tools, gregexpr(",", combinationResult$Tools)
