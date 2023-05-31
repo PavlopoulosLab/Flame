@@ -313,6 +313,7 @@ splitEnrichrHPTerms <- function(enrichrResult) {
 
 getEnrichrBackgroundSize <- function(site, selected_dbs) {
   if(site == "Enrichr") {
+    dbs_all <- listEnrichrDbs()
     size <- max(unlist(dbs_all[dbs_all$libraryName %in% selected_dbs,]$numTerms))
   }
   else
