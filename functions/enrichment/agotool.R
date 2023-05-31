@@ -77,6 +77,10 @@ parseAGoToolResult <- function(response, taxid) {
     "P-value" = "p_value",
     DEFAULT_METRIC_TEXT = "FDR"
   )
+  
+  enrichmentBackgroundSizes[[sprintf("%s_AGOTOOL", toupper(currentEnrichmentType))]] <<- getAgotoolBackgroundSize(response)
+    
+  
   aGoToolResult <-
     aGoToolResult[, c(
       "category", "term", "description", significanceColumnName,
@@ -135,4 +139,22 @@ alterLiteratureKeyword <- function(aGoToolResult) {
   aGoToolResult$Source <- gsub("PMID \\(PubMed IDentifier\\)",
                                "PUBMED", aGoToolResult$Source)
   return(aGoToolResult)
+}
+
+
+getAgotoolBackgroundSize <- function(response) {
+  if(length(currentBackgroundList) > 0) {
+    post_fields <- jsonlite::fromJSON(rawToChar(response$request$options$postfields))
+    size <- length(unlist(strsplit(post_fields$background, "%0d")))
+  }
+  else {
+    if(response$status_code == 200) {
+      response_df <- read.delim(text = rawToChar(httr::content(response, "raw")))
+      size <- response_df$background_n[1]
+    }
+    else {
+      size <- NULL
+    }
+  }
+  return(size)
 }

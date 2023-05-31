@@ -1,11 +1,14 @@
 runEnrichr <- function(userInputList) {
-  setEnrichrOrganism()
+  site <- setEnrichrOrganism()
   databases <- setEnrichrDatabases()
   
   result <- enrichR::enrichr(userInputList, databases)
   
   enrichrResult <- do.call(rbind, result) # extracting df from list of lists
   enrichrResult <- filterSignificance(enrichrResult)
+  
+  enrichmentBackgroundSizes[["FUNCTIONAL_ENRICHR"]] <<- getEnrichrBackgroundSize(site, databases)
+  
   if (isResultValid(enrichrResult)) {
     enrichrResult <- parseEnirchrResult(enrichrResult, length(userInputList))
     enrichmentResults[[currentType_Tool]] <<-
@@ -25,6 +28,7 @@ setEnrichrOrganism <- function() {
     "btaurus" = "OxEnrichr"
   )
   enrichR::setEnrichrSite(site)
+  return(site)
 }
 
 setEnrichrDatabases <- function() {
@@ -305,4 +309,13 @@ splitEnrichrHPTerms <- function(enrichrResult) {
     ids <- paste0("HP:", substring(ids, 1, nchar(ids) - 1))
   }
   return(list(terms = terms, ids = ids))
+}
+
+getEnrichrBackgroundSize <- function(site, selected_dbs) {
+  if(site == "Enrichr") {
+    size <- max(unlist(dbs_all[dbs_all$libraryName %in% selected_dbs,]$numTerms))
+  }
+  else
+    size <- NULL
+  return(size)
 }

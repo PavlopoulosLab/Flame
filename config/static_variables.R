@@ -8,6 +8,7 @@ enrichmentResults <- list()
 arenaEdgelist <- list()
 gprofilerResult <- list() # for gprofiler ManhattanPlot only
 combinationResult <- data.frame()
+enrichmentBackgroundSizes <- list()
 
 # STRING Network
 STRINGNetworkData <- list()

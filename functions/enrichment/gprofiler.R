@@ -25,6 +25,12 @@ runGprofiler <- function(query, user_reference = NULL) {
       domain_scope = domain_scope,
       custom_bg = custom_bg
     )
+  
+  if(is.null(user_reference))
+    enrichmentBackgroundSizes[["FUNCTIONAL_GPROFILER"]] <<- getGprofilerBackgroundSize()
+  else
+    enrichmentBackgroundSizes[["FUNCTIONAL_GPROFILER"]] <<- length(user_reference)
+  
   if (isGprofilerResultValid()) {
     gprofilerParsedResult <- parseGprofilerResult()
     enrichmentResults[[currentType_Tool]] <<-
@@ -70,4 +76,18 @@ mapWPIds <- function(df) {
       gsub("WP:", "", df[df$Source == "WP", ]$Term_ID)
   }
   return(df)
+}
+
+getGprofilerBackgroundSize <- function() {
+  if(isGprofilerResultValid()) {
+  metadata <- gprofilerResult$meta$result_metadata
+  bsizes <- lapply(names(metadata), function(i) {
+    return(metadata[[i]]$domain_size)
+  })
+  size <- max(unlist(bsizes))
+  }
+  else {
+    size <- NULL
+  }
+  return(size)
 }

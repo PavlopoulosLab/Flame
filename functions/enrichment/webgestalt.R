@@ -24,11 +24,13 @@ runWebgestalt <- function(userInputList, user_reference = NULL) {
     referenceSet <- "genome"
     referenceGene <- NULL
     referenceGeneType <- NULL
+    enrichmentBackgroundSizes[["FUNCTIONAL_WEBGESTALT"]] <<- getWebgestaltBackgroundSize(organism = organism)
   }
   else {
     referenceSet <- NULL
     referenceGene <- user_reference
     referenceGeneType <- namespace 
+    enrichmentBackgroundSizes[["FUNCTIONAL_WEBGESTALT"]] <<- length(user_reference)
   }
   
   result <- suppressWarnings(WebGestaltR::WebGestaltR(
@@ -46,6 +48,7 @@ runWebgestalt <- function(userInputList, user_reference = NULL) {
     isOutput = F, # doesn't create extra load with folders
     hostName = "https://www.webgestalt.org/"
   ))
+  
   if (isResultValid(result)) {
     webgestaltResult <- parseWebgestaltResult(result, length(userInputList))
     enrichmentResults[[currentType_Tool]] <<-
@@ -73,4 +76,11 @@ parseWebgestaltResult <- function(webgestaltResult, numInputs) {
   colnames(webgestaltResult) <- ENRICHMENT_DF_COLNAMES
   webgestaltResult <- mapKEGGIds(webgestaltResult)
   return(webgestaltResult)
+}
+
+
+getWebgestaltBackgroundSize <- function(organism = "hsapiens", referenceSet = "genome_protein-coding") {
+  url <- sprintf("https://www.webgestalt.org/api/reference?organism=%s&referenceSet=%s", organism, referenceSet)
+  x <- read.csv(url(url), header=F)
+  return(length(x$V1))
 }

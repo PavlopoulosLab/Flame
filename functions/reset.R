@@ -8,6 +8,7 @@ resetTextMiningResults <- function() {
 resetCombination <- function() {
   combinationResult <<- data.frame()
   hideTab(inputId = "toolTabsPanel", target = "Combination")
+  enrichmentBackgroundSizes <<- list()
 }
 
 resetEnrichmentResults <- function(type, tool) {

@@ -282,6 +282,7 @@ printParameters <- function() {
     "\nOrganism: ", ORGANISMS[ORGANISMS$taxid == currentOrganism, ]$print_name,
     "\nBackground: ", input[[
       paste0(currentEnrichmentType, "_enrichment_background_choice")]],
+    "\nBackground size (no. of genes): ", enrichmentBackgroundSizes[[toupper(currentType_Tool)]],
     "\nDatasources: ", decideToolSelectedDatasources(),
     "\nNamespace: ", currentNamespace,
     "\nSignificance metric: ", currentSignificanceMetric, 
