@@ -155,21 +155,23 @@ generateHelpTextMining <- function() {
       <div class = "wholeRow">
         <div class = "helpImage_div">
            <img src = "help_images/TextMining.png"
-           style = "width: 1200px; border: 1px solid black;"/> 
+           style = "width: 900px; border: 1px solid black;"/> 
         </div>
       </div>
     
       <div class = "wholeRow">
         <p style = "text-align: justify">
-     In this version, users can input genes/proteins derived from text-mining by providing: 
-     <b>(1)</b> free text by writing in the white box and <b>(2)</b> selecting the organism of preference.
-        Flame will report the <b>(3)</b> identified genes/proteins in an interactive and easy-to-filter table
-        as well as <b>(4)</b> an annotated text with the identified terms highlighted.
-        In mouse-hover <b>(5)</b>, a popup window will appear, providing information about the entity as well as
-        direct links to the STRING and Ensembl databases.
-        The annotated terms can be <b>(6)</b> downloaded or <b>(7)</b> added to the list of Flame inputs,
-        using their associated Ensembl ids. 
-        This functionality is supported for all currently available organisms in Flame (~14,000 taxa).
+     In this version, users can input genes/proteins derived from text-mining by providing:
+     <b>(1) </b> free text by writing in the white box and <b>(2)</b> selecting the organism of preference.
+     Flame will report the <b>(3)</b> identified genes/proteins in an interactive and easy-to-filter table
+     <b>(6)</b> as well as <b>(4)</b> an annotated text with the identified terms highlighted. In mouse-hover <b>(5)</b>, 
+     a popup window will appear, providing information about the entity as well as direct links to the 
+     STRING and Ensembl databases. The user can select from the table the genes/proteins of interest by clicking 
+     on each one <b>(7)</b> or on the “Select all” button <b>(8)</b>. The annotated terms can be downloaded or <b>(9) </b>added to the 
+     list of Flame inputs, using their associated Ensembl ids. This functionality is supported for all currently available 
+     organisms in Flame (~14,000 taxa).
+
+
         </p>
       </div>
    </div>
@@ -370,7 +372,7 @@ generateHelpFunctionalEnrichmentControlPanel <- function() {
     <div class = "wholeRow">
       <div class = "helpImage_div">
         <img src = "help_images/Enrichment1.png"
-        style = "border: 1px solid black; width: 1200px;">
+        style = "border: 1px solid black; width: 1000px;">
       </div>
     </div>
           
@@ -381,6 +383,9 @@ generateHelpFunctionalEnrichmentControlPanel <- function() {
           <b>Flame</b> currently allows enrichment for <b> 14,436 </b>organisms. Flame proposes the 
           most appropriate enrichment tool for your selected organism.
           Default organism is human (Homo sapiens). </li> 
+      <li><b>Select</b> if the enrichment analysis is performed against a <b> backround list </b> 
+      (submitted by the user) or <b> the whole organism. </b> </li>
+      
       <li><b>Select enrichment tool:</b> </li> 
         <ul>
           <li><b> aGotool</b></li>
@@ -517,8 +522,8 @@ generateHelpEncrichmentResults <- function() {
   
     <div class = "wholeRow">
       <div class = "helpImage_div">
-       <img src = "help_images/combination_tab.png" style="
-       border: 1px solid black; width: 1200px;">
+       <img src = "help_images/combination_table.png" style="
+       border: 1px solid black; width: 900px;">
       </div>
     </div>
      
@@ -544,6 +549,10 @@ generateHelpEncrichmentResults <- function() {
          points to the correspoding link for the term.</li>
          <li><b>Function:</b> the name/description of the enriched term.</li>
          <li><b>Tools:</b> the tool(s) returning the enriched term. </li>
+         <li><b>X<sup>2</sup></b> and <b>Comb.P-value:</b> metrics using the Fisher method, 
+         as means to evaluate the significance (or lack thereof) of 
+         the enriched terms.</li>
+
          <li><b>Rank:</b> the number of tools returning the enriched term. </li>
       </ol>
       
@@ -551,7 +560,33 @@ generateHelpEncrichmentResults <- function() {
   </div>
   
    <hr />
+   
+  <div>
   
+    <div class = "wholeRow">
+      <div class = "helpImage_div">
+       <img src = "help_images/Combo_Network.png" style="
+       border: 1px solid black; width: 800px;">
+      </div>
+    </div>
+     
+    <div class = "wholeRow">
+      <p>
+      The <b>combination tab</b> in the enrichment analysis results panel now offers 
+      the option to create and visualize <b>Function vs Gene interaction networks </b> (“Combo Network” tab) for 
+      the combined results, in a similar manner to the networks created for each individual tool. 
+      <b>(1)</b>Users can select which tools (aGOtool, g:Profiler, WebGestalt or EnrichR) to include in the analysis,
+      as well as <b>(2)</b> the minimun threshold and <b>(3)</b> the layout algorythm. Clicking on <b>(4)</b> "Visualize Network" tab,
+      the network with the selected properties will be created.
+      Furthermore, users can also view the properties of each gene-function connection interactively, 
+      including the combination of tools which have generated it, by <b>(5)</b> hovering over the network edges. 
+      The visible network edgelist is also depicted in table format below the network.
+      </p>
+     </div> 
+     </div>
+     
+     <br />
+      
   <div>
   
     <div class = "sideBySide">
