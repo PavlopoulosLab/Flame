@@ -28,9 +28,9 @@ aboutPage <- fluidRow(
       <p style='font-size:15px'>If you find Flame useful in your work please cite:</p>
       <ul>
         <li> Karatzas, E., Baltoumas, F.A., Aplakidou, E., Kontou, P.I., Stathopoulos, P., Stefanis, L., Bagos, P.G., Pavlopoulos, G.A. (2023) <b>Flame (v2.0): advanced integration and interpretation of functional enrichment results from multiple sources.</b> 
-        <i>bioRxiv</i>. 2023.02.21.529389; doi: <a href='https://doi.org/10.1101/2023.02.21.529389' target='_blank'>10.1101/2023.02.21.529389</a>. </li>
+        <i>Bioinformatics</i>. Volume 39, Issue 8, August 2023, btad490; doi: <a href='https://doi.org/10.1093/bioinformatics/btad490' target='_blank'>10.1093/bioinformatics/btad490</a>; Pubmed: <a href='https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10423032/' target='_blank'>37540207</a> </li>
         <li> Thanati, F., Karatzas, E., Baltoumas, F.A., Stravopodis, D.J., Eliopoulos, A.G., Pavlopoulos, G.A. (2021) <b>FLAME: a web tool for functional and literature enrichment analysis 
-      of multiple gene lists,</b> <i>Biology</i>. 2021; 10(7):665 <a href='https://www.mdpi.com/2079-7737/10/7/665' target='_blank'>doi: 10.3390/biology10070665</a>, <a href='https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8301326/' target='_blank'> PMID: 34356520 </li>
+      of multiple gene lists,</b> <i>Biology</i>. 2021; 10(7):665; doi: <a href='https://www.mdpi.com/2079-7737/10/7/665' target='_blank'>10.3390/biology10070665</a>; Pubmed: <a href='https://www.ncbi.nlm.nih.gov/pmc/articles/PMC8301326/' target='_blank'>34356520</a></li>
       </ul>
     ")
   )

@@ -26,7 +26,11 @@ Flame is written in R/Shiny and JavaScript and is available at http://flame.pavl
 To start the program, double click on the **Flame.Rproj** file. This opens the RStudio process. Then, open the **server.R** file in RStudio and in the Run App options choose "Run External" and then click Run App.
 
 # Cite
-Thanati, F., Karatzas, E., Baltoumas, F.A., Stravopodis, D.J., Eliopoulos, A.G. and Pavlopoulos, G.A., 2021.
+Karatzas, E., Baltoumas, F.A., Aplakidou, E., Kontou, P.I., Stathopoulos, P., Stefanis, L., Bagos, P.G. and Pavlopoulos, G.A. (2023)
+**Flame (v2.0): advanced integration and interpretation of functional enrichment results from multiple sources**
+*Bioinformatics*, Volume 39, Issue 8, August 2023, btad490
+https://doi.org/10.1093/bioinformatics/btad490
+Thanati, F., Karatzas, E., Baltoumas, F.A., Stravopodis, D.J., Eliopoulos, A.G. and Pavlopoulos, G.A. (2021)
 **FLAME: a web tool for functional and literature enrichment analysis of multiple gene lists.**
-Biology, 10(7), p.665, doi: 10.3390/biology10070665
+*Biology*, 10(7), p.665, doi: 10.3390/biology10070665
 https://www.mdpi.com/2079-7737/10/7/665
