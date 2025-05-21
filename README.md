@@ -15,7 +15,7 @@ With Flame one can:
 * Perform cross-database and cross-species id conversions
 * Utilize our API to connect Flame with external applications
 
-Flame is written in R/Shiny and JavaScript and is available at http://flame.pavlopouloslab.info
+Flame is written in R/Shiny and JavaScript and is available at http://flame-enrich.org
 
 # Installation
 
