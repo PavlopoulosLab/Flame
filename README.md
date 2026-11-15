@@ -3,6 +3,8 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/pavlopouloslab/flame.svg)](https://hub.docker.com/r/pavlopouloslab/flame)
 [![License: GPL-3](https://img.shields.io/badge/License-GPL--3-blue.svg)](LICENSE)
 
+<p align="center"><img src="docs/flame-logo.png" alt="Flame logo" width="160"></p>
+
 # Flame 3.0: Functional Analysis and Integration made easy
 
 Flame runs functional and literature enrichment on one or many gene lists with eight established tools
