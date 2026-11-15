@@ -2,6 +2,7 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useConfig } from '../api/hooks'
 import { BrandLockup, Wordmark } from '../components/Shell'
 import { ConceptIcon } from '../components/Icons'
+import { ToolLogo } from '../components/ToolLogo'
 import { ErrorNote } from '../components/ui'
 import { PUBLICATIONS } from './publications'
 
@@ -12,17 +13,17 @@ const EXAMPLES = [
     text: 'A 200-gene human list run through g:Profiler and STRING, ready to explore and compare.',
     tag: 'Recommended',
   },
-  { kind: 'upload', title: 'Gene list', text: 'Paste or upload gene/protein IDs in any of 19 formats.' },
-  { kind: 'volcano', title: 'Volcano plot', text: 'Select up- and down-regulated genes from a differential expression table.' },
-  { kind: 'reduction', title: 'UMAP / 2D plot', text: 'Lasso clusters on a UMAP, t-SNE or PCA scatter.' },
-  { kind: 'expression', title: 'Expression matrix', text: 'Genes × samples: co-expression clusters, a gene map, or two groups compared in a volcano plot.', tag: 'New' },
+  { kind: 'upload', title: 'Gene list', text: '200 genes changed by dexamethasone in airway cells (Himes et al. 2014).' },
+  { kind: 'volcano', title: 'Volcano plot', text: 'Dexamethasone vs untreated airway cells: pick up- and down-regulated genes (Himes et al. 2014).' },
+  { kind: 'reduction', title: 'UMAP / 2D plot', text: 'A real UMAP of genes from 2,638 blood cells (10x PBMC 3k): lasso the B-cell or monocyte island.' },
+  { kind: 'expression', title: 'Expression matrix', text: 'Airway RNA-seq counts (8 samples): co-expression clusters, a gene map, or dex vs untreated.', tag: 'New' },
   { kind: 'variants', title: 'Variant analysis', text: 'Annotate SNPs and VCF variants: consequence, impact, gnomAD frequency, ClinVar and traits.', tag: 'New' },
-  { kind: 'gwas', title: 'GWAS results', text: 'From summary statistics to a Manhattan plot, associated traits, genes and GSEA.', tag: 'New' },
-  { kind: 'mirna', title: 'microRNAs', text: 'From microRNAs (e.g. hsa-miR-21-5p) to the genes they regulate, then enrichment.', tag: 'New' },
+  { kind: 'gwas', title: 'GWAS results', text: 'Alzheimer’s disease loci (Bellenguez et al. 2022): Manhattan plot, genes, traits and GSEA.', tag: 'New' },
+  { kind: 'mirna', title: 'microRNAs', text: 'The solid-cancer microRNA signature of Volinia et al. 2006 → target genes → enrichment.', tag: 'New' },
   { kind: 'snps', title: 'SNPs to genes', text: 'Map dbSNP rsIDs to the genes they affect.' },
   { kind: 'textmining', title: 'Text mining', text: 'Find gene and protein names in an abstract or any free text.' },
   { kind: 'upset', title: 'Set operations', text: 'Build intersections and unions of several lists with an UpSet plot.' },
-  { kind: 'gsea', title: 'Ranked list (GSEA)', text: 'Every gene of an experiment ranked by its change, tested with GSEA on MSigDB.', tag: 'New' },
+  { kind: 'gsea', title: 'Ranked list (GSEA)', text: 'All genes of the airway dexamethasone experiment ranked by change, tested with GSEA.', tag: 'New' },
   { kind: 'compare-tools', title: 'Compare tools', text: 'One list through five tools, with agreement statistics and plots.', tag: 'New' },
   { kind: 'compare-strategies', title: 'Compare strategies', text: 'GSEA on all genes vs. over-representation on the significant ones.', tag: 'New' },
   { kind: 'compare-lists', title: 'Up vs. down', text: 'Up- and down-regulated genes analysed and compared side by side.' },
@@ -149,6 +150,7 @@ export default function HomePage() {
         <div className="tool-grid">
           {(config?.tools ?? []).map((t) => (
             <div key={t.key} className="tool-card" style={{ borderTopColor: t.color }}>
+              <div className="tool-card-logo"><ToolLogo tool={t.key} size={34} variant="full" /></div>
               <h3>{t.name}</h3>
               <p className="muted">{t.organismCount.toLocaleString()} organisms</p>
               <p className="small">{t.datasources.slice(0, 6).join(', ')}{t.datasources.length > 6 ? '…' : ''}</p>

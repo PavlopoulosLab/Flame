@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, downloadFromApi, getWorkspaceId } from '../api/client'
@@ -10,6 +11,8 @@ import { InputModal } from '../features/inputs/InputModal'
 import { NewRunPanel } from '../features/NewRunPanel'
 import { QuickActionModal, type QuickAction } from '../features/utilities/QuickActions'
 import { formatNum, plural } from '../lib/format'
+import { JobsWindow, ProgressBar, type JobProgress } from '../components/Progress'
+import { ToolLogo } from '../components/ToolLogo'
 import { ConceptIcon, IconLabel } from '../components/Icons'
 import { SessionModal, SessionStatusPill, useSaveShortcut, useSessionStatus, type Tab as SessionTab } from '../features/session/Session'
 
@@ -77,10 +80,13 @@ export default function WorkspacePage() {
         break
       }
       case 'upset': {
-        await exampleList()
-        await exampleList('Example genes B')
+        // Up- and down-regulated genes and the 200 most significant ones (dexamethasone, airway):
+        // the UpSet plot shows how the top-200 list splits into up and down.
+        await deLists()
+        await exampleList('Example top 200 dexamethasone genes')
+        invalidate()
         setDialog({ type: 'input', kind: 'upset' })
-        break
+        return
       }
       case 'gsea': {
         const list = await rankedList()
@@ -167,137 +173,142 @@ export default function WorkspacePage() {
     )
   }
 
+  const section = (params.get('tab') as WorkspaceSection) || 'enrich'
+  const setSection = (t: WorkspaceSection) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', t); return n }, { replace: true })
+  const loadExample = (k: string) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))
+
   return (
-    <div className="workspace">
-      <aside className="rail" aria-label="Lists and tools">
-        <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={() => setDialog({ type: 'picker' })}
-          onRun={(id) => setDialog({ type: 'newRun', listId: id })} onQuick={(action, id) => setDialog({ type: 'quick', action, listId: id })} />
-        <section className="rail-section">
-          <div className="rail-head">
-            <h2>Custom sources</h2>
-            <button className="btn btn-ghost btn-sm" onClick={() => setDialog({ type: 'gmt' })} title="Upload gene sets as a GMT file"><IconLabel icon="gmt">+ GMT</IconLabel></button>
-          </div>
-          {(data?.sources ?? []).length === 0 ? (
-            <p className="muted small">Upload your own gene sets (GMT) to test them like any other database.</p>
-          ) : (
-            <ul className="plain-list">
-              {data!.sources.map((s) => (
-                <li key={s.id} className="rail-item">
-                  <span>{s.name}</span>
-                  <span className="muted small">{s.termCount ?? s.term_count} sets</span>
-                  <button className="icon-btn" aria-label={`Delete ${s.name}`} onClick={() => api(`/sources/${s.id}`, { method: 'DELETE' }).then(invalidate)}>×</button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-        <section className="rail-section">
-          <h2>Variants and GWAS</h2>
-          <p className="muted small">Annotate SNPs, VCF variants or GWAS results: consequences, genes, frequencies, ClinVar and trait associations.</p>
-          <Link className="btn btn-secondary btn-block" to={`/w/${ws}/variants`}><IconLabel icon="variants">Variant analysis</IconLabel></Link>
-        </section>
-        <section className="rail-section">
-          <h2>Quick actions</h2>
-          <div className="stack-sm">
-            <button className="btn btn-secondary btn-block" disabled={!lists.length} onClick={() => setDialog({ type: 'quick', action: 'convert' })}><IconLabel icon="convert">Convert IDs</IconLabel></button>
-            <button className="btn btn-secondary btn-block" disabled={!lists.length} onClick={() => setDialog({ type: 'quick', action: 'orthologs' })}><IconLabel icon="orthologs">Find orthologs</IconLabel></button>
-            <button className="btn btn-secondary btn-block" disabled={!lists.length} onClick={() => setDialog({ type: 'quick', action: 'ppi' })}><IconLabel icon="ppi">Protein network (STRING)</IconLabel></button>
-          </div>
-          {!lists.length && <p className="muted small">Add a list first, or <button className="link-btn" onClick={() => runExample('ppi').catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))}>load an example list</button>.</p>}
-        </section>
-        <ExamplesSection onPick={(k) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))} />
-        <section className="rail-section">
-          <button className="btn btn-ghost btn-block" onClick={() => setDialog({ type: 'session', tab: 'status' })}><IconLabel icon="session">Session: save, load, status…</IconLabel></button>
-        </section>
-      </aside>
-
-      <div className="workspace-main">
-        <ol className="progress-steps" aria-label="Progress">
-          <li className={step >= 1 ? (step > 1 ? 'done' : 'current') : ''}>
-            <span>1</span> Add a list
-          </li>
-          <li className={step >= 2 ? (step > 2 ? 'done' : 'current') : ''}>
-            <span>2</span> Run enrichment
-          </li>
-          <li className={step >= 3 ? 'current' : ''}>
-            <span>3</span> Explore and compare
-          </li>
-        </ol>
-
+    <div className="workspace-page">
+      <div className="ws-topbar">
         <ShareBanner ws={ws} expires={data?.expires} />
         <SessionStatusPill status={sessionStatus.data} onOpen={(tab) => setDialog({ type: 'session', tab })} />
-        {exampleNote && <Note kind="success">{exampleNote}</Note>}
+        <ExamplesMenu onPick={loadExample} />
+      </div>
+      {exampleNote && <Note kind="success">{exampleNote}</Note>}
 
-        <div className="page-header">
-          <div>
-            <h1>Enrichment runs</h1>
-            <p className="muted">
-              {runs.length ? `${plural(runs.length, 'run')}${pending ? ` · ${pending} in progress` : ''}` : 'Results of each tool appear here as cards.'}
-            </p>
-          </div>
-          <div className="row">
-            <button
-              className="btn btn-secondary"
-              disabled={selectableRuns.length < 2}
-              title={selectableRuns.length < 2 ? 'Select two or more finished runs to compare them' : ''}
-              onClick={() => navigate(`/w/${ws}/compare?runs=${selectableRuns.join(',')}`)}
-            >
-              <IconLabel icon="compare">Compare{selectableRuns.length ? ` (${selectableRuns.length})` : ''}</IconLabel>
-            </button>
-            <button className="btn btn-primary" disabled={!lists.length} onClick={() => setDialog({ type: 'newRun' })}>
-              <IconLabel icon="run">New run</IconLabel>
-            </button>
-          </div>
-        </div>
-
-        {lists.length === 0 ? (
-          <EmptyState title="Start by adding a gene list">
-            <p>Paste IDs, upload a file, or pick genes from a plot. Not sure? Load an example and see how it works.</p>
-            <div className="row center">
-              <button className="btn btn-primary" onClick={() => setDialog({ type: 'picker' })}>Add a list</button>
-              <button className="btn btn-secondary" onClick={() => setDialog({ type: 'input', kind: 'upload', example: true })}>Use example genes</button>
+      <div className="workspace">
+        <aside className="rail sec-data" aria-label="Your data">
+          <div className="sec-label"><ConceptIcon name="upload" size={18} /> Your data</div>
+          <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={() => setDialog({ type: 'picker' })}
+            onRun={(id) => setDialog({ type: 'newRun', listId: id })} onQuick={(action, id) => setDialog({ type: 'quick', action, listId: id })} />
+          <section className="rail-section">
+            <div className="rail-head">
+              <h2>Custom gene sets</h2>
+              <button className="btn btn-ghost btn-sm" onClick={() => setDialog({ type: 'gmt' })} title="Upload gene sets as a GMT file"><IconLabel icon="gmt">+ GMT</IconLabel></button>
             </div>
-          </EmptyState>
-        ) : runs.length === 0 ? (
-          <EmptyState title="Your list is ready — now run an enrichment">
-            <p>Choose one or more tools. The defaults (GO and KEGG, FDR &lt; 0.05) are a good start.</p>
-            <button className="btn btn-primary" onClick={() => setDialog({ type: 'newRun' })}>Run enrichment</button>
-          </EmptyState>
-        ) : (
-          <>
-            <div className="filters-row" role="group" aria-label="Filter runs">
-              <label>
-                Tool{' '}
-                <select className="input input-sm" value={toolFilter} onChange={(e) => setToolFilter(e.target.value)}>
-                  <option value="all">All tools</option>
-                  {[...new Set(runs.map((r) => r.toolKey))].map((k) => (
-                    <option key={k} value={k}>{runs.find((r) => r.toolKey === k)?.tool}</option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                List{' '}
-                <select className="input input-sm" value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
-                  <option value="all">All lists</option>
-                  {[...new Set(runs.map((r) => r.listName))].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </label>
-              {selected.length > 0 && (
-                <button className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>Clear selection</button>
+            {(data?.sources ?? []).length === 0 ? (
+              <p className="muted small">Upload your own gene sets (GMT) to test them like any other database.</p>
+            ) : (
+              <ul className="plain-list">
+                {data!.sources.map((s) => (
+                  <li key={s.id} className="rail-item">
+                    <span>{s.name}</span>
+                    <span className="muted small">{s.termCount ?? s.term_count} sets</span>
+                    <button className="icon-btn" aria-label={`Delete ${s.name}`} onClick={() => api(`/sources/${s.id}`, { method: 'DELETE' }).then(invalidate)}>×</button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
+
+        <div className="workspace-main">
+          <nav className="sec-tabs" role="tablist" aria-label="Analyses">
+            {SECTIONS.map((t) => (
+              <button key={t.id} role="tab" aria-selected={section === t.id} className={`sec-tab sec-${t.id}${section === t.id ? ' active' : ''}`} onClick={() => setSection(t.id)}>
+                <ConceptIcon name={t.icon} size={22} />
+                <span><strong>{t.label}</strong><span className="small">{t.hint}</span></span>
+                {t.id === 'enrich' && runs.length > 0 && <span className="sec-count">{runs.length}{pending ? ` · ${pending} running` : ''}</span>}
+              </button>
+            ))}
+          </nav>
+
+          {section === 'enrich' && (
+            <section className="sec-panel sec-enrich" aria-label="Functional enrichment">
+              <ol className="progress-steps" aria-label="Progress">
+                <li className={step >= 1 ? (step > 1 ? 'done' : 'current') : ''}><span>1</span> Add a list</li>
+                <li className={step >= 2 ? (step > 2 ? 'done' : 'current') : ''}><span>2</span> Run enrichment</li>
+                <li className={step >= 3 ? 'current' : ''}><span>3</span> Explore and compare</li>
+              </ol>
+              <div className="page-header">
+                <div>
+                  <h1>Enrichment runs</h1>
+                  <p className="muted">
+                    {runs.length ? `${plural(runs.length, 'run')}${pending ? ` · ${pending} in progress` : ''}` : 'Results of each tool appear here as cards.'}
+                  </p>
+                </div>
+                <div className="row">
+                  <button className="btn btn-secondary" disabled={selectableRuns.length < 2}
+                    title={selectableRuns.length < 2 ? 'Select two or more finished runs to compare them' : ''}
+                    onClick={() => navigate(`/w/${ws}/compare?runs=${selectableRuns.join(',')}`)}>
+                    <IconLabel icon="compare">Compare{selectableRuns.length ? ` (${selectableRuns.length})` : ''}</IconLabel>
+                  </button>
+                  <button className="btn btn-primary" disabled={!lists.length} onClick={() => setDialog({ type: 'newRun' })}>
+                    <IconLabel icon="run">New run</IconLabel>
+                  </button>
+                </div>
+              </div>
+              {lists.length === 0 ? (
+                <EmptyState title="Start by adding a gene list">
+                  <p>Paste IDs, upload a file, or pick genes from a plot. Not sure? Load an example and see how it works.</p>
+                  <div className="row center">
+                    <button className="btn btn-primary" onClick={() => setDialog({ type: 'picker' })}>Add a list</button>
+                    <button className="btn btn-secondary" onClick={() => setDialog({ type: 'input', kind: 'upload', example: true })}>Use example genes</button>
+                  </div>
+                </EmptyState>
+              ) : runs.length === 0 ? (
+                <EmptyState title="Your list is ready — now run an enrichment">
+                  <p>Choose one or more tools. The defaults (GO and KEGG, FDR &lt; 0.05) are a good start.</p>
+                  <button className="btn btn-primary" onClick={() => setDialog({ type: 'newRun' })}>Run enrichment</button>
+                </EmptyState>
+              ) : (
+                <>
+                  <div className="filters-row" role="group" aria-label="Filter runs">
+                    <label>Tool{' '}
+                      <select className="input input-sm" value={toolFilter} onChange={(e) => setToolFilter(e.target.value)}>
+                        <option value="all">All tools</option>
+                        {[...new Set(runs.map((r) => r.toolKey))].map((k) => <option key={k} value={k}>{runs.find((r) => r.toolKey === k)?.tool}</option>)}
+                      </select>
+                    </label>
+                    <label>List{' '}
+                      <select className="input input-sm" value={listFilter} onChange={(e) => setListFilter(e.target.value)}>
+                        <option value="all">All lists</option>
+                        {[...new Set(runs.map((r) => r.listName))].map((n) => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                    </label>
+                    {selected.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>Clear selection</button>}
+                    <span className="muted small">Tip: tick two or more runs to compare tools or lists.</span>
+                  </div>
+                  <div className="run-grid">
+                    {shownRuns.map((r) => (
+                      <RunCard key={r.id} run={r} onRemove={() => removeRun(r)} selected={selected.includes(r.id)}
+                        onToggle={() => setSelected((s) => (s.includes(r.id) ? s.filter((x) => x !== r.id) : [...s, r.id]))}
+                        onOpen={() => navigate(`/w/${ws}/runs/${r.id}`)} />
+                    ))}
+                  </div>
+                </>
               )}
-              <span className="muted small">Tip: tick two or more runs to compare tools or lists.</span>
-            </div>
-            <div className="run-grid">
-              {shownRuns.map((r) => (
-                <RunCard key={r.id} run={r} onRemove={() => removeRun(r)} selected={selected.includes(r.id)}
-                  onToggle={() => setSelected((s) => (s.includes(r.id) ? s.filter((x) => x !== r.id) : [...s, r.id]))}
-                  onOpen={() => navigate(`/w/${ws}/runs/${r.id}`)} />
-              ))}
-            </div>
-          </>
-        )}
+            </section>
+          )}
+
+          {section === 'variants' && <VariantsPanel ws={ws} onExample={loadExample} />}
+
+          {section === 'tools' && (
+            <section className="sec-panel sec-tools" aria-label="Gene and protein tools">
+              <div className="page-header"><div><h1>Gene and protein tools</h1><p className="muted">Work on one of your lists; results can be saved as new lists.</p></div></div>
+              <div className="tool-grid-ws">
+                {TOOLS.map((t) => (
+                  <button key={t.action} type="button" className="tool-tile" disabled={!lists.length} onClick={() => setDialog({ type: 'quick', action: t.action })}>
+                    <ConceptIcon name={t.icon} size={36} />
+                    <strong>{t.title}</strong>
+                    <span className="muted small">{t.text}</span>
+                  </button>
+                ))}
+              </div>
+              {!lists.length && <p className="muted small">Add a list first, or <button className="link-btn" onClick={() => loadExample('ppi')}>load an example list</button>.</p>}
+            </section>
+          )}
+        </div>
       </div>
 
       {dialog?.type === 'picker' && (
@@ -316,6 +327,7 @@ export default function WorkspacePage() {
         <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} onClose={() => setDialog(null)} />
       )}
       {dialog?.type === 'gmt' && <GmtModal onClose={() => setDialog(null)} />}
+      <JobsWindow runs={runs} ws={ws} />
       {dialog?.type === 'session' && <SessionModal ws={ws} summary={data} status={sessionStatus.data} initialTab={dialog.tab} onClose={() => { setDialog(null); sessionStatus.refetch() }} />}
     </div>
   )
@@ -416,13 +428,13 @@ function RunCard({ run, selected, onToggle, onOpen, onRemove }: { run: Run; sele
         <label className="run-check" title={canSelect ? 'Select to compare' : 'Only finished runs with results can be compared'}>
           <input type="checkbox" checked={selected} disabled={!canSelect} onChange={onToggle} aria-label={`Select ${run.title} for comparison`} />
         </label>
-        <h3>{run.title}</h3>
+        <h3 className="run-title"><ToolLogo tool={run.toolKey} size={20} /> {run.title}</h3>
         <button className="icon-btn" aria-label={`Remove ${run.title}`} title="Remove (you can undo)" onClick={onRemove}>×</button>
       </header>
       <p className="muted small">{run.listName} · {run.organismName.replace(/ \[NCBI.*$/, '')}</p>
       <p className="small">{sources.slice(0, 4).join(', ')}{sources.length > 4 ? ` +${sources.length - 4}` : ''} · {run.params?.metric} &lt; {run.params?.threshold}</p>
       <div className="run-card-foot">
-        {busy && <Spinner label={run.status === 'queued' ? 'Waiting…' : 'Running…'} />}
+        {busy && <ProgressBar progress={run.progress} status={run.status} />}
         {run.status === 'error' && <span className="text-danger small">{run.error ?? 'The tool did not respond.'}</span>}
         {empty && <span className="muted small">No significant terms{run.messages?.length ? ` — ${run.messages[0]}` : ''}</span>}
         {canSelect && (
@@ -476,21 +488,78 @@ export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[]
   { kind: 'gwas', title: 'GWAS results', text: 'Summary statistics → loci, genes, traits' },
 ]
 
-function ExamplesSection({ onPick }: { onPick: (kind: string) => Promise<void> | void }) {
+function ExamplesMenu({ onPick }: { onPick: (kind: string) => Promise<void> | void }) {
   const [busy, setBusy] = useState<string | null>(null)
   return (
-    <section className="rail-section">
-      <h2>Examples</h2>
-      <p className="muted small">Load ready-made data for any analysis and see what it does.</p>
-      <div className="example-list">
-        {WORKSPACE_EXAMPLES.map((e) => (
-          <button key={e.kind} type="button" className="example-mini" disabled={!!busy}
-            onClick={async () => { setBusy(e.kind); try { await onPick(e.kind) } finally { setBusy(null) } }}>
-            <ConceptIcon name={e.kind} />
-            <span><strong>{busy === e.kind ? 'Loading…' : e.title}</strong><span className="muted small">{e.text}</span></span>
-          </button>
-        ))}
+    <details className="examples-menu">
+      <summary className="btn btn-secondary btn-sm"><IconLabel icon="examples">Examples ▾</IconLabel></summary>
+      <div className="examples-panel" role="menu">
+        <p className="muted small">Load ready-made data from published studies for any analysis.</p>
+        <div className="example-list">
+          {WORKSPACE_EXAMPLES.map((e) => (
+            <button key={e.kind} type="button" role="menuitem" className="example-mini" disabled={!!busy}
+              onClick={async (ev) => { setBusy(e.kind); try { await onPick(e.kind) } finally { setBusy(null); (ev.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open') } }}>
+              <ConceptIcon name={e.kind} />
+              <span><strong>{busy === e.kind ? 'Loading…' : e.title}</strong><span className="muted small">{e.text}</span></span>
+            </button>
+          ))}
+        </div>
       </div>
+    </details>
+  )
+}
+
+type WorkspaceSection = 'enrich' | 'variants' | 'tools'
+const SECTIONS: { id: WorkspaceSection; label: string; hint: string; icon: string }[] = [
+  { id: 'enrich', label: 'Enrichment', hint: 'ORA and GSEA of your lists, comparisons', icon: 'run' },
+  { id: 'variants', label: 'Variants & GWAS', hint: 'From variants to genes and traits', icon: 'variants' },
+  { id: 'tools', label: 'Gene tools', hint: 'ID conversion, orthologs, STRING network', icon: 'ppi' },
+]
+const TOOLS: { action: QuickAction; title: string; text: string; icon: string }[] = [
+  { action: 'convert', title: 'Convert IDs', text: 'Translate a list to Ensembl, Entrez, UniProt and other ID types (g:Convert).', icon: 'convert' },
+  { action: 'orthologs', title: 'Find orthologs', text: 'Map a list to the matching genes of another organism (g:Orth).', icon: 'orthologs' },
+  { action: 'ppi', title: 'Protein network', text: 'Known and predicted interactions among your proteins (STRING); select and save sub-networks.', icon: 'ppi' },
+]
+
+/** Variant analyses of this workspace, with live progress. */
+function VariantsPanel({ ws, onExample }: { ws: string; onExample: (k: string) => void }) {
+  const q = useQuery({
+    queryKey: ['variant-analyses', ws],
+    queryFn: () => api<{ id: string; name: string; status: string; inputCount: number; created: number; error?: string; progress?: JobProgress | null }[]>('/variants'),
+    refetchInterval: (qq) => ((qq.state.data ?? []).some((a) => a.status === 'queued' || a.status === 'running') ? 1500 : false),
+  })
+  const items = q.data ?? []
+  return (
+    <section className="sec-panel sec-variants" aria-label="Variants and GWAS">
+      <div className="page-header">
+        <div><h1>Variants and GWAS</h1><p className="muted">Annotate SNPs, VCF variants or GWAS summary statistics: consequences, genes, frequencies, ClinVar and trait associations.</p></div>
+        <div className="row">
+          <Link className="btn btn-primary" to={`/w/${ws}/variants`}><IconLabel icon="variants">New variant analysis</IconLabel></Link>
+        </div>
+      </div>
+      {items.length === 0 ? (
+        <EmptyState title="No variant analyses yet">
+          <p>Start one, or open a published example.</p>
+          <div className="row center">
+            <button className="btn btn-secondary" onClick={() => onExample('variants')}>Clinical variants example</button>
+            <button className="btn btn-secondary" onClick={() => onExample('gwas')}>Alzheimer GWAS example</button>
+          </div>
+        </EmptyState>
+      ) : (
+        <div className="run-grid">
+          {items.map((a) => (
+            <article key={a.id} className={`run-card sec-card${a.status === 'error' ? ' error' : ''}`}>
+              <header className="run-card-head"><h3 className="run-title"><ConceptIcon name="variants" size={20} /> {a.name}</h3></header>
+              <p className="muted small">{plural(a.inputCount, 'variant')} · {new Date(a.created * 1000).toLocaleString()}</p>
+              <div className="run-card-foot">
+                {(a.status === 'queued' || a.status === 'running') && <ProgressBar progress={a.progress} status={a.status} />}
+                {a.status === 'error' && <span className="text-danger small">{a.error}</span>}
+                {a.status === 'complete' && <Link className="btn btn-primary btn-sm" to={`/w/${ws}/variants/${a.id}`}>Open report →</Link>}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
     </section>
   )
 }

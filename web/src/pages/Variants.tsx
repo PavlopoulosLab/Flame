@@ -10,8 +10,9 @@ import { Arena3DIcon } from '../components/ExternalIcons'
 import { formatP, plural, toCsv } from '../lib/format'
 import { categorical, roleColors, usePaletteMode } from '../lib/palette'
 import { CircosBundle, downloadSvg } from '../components/viz'
+import { ProgressBar, type JobProgress } from '../components/Progress'
 
-interface Analysis { id: string; name: string; organismTaxId: number; status: string; error?: string; inputCount: number; created: number; finished?: number }
+interface Analysis { id: string; name: string; organismTaxId: number; status: string; error?: string; inputCount: number; created: number; finished?: number; progress?: JobProgress | null }
 interface VariantRow {
   input: string; id: string; location: string; chr: string; pos: number; alleles: string; consequence: string; impact: string
   gene: string | null; allGenes: string; biotype: string | null; aminoAcids: string | null; sift: string | null; polyphen: string | null
@@ -97,9 +98,11 @@ function NewAnalysis({ example, onStarted }: { example: string | null; onStarted
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
   const species = useQuery({ queryKey: ['variant-species'], queryFn: () => api<{ taxid: number; name: string }[]>('/variants/species', { workspace: null }), staleTime: Infinity })
-  const loadExample = (kind: 'variants' | 'gwas') => api<{ text: string }>(`/variants/examples/${kind}`).then((r) => {
+  const [exampleSource, setExampleSource] = useState<string | null>(null)
+  const loadExample = (kind: 'variants' | 'gwas') => api<{ text: string; source?: string }>(`/variants/examples/${kind}`).then((r) => {
     setText(r.text)
-    setName(kind === 'gwas' ? 'Example GWAS (illustrative)' : 'Example clinical variants')
+    setName(kind === 'gwas' ? 'Alzheimer GWAS (Bellenguez 2022)' : 'Example clinical variants')
+    setExampleSource(r.source ?? null)
   })
   const started = useRef(false)
   useEffect(() => {
@@ -115,6 +118,7 @@ function NewAnalysis({ example, onStarted }: { example: string | null; onStarted
       <Field label="Variants" hint="rsIDs, VCF lines, chr:pos:ref:alt, HGVS — or a GWAS table with SNP and P columns (up to 2,000 rows; GWAS keeps the most significant).">
         <textarea className="input mono" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'rs429358\nrs7412\n7 140753336 . A T'} />
       </Field>
+      {exampleSource && <p className="example-source"><strong>Example data:</strong> {exampleSource}</p>}
       <FileDrop accept=".vcf,.txt,.tsv,.csv" maxBytes={2 * 1024 * 1024} onText={(t, n) => { setText(t); if (!name) setName(n) }} />
       <div className="row wrap">
         <button className="btn btn-ghost btn-sm" onClick={() => loadExample('variants')}>Example: clinical variants</button>
@@ -140,7 +144,7 @@ function Report({ id }: { id: string }) {
   const q = useQuery({
     queryKey: ['variant', getWorkspaceId(), id],
     queryFn: () => api<Analysis & { result?: Result }>(`/variants/${id}`),
-    refetchInterval: (qq) => (qq.state.data && ['queued', 'running'].includes(qq.state.data.status) ? 3000 : false),
+    refetchInterval: (qq) => (qq.state.data && ['queued', 'running'].includes(qq.state.data.status) ? 1200 : false),
   })
   const [traitFilter, setTraitFilter] = useState<string | null>(null)
   const [varSel, setVarSel] = useState<{ label: string; ids: Set<string> } | null>(null)
@@ -151,7 +155,15 @@ function Report({ id }: { id: string }) {
   if (q.error) return <ErrorNote error={q.error} />
   const a = q.data!
   if (a.status === 'error') return <ErrorNote error={`The analysis failed: ${a.error}`} />
-  if (!a.result) return <div className="page-center"><Spinner label={`Annotating ${plural(a.inputCount, 'variant')} with Ensembl VEP and looking up trait associations… (about 1–2 s per variant)`} /></div>
+  if (!a.result) return (
+    <div className="page-center">
+      <div className="progress-card">
+        <h2>Analysing {plural(a.inputCount, 'variant')}</h2>
+        <p className="muted small">Ensembl VEP annotates consequences, genes, frequencies and ClinVar; then trait associations are looked up. This takes about 1–2 seconds per variant.</p>
+        <ProgressBar progress={a.progress} status={a.status} />
+      </div>
+    </div>
+  )
   const r = a.result
   const pick = (label: string, ids: string[], additive = false) => {
     if (!ids.length) return

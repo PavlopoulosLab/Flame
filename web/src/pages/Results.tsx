@@ -7,6 +7,7 @@ import type { ResultFilters, RunDetails, Term, ViewData } from '../api/types'
 import type { NetworkHandle, PlotHandle } from '../components/charts'
 import { CopyButton, ErrorNote, Field, LinkMenu, Modal, Note, OpenExternalButton, Spinner } from '../components/ui'
 import { geneLinks } from '../lib/links'
+import { ToolLogo } from '../components/ToolLogo'
 import { Arena3DIcon, NormaIcon } from '../components/ExternalIcons'
 import { UndoRedoButtons } from '../components/Undo'
 import { useHistory } from '../lib/history'
@@ -73,17 +74,17 @@ export default function ResultsPage() {
   const tabs = [...(config?.resultTabs ?? []), ...EXTRA_TABS]
   const [visible, setVisible] = useState<string[]>(() => {
     try {
-      const saved = sessionStorage.getItem('flame-visible-tabs')
+      const saved = sessionStorage.getItem('flame-visible-tabs-v2')
       if (saved) return JSON.parse(saved)
     } catch { /* ignore */ }
-    return ['dotplot', 'barchart', 'network-tg', 'table']
+    return ['table', 'dotplot', 'barchart', 'network-tg']
   })
-  const view = tab && tabs.some((t) => t.tabId === tab) ? tab : visible[0] ?? 'dotplot'
+  const view = tab && tabs.some((t) => t.tabId === tab) ? tab : visible[0] ?? 'table'
   useEffect(() => {
     if (!visible.includes(view)) setVisible((v) => [...v, view])
   }, [view, visible])
   useEffect(() => {
-    try { sessionStorage.setItem('flame-visible-tabs', JSON.stringify(visible)) } catch { /* ignore */ }
+    try { sessionStorage.setItem('flame-visible-tabs-v2', JSON.stringify(visible)) } catch { /* ignore */ }
   }, [visible])
 
   const [filters, setFilters] = useState<ResultFilters>({})
@@ -159,7 +160,7 @@ export default function ResultsPage() {
       <header className="results-head">
         <Link to={`/w/${ws}`} className="btn btn-ghost btn-sm">← Workspace</Link>
         <div>
-          <h1>{run.title} <span className="muted">· {run.listName}</span></h1>
+          <h1 className="run-title"><ToolLogo tool={run.toolKey} size={28} /> {run.title} <span className="muted">· {run.listName}</span></h1>
           <p className="muted small">{gsea ? 'Gene set enrichment (GSEA) · ' : ''}{run.organismName.replace(/ \[NCBI.*$/, '')} · {run.resultCount} significant terms · {run.params.metric} &lt; {run.params.threshold}</p>
         </div>
         <button className="btn btn-secondary btn-sm" onClick={() => setShowDetails(true)}>Run details</button>
@@ -316,7 +317,7 @@ export default function ResultsPage() {
                   case 'dotplot': return <DotplotView {...props} />
                   case 'barchart': return <BarchartView {...props} />
                   case 'scatter': return <ScatterView {...props} />
-                  case 'table': return <TableView {...props} columns={columns} />
+                  case 'table': return <TableView {...props} columns={columns} runId={runId} />
                   case 'sankey': return <SankeyView {...props} />
                   case 'chord': return <ChordView {...props} svgRef={svgRef} />
                   case 'hive': return <HiveView {...props} svgRef={svgRef} />
@@ -406,6 +407,12 @@ function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onCle
         <h2>Selected <span className="count">{terms.length}</span></h2>
         {terms.length > 0 && <button className="btn btn-ghost btn-sm" onClick={onClear}>Clear</button>}
       </div>
+      {terms.length > 0 && (
+        <div className="row wrap sel-copy">
+          <CopyButton label="Copy term names" text={terms.map((t) => t.name).join('\n')} />
+          <CopyButton label="Copy all genes" title="Copy every gene of the selected terms, one per line" text={[...new Set(terms.flatMap((t) => splitGenes(t.genes)))].join('\n')} />
+        </div>
+      )}
       {!terms.length && <p className="muted small">Click terms in any view to collect them here, see their genes and export them.</p>}
       <ul className="plain-list">
         {terms.map((t) => (
@@ -414,13 +421,17 @@ function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onCle
               <button className="sel-title" onClick={() => setOpen(open === t.id ? null : t.id)} aria-expanded={open === t.id}>
                 <span className="dot" style={{ background: config?.datasourceColors[t.source] }} />{t.name}
               </button>
-              <button className="icon-btn" aria-label={`Remove ${t.name}`} onClick={() => onRemove(t.id)}>×</button>
+              <span className="row">
+                <CopyButton compact text={splitGenes(t.genes).join('\n')} title={`Copy the genes of ${t.name}`} />
+                <button className="icon-btn" aria-label={`Remove ${t.name}`} onClick={() => onRemove(t.id)}>×</button>
+              </span>
             </div>
             {open === t.id && (
               <div className="sel-detail small">
                 <div>{t.id} · {t.source} · p = {formatP(t.pvalue)}</div>
                 <div>{t.intersection} of {formatNum(t.termSize)} genes</div>
-                <div className="gene-chips">{splitGenes(t.genes).slice(0, 40).map((g) => <span key={g} className="gene"><LinkMenu label={g} links={geneLinks(g, taxid)} /></span>)}</div>
+                <div className="gene-chips">{splitGenes(t.genes).slice(0, 40).map((g) => <span key={g} className="gene"><LinkMenu label={g} links={geneLinks(g, taxid)} /></span>)}
+                  {splitGenes(t.genes).length > 40 && <span className="muted small">+{splitGenes(t.genes).length - 40} more (copy to get all)</span>}</div>
                 {isHttpUrl(t.link) && <a href={t.link} target="_blank" rel="noopener noreferrer">Open in {config?.linkProviders[t.source] ?? 'source database'} ↗</a>}
                 <PathwayLinks runId={runId} termId={t.id} />
               </div>

@@ -4,6 +4,7 @@ import { api } from '../api/client'
 import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
 import type { AnalyteList, CustomSource } from '../api/types'
 import { ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
+import { ToolLogo } from '../components/ToolLogo'
 
 const METRIC_HELP: Record<string, string> = {
   gSCS: 'g:SCS — g:Profiler’s own correction, accounts for the GO structure',
@@ -135,7 +136,7 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
                   title={ok ? `${t.name}: ${t.organismCount.toLocaleString()} organisms` : `${t.name} does not support this organism`}
                   style={{ ['--chip-color' as string]: t.color }}
                   onClick={() => setTools((s) => (on ? s.filter((x) => x !== t.key) : [...s, t.key]))}>
-                  <i aria-hidden="true" />{t.name}{!ok && <span className="small"> (not for this organism)</span>}
+                  <ToolLogo tool={t.key} size={18} />{t.name}{!ok && <span className="small"> (not for this organism)</span>}
                 </button>
               )
             })}
@@ -207,7 +208,7 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
                 const s = perTool[k] ?? {}
                 return (
                   <fieldset key={k} className="tool-settings">
-                    <legend>{t.name}</legend>
+                    <legend><ToolLogo tool={t.key} size={16} /> {t.name}</legend>
                     <Field label="Correction method">
                       <select className="input" value={s.correction ?? t.defaultMetricGenome} onChange={(e) => setTool(k, { correction: e.target.value })}>
                         {t.metrics.map((m) => <option key={m.value} value={m.value}>{METRIC_HELP[m.value] ?? m.label}</option>)}

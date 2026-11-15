@@ -75,10 +75,3 @@ mirna_targets <- function(text, taxid = 9606L, minMirnas = 1L) {
     source = "miRDB v6.0 predictions (MirTarget score > 80) from MSigDB C3 MIR:MIRDB"
   )
 }
-
-#' Example: microRNAs often reported in cancer
-example_mirnas <- function() {
-  list(text = paste(c("hsa-miR-21-5p", "hsa-miR-155-5p", "hsa-let-7a-5p", "hsa-miR-34a-5p", "hsa-miR-17-5p",
-                      "hsa-miR-145-5p", "hsa-miR-200c-3p", "hsa-miR-125b-5p", "hsa-miR-221-3p", "hsa-miR-92a-3p"), collapse = "\n"),
-       fileName = "flame_example_mirnas.txt")
-}

@@ -151,18 +151,26 @@ vep_annotate <- function(df, species = "homo_sapiens") {
   rows <- list()
   batches <- function(x) split(x, ceiling(seq_along(x) / 200))
   opts <- list(canonical = 1, hgvs = 0, variant_class = 1)
+  # Progress: Ensembl VEP calls take ~5-70 % of the analysis, one step per batch of 200.
+  totalBatches <- sum(ceiling(table(df$kind) / 200)); doneBatches <- 0
+  tick <- function() {
+    doneBatches <<- doneBatches + 1
+    flame_progress(0.05 + 0.65 * doneBatches / max(1, totalBatches),
+                   sprintf("Annotating with Ensembl VEP: batch %d of %d", min(doneBatches + 1, totalBatches), totalBatches))
+  }
+  flame_progress(0.05, sprintf("Annotating %d variants with Ensembl VEP", nrow(df)))
   for (kind in c("rsid", "region", "hgvs", "position")) {
     sub <- df[df$kind == kind, , drop = FALSE]
     if (nrow(sub) == 0) next
     if (kind == "rsid") {
       for (b in batches(sub$rsid)) {
         res <- .ensembl_post(paste0("/vep/", species, "/id"), c(list(ids = as.list(b)), opts))
-        rows <- c(rows, lapply(res %||% list(), .vep_row))
+        rows <- c(rows, lapply(res %||% list(), .vep_row)); tick()
       }
     } else if (kind == "hgvs") {
       for (b in batches(sub$input)) {
         res <- .ensembl_post(paste0("/vep/", species, "/hgvs"), c(list(hgvs_notations = as.list(b)), opts))
-        rows <- c(rows, lapply(res %||% list(), .vep_row))
+        rows <- c(rows, lapply(res %||% list(), .vep_row)); tick()
       }
     } else {
       # region/position: VCF-style strings "chr pos id ref alt . . ."; positions without
@@ -179,6 +187,7 @@ vep_annotate <- function(df, species = "homo_sapiens") {
           if (!is.na(k)) r$input <- sub$input[k]
           rows[[length(rows) + 1]] <- r
         }
+        tick()
       }
     }
   }
@@ -193,7 +202,10 @@ variant_phenotypes <- function(rsids, species = "homo_sapiens") {
   rsids <- unique(rsids[!is.na(rsids) & grepl("^rs[0-9]+$", rsids)])
   if (length(rsids) == 0) return(data.frame())
   out <- list()
-  for (b in split(rsids, ceiling(seq_along(rsids) / 200))) {
+  bs <- split(rsids, ceiling(seq_along(rsids) / 200))
+  for (bi in seq_along(bs)) {
+    b <- bs[[bi]]
+    flame_progress(0.72 + 0.23 * (bi - 1) / length(bs), sprintf("Looking up trait associations (GWAS Catalog, ClinVar, OMIM…): batch %d of %d", bi, length(bs)))
     res <- .ensembl_post(paste0("/variation/", species, "?phenotypes=1"), list(ids = as.list(b)))
     for (id in names(res %||% list())) {
       for (ph in res[[id]]$phenotypes %||% list()) {

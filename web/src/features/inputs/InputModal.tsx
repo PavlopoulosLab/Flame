@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { api, saveText } from '../../api/client'
 import { useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
@@ -46,17 +46,23 @@ type P = Props & { title: string }
 
 function useExample(kind: string, enabled: boolean | undefined, apply: (text: string, fileName?: string) => void) {
   const [loading, setLoading] = useState(false)
+  const [source, setSource] = useState<string | null>(null)
   const load = () => {
     setLoading(true)
-    api<{ text: string; fileName?: string }>(`/inputs/examples/${kind}`)
-      .then((ex) => apply(ex.text, ex.fileName))
+    api<{ text: string; fileName?: string; source?: string }>(`/inputs/examples/${kind}`)
+      .then((ex) => { apply(ex.text, ex.fileName); setSource(ex.source ?? null) })
       .finally(() => setLoading(false))
   }
   useEffect(() => {
     if (enabled) load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-  return { load, loading }
+  return { load, loading, source }
+}
+
+/** Where the loaded example data come from. */
+function ExampleSource({ text }: { text: string | null }) {
+  return text ? <p className="example-source"><strong>Example data:</strong> {text}</p> : null
 }
 
 /** Shared "save as list" footer: name, organism, ID format. */
@@ -162,7 +168,8 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
           {parsed.invalid ? ` · ${parsed.invalid} skipped (e.g. ${parsed.invalidExamples.slice(0, 3).join(', ')})` : ''}
         </Note>
       )}
-      <ErrorNote error={err} />
+      <ExampleSource text={ex.source} />
+        <ErrorNote error={err} />
       <SaveList ids={parsed?.ids ?? []} scores={ranked ? parsed?.scores : undefined} defaultName={ranked ? 'My ranked genes' : 'My genes'} organism={organism} setOrganism={setOrganism}
         idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'upload' }} onCreated={onCreated} />
     </Modal>
@@ -193,7 +200,8 @@ function Snps({ example, onClose, onCreated, title }: P) {
       </div>
       <textarea className="input mono" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="rs1130233" aria-label="SNP IDs" />
       <div className="row end"><button className="btn btn-secondary" disabled={!text.trim() || busy} onClick={map}>{busy ? 'Mapping…' : 'Map to genes'}</button></div>
-      <ErrorNote error={err} />
+      <ExampleSource text={ex.source} />
+        <ErrorNote error={err} />
       {res && (
         <>
           <Note kind="success">{plural(res.rows.length, 'mapping')} found.</Note>
@@ -244,7 +252,8 @@ function TextMining({ example, onClose, onCreated, title }: P) {
         <span className="muted small">{text.length.toLocaleString()} characters</span>
         <button className="btn btn-secondary" disabled={text.trim().length < 3 || busy} onClick={extract}>{busy ? 'Finding genes…' : 'Find genes'}</button>
       </div>
-      <ErrorNote error={err} />
+      <ExampleSource text={ex.source} />
+        <ErrorNote error={err} />
       {rows && (
         <div className="two-col-tight">
           <div>
@@ -312,8 +321,20 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
   const [fileName, setFileName] = useState(initialFileName ?? '')
   const [prep, setPrep] = useState<Prepared | null>(null)
   const [mapping, setMapping] = useState<Record<string, string>>({})
-  const [p, setP] = useState(0.05)
-  const [lfc, setLfc] = useState(1)
+  // Thresholds are typed as text; half-typed values ("0.", "") keep the last valid number.
+  const [pText, setPText] = useState('0.05')
+  const [lfcText, setLfcText] = useState('1')
+  const lastP = useRef(0.05)
+  const lastLfc = useRef(1)
+  const pNum = Number(pText)
+  const lfcNum = Number(lfcText)
+  if (Number.isFinite(pNum) && pNum > 0 && pNum <= 1) lastP.current = pNum
+  if (Number.isFinite(lfcNum) && lfcNum >= 0) lastLfc.current = lfcNum
+  const p = lastP.current
+  const lfc = lastLfc.current
+  const pInvalid = !(Number.isFinite(pNum) && pNum > 0 && pNum <= 1)
+  const lfcInvalid = !(Number.isFinite(lfcNum) && lfcNum >= 0)
+  const fmtP = (v: number) => (v >= 0.001 ? String(Number(v.toPrecision(3))) : v.toExponential(1))
   const [points, setPoints] = useState<{ points: (VolcanoPoint | ReductionPoint)[]; plotted: number; total: number; counts?: Record<string, number>; colorType?: string } | null>(null)
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [organism, setOrganism] = useState(9606)
@@ -343,6 +364,27 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
   }
 
   const byId = useMemo(() => new Map((points?.points ?? []).map((pt) => [pt.pointId, pt])), [points])
+  // Up / down / not significant, from the current cut-offs (same rule as the server: p < cut, |log2FC| > cut).
+  const statusOf = (x: VolcanoPoint): 'up' | 'down' | 'ns' => (x.pvalue < p && x.logfc > lfc ? 'up' : x.pvalue < p && x.logfc < -lfc ? 'down' : 'ns')
+  const liveCounts = useMemo(() => {
+    if (!isVolcano || !points) return null
+    const c = { up: 0, down: 0, significant: 0 }
+    ;(points.points as VolcanoPoint[]).forEach((x) => { const s = statusOf(x); if (s !== 'ns') { c.significant++; c[s]++ } })
+    return c
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points, isVolcano, p, lfc])
+  const maxY = useMemo(() => (isVolcano && points ? Math.max(1, ...(points.points as VolcanoPoint[]).map((x) => x.negLog10p)) : 1), [points, isVolcano])
+  const yTop = Math.max(maxY, -Math.log10(p)) * 1.06
+  // p-value ticks for the right axis: decades (thinned on tall plots) plus the current cut-off.
+  const pTicks = useMemo(() => {
+    const step = Math.max(1, Math.ceil(yTop / 8))
+    const ticks: { y: number; label: string }[] = []
+    for (let k = 0; k <= yTop; k += step) ticks.push({ y: k, label: k === 0 ? '1' : k <= 3 ? String(10 ** -k) : `1e-${k}` })
+    const cut = -Math.log10(p)
+    if (!ticks.some((t) => Math.abs(t.y - cut) < yTop / 30)) ticks.push({ y: cut, label: fmtP(p) })
+    return ticks
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [yTop, p])
   const selectedIds = [...new Set([...sel].map((pid) => byId.get(pid)?.id).filter((x): x is string => !!x))]
 
   const plotData = useMemo(() => {
@@ -352,7 +394,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
         up: { name: 'Up-regulated', color: rc.up }, down: { name: 'Down-regulated', color: rc.down }, ns: { name: 'Not significant', color: rc.ns },
       }
       return Object.entries(groups).map(([k, g]) => {
-        const pts = (points.points as VolcanoPoint[]).filter((x) => x.status === k)
+        const pts = (points.points as VolcanoPoint[]).filter((x) => statusOf(x) === k)
         return {
           type: 'scatter' as const, mode: 'markers' as const, name: g.name,
           x: pts.map((x) => x.logfc), y: pts.map((x) => x.negLog10p), customdata: pts.map((x) => x.pointId),
@@ -377,11 +419,12 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
         },
       }
     })
-  }, [points, isVolcano, sel, mapping.color, rc])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [points, isVolcano, sel, mapping.color, rc, p, lfc])
 
   const quick = (status: 'sig' | 'up' | 'down') => {
     const pts = (points?.points ?? []) as VolcanoPoint[]
-    setSel(new Set(pts.filter((x) => (status === 'sig' ? x.status !== 'ns' : x.status === status)).map((x) => x.pointId)))
+    setSel(new Set(pts.filter((x) => (status === 'sig' ? statusOf(x) !== 'ns' : statusOf(x) === status)).map((x) => x.pointId)))
   }
 
   const roles = isVolcano
@@ -401,7 +444,8 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
         <summary className="small">…or paste the table</summary>
         <textarea className="input mono" rows={6} value={text} onChange={(e) => { setText(e.target.value); setFileName('') }} aria-label="Table" />
       </details>
-      <ErrorNote error={err} />
+      <ExampleSource text={ex.source} />
+        <ErrorNote error={err} />
       {prep && (
         <>
           <p className="muted small">Step 2 · Check the columns ({prep.rowCount.toLocaleString()} rows detected)</p>
@@ -416,8 +460,19 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
             ))}
             {isVolcano && (
               <>
-                <Field label="p-value below" hint="Significance cut-off"><input className="input" type="number" step="0.001" min="0" max="1" value={p} onChange={(e) => setP(Number(e.target.value))} /></Field>
-                <Field label="|log2FC| above" hint="Effect-size cut-off"><input className="input" type="number" step="0.1" min="0" value={lfc} onChange={(e) => setLfc(Number(e.target.value))} /></Field>
+                <Field label="p-value below" hint={pInvalid ? 'Enter a number between 0 and 1 (e.g. 0.05 or 1e-3)' : 'Significance cut-off — updates the plot at once'}>
+                  <div className="threshold-input">
+                    <input className={`input${pInvalid ? ' invalid' : ''}`} inputMode="decimal" value={pText} onChange={(e) => setPText(e.target.value.trim())} aria-label="p-value cut-off" aria-invalid={pInvalid} />
+                    <input type="range" min={-10} max={0} step={0.1} value={Math.max(-10, Math.log10(p))} aria-label="p-value cut-off (log scale)"
+                      onChange={(e) => setPText(fmtP(10 ** Number(e.target.value)))} />
+                  </div>
+                </Field>
+                <Field label="|log2FC| above" hint={lfcInvalid ? 'Enter a number of 0 or more' : 'Effect-size cut-off — updates the plot at once'}>
+                  <div className="threshold-input">
+                    <input className={`input${lfcInvalid ? ' invalid' : ''}`} inputMode="decimal" value={lfcText} onChange={(e) => setLfcText(e.target.value.trim())} aria-label="log2 fold-change cut-off" aria-invalid={lfcInvalid} />
+                    <input type="range" min={0} max={5} step={0.1} value={Math.min(5, lfc)} aria-label="log2 fold-change cut-off (slider)" onChange={(e) => setLfcText(e.target.value)} />
+                  </div>
+                </Field>
               </>
             )}
           </div>
@@ -427,17 +482,31 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
       {points && (
         <>
           <p className="muted small">Step 3 · Select genes: drag a box on the plot (or pick the lasso in the plot toolbar){isVolcano ? ', or use a quick selection' : ''}. Shift-click adds points.</p>
-          {isVolcano && points.counts && (
-            <div className="row">
-              <button className="btn btn-secondary btn-sm" onClick={() => quick('sig')}>All significant ({points.counts.significant})</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => quick('up')}>Up ({points.counts.up})</button>
-              <button className="btn btn-secondary btn-sm" onClick={() => quick('down')}>Down ({points.counts.down})</button>
+          {isVolcano && liveCounts && (
+            <div className="row wrap">
+              <button className="btn btn-secondary btn-sm" onClick={() => quick('sig')}>All significant ({liveCounts.significant})</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => quick('up')}>Up ({liveCounts.up})</button>
+              <button className="btn btn-secondary btn-sm" onClick={() => quick('down')}>Down ({liveCounts.down})</button>
+              <span className="muted small">p &lt; {fmtP(p)}, |log2FC| &gt; {lfc} · drag the red dotted lines to change the cut-offs</span>
               <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear</button>
             </div>
           )}
           {!isVolcano && <div className="row"><button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear selection</button></div>}
-          <Plot data={plotData} height={420} dragmode="select"
-            layout={{ xaxis: { title: { text: isVolcano ? 'log2 fold change' : mapping.x } }, yaxis: { title: { text: isVolcano ? '−log10 p-value' : mapping.y } },
+          <Plot data={isVolcano ? [...plotData, { type: 'scatter' as const, mode: 'markers' as const, x: [0], y: [0], yaxis: 'y2', showlegend: false, hoverinfo: 'skip' as const, marker: { opacity: 0 } }] as never : plotData} height={420} dragmode="select"
+            onShapesMoved={isVolcano ? (u) => {
+              const y = u['shapes[0].y0'] ?? u['shapes[0].y1']
+              if (y !== undefined && y > 0) setPText(fmtP(Math.min(1, 10 ** -y)))
+              const x = u['shapes[1].x0'] ?? u['shapes[1].x1'] ?? u['shapes[2].x0'] ?? u['shapes[2].x1']
+              if (x !== undefined) setLfcText(String(Math.round(Math.abs(x) * 100) / 100))
+            } : undefined}
+            layout={{ xaxis: { title: { text: isVolcano ? 'log2 fold change' : mapping.x } },
+              yaxis: { title: { text: isVolcano ? '−log10 p-value' : mapping.y }, ...(isVolcano ? { range: [0, yTop] } : {}) },
+              ...(isVolcano ? {
+                // Right-hand axis: the same scale labelled with the original p-values.
+                yaxis2: { overlaying: 'y', side: 'right', matches: 'y', range: [0, yTop], showgrid: false, zeroline: false,
+                  tickvals: pTicks.map((t) => t.y), ticktext: pTicks.map((t) => t.label), title: { text: 'p-value' } },
+                margin: { l: 60, r: 70, t: 20, b: 50 },
+              } : {}),
               shapes: isVolcano ? [
                 { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: -Math.log10(p), y1: -Math.log10(p), line: { color: '#dc2626', dash: 'dot', width: 1 } },
                 { type: 'line', yref: 'paper', y0: 0, y1: 1, x0: lfc, x1: lfc, line: { color: '#dc2626', dash: 'dot', width: 1 } },
@@ -659,6 +728,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano }: 
           <a className="btn btn-ghost btn-sm" href="/api/inputs/examples/expression/file">Example file</a>
         </div>
         {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
+        <ExampleSource text={ex.source} />
         <ErrorNote error={err} />
         {busy && <Spinner label="Analysing the matrix" />}
         {ov && (
@@ -790,6 +860,7 @@ function MirnaInput({ example, onClose, onCreated, title }: P) {
             <p className="muted small">Targets are miRDB v6 predictions with MirTarget score &gt; 80 (MSigDB C3 MIR:MIRDB). For organisms other than human, MSigDB maps the human predictions through orthologs.</p>
           </div>
         </div>
+        <ExampleSource text={ex.source} />
         <ErrorNote error={err} />
         {res && (
           <>

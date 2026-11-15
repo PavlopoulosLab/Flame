@@ -18,7 +18,7 @@ export function useWorkspace(ws: string | undefined) {
     enabled: !!ws,
     refetchInterval: (q) => {
       const runs = q.state.data?.runs ?? []
-      return runs.some((r) => r.status === 'queued' || r.status === 'running') ? 2000 : false
+      return runs.some((r) => r.status === 'queued' || r.status === 'running') ? 1200 : false
     },
     retry: (count, err) => (err as { status?: number }).status !== 404 && count < 2,
   })

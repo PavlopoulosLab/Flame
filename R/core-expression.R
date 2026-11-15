@@ -91,23 +91,3 @@ expression_de <- function(x, groupA, groupB) {
        significant = sum(df$padj <= 0.05), groupA = as.list(a), groupB = as.list(b),
        note = if (x$logged) "Values were log2(x + 1) transformed, so log2FC is a difference of means on the log scale." else "Values were used as given (assumed already on a log scale).")
 }
-
-#' A small simulated expression matrix (6 samples, 2 groups) whose fold changes
-#' follow the example differential-expression table, for trying the input out.
-example_expression <- function() {
-  df <- as.data.frame(readRDS(getExamplesPath("volcano_example.RDS")), stringsAsFactors = FALSE)
-  df <- df[named_gene(df$symbol) & is.finite(df$logFC), , drop = FALSE]
-  df <- df[!duplicated(df$symbol), , drop = FALSE]
-  df <- df[order(df$pvalue), , drop = FALSE][seq_len(min(3000, nrow(df))), ]
-  set.seed(42)
-  base <- stats::rnorm(nrow(df), 7, 1.5)
-  module <- sample(c(0, 0, 0, 1, -1), nrow(df), replace = TRUE)   # co-regulated modules across samples
-  noise <- function() stats::rnorm(nrow(df), 0, 0.15)
-  ctrl <- sapply(1:3, function(j) base + noise() + 0.25 * module * (j - 2))
-  trt <- sapply(1:3, function(j) base + df$logFC + noise() + 0.25 * module * (j - 2))
-  m <- round(2^cbind(ctrl, trt) - 1, 1)
-  out <- data.frame(gene = df$symbol, m, check.names = FALSE)
-  names(out) <- c("gene", "control_1", "control_2", "control_3", "treated_1", "treated_2", "treated_3")
-  list(text = .table_text(out), fileName = "flame_example_expression.tsv",
-       note = "Simulated counts for 3,000 genes in 3 control and 3 treated samples; fold changes follow the example differential-expression table.")
-}

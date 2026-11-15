@@ -101,6 +101,8 @@ export interface Run {
   messages: string[]
   created: number
   finished: number | null
+  /** Latest progress report of a queued or running job. */
+  progress?: { fraction: number; message: string; elapsed: number } | null
 }
 
 export interface CustomSource {

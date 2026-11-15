@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { api } from '../../api/client'
 import type { AppConfig, Term, ViewData } from '../../api/types'
 import { NetworkGraph, Plot, type NetworkHandle, type PlotHandle } from '../../components/charts'
 import type { NetworkStyle } from '../../lib/networkStyle'
@@ -221,7 +222,7 @@ export const TABLE_COLUMNS: { key: keyof Term | 'genesCount'; label: string; num
   { key: 'foldEnrichment', label: 'Fold enrichment', numeric: true }, { key: 'nes', label: 'NES', numeric: true }, { key: 'genes', label: 'Genes' },
 ]
 
-export function TableView({ data, config, selected, onSelect, columns }: ViewProps & { columns: string[] }) {
+export function TableView({ data, config, selected, onSelect, columns, runId }: ViewProps & { columns: string[]; runId?: string }) {
   const colorOf = useSourceColor(config, data.availableSources)
   const [sort, setSort] = useState<{ key: string; dir: 1 | -1 } | null>(null)
   const cols = TABLE_COLUMNS.filter((c) => columns.includes(c.key))
@@ -254,6 +255,7 @@ export function TableView({ data, config, selected, onSelect, columns }: ViewPro
               {cols.map((c) => (
                 <td key={c.key} className={c.key === 'genes' ? 'genes-cell' : ''}>
                   {c.key === 'source' ? <span className="source-tag" style={{ borderColor: colorOf(t.source) }}>{t.source}</span>
+                    : c.key === 'id' && runId && isKeggTerm(t) ? <KeggMapLink runId={runId} term={t} />
                     : c.key === 'id' && isHttpUrl(t.link) ? <a href={t.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{t.id}</a>
                     : c.key === 'genes' ? <GenesCell genes={t.genes} />
                     : c.key === 'pvalue' ? formatP(t.pvalue)
@@ -396,5 +398,37 @@ export function CircosView({ data, config, settings, selected, onSelect, svgRef 
         const viaGenes = data.terms.filter((t) => genes.some((g) => splitGenes(t.genes).includes(g))).map((t) => t.id)
         onSelect([...new Set([...terms, ...viaGenes])], add)
       }} />
+  )
+}
+
+/** KEGG pathway terms (any tool's ID format: KEGG:04110, hsa04110, map04110). */
+export const isKeggTerm = (t: Term) => /KEGG/i.test(t.source) || /^(KEGG:|path:)?(map|hsa|mmu|rno|dre|dme|cel|sce|[a-z]{3,4})\d{5}$/.test(t.id)
+
+/**
+ * Link that opens the KEGG pathway map with the run's genes highlighted in red
+ * (KEGG Mapper coloring; gene IDs mapped through the KEGG API on the server).
+ */
+function KeggMapLink({ runId, term }: { runId: string; term: Term }) {
+  const [busy, setBusy] = useState(false)
+  const open = (e: React.MouseEvent) => {
+    e.preventDefault(); e.stopPropagation()
+    if (busy) return
+    setBusy(true)
+    const win = window.open('', '_blank')   // opened in the click so popup blockers allow it
+    api<{ links: { label: string; url: string }[] }>(`/runs/${encodeURIComponent(runId)}/pathway-links`, { body: { termId: term.id } })
+      .then((r) => {
+        const best = r.links.find((l) => /highlighted/.test(l.label)) ?? r.links.find((l) => /KEGG map/.test(l.label))
+        const url = best?.url ?? term.link
+        if (url && isHttpUrl(url)) { if (win) { win.opener = null; win.location.href = url } else window.open(url, '_blank', 'noopener') }
+        else win?.close()
+      })
+      .catch(() => { if (term.link && isHttpUrl(term.link) && win) win.location.href = term.link; else win?.close() })
+      .finally(() => setBusy(false))
+  }
+  return (
+    <a href={term.link ?? '#'} target="_blank" rel="noopener noreferrer" onClick={open} className="kegg-link"
+      title="Open the KEGG pathway map with your genes highlighted in red">
+      {term.id} <span className="kegg-badge" aria-hidden="true">{busy ? '…' : '● map'}</span>
+    </a>
   )
 }

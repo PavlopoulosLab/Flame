@@ -39,6 +39,7 @@ export function Plot({
   height = 480,
   handleRef,
   dragmode,
+  onShapesMoved,
 }: {
   data: PlotData
   layout?: Partial<Plotly.Layout>
@@ -46,10 +47,14 @@ export function Plot({
   height?: number
   handleRef?: { current: PlotHandle | null }
   dragmode?: 'zoom' | 'select' | 'lasso' | 'pan'
+  /** Makes layout shapes draggable; receives Plotly's relayout update (e.g. "shapes[0].y0"). */
+  onShapesMoved?: (update: Record<string, number>) => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
+  const shapesRef = useRef(onShapesMoved)
+  shapesRef.current = onShapesMoved
   // Box / lasso selection works on point-like traces (scatter, bar, box, histogram).
   const selectable = !!onSelect && data.some((t) => ['scatter', 'scattergl', 'bar', 'box', 'histogram', 'violin', undefined].includes((t as { type?: string }).type)
     && !((t as { mode?: string }).mode ?? '').startsWith('lines') || (t as { mode?: string }).mode === 'lines+markers')
@@ -79,6 +84,7 @@ export function Plot({
       Plotly.react(el, data as Plotly.Data[], merged, {
         responsive: true,
         displaylogo: false,
+        ...(onShapesMoved ? { edits: { shapePosition: true } } : {}),
         modeBarButtonsToRemove: ['toImage'],
       }),
     ).finally(() => setTimeout(() => (redrawing.current = false), 50))
@@ -87,6 +93,11 @@ export function Plot({
       (ev?.points ?? []).map((p) => String((p as { customdata?: unknown }).customdata ?? '')).filter(Boolean)
     gd.removeAllListeners?.('plotly_click')
     gd.removeAllListeners?.('plotly_selected')
+    gd.removeAllListeners?.('plotly_relayout')
+    ;(gd.on as unknown as (event: string, cb: (ev: Record<string, unknown>) => void) => void).call(gd, 'plotly_relayout', (ev: Record<string, unknown>) => {
+      const moved = Object.fromEntries(Object.entries(ev).filter(([k, v]) => k.startsWith('shapes[') && typeof v === 'number')) as Record<string, number>
+      if (Object.keys(moved).length) shapesRef.current?.(moved)
+    })
     gd.on('plotly_click', (ev: Plotly.PlotMouseEvent) => {
       const native = (ev as unknown as { event?: MouseEvent }).event
       selectRef.current?.(pick(ev), !!(native && (native.shiftKey || native.metaKey || native.ctrlKey)))

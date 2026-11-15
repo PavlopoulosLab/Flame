@@ -100,6 +100,7 @@ execute_gsea_run <- function(lst, params) {
   ids <- as.character(unlist(lst$ids)); scores <- as.numeric(unlist(lst$scores))
   if (length(ids) != length(scores) || length(ids) < 15) stop("GSEA needs a ranked list (IDs with scores).")
 
+  flame_progress(0.08, sprintf("Mapping %d ranked genes to NCBI Gene IDs", length(ids)))
   conv <- gprofiler2::gconvert(ids, organism = shortName, target = "ENTREZGENE_ACC", mthreshold = 1, filter_na = TRUE)
   if (is.null(conv) || !nrow(conv)) stop("The list's IDs could not be mapped to NCBI Gene IDs.")
   ct <- data.frame(input = conv$input, target = as.character(conv$target), name = conv$name, stringsAsFactors = FALSE)
@@ -110,9 +111,11 @@ execute_gsea_run <- function(lst, params) {
   geneList <- sort(stats::setNames(as.numeric(byGene), names(byGene)), decreasing = TRUE)
   if (length(geneList) < 15) stop("Fewer than 15 genes could be mapped; GSEA needs more.")
 
+  flame_progress(0.25, "Loading MSigDB gene sets")
   sets <- msigdb_sets(taxid, params$datasources)
   method <- if (params$metric %in% c("BH", "BY", "bonferroni", "holm", "none")) params$metric else "BH"
   scoreType <- if (all(geneList >= 0)) "pos" else if (all(geneList <= 0)) "neg" else "std"
+  flame_progress(0.4, sprintf("Running GSEA (fgsea) on %d genes and %d gene sets", length(geneList), length(unique(sets$term))))
   res <- withCallingHandlers(
     suppressMessages(clusterProfiler::GSEA(
       geneList = geneList, TERM2GENE = unique(sets[, c("term", "gene")]), minGSSize = 10, maxGSSize = 500,

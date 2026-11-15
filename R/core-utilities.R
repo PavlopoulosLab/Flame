@@ -134,6 +134,7 @@ parse_gmt <- function(text, maxTerms = 20000L) {
 #' Returns results in the same column layout as execute_ora_run().
 execute_gmt_run <- function(lst, sets, sourceName, threshold = 0.05, correction = "BH",
                             backgroundIds = NULL) {
+  flame_progress(0.3, sprintf("Testing %d custom gene sets", length(sets)))
   q <- unique(toupper(as.character(unlist(lst$ids))))
   universe <- unique(toupper(if (!is.null(backgroundIds)) unlist(backgroundIds) else unlist(lapply(sets, `[[`, "genes"))))
   q <- intersect(q, universe)

@@ -10,12 +10,13 @@ import { ExportMenu } from './Results'
 import { ChordDiagram, CircosBundle, SetOverlapUpSet, downloadSvg } from '../components/viz'
 import { UndoRedoButtons } from '../components/Undo'
 import { ComparisonStatistics } from '../features/compare/Statistics'
+import { CompareTable } from '../features/compare/CompareTable'
 import { Arena3DIcon } from '../components/ExternalIcons'
 import { useHistory } from '../lib/history'
 import { formatNum, formatP, plural, splitGenes, toCsv, toHtmlTable } from '../lib/format'
 import { categoricalColor, reverseScale, roleColors, sequentialScale, usePaletteMode } from '../lib/palette'
 
-type View = 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats'
+type View = 'table' | 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats'
 const SORTS = [{ value: '-log10Pvalue', label: 'Combined significance' }, { value: 'Fold Enrichment', label: 'Fold enrichment' }, { value: 'Agreement', label: 'Agreement between runs' }]
 
 function useDebounced<T>(v: T, ms = 300) {
@@ -29,7 +30,7 @@ export default function ComparePage() {
   const [params] = useSearchParams()
   const runIds = (params.get('runs') ?? '').split(',').filter(Boolean)
   const { data: config } = useConfig()
-  const [view, setView] = useState<View>('overview')
+  const [view, setView] = useState<View>('table')
   const [filters, setFilters] = useState<ComparisonFilters>({ runsMode: 'any' })
   const [top, setTop] = useState<number | 'all'>(20)
   const [sortBy, setSortBy] = useState('-log10Pvalue')
@@ -48,7 +49,7 @@ export default function ComparePage() {
 
   const q = useQuery({
     queryKey: ['compare', ws, runIds.join(','), view, f, top, sortBy],
-    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' ? 'overview' : view, filters: f, top, sortBy, settings: { labels } } }),
+    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' || view === 'table' ? 'overview' : view, filters: f, top, sortBy, settings: { labels } } }),
     enabled: runIds.length >= 2,
     placeholderData: keepPreviousData,
   })
@@ -94,9 +95,9 @@ export default function ComparePage() {
           <OpenExternalButton path="/comparisons/arena3d" label="Arena3D" caption="runs as 3D layers" icon={<Arena3DIcon />} body={{ runIds, filters: f, top: top === 'all' ? 'all' : Math.max(Number(top), 30), sortBy }}
             title="Open in Arena3D: one 3D layer per run with the terms it found, a layer of genes, and links between the same term in different runs" />
         </span>
-        {(['overview', 'stats', 'upset', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
+        {(['table', 'overview', 'stats', 'upset', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
           <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
-            { overview: 'Overview', stats: '∑ Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
+            { table: '☰ Table', overview: 'Overview', stats: '∑ Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
         ))}
       </nav>
 
@@ -205,11 +206,16 @@ export default function ComparePage() {
               </>
             )
           })()}
+          {view === 'table' && q.data && (
+            <CompareTable terms={q.data.terms} runs={q.data.runs.filter((r) => q.data!.activeRunIds.includes(r.id))} selected={selected}
+              onSelect={onSelect} labels={labels}
+              colors={Object.fromEntries(q.data.runs.map((r, i, all) => [r.id, categoricalColor(pm, r.tool, all.map((x) => x.tool), ['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4])]))} />
+          )}
           {view === 'stats' && q.data && (
             <ComparisonStatistics runIds={runIds} filters={f} onSelect={onSelect}
               colors={Object.fromEntries(q.data.runs.map((r, i, all) => [r.id, categoricalColor(pm, r.tool, all.map((x) => x.tool), ['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4])]))} />
           )}
-          {view !== 'overview' && view !== 'upset' && view !== 'chord' && view !== 'circos' && view !== 'stats' && (
+          {view !== 'overview' && view !== 'upset' && view !== 'chord' && view !== 'circos' && view !== 'stats' && view !== 'table' && (
             <div className="toolbar">
               <label>Show <select className="input input-sm" value={String(top)} onChange={(e) => setTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                 {[10, 20, 30, 50].map((n) => <option key={n} value={n}>top {n}</option>)}<option value="all">all</option></select></label>
@@ -257,14 +263,24 @@ export default function ComparePage() {
         <aside className="selection" aria-label="Selected terms">
           <div className="row between"><h2>Selected <span className="count">{selectedTerms.length}</span></h2>
             {selectedTerms.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSelected(new Set())}>Clear</button>}</div>
+          {selectedTerms.length > 0 && (
+            <div className="row wrap sel-copy">
+              <CopyButton label="Copy term names" text={selectedTerms.map((t) => t.name).join('\n')} />
+              <CopyButton label="Copy all genes" title="Copy every gene of the selected terms, one per line" text={[...new Set(selectedTerms.flatMap((t) => splitGenes(t.unionHits)))].join('\n')} />
+            </div>
+          )}
           {!selectedTerms.length && <p className="muted small">Click bubbles, pins, points or cells to collect terms here.</p>}
           <ul className="plain-list">
             {selectedTerms.slice(0, 300).map((t) => (
               <li key={t.id} className="sel-item">
                 <div className="row between"><span className="sel-title"><span className="dot" style={{ background: config.datasourceColors[t.source] }} />{t.name}</span>
-                  <button className="icon-btn" aria-label={`Remove ${t.name}`} onClick={() => onSelect([t.id], true)}>×</button></div>
+                  <span className="row">
+                    <CopyButton compact text={splitGenes(t.unionHits).join('\n')} title={`Copy the genes of ${t.name}`} />
+                    <button className="icon-btn" aria-label={`Remove ${t.name}`} onClick={() => onSelect([t.id], true)}>×</button>
+                  </span></div>
                 <div className="small muted">{t.id} · {t.tools} · p = {formatP(t.combPvalue)}</div>
-                <div className="gene-chips">{splitGenes(t.unionHits).slice(0, 20).map((g) => <span key={g} className="gene">{g}</span>)}</div>
+                <div className="gene-chips">{splitGenes(t.unionHits).slice(0, 40).map((g) => <span key={g} className="gene">{g}</span>)}
+                  {splitGenes(t.unionHits).length > 40 && <span className="muted small">+{splitGenes(t.unionHits).length - 40} more (copy to get all)</span>}</div>
               </li>
             ))}
           </ul>

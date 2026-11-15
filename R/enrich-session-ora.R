@@ -90,6 +90,7 @@ ORAEnrichmentSession <- R6::R6Class(
 
       # Step 1: Convert gene IDs to tool-specific format
       geneIds <- private$.input$getIds()
+      flame_progress(0.12, sprintf("Mapping %d identifiers for %s", length(geneIds), self$toolName))
       inputConversionTable <- private$convertGeneIds(geneIds, namespace)
 
       if (is.null(inputConversionTable) || nrow(inputConversionTable) == 0) {
@@ -123,6 +124,7 @@ ORAEnrichmentSession <- R6::R6Class(
         return(invisible(self))
       }
 
+      flame_progress(0.35, sprintf("Querying %s with %d mapped genes", self$toolName, length(convertedInputIds)))
       strategyResult <- tryCatch({
         strategy <- strategyRegistry$get(self$toolName, ParadigmId$ORA)
         strategy$run(

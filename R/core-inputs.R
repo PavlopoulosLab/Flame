@@ -252,29 +252,56 @@ named_gene <- function(x) {
     !grepl("-(AS|IT|OT|DT)[0-9]*$|orf", x, ignore.case = TRUE)
 }
 
+# Published datasets behind the examples (built by data-raw/build_examples.R).
+EXAMPLE_SOURCES <- list(
+  airway = "Airway smooth-muscle cells from 4 donors, untreated vs dexamethasone (Himes et al. 2014, PLoS One 9:e99625; GEO GSE52778; Bioconductor 'airway'). Differential expression: limma-voom, paired by donor.",
+  pbmc = "Genes of 2,638 peripheral blood mononuclear cells (10x Genomics PBMC 3k; Zheng et al. 2017, Nat Commun 8:14049; CC BY 4.0), embedded by their expression across cells (metacells, PCA, UMAP). Colour = the cell type where each gene is specifically expressed.",
+  gwas = "Lead associations for Alzheimer's disease from Bellenguez et al. 2022, Nat Genet 54:412-436 (GWAS Catalog GCST90027158; GRCh38).",
+  mirna = "microRNAs up-regulated in at least 3 of 6 solid cancers vs normal tissue (Volinia et al. 2006, PNAS 103:2257-2261, Table 2), with 2006 names mapped to current miRBase names.",
+  hallmark = "The MSigDB Hallmark collection (Liberzon et al. 2015, Cell Systems 1:417-425).")
+
+.example_file <- function(name) {
+  f <- getExamplesPath(name)
+  if (!file.exists(f)) stop("Example file missing: ", name, " (run data-raw/build_examples.R).")
+  utils::read.delim(f, stringsAsFactors = FALSE, check.names = FALSE)
+}
+
 example_input <- function(kind = EXAMPLE_KINDS) {
   kind <- match.arg(kind)
-  de <- function() {
-    df <- as.data.frame(readRDS(getExamplesPath("volcano_example.RDS")), stringsAsFactors = FALSE)
-    df <- df[named_gene(df$symbol) & is.finite(df$pvalue) & df$pvalue > 0 & is.finite(df$logFC), , drop = FALSE]
-    df[!duplicated(toupper(df$symbol)), , drop = FALSE]
-  }
+  airway <- function() .example_file("airway_dex_de.tsv")
   switch(kind,
-    # Every gene of the example differential-expression table, scored by
-    # sign(log2 fold change) x -log10 p: input for GSEA.
-    ranked = {
-      df <- de()
-      score <- round(sign(df$logFC) * -log10(df$pvalue), 4)
-      o <- order(-score)
-      list(text = paste(c("gene\tscore", paste(df$symbol[o], score[o], sep = "\t")), collapse = "\n"),
-           fileName = "flame_example_ranked.tsv", skipFirstRow = TRUE)
+    # Gene list: the 200 genes most affected by dexamethasone (both directions).
+    upload = {
+      de <- airway()
+      list(text = paste(utils::head(de$gene[de$padj <= 0.05 & abs(de$log2FC) >= 1], 200), collapse = "\n"),
+           source = paste("The 200 genes most significantly changed by dexamethasone.", EXAMPLE_SOURCES$airway))
     },
-    # Up- and down-regulated genes (|log2FC| >= 1, p <= 0.05) of the same table.
+    # Every expressed gene, scored by sign(log2FC) x -log10 p: input for GSEA.
+    ranked = {
+      de <- airway()
+      score <- round(sign(de$log2FC) * -log10(de$pvalue), 4)
+      o <- order(-score)
+      list(text = paste(c("gene\tscore", paste(de$gene[o], score[o], sep = "\t")), collapse = "\n"),
+           fileName = "flame_example_ranked.tsv", skipFirstRow = TRUE,
+           source = paste("All expressed genes ranked by sign(log2FC) x -log10 p.", EXAMPLE_SOURCES$airway))
+    },
+    # Up- and down-regulated genes (BH-adjusted p <= 0.05, |log2FC| >= 1).
     de_lists = {
-      df <- de()
-      sig <- df$pvalue <= 0.05
-      list(up = df$symbol[sig & df$logFC >= 1], down = df$symbol[sig & df$logFC <= -1],
-           thresholds = list(log2FC = 1, pvalue = 0.05))
+      de <- airway()
+      sig <- de$padj <= 0.05
+      list(up = de$gene[sig & de$log2FC >= 1], down = de$gene[sig & de$log2FC <= -1],
+           thresholds = list(log2FC = 1, padj = 0.05), source = EXAMPLE_SOURCES$airway)
+    },
+    volcano = {
+      de <- airway()
+      list(text = .table_text(de[, c("gene", "log2FC", "pvalue", "padj")]), fileName = "flame_example_airway_dex.tsv", source = EXAMPLE_SOURCES$airway)
+    },
+    expression = list(text = .table_text(.example_file("airway_counts.tsv")), fileName = "flame_example_airway_counts.tsv",
+                      source = paste("Raw counts of the 4,000 most variable expressed genes;", EXAMPLE_SOURCES$airway)),
+    reduction = list(text = .table_text(.example_file("pbmc3k_gene_umap.tsv")), fileName = "flame_example_pbmc3k_gene_umap.tsv", source = EXAMPLE_SOURCES$pbmc),
+    mirna = {
+      mi <- .example_file("mirna_volinia2006.tsv")
+      list(text = paste(mi$mirbase, collapse = "\n"), fileName = "flame_example_mirnas.txt", source = EXAMPLE_SOURCES$mirna)
     },
     # The MSigDB Hallmark collection (human) as a GMT file: an example of custom gene sets.
     gmt = {
@@ -282,28 +309,13 @@ example_input <- function(kind = EXAMPLE_KINDS) {
       by <- split(sets$symbol, sets$term)
       names <- sets$name[match(names(by), sets$term)]
       list(text = paste(vapply(seq_along(by), function(i) paste(c(names(by)[i], names[i], unique(by[[i]])), collapse = "\t"), ""), collapse = "\n"),
-           fileName = "flame_example_hallmark.gmt", name = "Example: MSigDB Hallmark")
+           fileName = "flame_example_hallmark.gmt", name = "Example: MSigDB Hallmark", source = EXAMPLE_SOURCES$hallmark)
     },
-    upload = {
-      genes <- as.character(unlist(readRDS(getExamplesPath("random_genes_example.RDS"))))
-      genes <- genes[named_gene(genes)]
-      list(text = paste(sample(genes, min(200L, length(genes))), collapse = "\n"))
-    },
-    snps = list(text = paste(as.character(unlist(readRDS(getExamplesPath("variants.RDS")))), collapse = "\n")),
-    textmining = list(text = paste(as.character(unlist(readRDS(getExamplesPath("textmining_example.RDS")))), collapse = "\n")),
-    expression = example_expression(),
-    mirna = example_mirnas(),
-    volcano = {
-      df <- as.data.frame(readRDS(getExamplesPath("volcano_example.RDS")), stringsAsFactors = FALSE)
-      df <- df[named_gene(df$symbol), , drop = FALSE]
-      list(text = .table_text(df), fileName = "volcano_example.tsv")
-    },
-    reduction = {
-      df <- as.data.frame(readRDS(getExamplesPath("reduction_example.RDS")), stringsAsFactors = FALSE)
-      if ("symbol" %in% names(df)) df <- df[named_gene(df$symbol), , drop = FALSE]
-      keep <- intersect(c("symbol", "UMAP1", "UMAP2", "expression", "cluster", "gene_type"), names(df))
-      list(text = .table_text(df[, keep, drop = FALSE]), fileName = "reduction_example.tsv")
-    })
+    snps = list(text = paste(as.character(unlist(readRDS(getExamplesPath("variants.RDS")))), collapse = "\n"),
+                source = "Well-studied human variants (dbSNP rsIDs)."),
+    textmining = list(text = paste(as.character(unlist(readRDS(getExamplesPath("textmining_example.RDS")))), collapse = "\n"),
+                      source = "Text from a published abstract on aspirin and cisplatin in cancer cells.")
+  )
 }
 
 .table_text <- function(df) {

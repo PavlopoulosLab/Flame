@@ -204,6 +204,7 @@ execute_ora_run <- function(toolId, lst, params, backgroundList = NULL) {
     }
   )
 
+  flame_progress(0.85, "Processing results")
   results <- if (session$hasResults()) clean_result_links(session$getResults()) else NULL
   results <- rollback_hit_ids(results, session$getConversionTable())
   details <- tryCatch(session$getRunDetailsPayload(), error = function(e) NULL)

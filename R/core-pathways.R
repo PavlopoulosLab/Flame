@@ -82,7 +82,7 @@ kegg_colored_url <- function(mapNumber, taxid, keggIds, scores = NULL) {
   keggIds <- utils::head(keggIds, KEGG_MAX_GENES)
   colour <- function(g) {
     s <- if (!is.null(scores)) scores[[g]] %||% NA else NA
-    if (is.na(s)) "#f97316,black" else if (s > 0) "#e11d48,white" else if (s < 0) "#2563eb,white" else "#d4d4d8,black"
+    if (is.na(s)) "#ff0000,black" else if (s > 0) "#ff0000,black" else if (s < 0) "#2563eb,white" else "#d4d4d8,black"
   }
   lines <- vapply(names(keggIds), function(g) paste(keggIds[[g]], colour(g)), "")
   paste0("https://www.kegg.jp/kegg-bin/show_pathway?map=", org, mapNumber,
@@ -102,9 +102,9 @@ pathway_links <- function(term, genes, taxid, scores = NULL) {
     if (!is.na(org)) {
       kid <- kegg_gene_ids(genes, taxid)
       if (length(kid)) {
-        links[[length(links) + 1]] <- .pl(sprintf("KEGG map with your %d genes highlighted", length(kid)),
+        links[[length(links) + 1]] <- .pl(sprintf("KEGG map with your %d genes highlighted in red", length(kid)),
                                            kegg_colored_url(num, taxid, kid, scores), "Pathway maps")
-        if (!is.null(scores)) notes <- c(notes, "KEGG colours: red = positive score, blue = negative score.")
+        notes <- c(notes, if (!is.null(scores)) "KEGG colours: red = positive score, blue = negative score." else "Your genes are highlighted in red on the KEGG map.")
         if (length(kid) < length(genes)) notes <- c(notes, sprintf("%d of %d genes have no KEGG entry.", length(genes) - length(kid), length(genes)))
       } else notes <- c(notes, "None of the genes could be mapped to KEGG; the map opens uncoloured.")
       links[[length(links) + 1]] <- .pl("KEGG map (this organism)", paste0("https://www.kegg.jp/pathway/", org, num), "Pathway maps")

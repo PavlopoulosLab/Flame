@@ -157,6 +157,12 @@
   --brand-glow: radial-gradient(closest-side, rgba(139, 92, 246, 0.22), transparent),
                 radial-gradient(closest-side, rgba(249, 115, 22, 0.20), transparent),
                 radial-gradient(closest-side, rgba(225, 29, 72, 0.16), transparent);
+  /* Analysis sections: each area of the app has its own colour. */
+  --sec-data: #8b5cf6;       --sec-data-tint: rgba(139, 92, 246, 0.07);
+  --sec-enrich: #f97316;     --sec-enrich-tint: rgba(249, 115, 22, 0.06);
+  --sec-variants: #e11d48;   --sec-variants-tint: rgba(225, 29, 72, 0.055);
+  --sec-tools: #4f46e5;      --sec-tools-tint: rgba(79, 70, 229, 0.06);
+  --app-bg: #f4f3f9;
   --link-color: #6d28d9;
   --link-hover: #4f46e5;
   --select-bg: rgba(139, 92, 246, 0.10);
@@ -164,6 +170,10 @@
   --danger-color: var(--brand-crimson);
 }
 [data-theme="dark"] {
+  --sec-data-tint: rgba(139, 92, 246, 0.12); --sec-enrich-tint: rgba(249, 115, 22, 0.1);
+  --sec-variants-tint: rgba(225, 29, 72, 0.1); --sec-tools-tint: rgba(99, 102, 241, 0.12);
+  --sec-tools: #818cf8;
+  --app-bg: #0c0c10;
   --brand-text-gradient: linear-gradient(100deg, #a78bfa 0%, #c084fc 18%, #fb923c 50%, #fbbf24 62%, #fb7185 84%, #f472b6 100%);
   --link-color: #a78bfa;
   --link-hover: #c4b5fd;

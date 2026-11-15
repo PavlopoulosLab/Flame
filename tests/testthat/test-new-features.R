@@ -147,7 +147,7 @@ test_that("tool configuration: GSEA is offered only where it is implemented", {
 
 test_that("GSEA on MSigDB returns NES and leading-edge genes (online)", {
   skip_if(Sys.getenv("FLAME_ONLINE_TESTS") != "true", "set FLAME_ONLINE_TESTS=true to run")
-  ids <- as.character(unlist(readRDS(getExamplesPath("random_genes_example.RDS"))))
+  ids <- strsplit(example_input("ranked")$text, "\n")[[1]][-1]; ids <- sub("\t.*", "", ids)
   lst <- list(name = "test", ids = ids, scores = seq(3, -3, length.out = length(ids)),
               organismTaxId = 9606L, analyteType = "GENE", idFormat = "USERINPUT")
   params <- build_run_params(ToolId$CLUSTERPROFILER, lst, c("HALLMARK", "KEGG"), 1, "BH", NULL)
@@ -180,7 +180,7 @@ test_that("KEGG coloured map URL encodes genes and colours by score sign", {
                         scores = list(TP53 = 2.1, MDM2 = -1.3))
   expect_match(u, "^https://www\\.kegg\\.jp/kegg-bin/show_pathway\\?map=hsa04110&multi_query=")
   q <- utils::URLdecode(sub(".*multi_query=", "", u))
-  expect_equal(strsplit(q, "\r\n")[[1]], c("hsa:7157 #e11d48,white", "hsa:4193 #2563eb,white", "hsa:983 #f97316,black"))
+  expect_equal(strsplit(q, "\r\n")[[1]], c("hsa:7157 #ff0000,black", "hsa:4193 #2563eb,white", "hsa:983 #ff0000,black"))
 })
 
 test_that("pathway links without network calls: Reactome, GO and searches", {
@@ -258,18 +258,33 @@ test_that("examples use recognisable gene names, not ORFs or placeholders", {
 })
 
 test_that("expression matrices: parsing, log transform, clusters and two-group test", {
-  ex <- example_expression()
+  ex <- example_input("expression")
   x <- parse_expression_matrix(ex$text, ex$fileName)
   expect_true(x$logged)
-  expect_equal(ncol(x$matrix), 6)
+  expect_equal(ncol(x$matrix), 8)
   o <- expression_overview(x, topN = 200, k = 4)
   expect_equal(o$shownGenes, 200)
   expect_equal(sort(unique(vapply(o$genes, `[[`, 0L, "cluster"))), 1:4)
   expect_length(o$heatmap$z, 200)
-  de <- expression_de(x, c("treated_1", "treated_2", "treated_3"), c("control_1", "control_2", "control_3"))
-  expect_gt(de$significant, 10)
-  expect_error(expression_de(x, "treated_1", c("control_1", "control_2")), "at least two")
+  dex <- grep("^dexamethasone_", x$samples, value = TRUE); unt <- grep("^untreated_", x$samples, value = TRUE)
+  de <- expression_de(x, dex, unt)
+  expect_gt(de$significant, 0)
+  expect_error(expression_de(x, dex[1], unt[1:2]), "at least two")
   expect_error(parse_expression_matrix("gene\tA\nX\t1"), "two")
+})
+
+test_that("examples come from the published datasets", {
+  up <- strsplit(example_input("upload")$text, "\n")[[1]]
+  expect_length(up, 200)
+  expect_true(all(c("DUSP1", "KLF15", "PER1") %in% up))           # glucocorticoid-response genes
+  d <- example_input("de_lists")
+  expect_true("ZBTB16" %in% d$up)
+  um <- read.delim(getExamplesPath("pbmc3k_gene_umap.tsv"))
+  expect_equal(um$cell_type[um$gene == "MS4A1"], "B cells")
+  expect_equal(um$cell_type[um$gene == "LYZ"], "CD14 monocytes")
+  gw <- read.delim(getExamplesPath("ad_gwas_bellenguez2022.tsv"))
+  expect_true(nrow(gw) >= 80 && "rs6733839" %in% gw$SNP)
+  for (k in EXAMPLE_KINDS) expect_true(nzchar(example_input(k)$source %||% ""), info = k)
 })
 
 test_that("microRNA names are normalised", {

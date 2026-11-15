@@ -1,10 +1,11 @@
 # /api/variants — variant analysis (SNPs, small variants, GWAS summary statistics)
 # Annotation runs in a background job (Ensembl VEP + trait associations).
 
-.va_row <- function(r) list(
+.va_row <- function(r, ws = NULL) list(
   id = r$id, name = r$name, organismTaxId = r$taxid, status = r$status,
   error = if (is.na(r$error)) NULL else r$error, inputCount = r$input_count,
-  created = r$created, finished = if (is.na(r$finished)) NULL else r$finished)
+  created = r$created, finished = if (is.na(r$finished)) NULL else r$finished,
+  progress = if (!is.null(ws) && r$status %in% c("queued", "running")) job_progress(ws, r$id, "variants") else NULL)
 
 #* Species available for variant annotation
 #* @get /species
@@ -18,15 +19,11 @@ function(res) {
       list(text = paste(c(
         "rs429358", "rs7412", "rs1801133", "rs6025", "rs1800562", "rs334", "rs113993960", "rs80357906",
         "rs121913529", "rs28934578", "rs1042522", "rs1799853", "rs1057910", "rs4149056", "rs12248560",
-        "7 140753336 . A T", "17:7674220:C:T", "ENST00000366667:c.803C>T"), collapse = "\n"))
+        "7 140753336 . A T", "17:7674220:C:T", "ENST00000366667:c.803C>T"), collapse = "\n"),
+        source = "Well-studied clinical variants (e.g. APOE e4, Factor V Leiden, HFE C282Y, sickle-cell HBB, BRAF V600E) in rsID, VCF, chr:pos:ref:alt and HGVS forms.")
   } else if (kind == "gwas") {
-      list(text = paste(c("SNP\tCHR\tBP\tP",
-        "rs429358\t19\t44908684\t1.2e-120", "rs7412\t19\t44908822\t3.4e-45", "rs6857\t19\t44888997\t2.1e-60",
-        "rs11136000\t8\t27607002\t4.5e-12", "rs3851179\t11\t86157598\t6.0e-11", "rs744373\t2\t127137039\t2.3e-10",
-        "rs3764650\t19\t1046521\t8.1e-10", "rs610932\t11\t60171834\t1.7e-09", "rs3865444\t19\t51224706\t3.0e-08",
-        "rs9349407\t6\t47485953\t5.2e-08", "rs11218343\t11\t121564878\t9.9e-08", "rs10498633\t14\t92460608\t2.2e-06",
-        "rs1476679\t7\t100406823\t4.6e-06", "rs10948363\t6\t41034000\t7.0e-06", "rs17125944\t14\t52924962\t1.1e-05",
-        "rs7274581\t20\t56423488\t3.3e-05", "rs2718058\t7\t37841534\t5.0e-05", "rs983392\t11\t60156035\t8.8e-05"), collapse = "\n"))
+      gw <- .example_file("ad_gwas_bellenguez2022.tsv")
+      list(text = .table_text(gw[, c("SNP", "CHR", "BP", "P")]), source = EXAMPLE_SOURCES$gwas)
   } else NULL
 }
 
@@ -58,7 +55,7 @@ function(req, res) {
   api_handle(res, {
     ws <- require_workspace(req)
     rows <- db_query("SELECT id, name, taxid, status, error, input_count, created, finished FROM variant_analyses WHERE ws = ? ORDER BY created DESC", list(ws))
-    lapply(seq_len(nrow(rows)), function(i) .va_row(rows[i, ]))
+    lapply(seq_len(nrow(rows)), function(i) .va_row(rows[i, ], ws))
   })
 }
 
@@ -95,7 +92,7 @@ function(req, res, id) {
     ws <- require_workspace(req)
     r <- db_query("SELECT * FROM variant_analyses WHERE ws = ? AND id = ?", list(ws, id))
     if (!nrow(r)) api_abort(404, "Analysis not found.")
-    out <- .va_row(r[1, ])
+    out <- .va_row(r[1, ], ws)
     if (identical(r$status, "complete")) {
       out$result <- unserialize(r$result_blob[[1]])
       out$result$variants$impact <- as.character(out$result$variants$impact)

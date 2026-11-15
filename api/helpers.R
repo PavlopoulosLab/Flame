@@ -272,7 +272,8 @@ run_row_to_obj <- function(r) {
     status = r$status, error = if (is.na(r$error)) NULL else r$error,
     resultCount = if (is.na(r$result_count)) NULL else r$result_count,
     messages = as.list(from_json(r$messages_json) %||% character(0)),
-    created = r$created, finished = if (is.na(r$finished)) NULL else r$finished
+    created = r$created, finished = if (is.na(r$finished)) NULL else r$finished,
+    progress = if (r$status %in% c("queued", "running") && exists("job_progress")) job_progress(r$ws, r$id) else NULL
   )
 }
 

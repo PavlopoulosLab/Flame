@@ -7,6 +7,18 @@
 # =============================================================================
 
 .flame_jobs <- new.env()
+.progress_dir <- file.path(tempdir(), "flame-progress")
+dir.create(.progress_dir, showWarnings = FALSE)
+.progress_file <- function(key) file.path(.progress_dir, paste0(gsub("[^A-Za-z0-9_]", "_", key), ".json"))
+
+#' Progress of a running job: list(fraction, message, elapsed), or NULL
+job_progress <- function(ws, runId, kind = NULL) {
+  key <- if (identical(kind, "variants")) paste(ws, "variants", runId) else paste(ws, runId)
+  job <- .flame_jobs[[key]]
+  if (is.null(job)) return(NULL)
+  p <- read_progress(job$progress) %||% list(fraction = 0.02, message = "Waiting for a free worker")
+  c(p, list(elapsed = round(now_s() - job$started, 1)))
+}
 
 start_job_workers <- function(n = as.integer(Sys.getenv("FLAME_WORKERS", "4"))) {
   n <- max(1L, min(n, parallel::detectCores()))
@@ -28,27 +40,31 @@ active_job_count <- function(ws) {
 #' Queue a run in a worker. `job` is list(kind = "ora", toolId, lst, params, bg)
 #' or list(kind = "gmt", lst, sets, sourceName, threshold, correction, bgIds).
 submit_run <- function(ws, runId, job) {
+  pf <- .progress_file(paste(ws, runId))
+  unlink(pf)
   m <- if (identical(job$kind, "gsea")) {
-    mirai::mirai(execute_gsea_run(lst, params), lst = job$lst, params = job$params)
+    mirai::mirai({ options(flame.progress_file = pf); execute_gsea_run(lst, params) }, lst = job$lst, params = job$params, pf = pf)
   } else if (identical(job$kind, "gmt")) {
     mirai::mirai(
-      execute_gmt_run(lst, sets, sourceName, threshold, correction, bgIds),
+      { options(flame.progress_file = pf); execute_gmt_run(lst, sets, sourceName, threshold, correction, bgIds) },
       lst = job$lst, sets = job$sets, sourceName = job$sourceName,
-      threshold = job$threshold, correction = job$correction, bgIds = job$bgIds)
+      threshold = job$threshold, correction = job$correction, bgIds = job$bgIds, pf = pf)
   } else {
     mirai::mirai(
-      execute_ora_run(toolId, lst, params, bg),
-      toolId = job$toolId, lst = job$lst, params = job$params, bg = job$bg)
+      { options(flame.progress_file = pf); execute_ora_run(toolId, lst, params, bg) },
+      toolId = job$toolId, lst = job$lst, params = job$params, bg = job$bg, pf = pf)
   }
-  .flame_jobs[[paste(ws, runId)]] <- list(ws = ws, runId = runId, m = m, started = now_s())
+  .flame_jobs[[paste(ws, runId)]] <- list(ws = ws, runId = runId, m = m, started = now_s(), progress = pf)
   db_exec("UPDATE runs SET status = 'running' WHERE id = ? AND ws = ?", list(runId, ws))
   invisible(runId)
 }
 
 #' Variant analysis job (Ensembl VEP + phenotypes); results go to variant_analyses
 submit_variant_job <- function(ws, analysisId, text, taxid) {
-  m <- mirai::mirai(analyse_variants(text, taxid), text = text, taxid = taxid)
-  .flame_jobs[[paste(ws, "variants", analysisId)]] <- list(ws = ws, runId = analysisId, kind = "variants", m = m, started = now_s())
+  pf <- .progress_file(paste(ws, "variants", analysisId))
+  unlink(pf)
+  m <- mirai::mirai({ options(flame.progress_file = pf); analyse_variants(text, taxid) }, text = text, taxid = taxid, pf = pf)
+  .flame_jobs[[paste(ws, "variants", analysisId)]] <- list(ws = ws, runId = analysisId, kind = "variants", m = m, started = now_s(), progress = pf)
   db_exec("UPDATE variant_analyses SET status = 'running' WHERE ws = ? AND id = ?", list(ws, analysisId))
   invisible(analysisId)
 }
@@ -100,6 +116,7 @@ poll_jobs <- function() {
     if (!mirai::unresolved(job$m)) {
       tryCatch(if (identical(job$kind, "variants")) .finish_variant_job(job) else .finish_run(job),
                error = function(e) message("[jobs] finish failed: ", conditionMessage(e)))
+      unlink(job$progress)
       rm(list = key, envir = .flame_jobs)
     }
   }

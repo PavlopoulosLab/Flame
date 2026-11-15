@@ -235,12 +235,14 @@ export function FileDrop({ accept, onText, maxBytes = 1024 * 1024 }: { accept: s
   )
 }
 
-export function CopyButton({ text, label = 'Copy' }: { text: string; label?: string }) {
+export function CopyButton({ text, label = 'Copy', title, compact = false }: { text: string; label?: string; title?: string; compact?: boolean }) {
   const [done, setDone] = useState(false)
   return (
     <button
       type="button"
-      className="btn btn-ghost btn-sm"
+      title={title ?? label}
+      aria-label={title ?? label}
+      className={compact ? 'icon-btn copy-mini' : 'btn btn-ghost btn-sm'}
       onClick={() =>
         navigator.clipboard.writeText(text).then(() => {
           setDone(true)
@@ -248,7 +250,7 @@ export function CopyButton({ text, label = 'Copy' }: { text: string; label?: str
         })
       }
     >
-      {done ? 'Copied' : label}
+      {compact ? (done ? '✓' : '⧉') : done ? 'Copied' : label}
     </button>
   )
 }

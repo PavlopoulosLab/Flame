@@ -213,8 +213,17 @@ comparison_view <- function(cs, view, filters = list(), top = 20L,
   if (is.null(filtered) || nrow(filtered) == 0) return(c(meta, list(terms = list())))
 
   if (view == "overview") {
-    return(c(meta, list(chart = cmp_overview_chart(cs, filtered, active),
-                        terms = .comparison_terms(filtered, cs$getRunMembership()))))
+    terms <- .comparison_terms(filtered, cs$getRunMembership())
+    # Per-run detail for the comparison table: which run found the term, its p-value and gene count.
+    perRun <- cs$getPerRunData()
+    for (i in seq_along(terms)) {
+      e <- perRun[[terms[[i]]$id]]
+      terms[[i]]$byRun <- lapply(stats::setNames(active, active), function(r) {
+        x <- e[[r]]
+        if (is.null(x) || !isTRUE(x$found)) NULL else list(p = x$pvalue, genes = x$geneCount)
+      })
+    }
+    return(c(meta, list(chart = cmp_overview_chart(cs, filtered, active), terms = terms)))
   }
 
   shown <- filtered[cmp_order(cs, filtered, active, sortBy), , drop = FALSE]

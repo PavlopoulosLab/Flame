@@ -325,6 +325,7 @@ RESULTS_TABLE_CONFIG <- list(
 # Runtime identity/routing lives in OUTPUT_TYPES_CONFIG + RESULTS_TABLE_CONFIG.
 # These overrides only define presentation defaults where needed.
 RESULTS_TAB_UI_OVERRIDES <- list(
+  table = list(label = "Table", icon = "&#9776;", defaultVisible = TRUE),
   dotplot = list(label = "Dotplot", icon = "&#9679;", defaultVisible = TRUE, tabType = "ggiraph"),
   barchart = list(label = "Barchart", icon = "&#9632;", defaultVisible = TRUE),
   scatter = list(label = "Scatter", icon = "&#9830;"),
@@ -333,8 +334,7 @@ RESULTS_TAB_UI_OVERRIDES <- list(
   `heatmap-gg` = list(label = "Heatmap (G\u00D7G)", icon = "&#9638;"),
   `network-tg` = list(label = "Network (T\u00D7G)", icon = "&#9678;"),
   `network-tt` = list(label = "Network (T\u00D7T)", icon = "&#9678;"),
-  `network-gg` = list(label = "Network (G\u00D7G)", icon = "&#9678;"),
-  table = list(label = "Table", icon = "&#9776;", defaultVisible = TRUE)
+  `network-gg` = list(label = "Network (G\u00D7G)", icon = "&#9678;")
 )
 
 RESULTS_TAB_UI_ORDER <- c(
