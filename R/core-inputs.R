@@ -226,7 +226,6 @@ example_input <- function(kind = c("upload", "snps", "textmining", "volcano", "r
   switch(kind,
     upload = {
       genes <- as.character(unlist(readRDS(getExamplesPath("random_genes_example.RDS"))))
-      set.seed(as.integer(Sys.time()) %% 100000L)
       list(text = paste(sample(genes, min(200L, length(genes))), collapse = "\n"))
     },
     snps = list(text = paste(as.character(unlist(readRDS(getExamplesPath("variants.RDS")))), collapse = "\n")),

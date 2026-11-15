@@ -210,7 +210,7 @@ body.modal-open { overflow: hidden; }
 .table tr.selected { background: var(--accent-color-light); }
 .table .truncate { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-btn { color: inherit; font-weight: inherit; padding: 0; }
-.genes-cell { max-width: 360px; word-break: break-word; }
+.genes-cell { min-width: 220px; max-width: 420px; }
 .source-tag { border-left: 3px solid; padding-left: 6px; white-space: nowrap; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.78rem; }
 .legend i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; }
@@ -308,3 +308,4 @@ body.modal-open { overflow: hidden; }
 .modal-body { overflow-y: auto; flex: 1 1 auto; min-height: 0; }
 .modal-footer { position: static; flex-shrink: 0; }
 .modal-backdrop { align-items: center; }
+.modal-body > * { flex-shrink: 0; }

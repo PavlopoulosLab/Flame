@@ -446,6 +446,14 @@ function Upset({ lists, onClose, onCreated, title }: P) {
   const [err, setErr] = useState<unknown>(null)
   const first = lists.find((l) => l.id === picked[0])
   const compatible = (l: AnalyteList) => !first || (l.organismTaxId === first.organismTaxId && l.idFormat === first.idFormat && l.analyteType === first.analyteType)
+  // Lists can arrive after the dialog opens (e.g. the UpSet example creates two):
+  // pre-select the two newest compatible lists until the user has two picked.
+  useEffect(() => {
+    if (picked.length >= 2 || lists.length < 2) return
+    const base = lists[0]
+    const same = lists.filter((l) => l.organismTaxId === base.organismTaxId && l.idFormat === base.idFormat && l.analyteType === base.analyteType)
+    if (same.length >= 2) setPicked(same.slice(0, 2).map((l) => l.id))
+  }, [lists, picked.length])
   useEffect(() => {
     if (picked.length < 2) { setRes(null); return }
     setErr(null)

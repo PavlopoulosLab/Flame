@@ -28,6 +28,7 @@ export default function ComparePage() {
   const [top, setTop] = useState<number | 'all'>(20)
   const [sortBy, setSortBy] = useState('-log10Pvalue')
   const [labels, setLabels] = useState<'Function' | 'Term_ID'>('Function')
+  const [showLabels, setShowLabels] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const plotRef = useRef<PlotHandle | null>(null)
   const f = useDebounced(filters)
@@ -130,6 +131,7 @@ export default function ComparePage() {
               <label>Show <select className="input input-sm" value={String(top)} onChange={(e) => setTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                 {[10, 20, 30, 50].map((n) => <option key={n} value={n}>top {n}</option>)}<option value="all">all</option></select></label>
               <label>by <select className="input input-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>{SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
+              {view === 'bubble' && <label className="check"><input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} /> Show labels</label>}
               <label>Labels <select className="input input-sm" value={labels} onChange={(e) => setLabels(e.target.value as 'Function' | 'Term_ID')}><option value="Function">Term names</option><option value="Term_ID">Term IDs</option></select></label>
               <span className="toolbar-spacer" />
               <ExportMenu items={[{ label: 'PNG image', run: () => plotRef.current?.toImage('png', 'flame_comparison') }, { label: 'SVG image', run: () => plotRef.current?.toImage('svg', 'flame_comparison') }]} />
@@ -145,7 +147,7 @@ export default function ComparePage() {
             <Plot handleRef={plotRef} height={520} onSelect={onSelect} data={[...new Set(q.data.terms.map((t) => t.source))].map((src) => {
               const ts = q.data!.terms.filter((t) => t.source === src)
               return {
-                type: 'scatter' as const, mode: 'text+markers' as const, name: src, x: ts.map((t) => t.foldEnrichment ?? 0), y: ts.map((t) => t.negLog10p ?? 0),
+                type: 'scatter' as const, mode: (showLabels ? 'text+markers' : 'markers') as 'markers', name: src, x: ts.map((t) => t.foldEnrichment ?? 0), y: ts.map((t) => t.negLog10p ?? 0),
                 customdata: ts.map((t) => t.id), text: ts.map(label), textposition: 'top center' as const, textfont: { size: 10 },
                 hovertext: ts.map((t) => `${t.name}<br>${t.id}<br>found by ${t.agreement} run(s)<br>combined p = ${formatP(t.activeCombPvalue)}`), hoverinfo: 'text' as const,
                 marker: { size: ts.map((t) => 10 + 8 * (t.agreement ?? 1)), color: config.datasourceColors[src] ?? '#9ca3af', opacity: 0.8,
@@ -162,7 +164,7 @@ export default function ComparePage() {
               type: 'heatmap' as const, x: runIdsActive.map(runLabel), y: d.terms.map((t) => `${label(t)} [${t.source}]`),
               z: d.terms.map((t) => runIdsActive.map((r) => val.get(`${t.id}|${r}`) ?? null)) as number[][],
               customdata: d.terms.map((t) => runIdsActive.map(() => t.id)) as unknown as string[],
-              colorscale: 'YlOrRd', colorbar: { title: { text: '−log10 p' }, thickness: 12 }, xgap: 2, ygap: 1, hoverongaps: false,
+              colorscale: 'YlOrRd', reversescale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12 }, xgap: 2, ygap: 1, hoverongaps: false,
               hovertemplate: '%{y}<br>%{x}: −log10 p = %{z:.2f}<extra></extra>',
             }]} layout={{ margin: { l: 360, r: 20, t: 10, b: 80 }, yaxis: { automargin: true, autorange: 'reversed' } }} />
           })()}

@@ -4,12 +4,13 @@
 # But track these
 !.gitignore
 !.Rbuildignore
+!web/.oxlintrc.json
 
 # macOS resource forks (anywhere in tree)
 **/._*
 
 # Temporary files
-tmp/
+/tmp/
 
 # Build artifacts
 *.tar.gz
@@ -20,8 +21,8 @@ tmp/
 /.quarto/
 **/*.quarto_ipynb
 
-dTSC1_manuscript/
-results/
+/dTSC1_manuscript/
+/results/
 # Flame server data and web build
 api/data/
 web/dist/

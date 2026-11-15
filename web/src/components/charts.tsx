@@ -46,6 +46,9 @@ export function Plot({
   const ref = useRef<HTMLDivElement>(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
+  // Plotly.react() (e.g. when the selection highlight changes) clears the
+  // drag-selection and emits an empty "selected" event; ignore events we cause.
+  const redrawing = useRef(false)
 
   useEffect(() => {
     const el = ref.current
@@ -60,11 +63,14 @@ export function Plot({
       xaxis: { ...base.xaxis, ...(layout?.xaxis ?? {}) },
       yaxis: { ...base.yaxis, ...(layout?.yaxis ?? {}) },
     }
-    Plotly.react(el, data as Plotly.Data[], merged, {
-      responsive: true,
-      displaylogo: false,
-      modeBarButtonsToRemove: ['toImage'],
-    })
+    redrawing.current = true
+    Promise.resolve(
+      Plotly.react(el, data as Plotly.Data[], merged, {
+        responsive: true,
+        displaylogo: false,
+        modeBarButtonsToRemove: ['toImage'],
+      }),
+    ).finally(() => setTimeout(() => (redrawing.current = false), 50))
     const gd = el as unknown as Plotly.PlotlyHTMLElement
     const pick = (ev: Plotly.PlotMouseEvent | Plotly.PlotSelectionEvent | undefined) =>
       (ev?.points ?? []).map((p) => String((p as { customdata?: unknown }).customdata ?? '')).filter(Boolean)
@@ -75,7 +81,9 @@ export function Plot({
       selectRef.current?.(pick(ev), !!(native && (native.shiftKey || native.metaKey || native.ctrlKey)))
     })
     gd.on('plotly_selected', (ev: Plotly.PlotSelectionEvent) => {
-      if (ev) selectRef.current?.(pick(ev), false)
+      const ids = pick(ev)
+      if (redrawing.current || !ids.length) return
+      selectRef.current?.(ids, false)
     })
     if (handleRef) {
       handleRef.current = {

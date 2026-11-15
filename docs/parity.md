@@ -4,9 +4,11 @@
 Verified so far:
 - API: 54 automated end-to-end checks pass (every route, live calls to all six tools, g:SNPense, EXTRACT, g:Convert, g:Orth, STRING network, session export/import, legacy `?url_genes=`).
 - R core: 76 offline tests pass (views, filters, search, Fisher combination, run filters, input parsing, GMT ORA, link safety).
-- Browser: Home tab, worked example (workspace → list → g:Profiler + STRING runs), results dot plot and term–gene network, comparison overview; phone width (375 px, no horizontal scroll) and dark mode.
+- Browser click-through: Home and every example link; all six input methods (paste, volcano with quick select, 2D plot with box selection, SNPs, text mining, UpSet); Convert IDs and the STRING network (Find orthologs via API); New run panel with per-tool settings; result views dot plot, bar chart, scatter, heatmap T×T, term–gene network and table; comparison overview, bubble plot and heatmap; all Help, API, How to cite, About and Privacy pages; phone width and dark mode.
 
-Not yet clicked through in the browser: each input modal, the three quick-action modals, the New run per-tool settings, heatmap/scatter/table tabs, comparison bubble/heatmap, help pages. Items below stay unticked until checked by hand.
+Fixed during the click-through: modal footer overlapping content; WebGL-only plots (now SVG); drag-selection cleared by redraw; example lists identical (clock seed); UpSet example not preselecting lists; inverted heatmap colours; unreadable gene column; overlapping bubble labels; comparison run filter (R partial matching).
+
+Still to check by hand: heatmap T×G and G×G, term–term and gene–gene networks, Arena3D export, Find orthologs dialog, session save/load dialog, custom GMT upload dialog.
 
 Shiny app (v3) → plumber API + React/TypeScript web app. Tick an item only after it is verified in the running new app.
 Legend: (finish) = shown but never wired in v3, implemented in the rewrite.
