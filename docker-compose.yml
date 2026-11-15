@@ -1,0 +1,20 @@
+# Flame 3.0 with Docker Compose:  docker compose up -d   →   http://localhost:8000
+services:
+  flame:
+    build: .
+    image: pavlopouloslab/flame:3.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - flame-data:/data
+    environment:
+      FLAME_WORKERS: "4"
+      FLAME_RETENTION_DAYS: "30"
+      # FLAME_PUBLIC_URL: "https://flame.example.org"   # used in links and emails
+      # FLAME_NCBI_API_KEY: "…"                          # PubMed / dbSNP inputs: 10 instead of 3 requests/s
+      # FLAME_SMTP_URL: "smtps://user:password@smtp.example.org:465"
+      # FLAME_SMTP_FROM: "flame@example.org"
+    restart: unless-stopped
+
+volumes:
+  flame-data:

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, isWorkspaceId, setWorkspaceId } from './api/client'
 import { AppShell } from './components/Shell'
@@ -39,6 +39,8 @@ function WorkspaceRoute({ children }: { children: React.ReactNode }) {
 function StartWorkspace() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  const [error, setError] = useState<unknown>(null)
+  const [attempt, setAttempt] = useState(0)
   useEffect(() => {
     let last: string | null = null
     try {
@@ -51,10 +53,19 @@ function StartWorkspace() {
       navigate(`/w/${last}`, { replace: true })
       return
     }
-    api<{ id: string }>('/workspace', { method: 'POST', workspace: null }).then(({ id }) =>
-      navigate(`/w/${id}${params.get('example') ? `?example=${params.get('example')}` : ''}`, { replace: true }),
+    setError(null)
+    api<{ id: string }>('/workspace', { method: 'POST', workspace: null })
+      .then(({ id }) => navigate(`/w/${id}${params.get('example') ? `?example=${params.get('example')}` : ''}`, { replace: true }))
+      .catch(setError)
+  }, [navigate, params, attempt])
+  if (error) {
+    return (
+      <div className="page-center stack">
+        <ErrorNote error={error} />
+        <button className="btn btn-primary" onClick={() => setAttempt((a) => a + 1)}>Try again</button>
+      </div>
     )
-  }, [navigate, params])
+  }
   return (
     <div className="page-center">
       <Spinner label="Preparing your workspace" />

@@ -208,7 +208,7 @@ comparison_view <- function(cs, view, filters = list(), top = 20L,
   filtered <- cs$applyComparisonFilters(all, filters)$data
   meta <- list(view = view, totalCount = nrow(all),
                filteredCount = if (is.null(filtered)) 0L else nrow(filtered),
-               availableSources = sort(unique(as.character(all$Source))),
+               availableSources = as.list(sort(unique(as.character(all$Source)))),
                runs = comparison_runs_meta(cs), activeRunIds = as.list(active))
   if (is.null(filtered) || nrow(filtered) == 0) return(c(meta, list(terms = list())))
 

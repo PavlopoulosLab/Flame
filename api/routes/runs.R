@@ -249,3 +249,17 @@ function(req, res, id) {
     pathway_links(list(id = termId, source = row$Source[1], name = row$Function[1]), genes, r$taxid, scores)
   })
 }
+
+#* Functional themes of a run: overlapping terms grouped by shared genes, with keywords.
+#* Body: { filters?, cutoff? }
+#* @post /<id>/themes
+#* @serializer flamejson
+function(req, res, id) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    out <- run_output(ws, id)
+    cutoff <- suppressWarnings(as.numeric(b$cutoff %||% 0.35)); if (!is.finite(cutoff)) cutoff <- 0.35
+    tryCatch(run_themes(out$results, b$filters %||% list(), max(0.05, min(0.95, cutoff))), error = function(e) api_abort(422, conditionMessage(e)))
+  })
+}

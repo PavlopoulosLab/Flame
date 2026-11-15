@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { getWorkspaceId } from '../api/client'
-import { PALETTES, setPaletteMode, usePaletteMode, type PaletteMode } from '../lib/palette'
 import { UndoProvider } from './Undo'
 
 export function Logo({ size = 32 }: { size?: number }) {
@@ -42,20 +41,6 @@ function ThemeToggle() {
   )
 }
 
-function PalettePicker() {
-  const mode = usePaletteMode()
-  const hint = PALETTES.find((p) => p.value === mode)?.hint
-  return (
-    <label className="palette-picker" title={`Chart colours: ${hint}`}>
-      <span aria-hidden="true">◐</span>
-      <span className="sr-only">Chart palette</span>
-      <select className="input input-sm" value={mode} onChange={(e) => setPaletteMode(e.target.value as PaletteMode)} aria-label="Chart palette">
-        {PALETTES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-      </select>
-    </label>
-  )
-}
-
 export function AppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
   const ws = getWorkspaceId()
@@ -84,7 +69,6 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/about">About</NavLink>
         </nav>
         <div className="topbar-right">
-          <PalettePicker />
           <ThemeToggle />
         </div>
       </header>
@@ -93,7 +77,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       </main>
       <footer className="footer">
         <span>
-          Flame 3.0 · free and open to everyone, no login required · code under{' '}
+          Flame 3.0 · free and open to everyone · code under{' '}
           <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener noreferrer">
             GPL-3.0
           </a>

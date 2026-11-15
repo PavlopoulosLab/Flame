@@ -19,6 +19,10 @@ const SPECIES_TAXID: Record<string, number> = Object.fromEntries(Object.entries(
 export const taxidOfSpecies = (species?: string) => (species ? SPECIES_TAXID[species.toLowerCase()] : undefined)
 
 const SYMBOL = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,40}$/
+
+/** GeneCards page of a human gene symbol (null for other organisms or invalid symbols). */
+export const geneCardsUrl = (symbol: string, taxid = 9606) =>
+  taxid === 9606 && SYMBOL.test(symbol) ? `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${encodeURIComponent(symbol)}` : null
 const RSID = /^rs\d{1,12}$/i
 const CHR = /^(chr)?([0-9]{1,2}|X|Y|MT|M|[IVX]{1,4}|[23][LR]|4)$/i
 const enc = encodeURIComponent
@@ -31,11 +35,11 @@ export function geneLinks(symbol: string, taxid = 9606): OutLink[] {
   const out: OutLink[] = []
   if (sp) out.push({ label: 'Ensembl genome browser', url: `https://www.ensembl.org/${sp}/Gene/Summary?g=${s}`, group: 'Genome browsers' })
   if (ucsc) out.push({ label: 'UCSC Genome Browser', url: `https://genome.ucsc.edu/cgi-bin/hgTracks?db=${ucsc}&singleSearch=knownCanonical&position=${s}`, group: 'Genome browsers' })
+  if (taxid === 9606) out.push({ label: 'GeneCards', url: `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${s}`, group: 'Gene' })
   out.push({ label: 'NCBI Gene', url: `https://www.ncbi.nlm.nih.gov/gene/?term=${s}%5Bsym%5D+AND+${taxid}%5Btaxid%5D`, group: 'Gene' })
   out.push({ label: 'UniProt', url: `https://www.uniprot.org/uniprotkb?query=gene_exact:${s}+AND+organism_id:${taxid}`, group: 'Gene' })
   if (taxid === 9606) {
     out.push(
-      { label: 'GeneCards', url: `https://www.genecards.org/cgi-bin/carddisp.pl?gene=${s}`, group: 'Gene' },
       { label: 'gnomAD (constraint, variants)', url: `https://gnomad.broadinstitute.org/gene/${s}?dataset=gnomad_r4`, group: 'Variation' },
       { label: 'ClinVar', url: `https://www.ncbi.nlm.nih.gov/clinvar/?term=${s}%5Bgene%5D`, group: 'Variation' },
       { label: 'GTEx (expression)', url: `https://gtexportal.org/home/gene/${s}`, group: 'Expression' },

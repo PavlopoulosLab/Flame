@@ -8,7 +8,7 @@ import { formatNum, formatP, isHttpUrl, splitGenes } from '../../lib/format'
 import { categoricalColor, reverseScale, sequentialScale, usePaletteMode } from '../../lib/palette'
 
 /** Source colours: configured colours, or Okabe–Ito in colour-blind safe mode. */
-function useSourceColor(config: AppConfig, sources: string[]) {
+export function useSourceColor(config: AppConfig, sources: string[]) {
   const cb = usePaletteMode()
   const keys = [...new Set(sources)].sort()
   return (s: string) => categoricalColor(cb, s, keys, config.datasourceColors[s] ?? '#9ca3af')

@@ -196,7 +196,7 @@ build_view <- function(results, view, filters = list(), top = 20L,
 
   meta <- list(view = view, totalCount = total, filteredCount = filteredCount,
                shownCount = if (is.null(data)) 0L else nrow(data),
-               availableSources = if (total > 0) sort(unique(as.character(results$Source))) else list(),
+               availableSources = if (total > 0) as.list(sort(unique(as.character(results$Source)))) else list(),
                sortBy = sortBy, top = top)
 
   if (is.null(data) || nrow(data) == 0) return(c(meta, list(terms = list())))

@@ -10,6 +10,7 @@ const LOGOS: Record<string, { icon?: string; full?: string; name: string; site: 
   webgestalt: { icon: '/logos/webgestalt.svg', full: '/logos/webgestalt.svg', name: 'WebGestalt', site: 'https://www.webgestalt.org/' },
   genecodis: { icon: '/logos/genecodis-icon.png', full: '/logos/genecodis.png', name: 'GeneCodis', site: 'https://genecodis.genyo.es/' },
   clusterprofiler: { icon: '/logos/clusterprofiler.png', full: '/logos/clusterprofiler.png', name: 'clusterProfiler', site: 'https://bioconductor.org/packages/clusterProfiler/' },
+  reactome: { icon: '/logos/reactome-icon.png', full: '/logos/reactome.png', name: 'Reactome', site: 'https://reactome.org/' },
   panther: { name: 'PANTHER', site: 'https://pantherdb.org/' },
 }
 

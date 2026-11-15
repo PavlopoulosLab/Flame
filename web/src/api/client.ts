@@ -34,13 +34,20 @@ export async function api<T>(
     headers['Content-Type'] = 'application/json'
     body = JSON.stringify(options.body)
   }
-  const res = await fetch(`/api${path}`, {
-    method: options.method ?? (body ? 'POST' : 'GET'),
-    headers,
-    body,
-    signal: options.signal,
-    credentials: 'omit',
-  })
+  let res: Response
+  try {
+    res = await fetch(`/api${path}`, {
+      method: options.method ?? (body ? 'POST' : 'GET'),
+      headers,
+      body,
+      signal: options.signal,
+      credentials: 'omit',
+    })
+  } catch (e) {
+    if ((e as Error)?.name === 'AbortError') throw e
+    // The browser could not reach the Flame server at all (offline, or the server is restarting).
+    throw new ApiError(0, 'The Flame server could not be reached. Check your connection and try again in a moment.')
+  }
   const text = await res.text()
   let data: unknown = null
   if (text) {
@@ -54,7 +61,9 @@ export async function api<T>(
     const message =
       data && typeof data === 'object' && 'error' in data
         ? String((data as { error: unknown }).error)
-        : `Request failed (${res.status})`
+        : res.status === 502 || res.status === 503 || res.status === 504
+          ? 'The Flame server is busy or restarting. Please try again in a moment.'
+          : `Request failed (${res.status})`
     throw new ApiError(res.status, message)
   }
   return data as T

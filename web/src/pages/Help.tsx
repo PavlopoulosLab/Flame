@@ -52,6 +52,10 @@ const FORMATS: Format[] = [
     columns: <>One microRNA per line in miRBase form (<code>hsa-miR-21-5p</code>, <code>hsa-let-7a-5p</code>). A name without <code>-5p</code>/<code>-3p</code> uses both arms. Flame finds their predicted targets (miRDB v6, score &gt; 80) and lets you keep genes hit by several of your microRNAs.</>,
     sample: 'hsa-miR-21-5p\nhsa-miR-17-5p\nhsa-miR-191-5p\nhsa-miR-155-5p',
     notes: <>Example: the 21 microRNAs up-regulated in at least 3 of 6 solid cancers (Volinia et al. 2006, <em>PNAS</em> 103:2257, Table 2), with 2006 names mapped to current miRBase names.</> },
+  { id: 'metabolites', title: 'Metabolite or lipid list', ext: '.txt', use: 'Regulators & drugs → Metabolite pathways', file: '/api/inputs/examples/metabolites/file',
+    columns: <>One metabolite per line: a name (<code>sarcosine</code>, <code>L-proline</code>), a KEGG compound ID (<code>C00213</code>) or a ChEBI ID (<code>CHEBI:15611</code>). Names are matched to KEGG compounds; unmatched entries are listed.</>,
+    sample: 'sarcosine\nuracil\nkynurenine\nglycerol 3-phosphate\nleucine\nproline',
+    notes: <>Example: the six metabolites raised in metastatic prostate cancer and validated by Sreekumar et al. 2009 (<em>Nature</em> 457:910).</> },
   { id: 'snps', title: 'SNP list', ext: '.txt', use: 'From SNPs', file: '/api/inputs/examples/snps/file', example: 'snps',
     columns: <>One dbSNP rsID per line (human).</>, sample: 'rs429358\nrs7412\nrs1801133\nrs6025' },
   { id: 'variants', title: 'Variants', ext: '.txt / .vcf', use: 'Variants and GWAS', file: '/api/variants/examples/variants/file', example: 'variants',
@@ -108,11 +112,11 @@ const TOPICS: Topic[] = [
         <ol className="tutorial">
           <li>
             <h3>Open a workspace</h3>
-            <p>Press <strong>Start an analysis</strong> on the Home tab. Flame creates a private workspace with its own link — bookmark it to come back later. No account is needed.</p>
+            <p>Press <strong>Start an analysis</strong> on the Home tab. Flame creates a private workspace with its own link — bookmark it to come back later.</p>
           </li>
           <li>
             <h3>Add a list</h3>
-            <p>Press <strong>+ Add list</strong> and choose how to provide genes: paste IDs, upload a file, select genes on a volcano or 2D plot, map SNPs, find genes in text, or combine existing lists. Every method has a <em>Load example</em> button.</p>
+            <p>Press <strong>+ Add list</strong> and choose how to provide genes: paste IDs, upload a file, select genes on a volcano or 2D plot, map SNPs, find genes in text, or combine existing lists — or fetch genes from a disease, PubMed articles, a GEO dataset or dbSNP. Every method has a <em>Load example</em> button.</p>
           </li>
           <li>
             <h3>Run enrichment</h3>
@@ -156,6 +160,14 @@ const TOPICS: Topic[] = [
         <p>Paste microRNAs and get their predicted target genes (miRDB v6, MirTarget score &gt; 80, via MSigDB). Keep genes targeted by several of your microRNAs — they are the most likely to be regulated — or click one microRNA to take only its targets, then run enrichment on them. <Example kind="mirna">Example</Example></p>
         <h3>Combining lists (UpSet)</h3>
         <p>Pick 2–6 lists with the same organism and ID type. <em>Only in</em> shows genes unique to each combination, <em>Shared by</em> shows genes common to all lists of a combination, and <em>Union</em> merges them. Click a bar to preview, copy (one per line or comma-separated), download or save it; <em>Copy table</em> and <em>Download</em> export every combination. <Example kind="upset">Example</Example></p>
+        <h3>From public resources</h3>
+        <ul>
+          <li><strong>From a disease</strong> — search a disease or trait. <em>Associated genes</em> come from the Open Targets Platform, ranked by an overall score that combines genetics (GWAS, rare variants), somatic mutations, known drugs, expression, literature and animal models; keep the scores to get a ranked list for GSEA. <em>GWAS variants</em> lists the GWAS Catalog associations (p ≤ 5e-8) with their mapped genes, and can send the variants to a full variant analysis. Gene sets from DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and the GWAS Catalog are matched by name (via Enrichr's libraries). <Example kind="disease">Asthma example</Example></li>
+          <li><strong>From PubMed articles</strong> — give PMIDs, or a PubMed search (the most relevant articles are used). Genes come from NCBI Gene's links to the articles (gene2pubmed: curated links and GeneRIFs) and are ranked by the number of articles. To find gene names in the text itself, use <em>From text</em>. <Example kind="pubmed">PubMed example</Example></li>
+          <li><strong>From a GEO dataset</strong> — search a GEO series (GSE52778) or keywords. RummaGEO (Marino et al. 2024) re-analysed thousands of human and mouse series from ARCHS4 with limma-voom; each pair of sample groups gives an up and a down signature, shown with the groups compared. <Example kind="geo">GSE52778 example</Example></li>
+          <li><strong>From dbSNP</strong> — rsIDs or a dbSNP search (<code>APOE[gene] AND pathogenic[clinical_significance]</code>). Shows each variant's location, genes, consequence, ClinVar significance and allele frequency; save the genes as a list, or annotate the variants in full (Ensembl VEP, gnomAD, ClinVar, GWAS traits) with <em>Annotate variants</em>. <Example kind="dbsnp">dbSNP example</Example></li>
+        </ul>
+        <p>Each source ranks its genes (score, number of articles or variants) where it can: box-select bars to keep particular genes, or keep the top N with the slider. Only your query is sent to the service.</p>
       </>
     ),
   },
@@ -179,6 +191,7 @@ const TOPICS: Topic[] = [
             <tr><td>WebGestalt</td><td>Disease and drug databases (DisGeNET, OMIM, DrugBank, GLAD4U).</td></tr>
             <tr><td>PANTHER</td><td>PANTHER pathways and protein classes with Fisher's exact test.</td></tr>
             <tr><td>GeneCodis</td><td>Regulatory annotations (transcription factors, miRNAs) and co-annotation.</td></tr>
+            <tr><td>Reactome</td><td>Reactome's own Analysis Service (Fabregat et al. 2017; Milacic et al. 2024): the most current Reactome release, curated human pathways and inferred pathways for 15 other species, including disease pathways. Each pathway opens in the Reactome browser with your genes highlighted. Uses the whole Reactome universe (no custom background). <Example kind="reactome">Example</Example></td></tr>
             <tr><td>clusterProfiler</td><td>Runs locally on the MSigDB collections (GO, KEGG, Reactome, WikiPathways, HPO, Hallmark, BioCarta, PID, cell types, ImmuneSigDB, oncogenic signatures) for 20 organisms. The only tool that also does <Link to="/help/gsea">GSEA</Link> on ranked lists.</td></tr>
           </tbody>
         </table>
@@ -250,7 +263,9 @@ const TOPICS: Topic[] = [
         <h3>Search syntax</h3>
         <p>Words must all appear (<code>immune response</code>); use quotes for exact phrases (<code>"cell cycle"</code>), <code>OR</code> for alternatives (<code>apoptosis OR autophagy</code>) and a minus sign to exclude (<code>-mitotic</code>).</p>
         <h3>Selecting and exporting</h3>
-        <p>Click (shift-click to add) or box/lasso-select terms in any view; they collect in the <em>Selected</em> panel with their genes and database links, and stay selected when you switch views. Export the selection as CSV, HTML or print/PDF, figures as PNG or SVG, and tables as CSV. Changes to filters, view settings and the selection can be undone and redone with the ↶ ↷ buttons or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> and <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>.</p>
+        <p>Click (shift-click to add) or box/lasso-select terms in any view; they collect in the <em>Selected</em> panel with their genes and database links, and stay selected when you switch views. Below them, the <strong>Genes</strong> list ranks every gene of the selected terms — by how many selected terms contain it, by how many significant terms contain it (the default when one term is selected), by its score in your list (ranked lists) or by its position in your list. Click a gene to see its terms, open it in gene databases, or add every significant term that contains it.</p>
+        <p><strong>Themes</strong> group overlapping terms that share most of their genes (Jaccard index ≥ the cutoff, Louvain communities), name each theme after its most significant term and summarise it with keywords. The <strong>word cloud</strong> sizes each word of the term names by the summed −log10 p of the terms that use it; click a word to select those terms.</p>
+        <p>Export the selection as CSV, HTML or print/PDF, figures as PNG or SVG, and tables as CSV. Changes to filters, view settings and the selection can be undone and redone with the ↶ ↷ buttons or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> and <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>.</p>
         <p><Example kind="demo">See live sample output</Example></p>
       </>
     ),
@@ -268,6 +283,9 @@ const TOPICS: Topic[] = [
           <li><strong>Overlap (UpSet)</strong> — one column per combination of runs, with the number of terms found by exactly that combination. Click a column to select its terms.</li>
           <li><strong>Chord</strong> — arcs are runs; ribbon width = number of terms two runs share.</li>
           <li><strong>Circos (bundled)</strong> — one sector per run holding the terms it found, in the same order in every run; bundled links join the same term across runs, so consensus terms form thick bundles and run-specific terms have none.</li>
+          <li><strong>Table</strong> — every term with the runs that found it, each run's p-value and genes (or its rank in that run), the agreement and a <strong>consensus rank</strong>: each run ranks its terms by p-value, and Robust Rank Aggregation (Kolde et al. 2012) combines those ranks, so terms ranked high by several runs come first. A run that did not report a term counts it as last.</li>
+          <li><strong>Ranks</strong> — a bump chart of the best consensus terms: one line per term, its rank in each run (log scale). Flat lines at the top = terms all runs agree on; lines dropping to “not found” = terms some runs miss. Click a line to select the term. <Example kind="compare-tools">Compare six tools</Example></li>
+          <li><strong>Themes</strong> — terms grouped into themes across runs, with the runs that support each theme (see <em>Results</em>).</li>
           <li><strong>Bubble plot</strong> — mean fold enrichment against combined significance; bubble size = agreement.</li>
           <li><strong>Heatmap</strong> — −log10 p per term and run; blank cells mean the run did not report the term.</li>
         </ul>
@@ -297,6 +315,39 @@ const TOPICS: Topic[] = [
         <p>Maps a list to the corresponding genes of another organism with g:Orth — useful for running mouse data through human-only resources.</p>
         <h3>Protein interaction network</h3>
         <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Download the network as TSV or PNG, open it in STRING or in Arena3D (each evidence type becomes its own edge channel), or save its proteins as a list.</p>
+      </>
+    ),
+  },
+  {
+    id: 'regulators',
+    title: 'Regulators, drugs and more',
+    body: (
+      <>
+        <p>The <em>Regulators &amp; drugs</em> section of the workspace goes beyond term enrichment. Each analysis runs in the background with a progress bar; results are stored with your workspace and included when you save the session.</p>
+        <h3>Transcription factors and kinases</h3>
+        <p><strong>ChEA3</strong> (Keenan et al. 2019, <em>Nucleic Acids Res</em> 47:W212) ranks transcription factors whose targets — from ChIP-seq (ENCODE, ReMap, literature), co-expression (GTEx, ARCHS4) and co-occurrence — overlap your list. <strong>KEA3</strong> (Kuleshov et al. 2021, <em>Nucleic Acids Res</em> 49:W304) does the same for kinases from substrate, interaction and co-expression data. The <em>mean rank</em> integrates the evidence libraries: lower is stronger. Click or box-select bars to see the factors' target genes in your list, ranked, and save them as a list. Both use human symbols; map other organisms with <em>Find orthologs</em> first.</p>
+        <p className="row wrap"><Example kind="tf">Transcription factors example</Example> <Example kind="kinase">Kinases example</Example></p>
+        <h3>Drugs and perturbations</h3>
+        <p>Give up- and down-regulated genes (for example from a volcano plot). Flame compares them with LINCS L1000 consensus signatures (Subramanian et al. 2017, <em>Cell</em> 171:1437) of compounds or CRISPR knock-outs via Enrichr. <strong>Reverse</strong> = perturbations that push the genes the other way (up genes go down, down genes go up) — candidate treatments; <strong>mimic</strong> = perturbations that cause a similar response. Score = −log10 adjusted p of the up genes plus that of the down genes. These are hypotheses from cell lines, not treatment advice.</p>
+        <p><Example kind="drugs">Drug signatures example</Example></p>
+        <h3>Cell types</h3>
+        <p>Runs an ordinary enrichment against marker-gene collections: PanglaoDB, CellMarker 2024, Azimuth, Tabula Sapiens (Enrichr) and MSigDB C8 (clusterProfiler). Useful for lists from single-cell clusters or deconvolution.</p>
+        <p><Example kind="celltypes">Cell types example (NK cells, PBMC 3k)</Example></p>
+        <h3>Literature enrichment</h3>
+        <p>Choose the <em>Literature</em> sources in a new run: <strong>PubMed</strong> (STRING: articles whose text mentions several of your genes), <strong>GeneSigDB</strong> (gene signatures published in papers) and <strong>Rummagene</strong> (Clarke et al. 2024: about 640,000 gene sets mined from supplementary tables of PubMed Central articles), the last two through Enrichr. Each term links to the article on PubMed or PubMed Central, so the result reads as “papers that reported a gene set like yours”.</p>
+        <p><Example kind="literature">Literature example</Example></p>
+        <h3>Metabolite pathways</h3>
+        <p>Matches metabolite names, KEGG or ChEBI IDs to KEGG compounds and tests the organism's KEGG pathways (hypergeometric test, Benjamini–Hochberg). The result is an ordinary run, so tables, plots, themes and comparisons all work.</p>
+        <p><Example kind="metabolites">Metabolites example (Sreekumar et al. 2009)</Example></p>
+        <h3>Network modules</h3>
+        <p>Builds the STRING network of a list, splits it into modules with Louvain community detection and runs g:Profiler on each module, so a long list becomes a few functional units. Also available from <em>Gene tools → Protein network → Find modules</em>, which colours the network by module.</p>
+        <p><Example kind="modules">Network modules example</Example></p>
+        <h3>Robustness check</h3>
+        <p>Tests whether an enrichment is solid, using MSigDB gene sets locally: <strong>stability</strong> = share of 50 subsamples (80% of the genes) in which a term stays significant; <strong>random rate</strong> = share of 50 random lists of the same size in which it is significant; and the number of terms at several FDR thresholds. Few stable terms, or random lists that give almost as many terms as yours, mean the result should be treated with caution.</p>
+        <p><Example kind="robustness">Robustness example</Example></p>
+        <h3>Pathway activity per sample</h3>
+        <p>In <em>From expression data → Pathway activity</em>, every sample gets a score per pathway: <strong>ssGSEA</strong> (Barbie et al. 2009, rank-based), a <strong>combined z-score</strong> (Lee et al. 2008) or <strong>PROGENy</strong> (Schubert et al. 2018; 14 signalling pathways from footprint genes). The heatmap shows the most variable pathways, scaled per pathway.</p>
+        <p><Example kind="activity">Pathway activity example (airway RNA-seq)</Example></p>
       </>
     ),
   },
@@ -356,7 +407,7 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <h3>Chart palettes</h3>
-        <p>The ◐ menu in the top bar switches the colours of every chart at once:</p>
+        <p>Every visualization has its own palette menu (◐) in its toolbar — on each results tab, each comparison view, the variant report and every dialog with plots. The choice applies only to that visualization and is remembered for it in this browser, so one figure can be colour-blind safe or grayscale while the others keep their colours:</p>
         <ul>
           <li><strong>Flame</strong> — the default colours, matching the logo; annotation sources keep their usual colours.</li>
           <li><strong>Colour-blind safe</strong> — Okabe–Ito categories and the Cividis scale, distinguishable with all common colour-vision deficiencies.</li>
@@ -364,7 +415,7 @@ const TOPICS: Topic[] = [
           <li><strong>Pastel</strong> — soft colours for posters and backgrounds.</li>
           <li><strong>Grayscale (print)</strong> — shades of grey for black-and-white printing.</li>
         </ul>
-        <p>Continuous scales always run from light (weak) to dark (strong). Exported PNG and SVG figures use the palette that is active. The ☾ button switches between light and dark themes. Both choices are kept for the browser session only.</p>
+        <p>Continuous scales always run from light (weak) to dark (strong). Exported PNG and SVG figures use the palette of that visualization. The ☾ button switches between light and dark themes.</p>
         <h3>Undo and redo</h3>
         <p>On result and comparison pages, ↶ and ↷ (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd>) step through changes to the view, filters, settings and selection. In the workspace, deleting or renaming a list, removing a run, or clearing all data shows an <em>Undo</em> button for a few seconds before it takes effect.</p>
         <h3>Selecting in charts</h3>
@@ -396,14 +447,13 @@ const TOPICS: Topic[] = [
     title: 'FAQ',
     body: (
       <dl className="faq">
-        <dt>Do I need an account?</dt><dd>No. Flame is free and open to everyone without login or registration.</dd>
         <dt>A run finished with no significant terms. Why?</dt><dd>The list may be small or functionally diverse, the IDs may not match the organism, or the chosen sources may not cover your genes. Check <em>Run details</em> for unmapped IDs, add sources, or try another tool.</dd>
         <dt>Why do tools give different results?</dt><dd>They use different database versions, statistics and backgrounds. Comparing runs shows where they agree; consensus terms are the most robust.</dd>
         <dt>Fold enrichment is missing.</dt><dd>Some tools do not report the background size needed to compute it. Provide a custom background list, or use gene ratio instead.</dd>
         <dt>I have SNPs or GWAS results, not genes.</dt><dd>Use <Link to="/help/variants">Variants and GWAS</Link>: it annotates the variants, finds the genes and traits they affect, and turns them into a gene list or ranked list for enrichment.</dd>
         <dt>I work with microRNAs. What can Flame do?</dt><dd>Two things. <strong>Starting from microRNAs</strong> (e.g. those changed in your experiment): choose <em>From microRNAs</em> under Add list, paste them, and Flame finds their predicted target genes (miRDB via MSigDB); keep the genes hit by several of your microRNAs and run enrichment on them. <strong>Starting from genes</strong>: run a gene list (or a ranked list with GSEA) against the microRNA sources — miRTarBase in g:Profiler, miRNA annotations in GeneCodis, and MSigDB miRDB target sets in clusterProfiler — to see which microRNAs may regulate it. <Example kind="mirna">Open the microRNA example</Example></dd>
         <dt>Should I use ORA or GSEA?</dt><dd>Use ORA when you have a clear list of genes (e.g. significant hits). Use GSEA when you have scores for all measured genes; it needs no cut-off and detects subtle, coordinated shifts. See <Link to="/help/gsea">Ranked lists (GSEA)</Link>.</dd>
-        <dt>Are the figures colour-blind friendly?</dt><dd>Choose <em>Colour-blind safe</em> in the ◐ palette menu; see <Link to="/help/display">Colours, undo and accessibility</Link>.</dd>
+        <dt>Are the figures colour-blind friendly?</dt><dd>Choose <em>Colour-blind safe</em> in the ◐ palette menu of the figure; see <Link to="/help/display">Colours, undo and accessibility</Link>.</dd>
         <dt>Can I analyse metabolites or lipids?</dt><dd>Not yet — Flame currently analyses genes and proteins.</dd>
         <dt>How do I cite Flame?</dt><dd>See <Link to="/cite">How to cite</Link>.</dd>
         <dt>Can I use Flame from scripts?</dt><dd>Yes — see the <Link to="/api-docs">API page</Link> and the Python example.</dd>

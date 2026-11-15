@@ -2,6 +2,8 @@ import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { useConfig, useOrganismSearch } from '../api/hooks'
 import type { OrganismOption } from '../api/types'
+import { PaletteSelect } from './PaletteSelect'
+import { geneCardsUrl } from '../lib/links'
 
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
@@ -63,9 +65,12 @@ export function Modal({
             <h2 id={titleId}>{title}</h2>
             {subtitle && <p className="muted">{subtitle}</p>}
           </div>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            ×
-          </button>
+          <span className="row modal-actions">
+            <PaletteSelect />
+            <button className="icon-btn" onClick={onClose} aria-label="Close">
+              ×
+            </button>
+          </span>
         </header>
         <div className="modal-body">{children}</div>
         {footer && <footer className="modal-footer">{footer}</footer>}
@@ -323,5 +328,22 @@ export function LinkMenu({ links, label, title = 'Open in genome browsers and da
         ))}
       </div>
     </details>
+  )
+}
+
+/** A gene name that opens its GeneCards page (human genes; plain text otherwise). */
+export function GeneCardsLink({ gene, taxid = 9606, className }: { gene: string; taxid?: number; className?: string }) {
+  const url = geneCardsUrl(gene, taxid)
+  if (!url) return <span className={className}>{gene}</span>
+  return <a className={`genecards-link${className ? ` ${className}` : ''}`} href={url} target="_blank" rel="noopener noreferrer" title={`${gene} in GeneCards`}>{gene}</a>
+}
+
+/** Genes as small chips, each linking to GeneCards (human), with "+N more". */
+export function GeneChips({ genes, taxid = 9606, max = 60 }: { genes: string[]; taxid?: number; max?: number }) {
+  return (
+    <span className="gene-chips">
+      {genes.slice(0, max).map((g) => <GeneCardsLink key={g} gene={g} taxid={taxid} className="gene" />)}
+      {genes.length > max && <span className="muted small">+{genes.length - max} more (copy to get all)</span>}
+    </span>
   )
 }

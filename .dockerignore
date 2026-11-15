@@ -1,0 +1,17 @@
+# Keep the build context small: the image builds the web app itself.
+.git
+**/._*
+**/.DS_Store
+web/node_modules
+web/dist
+web/test-results
+web/playwright-report
+api/data
+*.sqlite
+*.sqlite-*
+*.tar.gz
+.Rproj.user
+.Rhistory
+tests
+data-raw
+docs

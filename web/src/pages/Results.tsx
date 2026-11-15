@@ -8,6 +8,7 @@ import type { NetworkHandle, PlotHandle } from '../components/charts'
 import { CopyButton, ErrorNote, Field, LinkMenu, Modal, Note, OpenExternalButton, Spinner } from '../components/ui'
 import { geneLinks } from '../lib/links'
 import { ToolLogo } from '../components/ToolLogo'
+import { ThemesView } from '../features/themes/Themes'
 import { Arena3DIcon, NormaIcon } from '../components/ExternalIcons'
 import { UndoRedoButtons } from '../components/Undo'
 import { useHistory } from '../lib/history'
@@ -15,6 +16,8 @@ import { useNetworkStyle } from '../lib/networkStyle'
 import { LayoutSelect, NetworkOptions } from '../components/NetworkOptions'
 import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, type ViewSettings } from '../features/results/views'
 import { downloadSvg } from '../components/viz'
+import { PaletteSelect } from '../components/PaletteSelect'
+import { PaletteScope, usePaletteKey } from '../lib/palette'
 import { formatNum, formatP, isHttpUrl, plural, slug, splitGenes, toCsv, toHtmlTable } from '../lib/format'
 
 const LAYOUT_LABELS: Record<string, string> = {
@@ -33,6 +36,7 @@ const VIEW_HELP: Record<string, string> = {
   'network-tt': 'Terms connected when they share genes (edge = similarity %).',
   'network-gg': 'Genes connected when they share terms.',
   table: 'All terms with full statistics. Click a row to select it; click a header to sort.',
+  themes: 'Overlapping terms grouped into functional themes by the genes they share; the word cloud summarises all terms (bigger = more significant). Click words or themes to select their terms.',
   sankey: 'Flows from your genes (left) through the terms they belong to (middle) to annotation sources (right). Wide flows = genes shared by many terms.',
   chord: 'Each arc is a term; ribbons join terms that share genes (ribbon width = number of shared genes). Click an arc or ribbon to select.',
   circos: 'Terms are grouped by annotation source around the circle, with your genes in their own sector. Links join terms to their genes and are bundled through each sector, so shared biology shows as thick bundles. Outer bars: −log10 p for terms, share of terms for genes. Hover a term or gene to trace its links.',
@@ -41,6 +45,7 @@ const VIEW_HELP: Record<string, string> = {
 
 // Extra views built in the browser from existing data (server view in `from`).
 const EXTRA_TABS = [
+  { tabId: 'themes', label: 'Themes & word cloud', icon: '', defaultVisible: true, hasArena3D: false, tabType: 'custom', from: 'table' },
   { tabId: 'sankey', label: 'Sankey (genes → terms)', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'plotly', from: 'heatmap-tg' },
   { tabId: 'chord', label: 'Chord (term overlap)', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'svg', from: 'heatmap-tt' },
   { tabId: 'hive', label: 'Hive plot', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'svg', from: 'heatmap-tg' },
@@ -65,6 +70,10 @@ function useDebounced<T>(value: T, ms = 300) {
 }
 
 export default function ResultsPage() {
+  return <PaletteScope id="results"><ResultsPageBody /></PaletteScope>
+}
+
+function ResultsPageBody() {
   const ws = getWorkspaceId()!
   const { runId = '', tab } = useParams()
   const navigate = useNavigate()
@@ -74,17 +83,18 @@ export default function ResultsPage() {
   const tabs = [...(config?.resultTabs ?? []), ...EXTRA_TABS]
   const [visible, setVisible] = useState<string[]>(() => {
     try {
-      const saved = sessionStorage.getItem('flame-visible-tabs-v2')
+      const saved = sessionStorage.getItem('flame-visible-tabs-v3')
       if (saved) return JSON.parse(saved)
     } catch { /* ignore */ }
-    return ['table', 'dotplot', 'barchart', 'network-tg']
+    return ['table', 'themes', 'dotplot', 'barchart', 'network-tg']
   })
   const view = tab && tabs.some((t) => t.tabId === tab) ? tab : visible[0] ?? 'table'
+  usePaletteKey(view)
   useEffect(() => {
     if (!visible.includes(view)) setVisible((v) => [...v, view])
   }, [view, visible])
   useEffect(() => {
-    try { sessionStorage.setItem('flame-visible-tabs-v2', JSON.stringify(visible)) } catch { /* ignore */ }
+    try { sessionStorage.setItem('flame-visible-tabs-v3', JSON.stringify(visible)) } catch { /* ignore */ }
   }, [visible])
 
   const [filters, setFilters] = useState<ResultFilters>({})
@@ -146,6 +156,7 @@ export default function ResultsPage() {
 
   const gsea = run?.paradigm === 'GSEA'
   const selectedTerms = [...selected].map((id) => termIndex.get(id)).filter((t): t is Term => !!t)
+  const sourceColor = (src: string) => config?.datasourceColors?.[src] ?? '#a1a1aa'
   const isNetwork = view.startsWith('network')
   const isSvg = view === 'chord' || view === 'hive' || view === 'circos'
   const isGsea = run.paradigm === 'GSEA'
@@ -292,6 +303,7 @@ export default function ResultsPage() {
                 )}
                 {view === 'table' && <ColumnPicker columns={columns} setColumns={setColumns} />}
                 <span className="toolbar-spacer" />
+                <PaletteSelect />
                 <UndoRedoButtons h={history} />
                 <ExportMenu items={[
                   ...(isPlot ? [{ label: 'PNG image', run: () => plotRef.current?.toImage('png', baseName) }, { label: 'SVG image', run: () => plotRef.current?.toImage('svg', baseName) }] : []),
@@ -322,13 +334,16 @@ export default function ResultsPage() {
                   case 'chord': return <ChordView {...props} svgRef={svgRef} />
                   case 'hive': return <HiveView {...props} svgRef={svgRef} />
                   case 'circos': return <CircosView {...props} svgRef={svgRef} />
+                  case 'themes': return <ThemesView path={`/runs/${encodeURIComponent(runId)}/themes`} body={{ filters: debouncedFilters }} baseName={baseName}
+                    terms={all.data?.terms ?? []} onSelect={onSelect} colorOf={sourceColor} />
                   default: return view.startsWith('heatmap') ? <HeatmapView {...props} /> : <NetworkView {...props} />
                 }
               })()}
               <p className="muted small">Tip: click, box- or lasso-select items to add them to the selection panel. Shift-click adds to the selection.</p>
             </section>
 
-            <SelectionPanel terms={selectedTerms} config={config} baseName={baseName} taxid={run.organismTaxId} runId={runId} onRemove={(id) => onSelect([id], true)} onClear={() => setSelected(new Set())} />
+            <SelectionPanel terms={selectedTerms} config={config} baseName={baseName} taxid={run.organismTaxId} runId={runId} onRemove={(id) => onSelect([id], true)} onClear={() => setSelected(new Set())}
+              allTerms={all.data?.terms ?? []} listName={run.listName} onSelect={onSelect} />
           </div>
         </>
       )}
@@ -397,8 +412,102 @@ function PathwayLinks({ runId, termId }: { runId: string; termId: string }) {
   )
 }
 
-function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onClear }: { terms: Term[]; config: ReturnType<typeof useConfig>['data']; baseName: string; taxid: number; runId: string; onRemove: (id: string) => void; onClear: () => void }) {
+type GeneRank = 'selected' | 'all' | 'score' | 'input'
+interface RankedGene { gene: string; inSelected: number; inAll: number; score: number | null; position: number | null; terms: string[] }
+
+/**
+ * Genes of the selected terms, ranked (by how many selected terms contain
+ * them, how many significant terms overall, the list's own scores, or their
+ * position in the input list). Click a gene to see its terms and select them.
+ */
+function GeneRanking({ terms, allTerms, listName, taxid, focus, setFocus, onSelect, colorOf }: {
+  terms: Term[]; allTerms: Term[]; listName: string; taxid: number; focus: string | null; setFocus: (g: string | null) => void
+  onSelect: (ids: string[], additive: boolean) => void; colorOf: (source: string) => string | undefined
+}) {
+  const listQ = useQuery({
+    queryKey: ['list-for-genes', getWorkspaceId(), listName],
+    queryFn: () => api<{ ids: string[]; scores?: number[] }>(`/lists/${encodeURIComponent(listName)}`),
+    staleTime: 5 * 60_000, retry: false,
+  })
+  const ranked = !!listQ.data?.scores?.length
+  const [by, setBy] = useState<GeneRank | null>(null)
+  // One term selected: every gene is in it once, so rank by how many significant terms share the gene.
+  const mode: GeneRank = by ?? (ranked ? 'score' : terms.length === 1 ? 'all' : 'selected')
+  const [limit, setLimit] = useState(30)
+  const genes = useMemo(() => {
+    const up = (g: string) => g.toUpperCase()
+    const pos = new Map<string, number>(), sc = new Map<string, number>()
+    ;(listQ.data?.ids ?? []).forEach((g, i) => { if (!pos.has(up(g))) pos.set(up(g), i + 1); const v = listQ.data?.scores?.[i]; if (typeof v === 'number' && !sc.has(up(g))) sc.set(up(g), v) })
+    const allCount = new Map<string, number>()
+    allTerms.forEach((t) => splitGenes(t.genes).forEach((g) => allCount.set(up(g), (allCount.get(up(g)) ?? 0) + 1)))
+    const m = new Map<string, RankedGene>()
+    terms.forEach((t) => splitGenes(t.genes).forEach((g) => {
+      const r = m.get(up(g)) ?? { gene: g, inSelected: 0, inAll: allCount.get(up(g)) ?? 0, score: sc.get(up(g)) ?? null, position: pos.get(up(g)) ?? null, terms: [] }
+      r.inSelected += 1; r.terms.push(t.id); m.set(up(g), r)
+    }))
+    const key = (r: RankedGene) => mode === 'selected' ? -r.inSelected * 1e6 - r.inAll : mode === 'all' ? -r.inAll * 1e3 - r.inSelected
+      : mode === 'score' ? -(Math.abs(r.score ?? 0)) : (r.position ?? 1e9)
+    return [...m.values()].sort((a, b) => key(a) - key(b) || a.gene.localeCompare(b.gene))
+  }, [terms, allTerms, listQ.data, mode])
+  const value = (r: RankedGene) => mode === 'selected' ? r.inSelected : mode === 'all' ? r.inAll : mode === 'score' ? r.score ?? 0 : r.position ?? 0
+  const max = Math.max(1e-9, ...genes.map((r) => Math.abs(value(r))))
+  const fmt = (r: RankedGene) => mode === 'score' ? (r.score == null ? '—' : formatNum(r.score, 3)) : mode === 'input' ? (r.position == null ? '—' : `#${r.position}`) : String(value(r))
+  const f = focus ? genes.find((r) => r.gene === focus) : null
+  const withGene = focus ? allTerms.filter((t) => splitGenes(t.genes).some((g) => g.toUpperCase() === focus.toUpperCase())).map((t) => t.id) : []
+  if (!genes.length) return null
+  return (
+    <section className="gene-rank" aria-label="Genes of the selected terms">
+      <div className="row between wrap">
+        <h3>Genes <span className="count">{genes.length}</span></h3>
+        <CopyButton compact title="Copy the genes in this order" text={genes.map((r) => r.gene).join('\n')} />
+      </div>
+      <label className="small">Rank by{' '}
+        <select className="input input-sm" value={mode} onChange={(e) => { setBy(e.target.value as GeneRank); setLimit(30) }}>
+          <option value="selected">selected terms containing the gene</option>
+          <option value="all">all significant terms containing it</option>
+          {ranked && <option value="score">score in your list (|value|)</option>}
+          <option value="input">position in your list</option>
+        </select>
+      </label>
+      <ol className="gene-rank-list">
+        {genes.slice(0, limit).map((r, i) => {
+          const v = value(r)
+          return (
+            <li key={r.gene} className={focus === r.gene ? 'on' : ''}>
+              <button type="button" className="gene-rank-row" onClick={() => setFocus(focus === r.gene ? null : r.gene)} aria-pressed={focus === r.gene}
+                title={`${r.gene}: in ${r.inSelected} selected and ${r.inAll} significant terms${r.score != null ? ` · score ${r.score}` : ''}${r.position ? ` · #${r.position} in your list` : ''}`}>
+                <span className="muted rank-n">{i + 1}</span>
+                <span className="gene-name">{r.gene}</span>
+                <span className="gene-bar"><i style={{ width: `${(Math.abs(v) / max) * 100}%`, background: mode === 'score' ? (v < 0 ? '#2563eb' : '#e11d48') : undefined }} /></span>
+                <span className="small gene-val">{fmt(r)}</span>
+              </button>
+              {taxid === 9606 && <a className="gc-mini" href={`https://www.genecards.org/cgi-bin/carddisp.pl?gene=${encodeURIComponent(r.gene)}`} target="_blank" rel="noopener noreferrer"
+                title={`${r.gene} in GeneCards`} aria-label={`${r.gene} in GeneCards`}>GC</a>}
+            </li>
+          )
+        })}
+      </ol>
+      {genes.length > limit && <button className="btn btn-ghost btn-sm" onClick={() => setLimit((l) => l + 50)}>Show more ({genes.length - limit} left)</button>}
+      {f && (
+        <div className="gene-focus small">
+          <div className="row between wrap"><strong><LinkMenu label={f.gene} links={geneLinks(f.gene, taxid)} /></strong>
+            <button className="icon-btn" aria-label="Close gene details" onClick={() => setFocus(null)}>×</button></div>
+          <div>In {f.inSelected} of the selected terms{f.score != null ? ` · score ${formatNum(f.score, 3)}` : ''}{f.position ? ` · #${f.position} in ${listName}` : ''}</div>
+          <ul className="plain-list">{f.terms.map((id) => { const t = terms.find((x) => x.id === id); return t ? <li key={id}><span className="dot" style={{ background: colorOf(t.source) }} />{t.name}</li> : null })}</ul>
+          {withGene.length > f.inSelected && <button className="btn btn-secondary btn-sm" onClick={() => onSelect(withGene, true)}>Add all {withGene.length} terms with {f.gene}</button>}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onClear, allTerms, listName, onSelect }: {
+  terms: Term[]; config: ReturnType<typeof useConfig>['data']; baseName: string; taxid: number; runId: string; onRemove: (id: string) => void; onClear: () => void
+  allTerms: Term[]; listName: string; onSelect: (ids: string[], additive: boolean) => void
+}) {
   const [open, setOpen] = useState<string | null>(null)
+  const [focus, setFocus] = useState<string | null>(null)
+  const hasFocus = (t: Term) => !!focus && splitGenes(t.genes).some((g) => g.toUpperCase() === focus.toUpperCase())
   const cols = [{ key: 'source', label: 'Source' }, { key: 'id', label: 'Term ID' }, { key: 'name', label: 'Term' }, { key: 'pvalue', label: 'P-value' }, { key: 'genes', label: 'Genes' }]
   const rows = terms.map((t) => ({ ...t, pvalue: formatP(t.pvalue) }))
   return (
@@ -416,7 +525,7 @@ function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onCle
       {!terms.length && <p className="muted small">Click terms in any view to collect them here, see their genes and export them.</p>}
       <ul className="plain-list">
         {terms.map((t) => (
-          <li key={t.id} className="sel-item">
+          <li key={t.id} className={`sel-item${focus ? (hasFocus(t) ? ' has-gene' : ' no-gene') : ''}`}>
             <div className="row between">
               <button className="sel-title" onClick={() => setOpen(open === t.id ? null : t.id)} aria-expanded={open === t.id}>
                 <span className="dot" style={{ background: config?.datasourceColors[t.source] }} />{t.name}
@@ -439,6 +548,8 @@ function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onCle
           </li>
         ))}
       </ul>
+      {terms.length > 0 && <GeneRanking terms={terms} allTerms={allTerms} listName={listName} taxid={taxid} focus={focus} setFocus={setFocus} onSelect={onSelect}
+        colorOf={(src) => config?.datasourceColors[src]} />}
       {terms.length > 0 && (
         <div className="row wrap">
           <CopyButton text={terms.map((t) => `${t.id}\t${t.name}\t${formatP(t.pvalue)}\t${t.genes}`).join('\n')} />

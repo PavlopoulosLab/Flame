@@ -4,6 +4,7 @@
 # But track these
 !.gitignore
 !.Rbuildignore
+!.dockerignore
 !web/.oxlintrc.json
 
 # macOS resource forks (anywhere in tree)

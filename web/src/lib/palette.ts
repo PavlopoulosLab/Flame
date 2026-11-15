@@ -1,8 +1,9 @@
-import { useSyncExternalStore } from 'react'
+import { createContext, createElement, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from 'react'
 
 /**
- * App-wide chart palette. Every chart reads it, so a figure can be switched
- * to a colour-blind safe, vivid, pastel or print (grayscale) scheme at once.
+ * Chart palettes. Each visualization has its own palette (a PaletteScope,
+ * chosen with PaletteSelect in its toolbar and remembered per view), so one
+ * figure can be colour-blind safe or grayscale while the others keep theirs.
  */
 export type PaletteMode = 'flame' | 'cb' | 'vivid' | 'pastel' | 'gray'
 
@@ -33,8 +34,46 @@ export function setPaletteMode(m: PaletteMode) {
 }
 if (typeof document !== 'undefined') document.documentElement.setAttribute('data-palette', mode)
 
+interface Scope { mode: PaletteMode; setMode: (m: PaletteMode) => void; setKey: (k: string) => void }
+const ScopeContext = createContext<Scope | null>(null)
+const readMode = (k: string): PaletteMode | null => {
+  try { const v = localStorage.getItem(k) as PaletteMode | null; return v && PALETTES.some((p) => p.value === v) ? v : null } catch { return null }
+}
+
+/**
+ * A visualization's own palette. `id` names the visualization (e.g. "results");
+ * a child can refine it per view with usePaletteKey (e.g. the current tab).
+ */
+export function PaletteScope({ id, children }: { id: string; children: ReactNode }) {
+  const [key, setKey] = useState('')
+  const storageKey = `flame-palette:${id}${key ? `:${key}` : ''}`
+  const [modes, setModes] = useState<Record<string, PaletteMode>>({})
+  const current = modes[storageKey] ?? readMode(storageKey) ?? 'flame'
+  const value: Scope = {
+    mode: current,
+    setMode: (m) => { setModes((x) => ({ ...x, [storageKey]: m })); try { localStorage.setItem(storageKey, m) } catch { /* storage unavailable */ } },
+    setKey,
+  }
+  return createElement(ScopeContext.Provider, { value }, children)
+}
+
+/** Remember the palette separately for each view of a scope (e.g. each results tab). */
+export function usePaletteKey(key: string) {
+  const s = useContext(ScopeContext)
+  const setKey = s?.setKey
+  useEffect(() => { setKey?.(key) }, [key, setKey])
+}
+
+/** Palette of the nearest visualization scope (Flame colours outside any scope). */
 export function usePaletteMode(): PaletteMode {
-  return useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l) }, () => mode)
+  const scope = useContext(ScopeContext)
+  const global = useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l) }, () => mode)
+  return scope ? scope.mode : global
+}
+
+/** Setter of the nearest scope (null outside any scope); used by PaletteSelect. */
+export function usePaletteScope() {
+  return useContext(ScopeContext)
 }
 
 /** Back-compat helper: true when the colour-blind safe palette is active. */

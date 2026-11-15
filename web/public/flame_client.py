@@ -2,7 +2,7 @@
 """
 Flame 3.0 API: command-line client and template.
 
-No account or key is needed. Every command creates a private workspace and
+Every command creates a private workspace and
 prints its link, so you can open the same results in the web app.
 
     pip install requests
@@ -22,6 +22,18 @@ prints its link, so you can open the same results in the web app.
     # Expression matrix (genes x samples): two-group comparison, then enrichment
     python flame_client.py expression matrix.tsv --group-a t1,t2,t3 --group-b c1,c2,c3
 
+    # Upstream regulators, drug signatures, network modules, robustness of a list
+    python flame_client.py analysis tf genes.txt
+    python flame_client.py analysis drugs up.txt --down down.txt
+    python flame_client.py analysis robustness genes.txt --sources GO:BP,KEGG,REAC
+    python flame_client.py analysis metabolites metabolites.txt
+
+    # Fetch a gene list from public resources (then optionally enrich it)
+    python flame_client.py fetch disease "asthma" --top 200 --enrich
+    python flame_client.py fetch pubmed "glucocorticoid receptor airway smooth muscle"
+    python flame_client.py fetch geo GSE52778 --signature 1
+    python flame_client.py fetch dbsnp "APOE[gene] AND pathogenic[clinical_significance]"
+
 Add --server https://YOUR-FLAME-SERVER to use another Flame server, and
 --save-session FILE.json to download the whole workspace as a session file.
 """
@@ -39,7 +51,7 @@ TERM_FIELDS = ["source", "id", "name", "pvalue", "nes", "intersection", "termSiz
 class Flame:
     def __init__(self, server):
         self.base = server.rstrip("/")
-        self.api = self.base + "/api"
+        self.api = self.base + "/api/v1"
         self.http = requests.Session()
         self.ws = self.post("/workspace")["id"]
         self.http.headers["X-Flame-Workspace"] = self.ws
@@ -157,6 +169,15 @@ def _read(path):
         return fh.read()
 
 
+def _write_rows(path, rows, fields):
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        w = csv.DictWriter(fh, fieldnames=fields, extrasaction="ignore")
+        w.writeheader()
+        for r in rows:
+            w.writerow({k: (";".join(map(str, v)) if isinstance(v, list) else v) for k, v in r.items()})
+    print(f"  -> {path} ({len(rows)} rows)")
+
+
 # ---- commands --------------------------------------------------------------
 def cmd_enrich(fl, a):
     run_ids = []
@@ -238,6 +259,100 @@ def cmd_expression(fl, a):
     fl.save_terms(fl.wait_runs(fl.start_runs(lst["id"], a.tools.split(","), a.sources.split(","), a.threshold)))
 
 
+def cmd_analysis(fl, a):
+    body = {"type": a.type}
+    if a.type == "metabolites":
+        body.update({"text": _read(a.file), "name": a.file, "organismTaxId": a.organism, "threshold": a.threshold})
+    elif a.type == "drugs":
+        up = fl.add_list(a.file, text=_read(a.file), organism=a.organism)
+        body.update({"upListId": up["id"], "kind": a.kind})
+        if a.down:
+            body["downListId"] = fl.add_list(a.down, text=_read(a.down), organism=a.organism)["id"]
+    else:
+        body["listId"] = fl.add_list(a.file, text=_read(a.file), organism=a.organism)["id"]
+        if a.type == "modules":
+            body["score"] = a.score
+        if a.type == "robustness":
+            body["sources"] = a.sources.split(",")
+    task = fl.post("/analyses", body)
+    print(f"{task['label']}", end="", flush=True)
+    while True:
+        st = fl.get(f"/analyses/{task['id']}")
+        if st["status"] != "running":
+            break
+        print(".", end="", flush=True)
+        time.sleep(3)
+    print()
+    if st["status"] == "error":
+        raise SystemExit(f"Failed: {st.get('error')}")
+    r = st.get("result") or {}
+    if a.type in ("tf", "kinase"):
+        for x in r["regulators"][:15]:
+            print(f"  {x['rank']:>3}  {x['name']:<10} mean rank {x['score']:<8} {len(x['overlap'])} genes")
+        _write_rows(f"flame_{a.type}.csv", [{**x, "overlap": x["overlap"]} for x in r["regulators"]], ["rank", "name", "score", "overlap"])
+    elif a.type == "drugs":
+        for d in ("reverse", "mimic"):
+            print(f"  {d}: " + ", ".join(x["agent"] for x in r[d][:10]))
+            _write_rows(f"flame_drugs_{d}.csv", r[d], ["agent", d, "upInUp", "downInDown", "upInDown", "downInUp"])
+    elif a.type == "modules":
+        for m in r["modules"]:
+            print(f"  module {m['id']}: {m['size']} proteins - {m['label']}")
+        _write_rows("flame_modules.csv", [{"module": m["id"], "label": m["label"], "size": m["size"], "genes": m["genes"]} for m in r["modules"]],
+                    ["module", "label", "size", "genes"])
+    elif a.type == "robustness":
+        print(f"  {r['significant']} significant terms, {r['stable']} stable (>= 80% of subsamples), median {r['medianRandom']} in random lists")
+        _write_rows("flame_robustness.csv", r["terms"], ["id", "name", "source", "padj", "stability", "randomRate"])
+    elif a.type == "metabolites":
+        print(f"  Became enrichment run {st.get('runId')}")
+        fl.save_terms([r for r in fl.get("/runs") if r["id"] == st.get("runId")])
+
+
+def cmd_fetch(fl, a):
+    q = a.query
+    if a.source == "disease":
+        hits = fl.post("/inputs/disease/search", {"query": q})
+        if not hits["diseases"]:
+            raise SystemExit("No disease matches.")
+        d = hits["diseases"][0]
+        print(f"Disease: {d['name']} ({d['id']})")
+        res = fl.post("/inputs/disease/genes", {"source": "opentargets", "id": d["id"], "size": a.top})
+        genes = [g["gene"] for g in res["genes"]]
+        scores = [g["score"] for g in res["genes"]]
+        name = f"{d['name']} (Open Targets)"
+    elif a.source == "pubmed":
+        res = fl.post("/inputs/pubmed/genes", {"query": q, "organismTaxId": a.organism, "max": a.articles})
+        print(f"{res['articles']} articles")
+        res["genes"] = res["genes"][: a.top]
+        genes = [g["gene"] for g in res["genes"]]
+        scores = [g["articles"] for g in res["genes"]]
+        name = f"PubMed: {q[:50]}"
+    elif a.source == "geo":
+        found = fl.post("/inputs/geo/search", {"query": q})
+        for i, s_ in enumerate(found["sets"][:20], 1):
+            c = s_.get("contrast") or {}
+            print(f"  {i:>2}. {s_['gse']} {s_['direction']:<4} {s_['size']:>5} genes  {c.get('b', s_['term'])[:50]} vs {c.get('a', '')[:40]}")
+        if not found["sets"]:
+            raise SystemExit("No GEO signatures match.")
+        pick = found["sets"][max(0, a.signature - 1)]
+        res = fl.post("/inputs/geo/genes", {"id": pick["id"]})
+        genes, scores = [g["gene"] for g in res["genes"]][: a.top], None
+        name = pick["term"]
+    else:
+        res = fl.post("/inputs/dbsnp/lookup", {"query": q})
+        _write_rows("flame_dbsnp_variants.csv", res["variants"], ["rsid", "chrpos", "genes", "consequence", "clinical", "frequency"])
+        genes, scores = [g["gene"] for g in res["genes"]][: a.top], None
+        name = f"dbSNP: {q[:50]}"
+    print(f"{len(genes)} genes: {', '.join(genes[:15])}{' ...' if len(genes) > 15 else ''}")
+    lst = fl.add_list(name[:80], ids=genes, organism=res.get("organismTaxId", a.organism))
+    with open(f"flame_{a.source}_genes.txt", "w", encoding="utf-8") as fh:
+        fh.write("\n".join(genes) + "\n")
+    print(f"  -> flame_{a.source}_genes.txt")
+    if scores and a.ranked:
+        fl.post("/lists", {"name": name[:70] + " (ranked)", "ids": genes, "scores": scores, "organismTaxId": res.get("organismTaxId", a.organism), "uniqueName": True})
+    if a.enrich:
+        fl.save_terms(fl.wait_runs(fl.start_runs(lst["id"], a.tools.split(","), a.sources.split(","), a.threshold)))
+
+
 def main():
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--server", default="http://127.0.0.1:8000", help="Flame server URL")
@@ -250,7 +365,7 @@ def main():
 
     p = sub.add_parser("enrich", parents=[common], help="over-representation analysis of gene lists")
     p.add_argument("files", nargs="+", help="text files with one gene ID per line")
-    p.add_argument("--tools", default="gprofiler,string", help="gprofiler,string,enrichr,webgestalt,panther,genecodis,clusterprofiler")
+    p.add_argument("--tools", default="gprofiler,string", help="gprofiler,string,enrichr,webgestalt,panther,genecodis,clusterprofiler,reactome")
     p.add_argument("--sources", default="GO:BP,GO:MF,GO:CC,KEGG,REAC", help="annotation sources")
     p.add_argument("--stats", action="store_true", help="also print agreement statistics between runs")
     p.add_argument("--pathways", type=int, default=0, metavar="N", help="print KEGG/Reactome map links (genes highlighted) for the top N pathway terms")
@@ -284,6 +399,27 @@ def main():
     p.add_argument("--tools", default="gprofiler")
     p.add_argument("--sources", default="GO:BP,KEGG,REAC")
     p.set_defaults(func=cmd_mirna)
+
+    p = sub.add_parser("analysis", parents=[common], help="regulators, drug signatures, network modules, robustness or metabolite pathways")
+    p.add_argument("type", choices=["tf", "kinase", "drugs", "modules", "robustness", "metabolites"])
+    p.add_argument("file", help="gene list (drugs: up-regulated genes; metabolites: names, KEGG or ChEBI IDs)")
+    p.add_argument("--down", help="drugs: down-regulated genes")
+    p.add_argument("--kind", default="chemical", choices=["chemical", "crispr"], help="drugs: compound or CRISPR signatures")
+    p.add_argument("--score", type=int, default=700, help="modules: minimum STRING score")
+    p.add_argument("--sources", default="GO:BP,KEGG,REAC", help="robustness: MSigDB collections")
+    p.set_defaults(func=cmd_analysis)
+
+    p = sub.add_parser("fetch", parents=[common], help="gene lists from a disease, PubMed, GEO or dbSNP")
+    p.add_argument("source", choices=["disease", "pubmed", "geo", "dbsnp"])
+    p.add_argument("query", help="disease name, PMIDs or PubMed search, GSE accession or keywords, rsIDs or dbSNP search")
+    p.add_argument("--top", type=int, default=200, help="keep the top N genes")
+    p.add_argument("--articles", type=int, default=100, help="pubmed: articles to use for a search")
+    p.add_argument("--signature", type=int, default=1, help="geo: which signature of the search results (1 = first)")
+    p.add_argument("--ranked", action="store_true", help="disease/pubmed: also save the scores as a ranked list (for GSEA)")
+    p.add_argument("--enrich", action="store_true", help="run enrichment on the fetched genes")
+    p.add_argument("--tools", default="gprofiler")
+    p.add_argument("--sources", default="GO:BP,KEGG,REAC")
+    p.set_defaults(func=cmd_fetch)
 
     a = ap.parse_args()
     fl = Flame(a.server)

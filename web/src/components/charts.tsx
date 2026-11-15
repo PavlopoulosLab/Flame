@@ -168,6 +168,8 @@ export interface GraphEdge {
   value?: number
   title?: string
   color?: string
+  /** Per-edge curve (vis-network `smooth`), e.g. to draw parallel edges of a multi-edge network. */
+  smooth?: false | { enabled: boolean; type: string; roundness: number }
 }
 
 const themeColors = () => {
@@ -198,6 +200,7 @@ function graphData(nodes: GraphNode[], edges: GraphEdge[], style: NetworkStyle, 
     if (style.edgeWidth === 'weight' && ed.value !== undefined) out.value = ed.value
     else if (style.edgeWidth === 'auto' && ed.width) out.width = ed.width
     else out.width = 1
+    if (ed.smooth !== undefined) out.smooth = ed.smooth
     return out
   })
   return { nodes: new DataSet(n as never[]), edges: new DataSet(e as never[]) }

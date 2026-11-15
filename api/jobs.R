@@ -140,3 +140,67 @@ notify_by_email <- function(ws, runId) {
   try(curl::send_mail(from, email, body, smtp_server = smtp, use_ssl = "try"), silent = TRUE)
   invisible(TRUE)
 }
+
+# ---- Analysis tasks ----------------------------------------------------------
+# Heavier one-off analyses (regulators, drugs, network modules, robustness,
+# metabolites) run in the same workers. Each is a row of the `analyses` table
+# (results stored as JSON, so they survive restarts and travel in session
+# files); while it runs, its mirai handle and progress file are kept here.
+.flame_tasks <- new.env()
+
+#' `fn` is the name of a flame function (resolved in the worker), `args` its arguments.
+submit_task <- function(ws, type, fn, args, label = type, listId = NULL, meta = list()) {
+  id <- new_object_id()
+  pf <- .progress_file(paste(ws, "task", id))
+  unlink(pf)
+  db_exec("INSERT INTO analyses (id, ws, type, label, list_id, status, meta_json, created) VALUES (?, ?, ?, ?, ?, 'running', ?, ?)",
+          list(id, ws, type, substr(as.character(label), 1, 200), if (is.null(listId) || !nzchar(listId)) NA_character_ else listId,
+               as.character(jsonlite::toJSON(meta, auto_unbox = TRUE, null = "null")), now_s()))
+  m <- mirai::mirai({ options(flame.progress_file = pf); do.call(fn, args) }, fn = fn, args = args, pf = pf)
+  .flame_tasks[[id]] <- list(ws = ws, m = m, progress = pf)
+  id
+}
+
+.task_json <- function(x) as.character(jsonlite::toJSON(x, auto_unbox = TRUE, null = "null", na = "null", digits = NA, force = TRUE, dataframe = "rows"))
+
+#' Collect a finished worker result into the database.
+.task_collect <- function(ws, id) {
+  t <- .flame_tasks[[id]]
+  if (is.null(t) || !identical(t$ws, ws) || mirai::unresolved(t$m)) return(invisible(FALSE))
+  v <- t$m$data
+  if (mirai::is_mirai_error(v) || mirai::is_error_value(v)) {
+    db_exec("UPDATE analyses SET status = 'error', error = ?, finished = ? WHERE ws = ? AND id = ?",
+            list(substr(conditionMessage(v), 1, 400), now_s(), ws, id))
+  } else {
+    db_exec("UPDATE analyses SET status = 'complete', result_json = ?, finished = ? WHERE ws = ? AND id = ?",
+            list(.task_json(v), now_s(), ws, id))
+  }
+  unlink(t$progress)
+  rm(list = id, envir = .flame_tasks)
+  invisible(TRUE)
+}
+
+#' One analysis: status, progress and (withResult) its result; NULL if unknown.
+task_state <- function(ws, id, withResult = TRUE) {
+  .task_collect(ws, id)
+  r <- db_query(paste0("SELECT id, type, label, list_id, status, error, run_id, meta_json, created, finished",
+                       if (withResult) ", result_json" else "", " FROM analyses WHERE ws = ? AND id = ?"), list(ws, id))
+  if (!nrow(r)) return(NULL)
+  # A row still "running" without a worker handle was interrupted by a restart.
+  if (identical(r$status, "running") && is.null(.flame_tasks[[id]])) {
+    msg <- "Interrupted by a server restart. Please run the analysis again."
+    db_exec("UPDATE analyses SET status = 'error', error = ?, finished = ? WHERE ws = ? AND id = ?", list(msg, now_s(), ws, id))
+    r$status <- "error"; r$error <- msg
+  }
+  t <- .flame_tasks[[id]]
+  list(id = r$id, type = r$type, label = r$label, status = r$status, error = if (is.na(r$error)) NULL else r$error,
+       listId = if (is.na(r$list_id)) NULL else r$list_id, runId = if (is.na(r$run_id)) NULL else r$run_id,
+       started = r$created, finished = if (is.na(r$finished)) NULL else r$finished,
+       meta = from_json(r$meta_json) %||% list(),
+       progress = if (identical(r$status, "running"))
+         c(read_progress(t$progress) %||% list(fraction = 0.03, message = "Waiting for a free worker"), list(elapsed = round(now_s() - r$created, 1))) else NULL,
+       result = if (withResult && identical(r$status, "complete") && !is.na(r$result_json))
+         jsonlite::fromJSON(r$result_json, simplifyVector = FALSE) else NULL)
+}
+
+active_task_count <- function(ws) sum(vapply(ls(.flame_tasks), function(k) identical(.flame_tasks[[k]]$ws, ws), logical(1)))

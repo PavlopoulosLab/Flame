@@ -13,22 +13,23 @@ import { formatNum, plural } from '../../lib/format'
 export interface SessionStatus {
   created: number; lastActive: number; expires: number; retentionDays: number; lastSaved: number | null
   state: 'empty' | 'unsaved' | 'saved' | 'changed'
-  counts: { lists: number; maxLists: number; sources: number; runsComplete: number; runsActive: number; runsFailed: number; variantAnalyses: number; variantActive: number }
+  counts: { lists: number; maxLists: number; sources: number; runsComplete: number; runsActive: number; runsFailed: number; variantAnalyses: number; variantActive: number; analyses?: number; analysesActive?: number }
   storageBytes: number; maxSessionBytes: number
 }
 
 interface SessionFile {
   format: string; version?: number; flameVersion?: string; exported?: string; complete?: boolean
-  contents?: { lists: number; sources: number; runs: number; variants: number }
+  contents?: { lists: number; sources: number; runs: number; variants: number; analyses?: number }
   lists?: { name: string; size?: number; ids?: unknown[]; ranked?: boolean; organismName?: string }[]
-  sources?: { name: string }[]; runs?: { title?: string; tool?: string; listName?: string }[]; variants?: { name: string }[]
+  sources?: { name: string }[]; runs?: { title?: string; tool?: string; listName?: string }[]; variants?: { name: string }[]; analyses?: { label: string }[]
   prefs?: Record<string, string>
 }
 
-type Part = 'lists' | 'sources' | 'runs' | 'variants'
+type Part = 'lists' | 'sources' | 'runs' | 'variants' | 'analyses'
 const PARTS: { key: Part; label: string }[] = [
   { key: 'lists', label: 'Gene lists' }, { key: 'sources', label: 'Custom gene sets' },
   { key: 'runs', label: 'Finished enrichment results' }, { key: 'variants', label: 'Variant / GWAS analyses' },
+  { key: 'analyses', label: 'Regulator, drug, module and robustness analyses' },
 ]
 const PREF_SKIP = new Set(['flame-last-workspace'])
 
@@ -62,7 +63,7 @@ const STATE_LABEL: Record<SessionStatus['state'], { text: string; cls: string; h
 export function SessionStatusPill({ status, onOpen }: { status?: SessionStatus; onOpen: (tab: Tab) => void }) {
   if (!status) return null
   const st = STATE_LABEL[status.state]
-  const active = status.counts.runsActive + status.counts.variantActive
+  const active = status.counts.runsActive + status.counts.variantActive + (status.counts.analysesActive ?? 0)
   return (
     <div className="session-pill" role="status">
       <button type="button" className={`session-state ${st.cls}`} title={st.hint} onClick={() => onOpen('status')}>
@@ -161,6 +162,7 @@ function StatusPanel({ ws, status, onSave }: { ws: string; status?: SessionStatu
         <dt>Gene lists</dt><dd>{c.lists} of {c.maxLists}</dd>
         <dt>Enrichment runs</dt><dd>{c.runsComplete} finished{c.runsActive ? `, ${c.runsActive} running` : ''}{c.runsFailed ? `, ${c.runsFailed} failed` : ''}</dd>
         <dt>Variant analyses</dt><dd>{c.variantAnalyses}{c.variantActive ? ` (${c.variantActive} running)` : ''}</dd>
+        <dt>Other analyses</dt><dd>{c.analyses ?? 0}{c.analysesActive ? ` (${c.analysesActive} running)` : ''}</dd>
         <dt>Custom gene sets</dt><dd>{c.sources}</dd>
         <dt>Stored data</dt><dd>about {mb(status.storageBytes)} (session files load up to {mb(status.maxSessionBytes)})</dd>
       </dl>
@@ -171,7 +173,7 @@ function StatusPanel({ ws, status, onSave }: { ws: string; status?: SessionStatu
 
 function SavePanel({ ws, runs, status }: { ws: string; runs: Run[]; status?: SessionStatus }) {
   const finished = runs.filter((r) => r.status === 'complete')
-  const [parts, setParts] = useState<Set<Part>>(new Set(['lists', 'sources', 'runs', 'variants']))
+  const [parts, setParts] = useState<Set<Part>>(new Set(['lists', 'sources', 'runs', 'variants', 'analyses']))
   const [runIds, setRunIds] = useState<Set<string>>(new Set(finished.map((r) => r.id)))
   const [prefs, setPrefs] = useState(true)
   const [compress, setCompress] = useState(typeof CompressionStream !== 'undefined')
@@ -202,7 +204,7 @@ function SavePanel({ ws, runs, status }: { ws: string; runs: Run[]; status?: Ses
         {PARTS.map((p) => (
           <label key={p.key} className="check"><input type="checkbox" checked={parts.has(p.key)} onChange={() => setParts(toggle(parts, p.key))} /> {p.label}</label>
         ))}
-        <label className="check"><input type="checkbox" checked={prefs} onChange={(e) => setPrefs(e.target.checked)} /> Display settings (theme, chart palette, network style, visible result tabs)</label>
+        <label className="check"><input type="checkbox" checked={prefs} onChange={(e) => setPrefs(e.target.checked)} /> Display settings (theme, network style, visible result tabs)</label>
       </fieldset>
       {parts.has('runs') && finished.length > 0 && (
         <fieldset className="plain-fieldset">
@@ -236,7 +238,7 @@ function LoadPanel({ ws, onDone }: { ws: string; onDone: () => void }) {
   const navigate = useNavigate()
   const undoToast = useUndoToast()
   const [file, setFile] = useState<{ name: string; data: SessionFile; text: string } | null>(null)
-  const [parts, setParts] = useState<Set<Part>>(new Set(['lists', 'sources', 'runs', 'variants']))
+  const [parts, setParts] = useState<Set<Part>>(new Set(['lists', 'sources', 'runs', 'variants', 'analyses']))
   const [prefs, setPrefs] = useState(true)
   const [mode, setMode] = useState<'add' | 'replace' | 'new'>('add')
   const [busy, setBusy] = useState(false)
@@ -256,7 +258,7 @@ function LoadPanel({ ws, onDone }: { ws: string; onDone: () => void }) {
   }
   const counts = file && {
     lists: file.data.lists?.length ?? 0, sources: file.data.sources?.length ?? 0,
-    runs: file.data.runs?.length ?? 0, variants: file.data.variants?.length ?? 0,
+    runs: file.data.runs?.length ?? 0, variants: file.data.variants?.length ?? 0, analyses: file.data.analyses?.length ?? 0,
   }
   const load = async () => {
     if (!file) return
@@ -271,9 +273,9 @@ function LoadPanel({ ws, onDone }: { ws: string; onDone: () => void }) {
         snapshot = await api<unknown>('/workspace/export', { workspace: ws })
       }
       const body = JSON.parse(file.text)
-      const r = await api<{ lists: number; runs: number; sources: number; variants: number; skipped: string[] }>(`/workspace/import?${q}`, { body, workspace: target })
+      const r = await api<{ lists: number; runs: number; sources: number; variants: number; analyses?: number; skipped: string[] }>(`/workspace/import?${q}`, { body, workspace: target })
       if (prefs && file.data.prefs) applyPrefs(file.data.prefs)
-      const msg = `Loaded ${plural(r.lists, 'list')}, ${plural(r.runs, 'run')}, ${plural(r.variants, 'variant analysis', 'variant analyses')} and ${plural(r.sources, 'gene set collection')}${r.skipped.length ? ` (${r.skipped.length} skipped: ${r.skipped.slice(0, 3).join('; ')})` : ''}.`
+      const msg = `Loaded ${plural(r.lists, 'list')}, ${plural(r.runs, 'run')}, ${plural(r.variants, 'variant analysis', 'variant analyses')}, ${plural(r.analyses ?? 0, 'other analysis', 'other analyses')} and ${plural(r.sources, 'gene set collection')}${r.skipped.length ? ` (${r.skipped.length} skipped: ${r.skipped.slice(0, 3).join('; ')})` : ''}.`
       if (mode === 'new') {
         setWorkspaceId(target)
         onDone()

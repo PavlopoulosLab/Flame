@@ -11,12 +11,15 @@ import { ChordDiagram, CircosBundle, SetOverlapUpSet, downloadSvg } from '../com
 import { UndoRedoButtons } from '../components/Undo'
 import { ComparisonStatistics } from '../features/compare/Statistics'
 import { CompareTable } from '../features/compare/CompareTable'
+import { RankChart } from '../features/compare/RankChart'
+import { ThemesView } from '../features/themes/Themes'
 import { Arena3DIcon } from '../components/ExternalIcons'
 import { useHistory } from '../lib/history'
 import { formatNum, formatP, plural, splitGenes, toCsv, toHtmlTable } from '../lib/format'
-import { categoricalColor, reverseScale, roleColors, sequentialScale, usePaletteMode } from '../lib/palette'
+import { categoricalColor, PaletteScope, reverseScale, roleColors, sequentialScale, usePaletteKey, usePaletteMode } from '../lib/palette'
+import { PaletteSelect } from '../components/PaletteSelect'
 
-type View = 'table' | 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats'
+type View = 'table' | 'ranks' | 'themes' | 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats'
 const SORTS = [{ value: '-log10Pvalue', label: 'Combined significance' }, { value: 'Fold Enrichment', label: 'Fold enrichment' }, { value: 'Agreement', label: 'Agreement between runs' }]
 
 function useDebounced<T>(v: T, ms = 300) {
@@ -26,11 +29,16 @@ function useDebounced<T>(v: T, ms = 300) {
 }
 
 export default function ComparePage() {
+  return <PaletteScope id="compare"><ComparePageBody /></PaletteScope>
+}
+
+function ComparePageBody() {
   const ws = getWorkspaceId()!
   const [params] = useSearchParams()
   const runIds = (params.get('runs') ?? '').split(',').filter(Boolean)
   const { data: config } = useConfig()
   const [view, setView] = useState<View>('table')
+  usePaletteKey(view)
   const [filters, setFilters] = useState<ComparisonFilters>({ runsMode: 'any' })
   const [top, setTop] = useState<number | 'all'>(20)
   const [sortBy, setSortBy] = useState('-log10Pvalue')
@@ -49,7 +57,7 @@ export default function ComparePage() {
 
   const q = useQuery({
     queryKey: ['compare', ws, runIds.join(','), view, f, top, sortBy],
-    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' || view === 'table' ? 'overview' : view, filters: f, top, sortBy, settings: { labels } } }),
+    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' || view === 'table' || view === 'ranks' || view === 'themes' ? 'overview' : view, filters: f, top, sortBy, settings: { labels } } }),
     enabled: runIds.length >= 2,
     placeholderData: keepPreviousData,
   })
@@ -91,13 +99,14 @@ export default function ComparePage() {
 
       <nav className="view-tabs" aria-label="Comparison views">
         <span className="tabs-undo">
+          <PaletteSelect />
           <UndoRedoButtons h={history} />
           <OpenExternalButton path="/comparisons/arena3d" label="Arena3D" caption="runs as 3D layers" icon={<Arena3DIcon />} body={{ runIds, filters: f, top: top === 'all' ? 'all' : Math.max(Number(top), 30), sortBy }}
             title="Open in Arena3D: one 3D layer per run with the terms it found, a layer of genes, and links between the same term in different runs" />
         </span>
-        {(['table', 'overview', 'stats', 'upset', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
+        {(['table', 'ranks', 'themes', 'overview', 'stats', 'upset', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
           <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
-            { table: '☰ Table', overview: 'Overview', stats: '∑ Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
+            { table: '☰ Table', ranks: '↕ Ranks', themes: '☁ Themes', overview: 'Overview', stats: '∑ Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
         ))}
       </nav>
 
@@ -211,11 +220,19 @@ export default function ComparePage() {
               onSelect={onSelect} labels={labels}
               colors={Object.fromEntries(q.data.runs.map((r, i, all) => [r.id, categoricalColor(pm, r.tool, all.map((x) => x.tool), ['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4])]))} />
           )}
+          {view === 'ranks' && q.data && (
+            <RankChart terms={q.data.terms} runs={q.data.runs.filter((r) => q.data!.activeRunIds.includes(r.id))} selected={selected} onSelect={onSelect} labels={labels}
+              colorOf={(src) => categoricalColor(pm, src, q.data?.availableSources ?? [], config.datasourceColors[src])} />
+          )}
+          {view === 'themes' && (
+            <ThemesView path="/comparisons/themes" body={{ runIds, filters: f }} baseName="flame_comparison" terms={all.data?.terms ?? []}
+              onSelect={onSelect} colorOf={(src) => categoricalColor(pm, src, q.data?.availableSources ?? [], config.datasourceColors[src])} />
+          )}
           {view === 'stats' && q.data && (
             <ComparisonStatistics runIds={runIds} filters={f} onSelect={onSelect}
               colors={Object.fromEntries(q.data.runs.map((r, i, all) => [r.id, categoricalColor(pm, r.tool, all.map((x) => x.tool), ['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4])]))} />
           )}
-          {view !== 'overview' && view !== 'upset' && view !== 'chord' && view !== 'circos' && view !== 'stats' && view !== 'table' && (
+          {view !== 'overview' && view !== 'upset' && view !== 'chord' && view !== 'circos' && view !== 'stats' && view !== 'table' && view !== 'ranks' && view !== 'themes' && (
             <div className="toolbar">
               <label>Show <select className="input input-sm" value={String(top)} onChange={(e) => setTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                 {[10, 20, 30, 50].map((n) => <option key={n} value={n}>top {n}</option>)}<option value="all">all</option></select></label>

@@ -33,9 +33,15 @@ host <- Sys.getenv("FLAME_HOST", "127.0.0.1")
 
 pr <- plumber::pr(file.path(FLAME_ROOT, "api", "plumber.R"))
 routeDir <- file.path(FLAME_ROOT, "api", "routes")
+# Each route file is served at /api/v1/<name> (the versioned, documented API)
+# and at /api/<name> (the same endpoints, used by the web app).
 for (f in sort(list.files(routeDir, pattern = "\\.R$", full.names = TRUE))) {
-  pr <- plumber::pr_mount(pr, paste0("/api/", sub("\\.R$", "", basename(f))), plumber::pr(f))
+  name <- sub("\\.R$", "", basename(f))
+  pr <- plumber::pr_mount(pr, paste0("/api/v1/", name), plumber::pr(f))
+  pr <- plumber::pr_mount(pr, paste0("/api/", name), plumber::pr(f))
 }
+source(file.path(FLAME_ROOT, "api", "openapi.R"))
+pr <- plumber::pr_set_api_spec(pr, flame_openapi)
 
 # ---- Web app (production build) on the same origin --------------------------
 dist <- file.path(FLAME_ROOT, "web", "dist")
@@ -50,7 +56,10 @@ if (dir.exists(dist)) {
   # Static root files (favicon, logo, theme-init.js, examples) and SPA fallback.
   pr <- plumber::pr_filter(pr, "spa", function(req, res) {
     path <- req$PATH_INFO
-    if (startsWith(path, "/api/") || startsWith(path, "/assets/") || startsWith(path, "/__docs__")) {
+    # The API, the bundled assets and the interactive API reference (Swagger UI
+    # and the OpenAPI spec it loads) are answered by plumber itself.
+    if (startsWith(path, "/api/") || startsWith(path, "/assets/") || startsWith(path, "/__docs__") ||
+        path %in% c("/openapi.json", "/__swagger__", "/__swagger__/")) {
       return(plumber::forward())
     }
     file <- normalizePath(file.path(dist, sub("^/", "", path)), mustWork = FALSE)

@@ -674,6 +674,10 @@ ORAEnrichmentSession <- R6::R6Class(
       # Literature (PUBMED from STRING)
       df <- private$attachLinksToDF(df, "PUBMED", "https://pubmed.ncbi.nlm.nih.gov/", gSub = "PMID:")
 
+      # Published signatures from Enrichr: GeneSigDB terms start with the PMID,
+      # Rummagene terms with the PubMed Central id of the paper.
+      df <- private$attachLiteratureLinks(df)
+
       # KEGG (special handling)
       df <- private$attachKEGGLinksToDF(df)
 
@@ -697,6 +701,23 @@ ORAEnrichmentSession <- R6::R6Class(
           "' target='_blank' rel='noopener noreferrer'>",
           htmltools::htmlEscape(linksVector), "</a>"
         )
+      }
+      df
+    },
+
+    attachLiteratureLinks = function(df) {
+      for (src in c("GENESIGDB", "RUMMAGENE")) {
+        m <- which(df$Source == src)
+        if (!length(m)) next
+        ids <- df$Term_ID[m]
+        name <- sub("^[A-Z]+:", "", ids)
+        url <- if (src == "GENESIGDB") {
+          ifelse(grepl("^[0-9]{5,9}", name), paste0("https://pubmed.ncbi.nlm.nih.gov/", sub("^([0-9]{5,9}).*", "\\1", name), "/"), NA)
+        } else {
+          { pmc <- regmatches(name, regexpr("PMC[0-9]+", name)); hit <- grepl("PMC[0-9]+", name); u <- rep(NA_character_, length(name)); u[hit] <- paste0("https://www.ncbi.nlm.nih.gov/pmc/articles/", pmc, "/"); u }
+        }
+        ok <- !is.na(url)
+        df$Term_ID[m[ok]] <- paste0("<a href='", url[ok], "' target='_blank' rel='noopener noreferrer'>", htmltools::htmlEscape(ids[ok]), "</a>")
       }
       df
     },

@@ -109,6 +109,9 @@ db_exec <- function(sql, params = list()) DBI::dbExecute(db(), sql, params = par
 
 # ---- Workspaces -------------------------------------------------------------
 
+# Per-address counter of new workspaces (shared by /api and /api/v1).
+.flame_ws_creations <- new.env()
+
 create_workspace <- function() {
   id <- new_workspace_id()
   db_exec("INSERT INTO workspaces (id, created, last_seen) VALUES (?, ?, ?)", list(id, now_s(), now_s()))
@@ -134,7 +137,8 @@ workspace_fingerprint <- function(ws) {
          paste("L", id, name, nchar(ids_json), nchar(sc))),
     with(db_query("SELECT id, status FROM runs WHERE ws = ? ORDER BY id", list(ws)), paste("R", id, status)),
     with(db_query("SELECT id, name FROM sources WHERE ws = ? ORDER BY id", list(ws)), paste("S", id, name)),
-    with(db_query("SELECT id, name, status FROM variant_analyses WHERE ws = ? ORDER BY id", list(ws)), paste("V", id, name, status))
+    with(db_query("SELECT id, name, status FROM variant_analyses WHERE ws = ? ORDER BY id", list(ws)), paste("V", id, name, status)),
+    with(db_query("SELECT id, label, status FROM analyses WHERE ws = ? ORDER BY id", list(ws)), paste("A", id, label, status))
   )
   substr(sodium::bin2hex(sodium::sha256(charToRaw(enc2utf8(paste(parts, collapse = "\n"))))), 1, 16)
 }
@@ -144,24 +148,27 @@ workspace_status <- function(ws) {
   w <- db_query("SELECT created, last_seen, last_export, export_fingerprint FROM workspaces WHERE id = ?", list(ws))
   runs <- db_query("SELECT status, COUNT(*) AS n FROM runs WHERE ws = ? GROUP BY status", list(ws))
   va <- db_query("SELECT status, COUNT(*) AS n FROM variant_analyses WHERE ws = ? GROUP BY status", list(ws))
+  an <- db_query("SELECT status, COUNT(*) AS n FROM analyses WHERE ws = ? GROUP BY status", list(ws))
   cnt <- function(df, st) sum(df$n[df$status %in% st])
   bytes <- db_query("SELECT
       COALESCE((SELECT SUM(LENGTH(ids_json) + COALESCE(LENGTH(scores_json), 0)) FROM lists WHERE ws = ?1), 0) +
       COALESCE((SELECT SUM(COALESCE(LENGTH(result_blob), 0)) FROM runs WHERE ws = ?1), 0) +
       COALESCE((SELECT SUM(LENGTH(gmt_json)) FROM sources WHERE ws = ?1), 0) +
-      COALESCE((SELECT SUM(COALESCE(LENGTH(result_blob), 0)) FROM variant_analyses WHERE ws = ?1), 0) AS b", list(ws))$b
+      COALESCE((SELECT SUM(COALESCE(LENGTH(result_blob), 0)) FROM variant_analyses WHERE ws = ?1), 0) +
+      COALESCE((SELECT SUM(COALESCE(LENGTH(result_json), 0)) FROM analyses WHERE ws = ?1), 0) AS b", list(ws))$b
   fp <- workspace_fingerprint(ws)
   lastExport <- if (is.na(w$last_export)) NULL else w$last_export
   nLists <- db_query("SELECT COUNT(*) AS n FROM lists WHERE ws = ?", list(ws))$n
   nSources <- db_query("SELECT COUNT(*) AS n FROM sources WHERE ws = ?", list(ws))$n
-  empty <- nLists + sum(runs$n) + nSources + sum(va$n) == 0
+  empty <- nLists + sum(runs$n) + nSources + sum(va$n) + sum(an$n) == 0
   list(
     created = w$created, lastActive = w$last_seen, expires = w$last_seen + FLAME_LIMITS$retentionDays * 86400,
     retentionDays = FLAME_LIMITS$retentionDays, lastSaved = lastExport,
     state = if (empty) "empty" else if (is.null(lastExport)) "unsaved" else if (identical(fp, w$export_fingerprint)) "saved" else "changed",
     counts = list(lists = nLists, maxLists = FLAME_LIMITS$maxLists, sources = nSources,
                   runsComplete = cnt(runs, "complete"), runsActive = cnt(runs, c("queued", "running")), runsFailed = cnt(runs, "error"),
-                  variantAnalyses = sum(va$n), variantActive = cnt(va, c("queued", "running"))),
+                  variantAnalyses = sum(va$n), variantActive = cnt(va, c("queued", "running")),
+                  analyses = sum(an$n), analysesActive = cnt(an, "running")),
     storageBytes = as.numeric(bytes), maxSessionBytes = FLAME_LIMITS$maxSessionBytes
   )
 }
@@ -171,6 +178,10 @@ delete_workspace_data <- function(ws, keepWorkspace = TRUE) {
   db_exec("DELETE FROM lists WHERE ws = ?", list(ws))
   db_exec("DELETE FROM sources WHERE ws = ?", list(ws))
   db_exec("DELETE FROM variant_analyses WHERE ws = ?", list(ws))
+  for (k in ls(.flame_tasks)) if (identical(.flame_tasks[[k]]$ws, ws)) {
+    try(mirai::stop_mirai(.flame_tasks[[k]]$m), silent = TRUE); rm(list = k, envir = .flame_tasks)
+  }
+  db_exec("DELETE FROM analyses WHERE ws = ?", list(ws))
   if (!keepWorkspace) db_exec("DELETE FROM workspaces WHERE id = ?", list(ws))
   invisible(TRUE)
 }

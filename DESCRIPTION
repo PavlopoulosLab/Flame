@@ -8,7 +8,7 @@ Authors@R: c(
     )
 Description: A web platform for functional and literature enrichment analysis
     of multiple gene lists. Runs and combines g:Profiler, STRING, Enrichr,
-    WebGestalt, PANTHER, GeneCodis, clusterProfiler (MSigDB; ORA and GSEA with
+    WebGestalt, PANTHER, GeneCodis, Reactome, clusterProfiler (MSigDB; ORA and GSEA with
     fgsea) and custom GMT gene sets, annotates variants and GWAS results with
     Ensembl VEP, compares runs with
     Fisher's combined probability test, and serves a REST API (plumber) and a
@@ -36,11 +36,13 @@ Imports:
     fgsea,
     msigdbr,
     igraph,
+    Matrix,
     htmltools,
     tools,
     stats,
     utils,
     plumber,
+    httpuv,
     mirai,
     later,
     DBI,
@@ -48,6 +50,7 @@ Imports:
     sodium,
     mime
 Suggests:
+    progeny,
     pkgload,
     testthat (>= 3.0.0),
     httptest2,

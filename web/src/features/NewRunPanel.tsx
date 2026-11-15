@@ -22,8 +22,10 @@ const METRIC_HELP: Record<string, string> = {
 
 interface ToolSettings { correction?: string; threshold?: number; backgroundListId?: string }
 
-export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; onClose: () => void }) {
+export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; onClose: () => void; preset?: 'celltypes' | 'literature' }) {
   const { data: config } = useConfig()
+  const cellTypeSources = config?.datasourceCategories.find((c) => c.category === 'Cell types')?.sources.map((s) => s.id) ?? []
+  const literatureSources = config?.datasourceCategories.find((c) => c.category === 'Literature')?.sources.map((s) => s.id) ?? []
   const start = useStartRuns()
   const invalidateWs = useInvalidateWorkspace()
   const [loadingExample, setLoadingExample] = useState(false)
@@ -32,7 +34,7 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
   const usableLists = paradigm === 'GSEA' ? lists.filter((l) => l.ranked) : lists
   const [listId, setListId] = useState(initialListId ?? lists[0]?.id ?? '')
   const list = usableLists.find((l) => l.id === listId) ?? usableLists[0]
-  const [tools, setTools] = useState<string[]>(initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
+  const [tools, setTools] = useState<string[]>(preset === 'celltypes' ? ['enrichr', 'clusterprofiler'] : preset === 'literature' ? ['string', 'enrichr'] : initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
   const toolOffers = (key: string) => (config?.tools.find((t) => t.key === key)?.paradigms ?? ['ORA']).includes(paradigm)
   useEffect(() => {
     setTools((ts) => {
@@ -50,7 +52,8 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
   const [result, setResult] = useState<{ created: string[]; reused: string[]; skipped: { tool: string; reason: string }[] } | null>(null)
 
   useEffect(() => {
-    if (config && !datasources.length) setDatasources(config.defaultDatasources)
+    if (config && !datasources.length) setDatasources(preset === 'celltypes' ? cellTypeSources : preset === 'literature' ? literatureSources : config.defaultDatasources)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, datasources.length])
 
   const support = useQuery({
@@ -162,6 +165,10 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
             <span className="row">
               <button className="btn btn-ghost btn-sm" onClick={() => setDatasources([...supportedSources])}>Select all</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setDatasources(config?.defaultDatasources ?? [])}>Defaults</button>
+              {cellTypeSources.length > 0 && <button className="btn btn-ghost btn-sm" title="PanglaoDB, CellMarker, Azimuth, Tabula Sapiens and MSigDB C8 marker sets (Enrichr and clusterProfiler)"
+                onClick={() => { setParadigm('ORA'); setTools((t) => [...new Set([...t, 'enrichr', 'clusterprofiler'])]); setDatasources(cellTypeSources) }}>Cell types</button>}
+              {literatureSources.length > 0 && <button className="btn btn-ghost btn-sm" title="PubMed (STRING), GeneSigDB and Rummagene (Enrichr): published gene sets"
+                onClick={() => { setParadigm('ORA'); setTools((t) => [...new Set([...t, 'string', 'enrichr'])]); setDatasources(literatureSources) }}>Literature</button>}
               <button className="btn btn-ghost btn-sm" onClick={() => setDatasources([])}>Clear</button>
             </span>
           </div>

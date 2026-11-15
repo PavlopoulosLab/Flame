@@ -14,13 +14,15 @@ import { formatNum, plural } from '../lib/format'
 import { JobsWindow, ProgressBar, type JobProgress } from '../components/Progress'
 import { ToolLogo } from '../components/ToolLogo'
 import { ConceptIcon, IconLabel } from '../components/Icons'
+import { AnalysesPanel } from '../features/analyses/Analyses'
+import { startTask } from '../features/analyses/tasks'
 import { SessionModal, SessionStatusPill, useSaveShortcut, useSessionStatus, type Tab as SessionTab } from '../features/session/Session'
 
 type Dialog =
   | { type: 'picker' }
-  | { type: 'input'; kind: InputKind; example?: boolean; text?: string; fileName?: string }
+  | { type: 'input'; kind: InputKind; example?: boolean; text?: string; fileName?: string; view?: string }
   | { type: 'quick'; action: QuickAction; listId?: string }
-  | { type: 'newRun'; listId?: string }
+  | { type: 'newRun'; listId?: string; preset?: 'celltypes' | 'literature' }
   | { type: 'gmt' }
   | { type: 'session'; tab?: SessionTab }
   | null
@@ -50,6 +52,7 @@ export default function WorkspacePage() {
       () => delRun.mutate(r.id))
   }
   const [exampleNote, setExampleNote] = useState<string | null>(null)
+  const [openTask, setOpenTask] = useState<string | null>(null)
 
   // Preloaded examples, one per analysis option. Started from the Home tab
   // (?example=<kind>) or the Examples menu in the rail.
@@ -69,6 +72,11 @@ export default function WorkspacePage() {
       const up = await api<AnalyteList>('/lists', { body: { name: 'Example up-regulated', ids: d.up, organismTaxId: 9606, uniqueName: true, meta: { source: 'example', method: 'volcano' } } })
       const down = await api<AnalyteList>('/lists', { body: { name: 'Example down-regulated', ids: d.down, organismTaxId: 9606, uniqueName: true, meta: { source: 'example', method: 'volcano' } } })
       return { up, down, both: [...d.up, ...d.down] }
+    }
+    const toRegulators = () => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', 'regulators'); n.delete('example'); return n }, { replace: true })
+    const runTask = async (body: Record<string, unknown>, note: string) => {
+      const t = await startTask(body)
+      toRegulators(); setOpenTask(t.id); setExampleNote(note)
     }
     const startRuns = (body: Record<string, unknown>) => api<{ created: string[] }>('/runs', { body: { threshold: 0.05, ...body } })
     const preselect = (ids: string[]) => setSelected(ids)
@@ -96,7 +104,7 @@ export default function WorkspacePage() {
       }
       case 'compare-tools': {
         const list = await exampleList()
-        const r = await startRuns({ listId: list.id, tools: ['gprofiler', 'string', 'enrichr', 'panther', 'clusterprofiler'], datasources: ['GO:BP', 'KEGG', 'REAC'] })
+        const r = await startRuns({ listId: list.id, tools: ['gprofiler', 'string', 'enrichr', 'panther', 'clusterprofiler', 'reactome'], datasources: ['GO:BP', 'KEGG', 'REAC'] })
         preselect(r.created)
         setExampleNote(`Compare tools: the same 200 genes run through ${r.created.length} tools on GO:BP, KEGG and Reactome. The runs are preselected — press Compare when they finish, then open Statistics to see how far the tools agree.`)
         break
@@ -120,6 +128,13 @@ export default function WorkspacePage() {
         setExampleNote('Compare lists: up- and down-regulated genes of the example experiment, each analysed with g:Profiler. Press Compare when both finish to see which functions go up, which go down and which are shared.')
         break
       }
+      case 'reactome': {
+        const list = await exampleList()
+        const r = await startRuns({ listId: list.id, tools: ['reactome', 'gprofiler'], datasources: ['REAC'] })
+        preselect(r.created)
+        setExampleNote('Reactome example: the 200 dexamethasone genes are analysed by Reactome\'s own Analysis Service and, for comparison, by g:Profiler on its copy of Reactome. Open the Reactome run and click a pathway: “Pathway links” opens the diagram with your genes highlighted. Press Compare to see where the two analyses agree.')
+        break
+      }
       case 'gmt': {
         const gmt = await api<{ text: string; name: string }>('/inputs/examples/gmt')
         const src = await api<{ id: string }>('/sources', { body: { name: gmt.name, text: gmt.text } })
@@ -134,16 +149,71 @@ export default function WorkspacePage() {
         setDialog({ type: 'quick', action: 'ppi', listId: list.id })
         break
       }
+      case 'tf':
+      case 'kinase': {
+        const { up } = await deLists()
+        await runTask({ type: kind, listId: up.id }, kind === 'tf'
+          ? 'Transcription factors example: ChEA3 ranks the factors that may drive the 200 genes raised by dexamethasone in airway cells (Himes et al. 2014). Glucocorticoid-response factors such as FOXO1, KLF15 and NR4A1 should rank high.'
+          : 'Kinases example: KEA3 ranks kinases whose substrates and partners are over-represented among the genes raised by dexamethasone (Himes et al. 2014); SGK1-related and metabolic kinases are expected.')
+        break
+      }
+      case 'drugs': {
+        const { up, down } = await deLists()
+        await runTask({ type: 'drugs', upListId: up.id, downListId: down.id, kind: 'chemical' },
+          'Drug signatures example: the up- and down-regulated genes of the dexamethasone experiment are compared with LINCS L1000 compound signatures. Glucocorticoids (dexamethasone, hydrocortisone) should appear under “mimic”, and the glucocorticoid-receptor antagonist mifepristone under “reverse” — a built-in sanity check.')
+        break
+      }
+      case 'celltypes': {
+        const ex = await api<{ text: string }>('/inputs/examples/reduction')
+        const rows = ex.text.split('\n').map((l) => l.split('\t'))
+        const ci = rows[0].indexOf('cell_type')
+        const nk = rows.slice(1).filter((r) => r[ci] === 'NK cells').map((r) => r[0])
+        const list = await api<AnalyteList>('/lists', { body: { name: 'Example NK-cell genes (PBMC 3k)', ids: nk, organismTaxId: 9606, uniqueName: true, meta: { source: 'example', method: 'reduction' } } })
+        const cfg = await api<{ datasourceCategories: { category: string; sources: { id: string }[] }[] }>('/config', { workspace: null })
+        const ct = cfg.datasourceCategories.find((c) => c.category === 'Cell types')?.sources.map((x) => x.id) ?? []
+        await startRuns({ listId: list.id, tools: ['enrichr', 'clusterprofiler'], datasources: ct })
+        setExampleNote(`Cell types example: the ${nk.length} genes of the NK-cell island of the PBMC 3k UMAP (10x Genomics; Zheng et al. 2017) are tested against PanglaoDB, CellMarker, Azimuth, Tabula Sapiens and MSigDB C8 marker sets. NK cells should come out on top.`)
+        break
+      }
+      case 'literature': {
+        const list = await exampleList()
+        const cfg = await api<{ datasourceCategories: { category: string; sources: { id: string }[] }[] }>('/config', { workspace: null })
+        const lit = cfg.datasourceCategories.find((c) => c.category === 'Literature')?.sources.map((x) => x.id) ?? []
+        await startRuns({ listId: list.id, tools: ['string', 'enrichr'], datasources: lit })
+        setExampleNote('Literature example: the 200 dexamethasone genes are tested against PubMed (STRING), GeneSigDB published signatures and Rummagene gene sets from PubMed Central papers. Glucocorticoid and asthma studies should rank high; each term links to its article.')
+        break
+      }
+      case 'metabolites': {
+        const ex = await api<{ text: string }>('/inputs/examples/metabolites')
+        await runTask({ type: 'metabolites', text: ex.text, name: 'Prostate cancer metabolites (Sreekumar 2009)', organismTaxId: 9606 },
+          'Metabolite pathways example: six metabolites raised in metastatic prostate cancer (sarcosine, uracil, kynurenine, glycerol 3-phosphate, leucine, proline; Sreekumar et al. 2009, Nature) are mapped to KEGG and tested against KEGG pathways. The result opens as a normal run.')
+        break
+      }
+      case 'modules': {
+        const list = await exampleList()
+        await runTask({ type: 'modules', listId: list.id, score: 700 },
+          'Network modules example: the STRING network of the 200 dexamethasone genes is split into modules (Louvain) and each module is enriched with g:Profiler — a long list becomes a few functional units.')
+        break
+      }
+      case 'robustness': {
+        const list = await exampleList()
+        await runTask({ type: 'robustness', listId: list.id, sources: ['GO:BP', 'KEGG', 'REAC', 'HALLMARK'] },
+          'Robustness example: are the terms enriched in the 200 dexamethasone genes stable? 50 subsamples of 80% of the genes and 50 random lists of the same size are tested against GO:BP, KEGG, Reactome and Hallmark.')
+        break
+      }
+      case 'activity':
+        setDialog({ type: 'input', kind: 'expression', example: true, view: 'activity' })
+        return
       case 'variants':
       case 'gwas':
         navigate(`/w/${ws}/variants?example=${kind}`)
         return
       default:
-        if (['upload', 'snps', 'textmining', 'volcano', 'reduction', 'expression', 'mirna'].includes(kind)) setDialog({ type: 'input', kind: kind as InputKind, example: true })
+        if (['upload', 'snps', 'textmining', 'volcano', 'reduction', 'expression', 'mirna', 'disease', 'pubmed', 'geo', 'dbsnp'].includes(kind)) setDialog({ type: 'input', kind: kind as InputKind, example: true })
         return
     }
     invalidate()
-  }, [invalidate, navigate, ws])
+  }, [invalidate, navigate, ws, setParams])
 
   useEffect(() => {
     const kind = params.get('example')
@@ -293,6 +363,12 @@ export default function WorkspacePage() {
 
           {section === 'variants' && <VariantsPanel ws={ws} onExample={loadExample} />}
 
+          {section === 'regulators' && (
+            <AnalysesPanel lists={lists} onAddList={() => setDialog({ type: 'picker' })} open={openTask} setOpen={setOpenTask}
+              onExample={(k) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))}
+              onCellTypes={() => setDialog({ type: 'newRun', preset: 'celltypes' })} onLiterature={() => setDialog({ type: 'newRun', preset: 'literature' })} />
+          )}
+
           {section === 'tools' && (
             <section className="sec-panel sec-tools" aria-label="Gene and protein tools">
               <div className="page-header"><div><h1>Gene and protein tools</h1><p className="muted">Work on one of your lists; results can be saved as new lists.</p></div></div>
@@ -316,7 +392,7 @@ export default function WorkspacePage() {
       )}
       {dialog?.type === 'input' && (
         <InputModal key={`${dialog.kind}-${dialog.fileName ?? ''}`} kind={dialog.kind} example={dialog.example} lists={lists} onClose={() => setDialog(null)}
-          initialText={dialog.text} initialFileName={dialog.fileName}
+          initialText={dialog.text} initialFileName={dialog.fileName} initialView={dialog.view}
           onOpenVolcano={(text, fileName) => setDialog({ type: 'input', kind: 'volcano', text, fileName })}
           onCreated={(list) => setDialog({ type: 'newRun', listId: list.id })} />
       )}
@@ -324,7 +400,7 @@ export default function WorkspacePage() {
         <QuickActionModal action={dialog.action} lists={lists} initialListId={dialog.listId} onClose={() => setDialog(null)} />
       )}
       {dialog?.type === 'newRun' && (
-        <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} onClose={() => setDialog(null)} />
+        <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} preset={dialog.preset} onClose={() => setDialog(null)} />
       )}
       {dialog?.type === 'gmt' && <GmtModal onClose={() => setDialog(null)} />}
       <JobsWindow runs={runs} ws={ws} />
@@ -475,15 +551,29 @@ function GmtModal({ onClose }: { onClose: () => void }) {
 export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[] = [
   { kind: 'demo', title: 'Gene list → two tools', text: '200 genes through g:Profiler and STRING' },
   { kind: 'gsea', title: 'Ranked list (GSEA)', text: 'All genes of an experiment, ranked by change' },
-  { kind: 'compare-tools', title: 'Compare tools', text: 'One list, five enrichment tools' },
+  { kind: 'compare-tools', title: 'Compare tools', text: 'One list, six enrichment tools' },
+  { kind: 'reactome', title: 'Reactome pathways', text: 'Reactome Analysis Service vs g:Profiler' },
   { kind: 'compare-strategies', title: 'Compare strategies', text: 'GSEA on all genes vs ORA on significant genes' },
   { kind: 'compare-lists', title: 'Compare lists', text: 'Up- vs down-regulated genes' },
   { kind: 'gmt', title: 'Custom gene sets', text: 'MSigDB Hallmark uploaded as GMT' },
   { kind: 'ppi', title: 'Protein network', text: 'STRING interactions of an example list' },
+  { kind: 'tf', title: 'Transcription factors', text: 'ChEA3 on genes raised by dexamethasone' },
+  { kind: 'kinase', title: 'Kinases', text: 'KEA3 on the same genes' },
+  { kind: 'drugs', title: 'Drug signatures', text: 'LINCS: which compounds mimic or reverse dexamethasone' },
+  { kind: 'celltypes', title: 'Cell types', text: 'Marker genes of NK cells (PBMC 3k)' },
+  { kind: 'literature', title: 'Literature', text: 'Papers reporting gene sets like yours' },
+  { kind: 'metabolites', title: 'Metabolite pathways', text: 'Prostate cancer metabolites → KEGG' },
+  { kind: 'modules', title: 'Network modules', text: 'STRING modules, each enriched' },
+  { kind: 'robustness', title: 'Robustness check', text: 'Bootstrap and random-list controls' },
+  { kind: 'activity', title: 'Pathway activity', text: 'ssGSEA / PROGENy scores per sample' },
   { kind: 'volcano', title: 'Volcano plot', text: 'Select up- and down-regulated genes' },
   { kind: 'reduction', title: 'UMAP / 2D plot', text: 'Lasso a cluster on a UMAP of single cells' },
   { kind: 'expression', title: 'Expression matrix', text: 'Clusters, gene map, two-group comparison' },
   { kind: 'mirna', title: 'microRNAs', text: 'From miRNAs to their target genes' },
+  { kind: 'disease', title: 'Disease genes', text: 'Asthma: Open Targets, DisGeNET, OMIM, GWAS' },
+  { kind: 'pubmed', title: 'PubMed genes', text: 'Genes of articles on glucocorticoids in airway muscle' },
+  { kind: 'geo', title: 'GEO signature', text: 'GSE52778: dexamethasone vs untreated airway cells' },
+  { kind: 'dbsnp', title: 'dbSNP variants', text: 'Pathogenic APOE variants and their genes' },
   { kind: 'variants', title: 'Variants', text: 'rsIDs and VCF lines → genes and traits' },
   { kind: 'gwas', title: 'GWAS results', text: 'Summary statistics → loci, genes, traits' },
 ]
@@ -509,9 +599,10 @@ function ExamplesMenu({ onPick }: { onPick: (kind: string) => Promise<void> | vo
   )
 }
 
-type WorkspaceSection = 'enrich' | 'variants' | 'tools'
+type WorkspaceSection = 'enrich' | 'regulators' | 'variants' | 'tools'
 const SECTIONS: { id: WorkspaceSection; label: string; hint: string; icon: string }[] = [
   { id: 'enrich', label: 'Enrichment', hint: 'ORA and GSEA of your lists, comparisons', icon: 'run' },
+  { id: 'regulators', label: 'Regulators & drugs', hint: 'TFs, kinases, drugs, cell types, robustness', icon: 'regulators' },
   { id: 'variants', label: 'Variants & GWAS', hint: 'From variants to genes and traits', icon: 'variants' },
   { id: 'tools', label: 'Gene tools', hint: 'ID conversion, orthologs, STRING network', icon: 'ppi' },
 ]

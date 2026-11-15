@@ -20,15 +20,27 @@ const EXAMPLES = [
   { kind: 'variants', title: 'Variant analysis', text: 'Annotate SNPs and VCF variants: consequence, impact, gnomAD frequency, ClinVar and traits.', tag: 'New' },
   { kind: 'gwas', title: 'GWAS results', text: 'Alzheimer’s disease loci (Bellenguez et al. 2022): Manhattan plot, genes, traits and GSEA.', tag: 'New' },
   { kind: 'mirna', title: 'microRNAs', text: 'The solid-cancer microRNA signature of Volinia et al. 2006 → target genes → enrichment.', tag: 'New' },
+  { kind: 'disease', title: 'Genes of a disease', text: 'Asthma genes from Open Targets (scored), DisGeNET, OMIM, Orphanet, ClinVar and the GWAS Catalog.', tag: 'New' },
+  { kind: 'pubmed', title: 'Genes from PubMed', text: 'Genes linked to the articles of a PubMed search, ranked by how many articles mention them.', tag: 'New' },
+  { kind: 'geo', title: 'Genes from GEO', text: 'Up- or down-regulated genes of GEO series GSE52778 (Himes et al. 2014), via RummaGEO.', tag: 'New' },
+  { kind: 'dbsnp', title: 'dbSNP variants', text: 'Pathogenic APOE variants from dbSNP: locations, ClinVar, frequencies and genes.', tag: 'New' },
   { kind: 'snps', title: 'SNPs to genes', text: 'Map dbSNP rsIDs to the genes they affect.' },
   { kind: 'textmining', title: 'Text mining', text: 'Find gene and protein names in an abstract or any free text.' },
   { kind: 'upset', title: 'Set operations', text: 'Build intersections and unions of several lists with an UpSet plot.' },
   { kind: 'gsea', title: 'Ranked list (GSEA)', text: 'All genes of the airway dexamethasone experiment ranked by change, tested with GSEA.', tag: 'New' },
-  { kind: 'compare-tools', title: 'Compare tools', text: 'One list through five tools, with agreement statistics and plots.', tag: 'New' },
+  { kind: 'compare-tools', title: 'Compare tools', text: 'One list through six tools (including Reactome), with agreement statistics, consensus ranks and plots.', tag: 'New' },
+  { kind: 'reactome', title: 'Reactome pathways', text: 'Reactome\'s own Analysis Service, with each pathway diagram showing your genes; compared with g:Profiler.', tag: 'New' },
   { kind: 'compare-strategies', title: 'Compare strategies', text: 'GSEA on all genes vs. over-representation on the significant ones.', tag: 'New' },
   { kind: 'compare-lists', title: 'Up vs. down', text: 'Up- and down-regulated genes analysed and compared side by side.' },
   { kind: 'gmt', title: 'Custom gene sets', text: 'Upload gene sets as a GMT file (here: MSigDB Hallmark) and test them.' },
   { kind: 'ppi', title: 'Protein network', text: 'STRING interactions among your proteins; select and save sub-networks.' },
+  { kind: 'tf', title: 'Transcription factors', text: 'Which factors drive the dexamethasone response? ChEA3 on the airway up-regulated genes.', tag: 'New' },
+  { kind: 'drugs', title: 'Drug signatures', text: 'LINCS L1000: glucocorticoids mimic the dexamethasone signature, mifepristone reverses it.', tag: 'New' },
+  { kind: 'celltypes', title: 'Cell types', text: 'Genes of the NK-cell island of the PBMC 3k UMAP against PanglaoDB, CellMarker and Azimuth.', tag: 'New' },
+  { kind: 'metabolites', title: 'Metabolite pathways', text: 'Metabolites of metastatic prostate cancer (Sreekumar et al. 2009) mapped to KEGG pathways.', tag: 'New' },
+  { kind: 'modules', title: 'Network modules', text: 'Split the STRING network of a list into modules and enrich each one.', tag: 'New' },
+  { kind: 'robustness', title: 'Robustness check', text: 'Bootstrap subsamples and random lists: how stable is the enrichment?', tag: 'New' },
+  { kind: 'activity', title: 'Pathway activity', text: 'Score Hallmark pathways or PROGENy signalling in every airway sample (ssGSEA).', tag: 'New' },
 ]
 
 const VIEWS = [
@@ -66,9 +78,8 @@ export default function HomePage() {
             <span className="hero-tagline">Functional Analysis and Integration <em>made easy</em></span>
           </h1>
           <p className="lead">
-            Run functional and literature enrichment on one or many gene lists with seven established tools, combine their
-            results, and explore them with interactive plots and networks. Free and open to everyone — no login, no
-            registration.
+            Run functional and literature enrichment on one or many gene lists with eight established tools, combine their
+            results, and explore them with interactive plots and networks. Free and open to everyone.
           </p>
           <div className="hero-actions">
             <Link className="btn btn-primary btn-lg" to="/start?new=1">
@@ -180,7 +191,6 @@ export default function HomePage() {
         <div>
           <h2>Open by design</h2>
           <ul className="checklist">
-            <li>No login, registration or email needed.</li>
             <li>Your data stays private: only people with your workspace link can see it.</li>
             <li>Workspaces are deleted after {config?.limits.retentionDays ?? 30} days of inactivity, or whenever you choose.</li>
             <li>No tracking or advertising cookies.</li>

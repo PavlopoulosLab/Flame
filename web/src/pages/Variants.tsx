@@ -8,7 +8,8 @@ import { EmptyState, ErrorNote, Field, FileDrop, LinkMenu, Note, OpenExternalBut
 import { geneLinks, variantLinks } from '../lib/links'
 import { Arena3DIcon } from '../components/ExternalIcons'
 import { formatP, plural, toCsv } from '../lib/format'
-import { categorical, roleColors, usePaletteMode } from '../lib/palette'
+import { categorical, PaletteScope, roleColors, usePaletteMode } from '../lib/palette'
+import { PaletteSelect } from '../components/PaletteSelect'
 import { CircosBundle, downloadSvg } from '../components/viz'
 import { ProgressBar, type JobProgress } from '../components/Progress'
 
@@ -35,6 +36,10 @@ function useImpactColors(): Record<string, string> {
 const CHR_ORDER = [...Array.from({ length: 22 }, (_, i) => String(i + 1)), 'X', 'Y', 'MT']
 
 export default function VariantsPage() {
+  return <PaletteScope id="variants"><VariantsPageBody /></PaletteScope>
+}
+
+function VariantsPageBody() {
   const ws = getWorkspaceId()!
   const { analysisId } = useParams()
   const navigate = useNavigate()
@@ -55,6 +60,7 @@ export default function VariantsPage() {
           <h1>Variant analysis</h1>
           <p className="muted small">Start from SNPs, small variants or GWAS results: see their consequences, affected genes, population frequencies, clinical significance and known trait associations — then take the genes into enrichment.</p>
         </div>
+        <PaletteSelect />
       </header>
       <div className="variants-layout">
         <aside className="stack">

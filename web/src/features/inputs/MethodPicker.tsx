@@ -2,7 +2,7 @@ import type { AnalyteList } from '../../api/types'
 import { Modal } from '../../components/ui'
 import { ConceptIcon } from '../../components/Icons'
 
-export type InputKind = 'upload' | 'snps' | 'textmining' | 'volcano' | 'reduction' | 'upset' | 'expression' | 'mirna'
+export type InputKind = 'upload' | 'snps' | 'textmining' | 'volcano' | 'reduction' | 'upset' | 'expression' | 'mirna' | 'disease' | 'pubmed' | 'geo' | 'dbsnp'
 
 export const METHODS: { kind: InputKind; title: string; text: string; needsLists?: number }[] = [
   { kind: 'upload', title: 'Paste or upload IDs', text: 'Gene or protein identifiers, one per line or separated by commas.' },
@@ -11,6 +11,10 @@ export const METHODS: { kind: InputKind; title: string; text: string; needsLists
   { kind: 'expression', title: 'From expression data', text: 'Upload a genes × samples matrix: pick co-expressed clusters, lasso a gene map, or compare two groups of samples.' },
   { kind: 'mirna', title: 'From microRNAs', text: 'Paste microRNAs (e.g. hsa-miR-21-5p) and get the genes they are predicted to target (miRDB).' },
   { kind: 'snps', title: 'From SNPs', text: 'Map dbSNP rsIDs (human) to the genes they affect.' },
+  { kind: 'disease', title: 'From a disease', text: 'Genes of a disease: Open Targets scores, DisGeNET, OMIM, Orphanet, ClinVar, GWAS Catalog.' },
+  { kind: 'pubmed', title: 'From PubMed articles', text: 'Genes linked to articles (PMIDs or a PubMed search), ranked by number of articles.' },
+  { kind: 'geo', title: 'From a GEO dataset', text: 'Up- or down-regulated genes of a GEO series (RummaGEO signatures).' },
+  { kind: 'dbsnp', title: 'From dbSNP', text: 'rsIDs or a dbSNP search → variants, ClinVar significance and their genes.' },
   { kind: 'textmining', title: 'From text', text: 'Find gene and protein names in an abstract or any free text.' },
   { kind: 'upset', title: 'Combine lists', text: 'Intersections, unique parts and unions of your lists (UpSet plot).', needsLists: 2 },
 ]

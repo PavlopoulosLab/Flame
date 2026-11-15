@@ -380,7 +380,7 @@ EnrichRORAStrategy <- R6::R6Class("EnrichRORAStrategy",
         ids <- paste0(config$idPrefix, ids)
       }
 
-      return(list(terms = terms, ids = ids))
+      return(list(terms = terms, ids = ids, rows = patternHits))
     },
 
     splitEnrichrTermIds = function(enrichrResult, organismShortName) {
@@ -389,8 +389,10 @@ EnrichRORAStrategy <- R6::R6Class("EnrichRORAStrategy",
         return(enrichrResult)
       }
 
-      terms <- c()
-      ids <- c()
+      # Default for libraries whose terms carry no database ID (cell-type
+      # markers, drug signatures...): the term name, prefixed by its source.
+      terms <- as.character(enrichrResult$Term)
+      ids <- paste0(enrichrResult$database, ":", terms)
 
       patternsToUse <- c("GO", "REAC", "WP", "DO", "WBP", "WBBT", "ORPHA", "HP")
 
@@ -410,8 +412,10 @@ EnrichRORAStrategy <- R6::R6Class("EnrichRORAStrategy",
         config <- private$termPatterns[[patternKey]]
         if (!is.null(config)) {
           result <- private$parseEnrichrTermsForDb(enrichrResult, config)
-          terms <- c(terms, result$terms)
-          ids <- c(ids, result$ids)
+          if (length(result$rows)) {
+            terms[result$rows] <- result$terms
+            ids[result$rows] <- result$ids
+          }
         }
       }
 

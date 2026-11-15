@@ -5,8 +5,9 @@ import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
 import { plural } from '../../lib/format'
-import { categorical, roleColors, usePaletteMode } from '../../lib/palette'
+import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
 import { METHODS, type InputKind } from './MethodPicker'
+import { FetchInput } from './FetchInput'
 
 interface Props {
   kind: InputKind
@@ -19,9 +20,15 @@ interface Props {
   initialFileName?: string
   /** Open the volcano selector with a table (used by the expression input). */
   onOpenVolcano?: (text: string, fileName: string) => void
+  /** Expression input: open on a given view (e.g. 'activity'). */
+  initialView?: string
 }
 
 export function InputModal(props: Props) {
+  return <PaletteScope id={`input-${props.kind}`}><InputModalBody {...props} /></PaletteScope>
+}
+
+function InputModalBody(props: Props) {
   const title = METHODS.find((m) => m.kind === props.kind)?.title ?? 'Add a list'
   switch (props.kind) {
     case 'upload':
@@ -39,6 +46,11 @@ export function InputModal(props: Props) {
       return <ExpressionInput {...props} title={title} />
     case 'mirna':
       return <MirnaInput {...props} title={title} />
+    case 'disease':
+    case 'pubmed':
+    case 'geo':
+    case 'dbsnp':
+      return <FetchInput mode={props.kind} title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
   }
 }
 
@@ -66,7 +78,7 @@ function ExampleSource({ text }: { text: string | null }) {
 }
 
 /** Shared "save as list" footer: name, organism, ID format. */
-function SaveList({
+export function SaveList({
   ids,
   scores,
   defaultName,
@@ -667,14 +679,14 @@ interface ExprOverview {
   genes: ExprGene[]; heatmap: { genes: string[]; clusters: number[]; z: number[][] }; clusterSizes: Record<string, number>; variance: number[]
 }
 
-function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano }: P) {
+function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, initialView }: P) {
   const [text, setText] = useState('')
   const [fileName, setFileName] = useState('')
   const [topN, setTopN] = useState(1000)
   const [k, setK] = useState(6)
   const [logMode, setLogMode] = useState<'auto' | 'yes' | 'no'>('auto')
   const [ov, setOv] = useState<ExprOverview | null>(null)
-  const [view, setView] = useState<'clusters' | 'map' | 'groups'>('clusters')
+  const [view, setView] = useState<'clusters' | 'map' | 'groups' | 'activity'>(initialView === 'activity' ? 'activity' : 'clusters')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [groups, setGroups] = useState<Record<string, 'A' | 'B' | ''>>({})
   const [busy, setBusy] = useState(false)
@@ -740,7 +752,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano }: 
               <label>Clusters <input className="input input-sm input-narrow" type="number" min={2} max={20} value={k} onChange={(e) => setK(Number(e.target.value))} /></label>
             </div>
             <Segmented label="View" value={view} onChange={setView}
-              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }]} />
+              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }, { value: 'activity', label: 'Pathway activity' }]} />
             {view === 'clusters' && (
               <div className="expr-clusters">
                 <Plot height={Math.min(560, 120 + ov.heatmap.genes.length * 0.5)} data={[{
@@ -791,7 +803,8 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano }: 
                 {note && <Note kind="info">{note}</Note>}
               </div>
             )}
-            {view !== 'groups' && (
+            {view === 'activity' && <PathwayActivity text={text} fileName={fileName} log={log} organism={organism} />}
+            {(view === 'clusters' || view === 'map') && (
               <>
                 <div className="row wrap">
                   <span className="small"><strong>{plural(sel.size, 'gene')}</strong> selected</span>
@@ -808,6 +821,75 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano }: 
         )}
       </div>
     </Modal>
+  )
+}
+
+interface ActivityResult { method: string; citation: string; samples: string[]; pathways: string[]; scores: number[][]; totalPathways: number }
+
+/** Per-sample pathway scores (ssGSEA, combined z-score or PROGENy) as an interactive heatmap. */
+function PathwayActivity({ text, fileName, log, organism }: { text: string; fileName: string; log: boolean | null; organism: number }) {
+  const [method, setMethod] = useState<'ssgsea' | 'zscore' | 'progeny'>('ssgsea')
+  const [source, setSource] = useState('HALLMARK')
+  const [res, setRes] = useState<ActivityResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+  const [scale, setScale] = useState(true)
+  const [sel, setSel] = useState<string[]>([])
+  const run = () => {
+    setBusy(true); setErr(null); setSel([])
+    api<ActivityResult>('/inputs/expression/activity', { body: { text, fileName, log, method, sources: [source], organismTaxId: organism } })
+      .then(setRes).catch(setErr).finally(() => setBusy(false))
+  }
+  const z = useMemo(() => {
+    if (!res) return []
+    if (!scale) return res.scores
+    return res.scores.map((row) => {
+      const m = row.reduce((a, b) => a + b, 0) / row.length
+      const sd = Math.sqrt(row.reduce((a, b) => a + (b - m) ** 2, 0) / Math.max(1, row.length - 1)) || 1
+      return row.map((v) => Math.round(((v - m) / sd) * 100) / 100)
+    })
+  }, [res, scale])
+  const tsv = res ? ['pathway\t' + res.samples.join('\t'), ...res.pathways.map((p, i) => `${p}\t${res.scores[i].join('\t')}`)].join('\n') : ''
+  return (
+    <div className="stack-sm">
+      <p className="muted small">Scores each pathway in each sample, so you can see which programmes are on or off per sample or group — no comparison needed.</p>
+      <div className="row wrap">
+        <Field label="Method">
+          <select className="input" value={method} onChange={(e) => setMethod(e.target.value as typeof method)}>
+            <option value="ssgsea">ssGSEA (rank-based)</option><option value="zscore">Combined z-score</option><option value="progeny">PROGENy (14 signalling pathways)</option>
+          </select>
+        </Field>
+        {method !== 'progeny' && (
+          <Field label="Gene sets">
+            <select className="input" value={source} onChange={(e) => setSource(e.target.value)}>
+              <option value="HALLMARK">MSigDB Hallmark (50)</option><option value="KEGG">KEGG</option><option value="REAC">Reactome</option><option value="WP">WikiPathways</option><option value="GO:BP">GO biological process</option>
+            </select>
+          </Field>
+        )}
+        <button className="btn btn-primary align-end" disabled={busy} onClick={run}>{busy ? 'Scoring…' : res ? 'Score again' : 'Score pathways'}</button>
+      </div>
+      <ErrorNote error={err} />
+      {busy && <Spinner label={method === 'progeny' ? 'Scoring 14 pathways' : 'Scoring gene sets in every sample'} />}
+      {res && (
+        <>
+          <div className="toolbar">
+            <label className="row"><input type="checkbox" checked={scale} onChange={(e) => setScale(e.target.checked)} /> Scale each pathway across samples</label>
+            <span className="muted small">{res.pathways.length} most variable of {res.totalPathways} pathways · click rows to select</span>
+            <span className="toolbar-spacer" />
+            <CopyButton label="Copy names" text={(sel.length ? sel : res.pathways).join('\n')} />
+            <button className="btn btn-ghost btn-sm" onClick={() => saveText(tsv, `flame_pathway_activity_${res.method}.tsv`, 'text/tab-separated-values')}>TSV</button>
+          </div>
+          <Plot height={Math.max(320, res.pathways.length * 16 + 120)} data={[{
+            type: 'heatmap', x: res.samples, y: res.pathways.map((p) => (p.length > 48 ? `${p.slice(0, 47)}…` : p)), z,
+            customdata: res.pathways.map((p) => res.samples.map(() => p)) as never, colorscale: 'RdBu', reversescale: true, zmid: 0,
+            hovertemplate: '%{customdata}<br>%{x}: %{z}<extra></extra>', colorbar: { title: { text: scale ? 'z-score' : 'score' } },
+          } as never]} layout={{ yaxis: { autorange: 'reversed', automargin: true }, margin: { l: 10, r: 10, t: 10, b: 100 } }}
+            onSelect={(keys, add) => setSel((c) => (add ? [...new Set([...c, ...keys])] : keys.slice(0, 1)))} />
+          {sel.length > 0 && <p className="small"><strong>Selected:</strong> {sel.join(' · ')} <button className="btn btn-ghost btn-sm" onClick={() => setSel([])}>Clear</button></p>}
+          <p className="muted small">{res.citation}</p>
+        </>
+      )}
+    </div>
   )
 }
 

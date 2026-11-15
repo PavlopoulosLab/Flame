@@ -28,7 +28,7 @@ function(res, kind) {
 function(res, kind) {
   files <- c(upload = "flame_example_genes.txt", snps = "flame_example_snps.txt",
              textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
-             reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt")
+             reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt", metabolites = "flame_example_metabolites.txt")
   if (!kind %in% names(files)) { res$status <- 404; return("Unknown example") }
   res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", files[[kind]]))
   ex <- example_input(kind)
@@ -183,5 +183,99 @@ function(req, res) {
     b <- body_of(req)
     taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L)); if (is.na(taxid)) taxid <- 9606L
     tryCatch(mirna_targets(.text_arg(b), taxid, b$minMirnas %||% 1L), error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* Expression matrix: pathway activity per sample (ssGSEA, combined z-score or PROGENy).
+#* Body: { text, fileName?, method: ssgsea|zscore|progeny, sources?, organismTaxId?, log? }
+#* @post /expression/activity
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""),
+                                          if (is.null(b$log)) NA else isTRUE(b$log)), error = function(e) api_abort(400, conditionMessage(e)))
+    method <- as.character(b$method %||% "ssgsea"); if (!method %in% c("ssgsea", "zscore", "progeny")) method <- "ssgsea"
+    taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L)); if (is.na(taxid)) taxid <- 9606L
+    src <- intersect(as.character(unlist(b$sources %||% "HALLMARK")), names(TOOLS[[ToolId$CLUSTERPROFILER]]$datasourceCodes))
+    if (!length(src)) src <- "HALLMARK"
+    tryCatch(pathway_activity(x, method, src, taxid), error = function(e) api_abort(422, conditionMessage(e)))
+  })
+}
+
+# ---- Fetch gene lists from public resources ----------------------------------
+.fetch <- function(res, expr) api_handle(res, tryCatch(expr, error = function(e) {
+  if (inherits(e, "flame_api_error")) stop(e)
+  api_abort(422, conditionMessage(e))
+}))
+
+#* Search diseases (Open Targets) and disease gene-set libraries (DisGeNET, OMIM, Orphanet, ClinVar, Jensen, GWAS).
+#* Body: { query, libraries? }
+#* @post /disease/search
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, {
+    q <- as.character(b$query %||% "")
+    libs <- as.character(unlist(b$libraries %||% names(DISEASE_LIBRARIES)))
+    list(diseases = disease_search(q), sets = disease_library_search(q, libs),
+         libraries = lapply(names(DISEASE_LIBRARIES), function(k) list(id = k, label = DISEASE_LIBRARIES[[k]]$label)))
+  })
+}
+
+#* Genes of a disease. Body: { source: opentargets|gwas|<library id>, id?, term?, size? }
+#* @post /disease/genes
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, {
+    src <- as.character(b$source %||% "opentargets")
+    size <- suppressWarnings(as.integer(b$size %||% 500L)); if (is.na(size)) size <- 500L
+    if (src == "opentargets") disease_genes_opentargets(as.character(b$id), size)
+    else if (src == "gwas") disease_gwas_variants(as.character(b$id), min(size, 1000L))
+    else disease_library_genes(src, as.character(b$term))
+  })
+}
+
+#* Genes linked to PubMed articles. Body: { query (PMIDs or a PubMed search), organismTaxId?, max? }
+#* @post /pubmed/genes
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, {
+    taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L)); if (is.na(taxid)) taxid <- 9606L
+    mx <- suppressWarnings(as.integer(b$max %||% 200L)); if (is.na(mx)) mx <- 200L
+    pubmed_genes(as.character(b$query %||% ""), taxid, min(max(mx, 1L), 500L))
+  })
+}
+
+#* Search GEO signatures (RummaGEO). Body: { query }
+#* @post /geo/search
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, geo_search(as.character(b$query %||% "")))
+}
+
+#* Genes of one GEO signature. Body: { id }
+#* @post /geo/genes
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, {
+    id <- as.character(b$id %||% "")
+    if (!grepl("^[0-9a-f-]{36}$", id)) api_abort(400, "Invalid gene-set id.")
+    geo_genes(id)
+  })
+}
+
+#* dbSNP: rsIDs or a dbSNP search to variants and genes. Body: { query, max? }
+#* @post /dbsnp/lookup
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, {
+    mx <- suppressWarnings(as.integer(b$max %||% 300L)); if (is.na(mx)) mx <- 300L
+    dbsnp_lookup(as.character(b$query %||% ""), min(max(mx, 1L), 1000L))
   })
 }

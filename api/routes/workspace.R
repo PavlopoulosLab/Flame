@@ -1,21 +1,23 @@
 # /api/workspace — anonymous workspaces (no login). The id is the only key:
 # keep it private; anyone holding the link can open the workspace.
 
-.ws_creations <- new.env()
 
 #* Create a new workspace. Returns its id; send it as X-Flame-Workspace.
 #* @post /
 #* @serializer flamejson
 function(req, res) {
   api_handle(res, {
-    # At most 30 new workspaces per hour per client address.
-    ip <- trimws(strsplit(req$HTTP_X_FORWARDED_FOR %||% req$REMOTE_ADDR %||% "local", ",")[[1]][1])
-    hour <- floor(now_s() / 3600)
-    key <- paste(ip, hour)
-    n <- (.ws_creations[[key]] %||% 0) + 1
-    .ws_creations[[key]] <- n
-    if (length(ls(.ws_creations)) > 5000) rm(list = ls(.ws_creations), envir = .ws_creations)
-    if (n > 30) api_abort(429, "Too many new workspaces from this address. Please try again later.")
+    # New workspaces per hour per client address (FLAME_WORKSPACE_LIMIT, default 30; 0 = no limit).
+    limit <- suppressWarnings(as.numeric(Sys.getenv("FLAME_WORKSPACE_LIMIT", "30")))
+    if (is.na(limit)) limit <- 30
+    if (limit > 0) {
+      ip <- trimws(strsplit(req$HTTP_X_FORWARDED_FOR %||% req$REMOTE_ADDR %||% "local", ",")[[1]][1])
+      key <- paste(ip, floor(now_s() / 3600))
+      n <- (.flame_ws_creations[[key]] %||% 0) + 1
+      .flame_ws_creations[[key]] <- n
+      if (length(ls(.flame_ws_creations)) > 5000) rm(list = ls(.flame_ws_creations), envir = .flame_ws_creations)
+      if (n > limit) api_abort(429, "Too many new workspaces from this address in the last hour. Please reuse your workspace link or try again later.")
+    }
     res$status <- 201
     list(id = create_workspace(), retentionDays = FLAME_LIMITS$retentionDays)
   })
@@ -97,22 +99,23 @@ function(req, res) {
 }
 
 #* Export the workspace as a session file (JSON).
-#* Query: parts=lists,sources,runs,variants (default all); runIds=a,b (default all finished runs);
+#* Query: parts=lists,sources,runs,variants,analyses (default all); runIds=a,b (default all finished runs);
 #*        listIds=..., variantIds=... (default all); prefs (client display settings are added by the web app).
 #* @get /export
 #* @serializer flamejson
 function(req, res, parts = "", runIds = "", listIds = "", variantIds = "") {
   api_handle(res, {
     ws <- require_workspace(req)
-    parts <- .split_arg(parts); if (!length(parts)) parts <- c("lists", "sources", "runs", "variants")
+    parts <- .split_arg(parts); if (!length(parts)) parts <- c("lists", "sources", "runs", "variants", "analyses")
     want <- function(p) p %in% parts
     pick <- function(df, ids) { ids <- .split_arg(ids); if (length(ids)) df[df$id %in% ids, , drop = FALSE] else df }
     lists <- if (want("lists")) pick(db_query("SELECT * FROM lists WHERE ws = ? ORDER BY created", list(ws)), listIds) else NULL
     sources <- if (want("sources")) db_query("SELECT name, gmt_json FROM sources WHERE ws = ?", list(ws)) else NULL
     runs <- if (want("runs")) pick(db_query("SELECT * FROM runs WHERE ws = ? AND status = 'complete' ORDER BY seq", list(ws)), runIds) else NULL
     vas <- if (want("variants")) pick(db_query("SELECT * FROM variant_analyses WHERE ws = ? AND status = 'complete' ORDER BY created", list(ws)), variantIds) else NULL
+    ans <- if (want("analyses")) db_query("SELECT * FROM analyses WHERE ws = ? AND status = 'complete' AND run_id IS NULL ORDER BY created", list(ws)) else NULL
     # A full export marks the workspace as saved.
-    full <- all(c("lists", "sources", "runs", "variants") %in% parts) && !length(.split_arg(runIds)) &&
+    full <- all(c("lists", "sources", "runs", "variants", "analyses") %in% parts) && !length(.split_arg(runIds)) &&
       !length(.split_arg(listIds)) && !length(.split_arg(variantIds))
     if (full) db_exec("UPDATE workspaces SET last_export = ?, export_fingerprint = ? WHERE id = ?", list(now_s(), workspace_fingerprint(ws), ws))
     res$setHeader("Content-Disposition", "attachment; filename=\"flame-session.json\"")
@@ -120,7 +123,7 @@ function(req, res, parts = "", runIds = "", listIds = "", variantIds = "") {
     list(
       format = "flame-session", version = 2L, flameVersion = as.character(utils::packageVersion("flame")),
       exported = format(Sys.time(), "%Y-%m-%dT%H:%M:%SZ", tz = "UTC"), complete = full,
-      contents = list(lists = n(lists), sources = n(sources), runs = n(runs), variants = n(vas)),
+      contents = list(lists = n(lists), sources = n(sources), runs = n(runs), variants = n(vas), analyses = n(ans)),
       lists = if (n(lists)) lapply(seq_len(nrow(lists)), function(i) list_row_to_obj(lists[i, ], includeIds = TRUE)) else list(),
       sources = if (n(sources)) lapply(seq_len(nrow(sources)), function(i) list(name = sources$name[i], sets = from_json(sources$gmt_json[i]))) else list(),
       runs = if (n(runs)) lapply(seq_len(nrow(runs)), function(i) {
@@ -132,6 +135,11 @@ function(req, res, parts = "", runIds = "", listIds = "", variantIds = "") {
         result <- unserialize(v$result_blob[[1]])
         result$variants$impact <- as.character(result$variants$impact)
         list(name = v$name, organismTaxId = v$taxid, inputCount = v$input_count, created = v$created, result = result)
+      }) else list(),
+      analyses = if (n(ans)) lapply(seq_len(nrow(ans)), function(i) {
+        a <- ans[i, ]
+        list(type = a$type, label = a$label, created = a$created, meta = from_json(a$meta_json) %||% list(),
+             result = jsonlite::fromJSON(a$result_json, simplifyVector = FALSE))
       }) else list()
     )
   })
@@ -139,7 +147,7 @@ function(req, res, parts = "", runIds = "", listIds = "", variantIds = "") {
 
 #* Load a session file into this workspace.
 #* Query: mode=add (default) | replace (clears this workspace first);
-#*        parts=lists,sources,runs,variants (default all).
+#*        parts=lists,sources,runs,variants,analyses (default all).
 #* @post /import
 #* @serializer flamejson
 function(req, res, mode = "add", parts = "") {
@@ -149,13 +157,13 @@ function(req, res, mode = "add", parts = "") {
     b <- tryCatch(jsonlite::fromJSON(req$postBody, simplifyVector = FALSE),
                   error = function(e) api_abort(400, "The session file is not valid JSON."))
     if (!identical(b$format, "flame-session")) api_abort(400, "This is not a Flame session file.")
-    parts <- .split_arg(parts); if (!length(parts)) parts <- c("lists", "sources", "runs", "variants")
+    parts <- .split_arg(parts); if (!length(parts)) parts <- c("lists", "sources", "runs", "variants", "analyses")
     if (identical(mode, "replace")) {
       for (id in db_query("SELECT id FROM runs WHERE ws = ?", list(ws))$id) cancel_run(ws, id)
       delete_workspace_data(ws, keepWorkspace = TRUE)
       forget_run_cache(ws)
     }
-    added <- list(lists = 0L, runs = 0L, sources = 0L, variants = 0L, skipped = list())
+    added <- list(lists = 0L, runs = 0L, sources = 0L, variants = 0L, analyses = 0L, skipped = list())
     skip <- function(what, why) added$skipped[[length(added$skipped) + 1]] <<- paste0(what, ": ", why)
     if ("lists" %in% parts) for (l in b$lists %||% list()) {
       ok <- tryCatch({
@@ -187,6 +195,17 @@ function(req, res, mode = "add", parts = "") {
               list(new_object_id(), ws, clean_name(v$name %||% "Imported analysis", "analysis name"), result$organismTaxId,
                    result$inputCount, list(serialize(result, NULL)), now_s(), now_s()))
       added$variants <- added$variants + 1L
+    }
+    # Analyses: plain JSON results of a known type, re-encoded before storing.
+    if ("analyses" %in% parts) for (a in b$analyses %||% list()) {
+      type <- as.character(a$type %||% "")[1]
+      if (!type %in% c("tf", "kinase", "drugs", "modules", "robustness") || !is.list(a$result)) {
+        skip(paste("Analysis", substr(as.character(a$label %||% "?"), 1, 60)), "could not be read"); next
+      }
+      db_exec("INSERT INTO analyses (id, ws, type, label, status, result_json, meta_json, created, finished) VALUES (?, ?, ?, ?, 'complete', ?, ?, ?, ?)",
+              list(new_object_id(), ws, type, substr(clean_name(a$label %||% type, "analysis name"), 1, 200), .task_json(a$result),
+                   .task_json(if (is.list(a$meta)) a$meta else list()), now_s(), now_s()))
+      added$analyses <- added$analyses + 1L
     }
     added
   })

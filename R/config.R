@@ -107,7 +107,8 @@ ToolId <- list(
   WEBGESTALT = "WebGestalt",
   PANTHER = "PANTHER",
   GENECODIS = "GeneCodis",
-  CLUSTERPROFILER = "clusterProfiler"
+  CLUSTERPROFILER = "clusterProfiler",
+  REACTOME = "Reactome"
 )
 
 #' Workspace tool metadata
@@ -147,6 +148,11 @@ WORKSPACE_TOOL_UI <- list(
     key = "clusterprofiler",
     label = "clusterProfiler",
     toolId = ToolId$CLUSTERPROFILER
+  ),
+  list(
+    key = "reactome",
+    label = "Reactome",
+    toolId = ToolId$REACTOME
   )
 )
 
@@ -489,7 +495,7 @@ TOOLS[[ToolId$ENRICHR]] <- list(
   paradigms = c(ParadigmId$ORA),
 
   organismDatasources = list(
-    hsapiens = c("GO:MF", "GO:CC", "GO:BP", "KEGG", "REAC", "WP", "PANTHER Pathways", "HP"),
+    hsapiens = c("GO:MF", "GO:CC", "GO:BP", "KEGG", "REAC", "WP", "PANTHER Pathways", "HP", "PANGLAO", "CELLMARKER", "AZIMUTH", "TABULA", "GENESIGDB", "RUMMAGENE"),
     mmusculus = c("GO:MF", "GO:CC", "GO:BP", "WP", "MGI"),
     dmelanogaster = c("GO:MF", "GO:CC", "GO:BP", "WP"),
     drerio = c("GO:MF", "GO:CC", "GO:BP", "WP"),
@@ -507,7 +513,13 @@ TOOLS[[ToolId$ENRICHR]] <- list(
       "REAC" = "Reactome_2022",
       "WP" = "WikiPathway_2021_Human",
       "PANTHER Pathways" = "Panther_2016",
-      "HP" = "Human_Phenotype_Ontology"
+      "HP" = "Human_Phenotype_Ontology",
+      "PANGLAO" = "PanglaoDB_Augmented_2021",
+      "CELLMARKER" = "CellMarker_2024",
+      "AZIMUTH" = "Azimuth_Cell_Types_2021",
+      "TABULA" = "Tabula_Sapiens",
+      "GENESIGDB" = "GeneSigDB",
+      "RUMMAGENE" = "Rummagene_signatures"
     ),
     mmusculus = list(
       "GO:MF" = "GO_Molecular_Function_2021",
@@ -769,6 +781,23 @@ TOOLS[[ToolId$CLUSTERPROFILER]] <- list(
   supportsBackground = TRUE
 )
 
+# -----------------------------------------------------------------------------
+# Reactome Analysis Service (Reactome pathways only; curated for human, inferred
+# by orthology for other species; no custom background)
+# -----------------------------------------------------------------------------
+TOOLS[[ToolId$REACTOME]] <- list(
+  name = "Reactome",
+  paradigms = c(ParadigmId$ORA),
+  datasources = c("REAC"),
+  datasourceCodes = list("REAC" = "REAC"),
+  namespaces = list("Ensembl gene" = "ENSG", "UniProt" = "UNIPROTSWISSPROT", "User Input" = "USERINPUT"),
+  defaultNamespace = "ENSG",
+  metrics = list("False discovery rate (Benjamini-Hochberg)" = "fdr", "Uncorrected p-value" = "p_value"),
+  defaultMetricGenome = "fdr",
+  defaultMetricBackground = "fdr",
+  supportsBackground = FALSE
+)
+
 # msigdbr species (NCBI taxonomy id -> msigdbr species name)
 MSIGDB_SPECIES <- c(
   "9606" = "Homo sapiens", "10090" = "Mus musculus", "10116" = "Rattus norvegicus",
@@ -781,6 +810,8 @@ MSIGDB_SPECIES <- c(
   "28377" = "Anolis carolinensis", "284812" = "Schizosaccharomyces pombe 972h-"
 )
 TOOL_ORGANISMS[[ToolId$CLUSTERPROFILER]] <- as.integer(names(MSIGDB_SPECIES))
+TOOL_ORGANISMS[[ToolId$REACTOME]] <- intersect(c(9606L, 10090L, 10116L, 9913L, 9823L, 9615L, 9031L, 8364L, 7955L, 7227L, 6239L,
+                                                 4932L, 559292L, 4896L, 284812L, 44689L, 5833L, 1773L), ORGANISMS$taxid)
 
 # Special organisms with non-standard tool/namespace preferences
 SPECIAL_ORGANISMS <- c("amellifera", "dmelanogaster")
@@ -989,11 +1020,16 @@ DATASOURCES_PRINT <- list(
     "TRANSFAC" = "TF", "CollecTRI TFs" = "CollecTRI", "miRTarBase" = "MIRNA"
   ),
   'Literature' = list(
-    "PubMed Publications" = "PUBMED"
+    "PubMed publications (STRING)" = "PUBMED", "GeneSigDB published signatures" = "GENESIGDB",
+    "Rummagene: gene sets from PubMed Central papers" = "RUMMAGENE"
+  ),
+  'Cell types' = list(
+    "PanglaoDB markers" = "PANGLAO", "CellMarker 2024" = "CELLMARKER", "Azimuth cell types" = "AZIMUTH",
+    "Tabula Sapiens" = "TABULA", "MSigDB cell type signatures (C8)" = "CELLTYPE"
   ),
   'MSigDB collections' = list(
     "Hallmark gene sets" = "HALLMARK", "BioCarta pathways" = "BIOCARTA",
-    "PID pathways" = "PID", "Cell type signatures (C8)" = "CELLTYPE",
+    "PID pathways" = "PID",
     "Immunologic signatures (C7)" = "IMMUNESIGDB", "Oncogenic signatures (C6)" = "ONCOGENIC"
   )
 )
@@ -1035,7 +1071,9 @@ DATASOURCE_COLORS <- c(
   "BioPlanet" = "#9370DB", "PharmGKB" = "#FF6B6B", "LINCS" = "#4ECDC4",
   "PUBMED" = "#cc9f9f", "GENE" = GENE_NODE_COLOR,
   "HALLMARK" = "#e6550d", "BIOCARTA" = "#31a354", "PID" = "#756bb1",
-  "CELLTYPE" = "#de2d26", "IMMUNESIGDB" = "#3182bd", "ONCOGENIC" = "#636363"
+  "CELLTYPE" = "#de2d26", "IMMUNESIGDB" = "#3182bd", "ONCOGENIC" = "#636363",
+  "PANGLAO" = "#0f766e", "CELLMARKER" = "#14b8a6", "AZIMUTH" = "#a16207", "TABULA" = "#be185d",
+  "GENESIGDB" = "#9f7aea", "RUMMAGENE" = "#b45309"
 )
 
 # Short labels for external datasource links shown in the results selection sidebar.
@@ -1069,7 +1107,9 @@ DATASOURCE_LINK_PROVIDERS <- c(
   "MIRNA" = "miRBase",
   "PharmGKB" = "ClinPGx",
   "BioPlanet" = "BioPlanet",
-  "PUBMED" = "PubMed"
+  "PUBMED" = "PubMed",
+  "GENESIGDB" = "PubMed",
+  "RUMMAGENE" = "PubMed Central"
 )
 
 # Results plot styling tokens (design-system driven).

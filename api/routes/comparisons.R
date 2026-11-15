@@ -87,3 +87,17 @@ function(req, res) {
     tryCatch(comparison_statistics(cs, b$filters %||% list()), error = function(e) api_abort(422, conditionMessage(e)))
   })
 }
+
+#* Functional themes across the compared runs, with the runs that support each theme.
+#* Body: { runIds, filters?, cutoff? }
+#* @post /themes
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    cs <- .comparison_for(ws, b$runIds)
+    cutoff <- suppressWarnings(as.numeric(b$cutoff %||% 0.35)); if (!is.finite(cutoff)) cutoff <- 0.35
+    tryCatch(comparison_themes(cs, b$filters %||% list(), max(0.05, min(0.95, cutoff))), error = function(e) api_abort(422, conditionMessage(e)))
+  })
+}

@@ -140,10 +140,85 @@ const ICONS: Record<string, ReactNode> = {
     <path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
     <path d="M7.5 15h9l2 3.5H5.5z" fill={V} fillOpacity="0.45" />
   </>),
+  // ---- regulators, drugs and other analyses
+  regulators: (<>
+    <circle cx="6" cy="6" r="2.6" fill={O} />
+    <path d="M8 7.5l3.5 3M8.4 5.6l8 -1M7 8.5l1 8" stroke={O} strokeWidth="1.3" strokeLinecap="round" />
+    {[[13, 12], [18, 4.5], [8.5, 18.5], [17, 16]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.8" fill={i < 3 ? V : 'none'} stroke={V} strokeWidth="1.2" />)}
+  </>),
+  tf: (<>
+    <path d="M2 17h20" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M14 17v-4h6" fill="none" stroke={V} strokeWidth="1.4" /><path d="M18 11l2 2-2 2" fill="none" stroke={V} strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M4 17c0-5 7-5 7 0" fill={O} fillOpacity="0.85" />
+    <rect x="13" y="16" width="8" height="2" rx="1" fill={V} fillOpacity="0.4" />
+  </>),
+  kinase: (<>
+    <ellipse cx="9" cy="13" rx="6" ry="5" fill={V} fillOpacity="0.2" stroke={V} strokeWidth="1.3" />
+    <path d="M14 10l4-4" stroke="currentColor" strokeWidth="1.3" />
+    <circle cx="19" cy="5" r="3" fill={O} /><text x="19" y="6.6" fontSize="4.5" textAnchor="middle" fill="#fff" fontWeight="700">P</text>
+  </>),
+  drugs: (<>
+    <g transform="rotate(-40 12 12)">
+      <rect x="4" y="9" width="16" height="6" rx="3" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M12 9h5a3 3 0 0 1 0 6h-5z" fill={C} fillOpacity="0.8" />
+    </g>
+    <path d="M17 20l2-2M19 20l-2-2" stroke={V} strokeWidth="1.3" strokeLinecap="round" />
+  </>),
+  metabolites: (<>
+    <path d="M12 4l6 3.5v7L12 18l-6-3.5v-7z" fill="none" stroke="currentColor" strokeWidth="1.4" />
+    <path d="M12 18v3M18 7.5l2.5-1.5" stroke="currentColor" strokeWidth="1.3" />
+    <circle cx="12" cy="4" r="1.6" fill={C} /><circle cx="6" cy="14.5" r="1.6" fill={O} /><circle cx="20.5" cy="6" r="1.4" fill={V} />
+  </>),
+  celltypes: (<>
+    <circle cx="8" cy="9" r="5" fill={V} fillOpacity="0.15" stroke={V} strokeWidth="1.3" /><circle cx="8" cy="9" r="1.8" fill={V} />
+    <path d="M14 15c2-3 6-2 7 1s-2 5-4 4.5-4-2.5-3-5.5z" fill={O} fillOpacity="0.2" stroke={O} strokeWidth="1.3" /><circle cx="17.3" cy="17" r="1.4" fill={O} />
+    <circle cx="5" cy="18.5" r="2.3" fill={C} fillOpacity="0.2" stroke={C} strokeWidth="1.2" />
+  </>),
+  robust: (<>
+    <path d="M12 3l7 3v5c0 5-3.2 8.3-7 10-3.8-1.7-7-5-7-10V6z" fill={G} fillOpacity="0.12" stroke={G} strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M8.5 12l2.5 2.5 4.5-5" fill="none" stroke={G} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+  </>),
+  modules: (<>
+    <circle cx="7" cy="8" r="4.2" fill={V} fillOpacity="0.15" stroke={V} strokeDasharray="2 1.2" />
+    <circle cx="16.5" cy="15.5" r="4.6" fill={O} fillOpacity="0.15" stroke={O} strokeDasharray="2 1.2" />
+    {[[6, 7], [8.5, 9], [6.5, 10]].map(([x, y], i) => <circle key={i} cx={x} cy={y} r="1.1" fill={V} />)}
+    {[[15, 14.5], [18, 16.5], [16, 17.5], [17.5, 13.5]].map(([x, y], i) => <circle key={`o${i}`} cx={x} cy={y} r="1.1" fill={O} />)}
+    <path d="M8.5 9l6.5 5.5" stroke="currentColor" strokeOpacity="0.5" />
+  </>),
+  activity: (<>
+    {[0, 1, 2, 3].map((r) => [0, 1, 2, 3].map((c) => <rect key={`${r}${c}`} x={4 + c * 4.2} y={4 + r * 4.2} width="3.6" height="3.6" rx="0.6"
+      fill={(r * 3 + c * 5) % 4 < 2 ? C : B} fillOpacity={0.25 + (((r + 1) * (c + 2)) % 4) * 0.22} />))}
+  </>),
+  wordcloud: (<>
+    <text x="3" y="11" fontSize="8" fontWeight="700" fill={V}>Aa</text>
+    <text x="13" y="9" fontSize="5" fontWeight="700" fill={O}>ab</text>
+    <text x="5" y="19" fontSize="5.5" fontWeight="700" fill={C}>word</text>
+    <text x="16" y="15" fontSize="4" fontWeight="700" fill="currentColor" fillOpacity="0.6">x</text>
+  </>),
+  disease: (<>
+    <path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" fill={C} fillOpacity="0.15" stroke={C} strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M7.5 11h2.5l1-2 2 4 1-2h2.5" fill="none" stroke={C} strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+  </>),
+  pubmed: (<>
+    <path d="M5 4h9l5 5v11H5z" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M14 4v5h5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    <path d="M8 12h8M8 15h5" stroke="currentColor" strokeOpacity="0.35" strokeLinecap="round" />
+    <circle cx="16.5" cy="17" r="2.6" fill={B} /><text x="16.5" y="18.5" fontSize="4" textAnchor="middle" fill="#fff" fontWeight="700">P</text>
+  </>),
+  geo: (<>
+    {[0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => <rect key={`${r}${c}`} x={4 + c * 4} y={5 + r * 4} width="3.4" height="3.4" rx="0.6" fill={(r + c) % 3 === 0 ? C : (r + c) % 3 === 1 ? B : 'currentColor'} fillOpacity={(r + c) % 3 === 2 ? 0.2 : 0.7} />))}
+    <path d="M4 19.5h16" stroke={G} strokeWidth="1.6" strokeLinecap="round" />
+  </>),
+  dbsnp: (<>
+    <path d="M6 3c0 5 12 5 12 9s-12 4-12 9M18 3c0 5-12 5-12 9s12 4 12 9" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    <circle cx="12" cy="7.6" r="1.8" fill={C} /><circle cx="12" cy="16.4" r="1.8" fill={O} />
+  </>),
 }
 
+const ALIASES: Record<string, string> = { robustness: 'robust', literature: 'pubmed' }
+
 export function ConceptIcon({ name, size = 22, label }: { name: string; size?: number; label?: string }) {
-  const body = ICONS[name]
+  const body = ICONS[name] ?? ICONS[ALIASES[name]]
   if (!body) return null
   return (
     <svg className="concept-icon" width={size} height={size} viewBox="0 0 24 24" role={label ? 'img' : undefined} aria-label={label} aria-hidden={label ? undefined : true}>

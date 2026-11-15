@@ -240,7 +240,7 @@ flameComputeUpsetCombinations <- function(namedSets, mode = UpsetMode$INTERSECTI
 # ---- Example data -----------------------------------------------------------
 
 #' Example inputs used by every "Load example" button and the guided demo
-EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna")
+EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna", "metabolites")
 
 #' TRUE for recognisable gene names; FALSE for uncharacterised ORFs and
 #' placeholder symbols (C11orf24, LOC647225, KIAA0100, FAM100A, FLJ..., LINC...,
@@ -257,6 +257,7 @@ EXAMPLE_SOURCES <- list(
   airway = "Airway smooth-muscle cells from 4 donors, untreated vs dexamethasone (Himes et al. 2014, PLoS One 9:e99625; GEO GSE52778; Bioconductor 'airway'). Differential expression: limma-voom, paired by donor.",
   pbmc = "Genes of 2,638 peripheral blood mononuclear cells (10x Genomics PBMC 3k; Zheng et al. 2017, Nat Commun 8:14049; CC BY 4.0), embedded by their expression across cells (metacells, PCA, UMAP). Colour = the cell type where each gene is specifically expressed.",
   gwas = "Lead associations for Alzheimer's disease from Bellenguez et al. 2022, Nat Genet 54:412-436 (GWAS Catalog GCST90027158; GRCh38).",
+  metabolites = "Metabolites raised in metastatic prostate cancer and validated in the study (Sreekumar et al. 2009, Nature 457:910-914): sarcosine, uracil, kynurenine, glycerol 3-phosphate, leucine and proline.",
   mirna = "microRNAs up-regulated in at least 3 of 6 solid cancers vs normal tissue (Volinia et al. 2006, PNAS 103:2257-2261, Table 2), with 2006 names mapped to current miRBase names.",
   hallmark = "The MSigDB Hallmark collection (Liberzon et al. 2015, Cell Systems 1:417-425).")
 
@@ -299,6 +300,10 @@ example_input <- function(kind = EXAMPLE_KINDS) {
     expression = list(text = .table_text(.example_file("airway_counts.tsv")), fileName = "flame_example_airway_counts.tsv",
                       source = paste("Raw counts of the 4,000 most variable expressed genes;", EXAMPLE_SOURCES$airway)),
     reduction = list(text = .table_text(.example_file("pbmc3k_gene_umap.tsv")), fileName = "flame_example_pbmc3k_gene_umap.tsv", source = EXAMPLE_SOURCES$pbmc),
+    metabolites = {
+      me <- .example_file("metabolites_sreekumar2009.tsv")
+      list(text = paste(me$metabolite, collapse = "\n"), fileName = "flame_example_metabolites.txt", source = EXAMPLE_SOURCES$metabolites)
+    },
     mirna = {
       mi <- .example_file("mirna_volinia2006.tsv")
       list(text = paste(mi$mirbase, collapse = "\n"), fileName = "flame_example_mirnas.txt", source = EXAMPLE_SOURCES$mirna)

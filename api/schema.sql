@@ -70,3 +70,22 @@ CREATE TABLE IF NOT EXISTS variant_analyses (
   finished    REAL,
   PRIMARY KEY (ws, id)
 );
+
+-- Background analyses (transcription factors, kinases, drug signatures, network
+-- modules, robustness, metabolites). Results are stored as JSON.
+CREATE TABLE IF NOT EXISTS analyses (
+  id          TEXT NOT NULL,
+  ws          TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  type        TEXT NOT NULL,
+  label       TEXT NOT NULL,
+  list_id     TEXT,
+  status      TEXT NOT NULL,              -- running | complete | error
+  error       TEXT,
+  result_json TEXT,
+  run_id      TEXT,                       -- metabolites: the run the result became
+  meta_json   TEXT NOT NULL DEFAULT '{}',
+  created     REAL NOT NULL,
+  finished    REAL,
+  PRIMARY KEY (ws, id)
+);
+CREATE INDEX IF NOT EXISTS analyses_ws ON analyses(ws);
