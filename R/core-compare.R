@@ -356,8 +356,9 @@ comparison_statistics <- function(cs, filters = list(), catMax = 100L) {
     K <- min(length(ra), length(rb), catMax)
     if (K >= 1) {
       ks <- unique(round(seq(1, K, length.out = min(K, 50))))
-      cat[[length(cat) + 1]] <- list(a = a, b = b, k = ks,
-                                     overlap = vapply(ks, function(k) length(intersect(ra[seq_len(k)], rb[seq_len(k)])) / k, numeric(1)))
+      # as.list: always JSON arrays, also when a run has a single term.
+      cat[[length(cat) + 1]] <- list(a = a, b = b, k = as.list(ks),
+                                     overlap = as.list(vapply(ks, function(k) length(intersect(ra[seq_len(k)], rb[seq_len(k)])) / k, numeric(1))))
     }
   }
   # Benjamini–Hochberg across pairs for each test.

@@ -104,3 +104,9 @@ test_that("Reactome Analysis Service gives Reactome terms with the genes found (
   expect_gt(r$backgroundSize, 5000)
   expect_null(st$run(genes, 9606L, NULL, list(datasources = "GO:BP", threshold = 0.05, metric = "fdr")))
 })
+
+test_that("robustness terms and concordance curves serialize as JSON arrays", {
+  terms <- list(a = list(id = "a"), b = list(id = "b"))
+  expect_match(as.character(jsonlite::toJSON(unname(terms), auto_unbox = TRUE)), "^\\[")
+  expect_match(as.character(jsonlite::toJSON(list(k = as.list(1L)), auto_unbox = TRUE)), "\\[1\\]")
+})

@@ -165,6 +165,7 @@ if len(done) >= 2:
     s, st, _ = call("POST", "/comparisons/statistics", {"runIds": done[:3]})
     ok_pairs = s == 200 and len(st["pairs"]) == len(done[:3]) * (len(done[:3]) - 1) // 2
     check("comparison statistics", ok_pairs and st["tests"].get("detection") is not None, f"pairs={len(st.get('pairs', []))} tests={list((st.get('tests') or {}).keys())}")
+    check("statistics: curves are arrays", all(isinstance(c["k"], list) and isinstance(c["overlap"], list) for c in st.get("cat", [])))
 if done:
     rows = call("POST", f"/runs/{done[0]}/view", {"view": "table", "top": "all", "filters": {"sources": ["KEGG"]}})[1]["terms"]
     if rows:
@@ -281,7 +282,7 @@ byid = {x["id"]: x for x in items}
 st = call("GET", f"/analyses/{starts['tf']}")[1]
 check("ChEA3 transcription factors", st.get("status") == "complete" and len((st.get("result") or {}).get("regulators", [])) > 5, st.get("error") or "")
 st = call("GET", f"/analyses/{starts['robustness']}")[1]
-check("robustness check", st.get("status") == "complete" and (st.get("result") or {}).get("significant", 0) >= 0, st.get("error") or "")
+check("robustness check", st.get("status") == "complete" and isinstance((st.get("result") or {}).get("terms"), list), st.get("error") or "")
 st = call("GET", f"/analyses/{starts['metabolites']}")[1]
 check("metabolites become a run", st.get("status") == "complete" and st.get("runId"), st.get("error") or "")
 rid = rr.get("created", ["?"])[0]

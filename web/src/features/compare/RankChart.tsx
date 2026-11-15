@@ -4,6 +4,7 @@ import { Plot } from '../../components/charts'
 import { CopyButton } from '../../components/ui'
 import { formatP } from '../../lib/format'
 import { aggregateRanks } from '../../lib/rankAgg'
+import { categorical, usePaletteMode } from '../../lib/palette'
 import { hit, type Row } from './CompareTable'
 
 /**
@@ -11,11 +12,12 @@ import { hit, type Row } from './CompareTable'
  * the terms with the best consensus rank (Robust Rank Aggregation). Lines that
  * stay at the top are terms every run agrees on; click a line to select it.
  */
-export function RankChart({ terms, runs, colorOf, selected, onSelect, labels }: {
-  terms: Row[]; runs: ComparisonRunMeta[]; colorOf: (source: string) => string
+export function RankChart({ terms, runs, selected, onSelect, labels }: {
+  terms: Row[]; runs: ComparisonRunMeta[]; colorOf?: (source: string) => string
   selected: Set<string>; onSelect: (ids: string[], additive: boolean) => void; labels: 'Function' | 'Term_ID'
 }) {
   const [n, setN] = useState(20)
+  const pal = categorical(usePaletteMode())
   const ids = runs.map((r) => r.id)
   const byId = useMemo(() => new Map(terms.map((t) => [t.id, t])), [terms])
   const agg = useMemo(() => aggregateRanks(terms.map((t) => t.id), ids, (tid, r) => { const t = byId.get(tid); return t ? hit(t, r)?.p ?? null : null }),
@@ -36,7 +38,7 @@ export function RankChart({ terms, runs, colorOf, selected, onSelect, labels }: 
       </div>
       <Plot height={Math.max(420, 22 * n + 120)} dragmode="zoom"
         onSelect={(keys, add) => keys.length && onSelect([keys[0]], add)}
-        data={top.map((r) => {
+        data={top.map((r, i) => {
           const t = byId.get(r.termId)
           const sel = selected.has(r.termId)
           return {
@@ -44,15 +46,15 @@ export function RankChart({ terms, runs, colorOf, selected, onSelect, labels }: 
             x: runs.map((x) => x.label), y: ids.map((id) => r.ranks[id] ?? missing),
             customdata: ids.map(() => r.termId),
             text: ids.map((id) => { const h = t ? hit(t, id) : null; return h ? `rank ${r.ranks[id]} · p = ${formatP(h.p)} · ${h.genes} genes` : 'not reported by this run' }),
-            hovertemplate: `<b>${name(r.termId).replace(/</g, '&lt;')}</b><br>%{x}: %{text}<br>consensus #${r.consensus} (RRA ${r.rra.toExponential(1)})<extra></extra>`,
-            line: { width: sel ? 4 : 2, color: t ? colorOf(t.source) : undefined }, opacity: selected.size && !sel ? 0.35 : 0.9,
+            hovertemplate: `<b>${name(r.termId).replace(/</g, '&lt;')}</b> (${t?.source ?? ''})<br>%{x}: %{text}<br>consensus #${r.consensus} (RRA ${r.rra.toExponential(1)})<extra></extra>`,
+            line: { width: sel ? 4 : 2, color: pal[i % pal.length], dash: i < pal.length ? 'solid' : 'dot' }, opacity: selected.size && !sel ? 0.35 : 0.9,
             marker: { size: ids.map((id) => (r.ranks[id] == null ? 6 : 9)), symbol: ids.map((id) => (r.ranks[id] == null ? 'x' : 'circle')) },
           } as never
         })}
         layout={{ yaxis: { type: 'log', autorange: 'reversed', title: { text: 'rank in run (1 = most significant, log scale)' }, zeroline: false,
           tickvals: [1, ...[5, 10, 20, 50, 100, 200, 500].filter((v) => v < missing), missing], ticktext: ['1', ...[5, 10, 20, 50, 100, 200, 500].filter((v) => v < missing).map(String), 'not found'] },
           xaxis: { type: 'category' }, legend: { font: { size: 11 } }, margin: { l: 70, r: 10, t: 10, b: 60 } }} />
-      <p className="muted small">Consensus order: Robust Rank Aggregation of the per-run ranks (Kolde et al. 2012, Bioinformatics 28:573). Line colour = annotation source. Click a line or point to select the term.</p>
+      <p className="muted small">Consensus order: Robust Rank Aggregation of the per-run ranks (Kolde et al. 2012, Bioinformatics 28:573). Each line is one term (colours repeat with dotted lines after ten). Click a line or point to select the term.</p>
     </div>
   )
 }

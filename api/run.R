@@ -14,6 +14,11 @@ FLAME_ROOT <- if (length(scriptPath) == 1) {
   normalizePath(getwd())
 }
 
+# Text in results and notes uses Unicode (–, −, ≥, ·): make sure R runs in a UTF-8 locale.
+if (!isTRUE(l10n_info()[["UTF-8"]])) {
+  for (loc in c("en_US.UTF-8", "C.UTF-8", "en_GB.UTF-8")) if (nzchar(suppressWarnings(Sys.setlocale("LC_CTYPE", loc)))) { Sys.setenv(LC_CTYPE = loc); break }
+}
+
 suppressMessages(suppressWarnings(
   pkgload::load_all(FLAME_ROOT, export_all = TRUE, helpers = FALSE, quiet = TRUE)))
 

@@ -133,7 +133,7 @@ enrichment_robustness <- function(ids, taxid, sources = c("GO:BP", "KEGG", "REAC
   thresholds <- lapply(c(0.001, 0.01, 0.05, 0.1, 0.25), function(t) list(fdr = t, terms = sum(obs <= t)))
   list(query = length(query), universe = length(universe), sets = length(byTerm), significant = length(sig),
        randomSignificant = as.list(colSums(rnd)), medianRandom = stats::median(colSums(rnd)),
-       stable = sum(stab[sig] >= 0.8), terms = utils::head(terms, 300), thresholds = thresholds, nBoot = nBoot, nRandom = nRandom,
+       stable = sum(stab[sig] >= 0.8), terms = unname(utils::head(terms, 300)), thresholds = thresholds, nBoot = nBoot, nRandom = nRandom,
        method = sprintf("Hypergeometric test with Benjamini–Hochberg (FDR < %.2f) on MSigDB sets of %s. Stability = share of %d subsamples (%.0f%% of the genes) in which a term stays significant. Random rate = share of %d random lists of the same size in which it is significant.",
                         fdr, paste(sources, collapse = ", "), nBoot, fraction * 100, nRandom))
 }
