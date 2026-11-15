@@ -1,0 +1,144 @@
+/* ============================================
+   FLAME Design System - Tokens
+   CSS Custom Properties for colors, spacing, shadows, etc.
+   ============================================ */
+
+/* Google Fonts - Inter */
+/* Inter is self-hosted via @fontsource/inter (imported in main.tsx) */
+
+/* ===== TYPOGRAPHY ===== */
+:root {
+  --default-font: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+/* ===== SPACING ===== */
+:root {
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+}
+
+/* ===== LAYOUT ===== */
+:root {
+  --floating-gap: 1.25rem;
+  --header-height: 56px;
+  --sidebar-width: 280px;
+  --sidebar-collapsed-width: 64px;
+}
+
+/* ===== BORDER RADIUS ===== */
+:root {
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
+  --radius-full: 9999px;
+}
+
+/* ===== SHADOWS ===== */
+:root {
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  --shadow-floating: 0 4px 12px -2px rgb(0 0 0 / 0.08), 0 2px 4px -1px rgb(0 0 0 / 0.04);
+}
+
+/* ===== TRANSITIONS ===== */
+:root {
+  --transition-fast: 150ms ease;
+  --transition-base: 200ms ease;
+}
+
+/* ===== LIGHT MODE (default) ===== */
+:root {
+  --background-color: #fafafa;
+  --surface-color: #ffffff;
+  --heading-color: #18181b;
+  --default-color: #3f3f46;
+  --muted-color: #71717a;
+  --light-color: #a1a1aa;
+
+  --border-color: #e4e4e7;
+  --border-color-light: #f4f4f5;
+  --border-color-dark: #d4d4d8;
+
+  --accent-color: #f97316;
+  --accent-color-hover: #ea580c;
+  --accent-color-light: rgba(249, 115, 22, 0.08);
+
+  --danger-color: #dc2626;
+  --danger-color-light: #fee2e2;
+
+  --success-color: #16a34a;
+  --success-color-light: rgba(22, 163, 74, 0.1);
+
+  --warning-color: #d97706;
+  --warning-color-light: rgba(217, 119, 6, 0.1);
+
+  /* Component-specific tokens */
+  --header-bg: #ffffff;
+  --header-border: var(--border-color);
+  --header-shadow: var(--shadow-floating);
+
+  --sidebar-bg: #ffffff;
+  --sidebar-border: var(--border-color);
+  --sidebar-shadow: var(--shadow-floating);
+  --sidebar-hover-bg: #f4f4f5;
+
+  --card-bg: #ffffff;
+  --card-border: var(--border-color);
+  --card-shadow: var(--shadow-sm);
+  --card-hover-border: var(--border-color-dark);
+  --card-selected-bg: var(--accent-color-light);
+
+  --chip-bg: var(--surface-color);
+  --chip-border: var(--border-color);
+  --chip-active-bg: var(--accent-color-light);
+  --chip-active-border: var(--accent-color);
+}
+
+/* ===== DARK MODE ===== */
+[data-theme="dark"] {
+  --background-color: #09090b;
+  --surface-color: #18181b;
+  --heading-color: #fafafa;
+  --default-color: #a1a1aa;
+  --muted-color: #71717a;
+  --light-color: #52525b;
+
+  --border-color: #27272a;
+  --border-color-light: #18181b;
+  --border-color-dark: #3f3f46;
+
+  --accent-color: #f97316;
+  --accent-color-hover: #fb923c;
+  --accent-color-light: rgba(249, 115, 22, 0.1);
+
+  --danger-color: #ef4444;
+  --danger-color-light: rgba(239, 68, 68, 0.15);
+
+  --success-color: #22c55e;
+  --success-color-light: rgba(34, 197, 94, 0.1);
+
+  --warning-color: #f59e0b;
+  --warning-color-light: rgba(245, 158, 11, 0.1);
+
+  /* Component-specific tokens */
+  --header-bg: #18181b;
+  --header-shadow: none;
+
+  --sidebar-bg: #18181b;
+  --sidebar-shadow: none;
+  --sidebar-hover-bg: #27272a;
+
+  --card-bg: #18181b;
+  --card-shadow: none;
+  --card-hover-border: #3f3f46;
+  --card-selected-bg: rgba(249, 115, 22, 0.08);
+
+  --chip-bg: var(--surface-color);
+  --chip-border: var(--border-color);
+  --chip-active-bg: rgba(249, 115, 22, 0.15);
+  --chip-active-border: var(--accent-color);
+}

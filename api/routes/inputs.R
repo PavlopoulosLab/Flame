@@ -1,0 +1,148 @@
+# /api/inputs — input methods. These calls only parse/analyse; lists are
+# created with POST /api/lists using the IDs the user selects.
+
+.text_arg <- function(b, field = "text") {
+  text <- paste(as.character(unlist(b[[field]] %||% "")), collapse = "\n")
+  check_text_size(text)
+  text
+}
+
+.as_records <- function(df) {
+  if (is.null(df) || nrow(df) == 0) return(list())
+  lapply(seq_len(nrow(df)), function(i) as.list(df[i, , drop = FALSE]))
+}
+
+#* Example input for a method (upload, snps, textmining, volcano, reduction)
+#* @get /examples/<kind>
+#* @serializer flamejson
+function(res, kind) {
+  api_handle(res, {
+    if (!kind %in% c("upload", "snps", "textmining", "volcano", "reduction")) api_abort(404, "Unknown example.")
+    example_input(kind)
+  })
+}
+
+#* Example input as a downloadable file (so users can check the expected format)
+#* @get /examples/<kind>/file
+#* @serializer contentType list(type="text/plain; charset=utf-8")
+function(res, kind) {
+  files <- c(upload = "flame_example_genes.txt", snps = "flame_example_snps.txt",
+             textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
+             reduction = "flame_example_umap.tsv")
+  if (!kind %in% names(files)) { res$status <- 404; return("Unknown example") }
+  res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", files[[kind]]))
+  ex <- example_input(kind)
+  if (kind == "upload") ex$text <- paste(sort(strsplit(ex$text, "\n")[[1]]), collapse = "\n")
+  ex$text
+}
+
+#* Parse pasted/uploaded IDs (counts of unique, duplicate and invalid entries)
+#* Body: { text, skipFirstRow? }
+#* @post /upload/parse
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    out <- parse_id_text(.text_arg(b), isTRUE(b$skipFirstRow))
+    out$ids <- as.list(out$ids)
+    out
+  })
+}
+
+#* Map SNP rsIDs to genes (g:SNPense). Body: { text }
+#* @post /snps/map
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    parsed <- parse_snp_ids(.text_arg(body_of(req)))
+    if (length(parsed$ids) == 0) api_abort(400, "No valid SNP rsIDs found. Use dbSNP IDs such as rs1130233.")
+    result <- gsnpense_convert(parsed$ids)
+    if (is.null(result) || nrow(result) == 0) api_abort(502, "Could not map the SNPs to genes. Check the rsIDs or try again later.")
+    stats <- summarize_gsnpense_mapping(parsed, result)
+    list(rows = .as_records(format_gsnpense_mapping_rows(result)), stats = stats,
+         genes = list(USERINPUT = as.list(extract_gsnpense_list_ids(result, "USERINPUT")),
+                      ENSG = as.list(extract_gsnpense_list_ids(result, "ENSG"))))
+  })
+}
+
+#* Find gene/protein mentions in free text (EXTRACT tagger). Body: { text, organismTaxId }
+#* @post /textmining/extract
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    text <- as.character(b$text %||% "")[1]
+    validation <- validate_extract_text(text)
+    if (!isTRUE(validation$ok)) api_abort(400, validation$message)
+    taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L))
+    if (is.na(taxid) || !taxid %in% ORGANISMS$taxid) api_abort(400, "Unknown organism.")
+    extracted <- extract_entities(text, taxid)
+    if (is.null(extracted) || nrow(extracted) == 0)
+      api_abort(422, "No gene or protein names were found for this organism. Try another organism or more specific text.")
+    rows <- format_extract_entity_rows(extracted)
+    if (is.null(rows) || nrow(rows) == 0) api_abort(422, "No valid IDs were found in the text.")
+    # The client highlights matches itself from these rows (text nodes only);
+    # third-party HTML is never sent to the browser.
+    list(rows = .as_records(rows), stats = summarize_extract_entity_rows(rows, validation, rawResult = extracted),
+         organismTaxId = taxid, organismLabel = .organism_label(taxid))
+  })
+}
+
+#* Parse a table and suggest column roles. Body: { text, fileName?, kind: volcano|reduction }
+#* @post /table/prepare
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    kind <- if (identical(b$kind, "reduction")) "reduction" else "volcano"
+    tryCatch(prepare_table_input(.text_arg(b), as.character(b$fileName %||% ""), kind),
+             error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* Volcano plot points. Body: { text, fileName?, mapping:{id,logfc,pvalue}, pThreshold, lfcThreshold }
+#* @post /volcano/points
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    tryCatch(volcano_points(.text_arg(b), as.character(b$fileName %||% ""), b$mapping %||% list(),
+                            b$pThreshold %||% 0.05, b$lfcThreshold %||% 1),
+             error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* 2D reduction points. Body: { text, fileName?, mapping:{id,x,y,color?,size?} }
+#* @post /reduction/points
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    tryCatch(reduction_points(.text_arg(b), as.character(b$fileName %||% ""), b$mapping %||% list()),
+             error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* UpSet combinations of ≥ 2 compatible lists. Body: { listIds: [...], mode }
+#* @post /upset
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    ids <- unique(as.character(unlist(b$listIds)))
+    if (length(ids) < 2) api_abort(400, "Select at least two lists.")
+    if (length(ids) > 6) api_abort(400, "Select at most six lists.")
+    rows <- lapply(ids, function(i) get_list(ws, i))
+    keyOf <- function(r) paste(r$analyte, r$taxid, r$id_format)
+    if (length(unique(vapply(rows, keyOf, character(1)))) > 1)
+      api_abort(400, "Lists must share analyte type, organism and ID format.")
+    sets <- setNames(lapply(rows, function(r) from_json(r$ids_json)), vapply(rows, function(r) r$name, character(1)))
+    mode <- flameNormalizeUpsetMode(b$mode)
+    combos <- unname(flameComputeUpsetCombinations(sets, mode))
+    list(mode = mode, modeLabel = flameUpsetModeLabel(mode),
+         sets = lapply(names(sets), function(n) list(name = n, size = length(sets[[n]]))),
+         organismTaxId = rows[[1]]$taxid, analyteType = rows[[1]]$analyte, idFormat = rows[[1]]$id_format,
+         combinations = lapply(combos, function(c) { c$ids <- as.list(c$ids); c$sourceNames <- as.list(c$sourceNames); c$sourceIndexes <- as.list(c$sourceIndexes); c }))
+  })
+}

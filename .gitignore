@@ -1,5 +1,28 @@
+# Ignore all hidden files/folders
+.*
+
+# But track these
+!.gitignore
+!.Rbuildignore
+
+# macOS resource forks (anywhere in tree)
+**/._*
+
+# Temporary files
+tmp/
+
+# Build artifacts
+*.tar.gz
 .Rproj.user
-.Rhistory
-.RData
-.Ruserdata
-www/help_images/.DS_Store
+
+
+
+/.quarto/
+**/*.quarto_ipynb
+
+dTSC1_manuscript/
+results/
+# Flame server data and web build
+api/data/
+web/dist/
+web/node_modules/

@@ -1,0 +1,65 @@
+/* ============================================
+   FLAME Design System - Base
+   CSS Reset, Typography, Scrollbars
+   ============================================ */
+
+/* ===== BOX SIZING RESET ===== */
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+/* ===== BODY ===== */
+body {
+  margin: 0;
+  font-family: var(--default-font);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--default-color);
+  background-color: var(--background-color);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ===== HEADINGS ===== */
+h1, h2, h3, h4, h5, h6 {
+  margin: 0;
+  font-weight: 600;
+  color: var(--heading-color);
+}
+
+/* ===== PARAGRAPH ===== */
+p {
+  margin: 0;
+}
+
+/* ===== BUTTON RESET ===== */
+button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+}
+
+/* ===== SCROLLBAR STYLING ===== */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--light-color);
+  border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-color);
+}
+
+/* Firefox scrollbar styling */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--light-color) transparent;
+}

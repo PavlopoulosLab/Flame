@@ -1,0 +1,22 @@
+/* ============================================
+   FLAME Design System - Tool Colors
+   Color variables for enrichment tools
+   ============================================ */
+
+:root {
+  /* Gene tools */
+  --color-gprofiler: #3b82f6;
+  --color-string: #22c55e;
+  --color-enrichr: #a855f7;
+  --color-webgestalt: #ec4899;
+  --color-panther: #eab308;
+  --color-genecodis: #06b6d4;
+  --color-clusterprofiler: #ef4444;
+  --color-david: #6366f1;
+  --color-gsea: #14b8a6;
+
+  /* Metabolite tools */
+  --color-metaboanalyst: #f97316;
+  --color-mbrole: #84cc16;
+  --color-lipea: #f472b6;
+}

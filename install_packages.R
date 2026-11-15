@@ -1,36 +1,24 @@
-#step 0 set Default repository for automated download ####
-# this is optional, uncomment only if needed
+# Install the R packages Flame needs (keep in sync with DESCRIPTION).
+# Usage: Rscript install_packages.R
 
-# local({r <- getOption("repos")
-# r["CRAN"] <- "https://cran.r-project.org" 
-# options(repos=r)
-# })
+options(repos = c(CRAN = "https://cloud.r-project.org"))
 
-#step1 install all required packages from CRAN ####
-flame_all_packages <- c("devtools",
-               "shiny",
-               "shinyjs",
-               "shinydashboard",
-               "shinyWidgets",
-               "shinyalert",
-               "bsplus",
-               "stringr",
-               "httr",
-               "httpuv",
-               "curl",
-               "jsonlite",
-               "gprofiler2",
-               "WebGestaltR",
-               "DT",
-               "tidyr",
-               "enrichR",
-               "plotly",
-               "igraph",
-               "visNetwork",
-               "upsetjs",
-               "plyr",
-               "poolr"
+flame_all_packages <- c(
+  # science core
+  "R6", "httr", "curl", "jsonlite", "gprofiler2", "WebGestaltR", "enrichR",
+  "tidyr", "dplyr", "data.table", "stringr", "plyr", "poolr", "igraph", "htmltools",
+  # API server
+  "plumber", "mirai", "later", "DBI", "RSQLite", "sodium", "mime",
+  # development and tests
+  "pkgload", "testthat", "httptest2", "callr", "httr2"
 )
-flame_new_packages <- subset(flame_all_packages, !(flame_all_packages %in% rownames(installed.packages())))
-install.packages(flame_new_packages)
-  
+
+flame_new_packages <- setdiff(flame_all_packages, rownames(installed.packages()))
+if (length(flame_new_packages)) install.packages(flame_new_packages, Ncpus = max(1L, parallel::detectCores() - 1L))
+missing <- setdiff(flame_all_packages, rownames(installed.packages()))
+if (length(missing)) {
+  message("Could not install: ", paste(missing, collapse = ", "),
+          "\nWebGestaltR needs a Rust toolchain; plumber needs libsodium (see README).")
+} else {
+  message("All Flame packages are installed.")
+}

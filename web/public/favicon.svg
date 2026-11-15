@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="60 0 520 860" width="32" height="32" preserveAspectRatio="xMidYMid meet">
+  <!-- Small-size mark: thicker strokes, no grey connectors, solid member nodes -->
+  <path fill="#8B5CF6" d="M95 800 L95 470 C90 420,82 380,84 350 C90 270,170 225,262 195 C205 250,165 330,162 420 L162 800Z"/>
+  <path fill="#DB2758" d="M535 800 L535 470 C540 420,548 400,546 370 C540 300,450 265,370 240 C425 300,466 360,468 420 L468 800Z"/>
+  <path fill="#F97316" d="M315 10 C345 90,372 180,372 250 C372 330,350 400,350 470 L350 800 L280 800 L280 470 C280 400,258 330,258 250 C258 180,285 90,315 10Z"/>
+  <circle cx="128" cy="793" r="44" fill="#fff" stroke="#6366F1" stroke-width="30"/>
+  <circle cx="315" cy="793" r="44" fill="#fff" stroke="#EA580C" stroke-width="30"/>
+  <circle cx="502" cy="793" r="44" fill="#fff" stroke="#BE185D" stroke-width="30"/>
+</svg>
