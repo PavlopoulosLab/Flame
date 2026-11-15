@@ -4,7 +4,7 @@ import { getWorkspaceId } from '../api/client'
 import { UndoProvider } from './Undo'
 
 export function Logo({ size = 32 }: { size?: number }) {
-  return <img src="/flame-logo.svg" alt="" width={size} height={size} className="logo" />
+  return <img src="/flame-logo.svg?v=11" alt="" width={size} height={size} className="logo" />
 }
 
 /** The "Flame 3.0" wordmark, in the logo's flame gradient. */
