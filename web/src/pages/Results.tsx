@@ -16,6 +16,8 @@ import { useNetworkStyle } from '../lib/networkStyle'
 import { LayoutSelect, NetworkOptions } from '../components/NetworkOptions'
 import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, type ViewSettings } from '../features/results/views'
 import { downloadSvg } from '../components/viz'
+import { saveXlsx, sheetsByCategory, termSheetRows } from '../lib/xlsx'
+import { BackToWorkspace } from '../components/ui'
 import { PaletteSelect } from '../components/PaletteSelect'
 import { PaletteScope, usePaletteKey } from '../lib/palette'
 import { formatNum, formatP, isHttpUrl, plural, slug, splitGenes, toCsv, toHtmlTable } from '../lib/format'
@@ -169,7 +171,7 @@ function ResultsPageBody() {
   return (
     <div className="results">
       <header className="results-head">
-        <Link to={`/w/${ws}`} className="btn btn-ghost btn-sm">← Workspace</Link>
+        <BackToWorkspace ws={ws} />
         <div>
           <h1 className="run-title"><ToolLogo tool={run.toolKey} size={28} /> {run.title} <span className="muted">· {run.listName}</span></h1>
           <p className="muted small">{gsea ? 'Gene set enrichment (GSEA) · ' : ''}{run.organismName.replace(/ \[NCBI.*$/, '')} · {run.resultCount} significant terms · {run.params.metric} &lt; {run.params.threshold}</p>
@@ -309,6 +311,9 @@ function ResultsPageBody() {
                   ...(isPlot ? [{ label: 'PNG image', run: () => plotRef.current?.toImage('png', baseName) }, { label: 'SVG image', run: () => plotRef.current?.toImage('svg', baseName) }] : []),
                   ...(isNetwork ? [{ label: 'PNG image', run: () => networkRef.current?.toPng(baseName) }] : []),
                   ...(isSvg ? [{ label: 'SVG image', run: () => downloadSvg(svgRef.current, `${baseName}_${view}`) }] : []),
+                  { label: 'Shown terms (Excel)', run: () => saveXlsx(sheetsByCategory(termSheetRows(q.data?.terms ?? []), 'Source', 'All terms'), `${baseName}_${view}.xlsx`) },
+                  { label: 'All filtered terms (Excel, one sheet per source)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
+                      .then((d) => saveXlsx(sheetsByCategory(termSheetRows(d.terms), 'Source', 'All terms'), `${baseName}_all.xlsx`)) },
                   { label: 'Shown terms (CSV)', run: () => saveText(toCsv(exportRows(q.data?.terms ?? []), exportCols), `${baseName}_${view}.csv`, 'text/csv') },
                   { label: 'All filtered terms (CSV)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
                       .then((d) => saveText(toCsv(exportRows(d.terms), exportCols), `${baseName}_all.csv`, 'text/csv')) },
@@ -553,6 +558,7 @@ function SelectionPanel({ terms, config, baseName, taxid, runId, onRemove, onCle
       {terms.length > 0 && (
         <div className="row wrap">
           <CopyButton text={terms.map((t) => `${t.id}\t${t.name}\t${formatP(t.pvalue)}\t${t.genes}`).join('\n')} />
+          <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx(sheetsByCategory(termSheetRows(terms), 'Source', 'Selected terms'), `${baseName}_selection.xlsx`)}>Excel</button>
           <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(rows, cols), `${baseName}_selection.csv`, 'text/csv')}>CSV</button>
           <button className="btn btn-ghost btn-sm" onClick={() => saveText(toHtmlTable('Selected terms', rows, cols), `${baseName}_selection.html`, 'text/html')}>HTML</button>
           <button className="btn btn-ghost btn-sm" onClick={() => {

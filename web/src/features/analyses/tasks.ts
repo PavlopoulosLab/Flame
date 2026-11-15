@@ -54,14 +54,14 @@ export interface DrugRow {
 }
 export interface DrugResult { kind: 'chemical' | 'crispr'; library: string; upCount: number; downCount: number; mimic: DrugRow[]; reverse: DrugRow[]; citation: string; note: string }
 
-export interface ModuleTerm { id: string; name: string; source: string; p: number; size: number }
+export interface ModuleTerm { id: string; name: string; source: string; p: number; size: number; genes?: string }
 export interface NetModule { id: number; size: number; genes: string[]; label: string; terms: ModuleTerm[]; density: number }
 export interface ModulesResult {
   modules: NetModule[]; membership: Record<string, number>; score: number; modularity: number; nodes: number; edges: number
   links?: { from: string; to: string; score: number }[]; method: string
 }
 
-export interface RobustTerm { id: string; name: string; source: string; padj: number; stability: number; randomRate: number }
+export interface RobustTerm { id: string; name: string; source: string; padj: number; stability: number; randomRate: number; genes?: string }
 export interface RobustnessResult {
   query: number; universe: number; sets: number; significant: number; randomSignificant: number[]; medianRandom: number; stable: number
   terms: RobustTerm[]; thresholds: { fdr: number; terms: number }[]; nBoot: number; nRandom: number; method: string

@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { api, getWorkspaceId, saveText } from '../../api/client'
 import type { ComparisonFilters } from '../../api/types'
+import { saveXlsx } from '../../lib/xlsx'
 import { Plot } from '../../components/charts'
 import { ErrorNote, Note, Spinner } from '../../components/ui'
 import { formatP, toCsv } from '../../lib/format'
@@ -269,7 +270,15 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
       <section className="chart-card">
         <div className="row between wrap">
           <h3>Pairwise statistics</h3>
-          <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(pairRows as Record<string, unknown>[], pairCols), 'flame_comparison_statistics.csv', 'text/csv')}>CSV</button>
+          <span className="row">
+            <button className="btn btn-ghost btn-sm" title="Excel workbook: runs, pairwise statistics, tests, agreement" onClick={() => saveXlsx([
+              { name: 'Runs', rows: runs.map((r) => ({ Run: r.label, List: r.listName, Method: r.paradigm, Terms: r.terms, 'Only this run': r.unique, 'Median term size': r.medianTermSize, 'Median -log10 p': r.medianLog10p, ...Object.fromEntries(Object.entries(r.bySource ?? {}).map(([k, v]) => [`Terms ${k}`, v])) })) },
+              { name: 'Pairs', rows: pairRows as Record<string, unknown>[] },
+              { name: 'Tests', rows: Object.entries(d.tests).filter(([, t]) => t).map(([k, t]) => ({ Test: k, Method: t!.method, Statistic: t!.statistic, df: t!.df, P: t!.p })) },
+              { name: 'Agreement', rows: d.agreement.map((a) => ({ 'Found by (runs)': a.runs, Terms: a.terms })) },
+            ], 'flame_comparison_statistics.xlsx')}>Excel</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(pairRows as Record<string, unknown>[], pairCols), 'flame_comparison_statistics.csv', 'text/csv')}>CSV</button>
+          </span>
         </div>
         <div className="table-scroll">
           <table className="table">

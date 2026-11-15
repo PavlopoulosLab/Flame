@@ -5,6 +5,7 @@ import { NetworkGraph, Plot, type NetworkHandle, type PlotHandle } from '../../c
 import type { NetworkStyle } from '../../lib/networkStyle'
 import { ChordDiagram, CircosBundle, HivePlot } from '../../components/viz'
 import { formatNum, formatP, isHttpUrl, splitGenes } from '../../lib/format'
+import { GeneList } from '../../components/ui'
 import { categoricalColor, reverseScale, sequentialScale, usePaletteMode } from '../../lib/palette'
 
 /** Source colours: configured colours, or Okabe–Ito in colour-blind safe mode. */
@@ -206,10 +207,9 @@ export function NetworkView({ data, config, settings, selected, onSelect, networ
   )
 }
 
+/** The genes of a term: the first few, expandable to the full list (as in Flame 2.0) and collapsible again. */
 function GenesCell({ genes }: { genes: string }) {
-  const list = splitGenes(genes)
-  const shown = list.slice(0, 12).join(', ')
-  return <span title={list.join(', ')}>{shown}{list.length > 12 ? <span className="muted"> … +{list.length - 12} more</span> : null}</span>
+  return <GeneList genes={splitGenes(genes)} />
 }
 
 const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)

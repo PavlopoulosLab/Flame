@@ -11,6 +11,7 @@ import { ErrorNote, Field, Modal, Note, OpenExternalButton, OrganismPicker, Segm
 import { plural } from '../../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
 import { ModuleList } from '../analyses/Analyses'
+import { saveXlsx } from '../../lib/xlsx'
 import { startTask, useTask, type ModulesResult } from '../analyses/tasks'
 import { ProgressBar } from '../../components/Progress'
 
@@ -303,6 +304,12 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
             meta={{ method: 'ppi-selection', derivedFrom: list.name }} onDone={onDone} />}
           <div className="row wrap">
             {(res.link || stringUrl) && <a className="btn btn-ghost" href={res.link ?? stringUrl ?? undefined} target="_blank" rel="noopener noreferrer">Open in STRING ↗</a>}
+            <button className="btn btn-ghost" title="Excel workbook: proteins, interactions with every evidence channel, and the modules if found" onClick={() => saveXlsx([
+              { name: 'Proteins', rows: res.nodes.map((n) => ({ Protein: n.label, Input: n.query, Interactions: n.degree, ...(modules ? { Module: modules.membership[n.id] ?? '' } : {}) })) },
+              { name: 'Interactions', rows: res.edges.map((e) => ({ From: e.from, To: e.to, 'Combined score': e.score, ...Object.fromEntries(EVIDENCE.map(([k, label]) => [label, Number(e[k] ?? 0)])) })) },
+              ...(modules ? [{ name: 'Modules', rows: modules.modules.map((m) => ({ Module: m.id, Label: m.label, Proteins: m.size, Genes: m.genes.join(', ') })) },
+                { name: 'Module terms', rows: modules.modules.flatMap((m) => m.terms.map((t) => ({ Module: m.id, Source: t.source, 'Term ID': t.id, Term: t.name, 'Adjusted p': t.p, Genes: t.genes ?? '' }))) }] : []),
+            ], `${list.name}_string_network.xlsx`)}>Download Excel</button>
             <button className="btn btn-ghost" onClick={() => saveText(res.tsv, `${list.name}_string_network.tsv`, 'text/tab-separated-values')}>Download TSV</button>
             <button className="btn btn-ghost" onClick={() => net.current?.toPng(`${list.name}_string_network.png`)}>Download PNG</button>
             <OpenExternalButton className="btn btn-secondary" path="/utilities/ppi/arena3d" label="Arena3D" caption="evidence types as 3D channels" icon={<Arena3DIcon />}

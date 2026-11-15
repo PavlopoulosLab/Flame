@@ -4,7 +4,7 @@ import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, getWorkspaceId, saveText } from '../api/client'
 import { useCreateList } from '../api/hooks'
 import { Plot, type PlotHandle } from '../components/charts'
-import { EmptyState, ErrorNote, Field, FileDrop, LinkMenu, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
+import { BackToWorkspace, EmptyState, ErrorNote, Field, FileDrop, LinkMenu, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { geneLinks, variantLinks } from '../lib/links'
 import { Arena3DIcon } from '../components/ExternalIcons'
 import { formatP, plural, toCsv } from '../lib/format'
@@ -12,6 +12,7 @@ import { categorical, PaletteScope, roleColors, usePaletteMode } from '../lib/pa
 import { PaletteSelect } from '../components/PaletteSelect'
 import { CircosBundle, downloadSvg } from '../components/viz'
 import { ProgressBar, type JobProgress } from '../components/Progress'
+import { saveXlsx, sheetsByCategory } from '../lib/xlsx'
 
 interface Analysis { id: string; name: string; organismTaxId: number; status: string; error?: string; inputCount: number; created: number; finished?: number; progress?: JobProgress | null }
 interface VariantRow {
@@ -55,7 +56,7 @@ function VariantsPageBody() {
   return (
     <div className="stack">
       <header className="results-head">
-        <Link to={`/w/${ws}`} className="btn btn-ghost btn-sm">← Workspace</Link>
+        <BackToWorkspace ws={ws} />
         <div>
           <h1>Variant analysis</h1>
           <p className="muted small">Start from SNPs, small variants or GWAS results: see their consequences, affected genes, population frequencies, clinical significance and known trait associations — then take the genes into enrichment.</p>
@@ -357,6 +358,12 @@ function VariantsTable({ variants, phenotypes, traitFilter, onClearTrait, name, 
             )
           })()}
           <Segmented label="Impact filter" value={impact} onChange={setImpact} options={[{ value: 'all', label: 'All' }, { value: 'MODERATE+', label: 'Moderate+' }, { value: 'HIGH', label: 'High' }]} />
+          <button className="btn btn-ghost btn-sm" title="Excel workbook: all variants, one sheet per impact, and the variant–trait associations" onClick={() => saveXlsx([
+            ...sheetsByCategory(rows.map((v) => ({ Variant: v.id, Input: v.input, Location: v.location, Alleles: v.alleles, Consequence: v.consequence, Impact: v.impact,
+              Gene: v.gene ?? '', 'All genes': v.allGenes, Biotype: v.biotype ?? '', 'Amino acids': v.aminoAcids ?? '', SIFT: v.sift ?? '', PolyPhen: v.polyphen ?? '',
+              'gnomAD AF': v.gnomadAF ?? '', ClinVar: v.clinicalSignificance ?? '', 'P-value': v.pvalue ?? '' })), 'Impact', 'Variants'),
+            { name: 'Traits', rows: phenotypes.map((ph) => ({ Variant: ph.variant, Trait: ph.trait, Source: ph.source, 'Risk allele': ph.riskAllele ?? '', 'P-value': ph.pvalue ?? '', Study: ph.study ?? '' })) },
+          ], `${name}_variants.xlsx`)}>Excel</button>
           <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(rows as unknown as Record<string, unknown>[], cols), `${name}_variants.csv`, 'text/csv')}>CSV</button>
         </div>
       </div>

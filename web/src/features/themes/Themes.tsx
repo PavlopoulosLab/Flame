@@ -6,6 +6,7 @@ import { ToolLogo } from '../../components/ToolLogo'
 import { CopyButton, ErrorNote, Spinner } from '../../components/ui'
 import { downloadSvg } from '../../components/viz'
 import { WordCloud, type CloudWord } from '../../components/WordCloud'
+import { saveXlsx } from '../../lib/xlsx'
 import { formatP } from '../../lib/format'
 
 interface Theme {
@@ -55,6 +56,12 @@ export function ThemesView({ path, body, terms, onSelect, colorOf, baseName }: {
             <h3>Word cloud of all {d.termCount.toLocaleString()} terms</h3>
             <span className="row">
               {word && <button className="chip on" onClick={() => { setWord(null); onSelect([], false) }}>{word} ×</button>}
+              <button className="btn btn-ghost btn-sm" title="Excel workbook: themes with their genes, the terms of each theme, and the word weights" onClick={() => saveXlsx([
+                { name: 'Themes', rows: d.themes.map((t) => ({ Theme: t.label, Terms: t.size, Genes: t.genes.join(', '), 'Gene count': t.genes.length, 'Best p': t.bestP, Score: t.score,
+                  Overlap: t.cohesion, Keywords: t.keywords.map((k) => k.word).join(', '), Sources: Object.entries(t.sources).map(([k, n]) => `${k} ${n}`).join('; ') })) },
+                { name: 'Terms by theme', rows: d.themes.flatMap((t) => t.terms.map((id) => ({ Theme: t.label, 'Term ID': id, Term: terms.find((x) => x.id === id)?.name ?? '' }))) },
+                { name: 'Word cloud', rows: d.words.map((w) => ({ Word: w.word, Weight: w.weight })) },
+              ], `${baseName}_themes.xlsx`)}>Excel</button>
               <button className="btn btn-ghost btn-sm" onClick={() => downloadSvg(cloudRef.current, `${baseName}_wordcloud`)}>SVG</button>
             </span>
           </div>

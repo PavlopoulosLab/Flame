@@ -18,6 +18,7 @@
     "d3": "^7.9.2",
     "d3-cloud": "^1.2.7",
     "d3-selection": "^3.0.1",
+    "fflate": "^0.8.3",
     "plotly.js-dist-min": "^4.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",

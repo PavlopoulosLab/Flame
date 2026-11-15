@@ -5,13 +5,14 @@ import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig } from '../api/hooks'
 import type { ComparisonData, ComparisonFilters, ComparisonTerm } from '../api/types'
 import { Plot, type PlotHandle } from '../components/charts'
-import { CopyButton, ErrorNote, Field, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
+import { BackToWorkspace, CopyButton, ErrorNote, Field, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { ExportMenu } from './Results'
 import { ChordDiagram, CircosBundle, SetOverlapUpSet, downloadSvg } from '../components/viz'
 import { UndoRedoButtons } from '../components/Undo'
 import { ComparisonStatistics } from '../features/compare/Statistics'
 import { CompareTable } from '../features/compare/CompareTable'
 import { RankChart } from '../features/compare/RankChart'
+import { saveXlsx, sheetsByCategory } from '../lib/xlsx'
 import { ThemesView } from '../features/themes/Themes'
 import { Arena3DIcon } from '../components/ExternalIcons'
 import { useHistory } from '../lib/history'
@@ -89,7 +90,7 @@ function ComparePageBody() {
   return (
     <div className="results">
       <header className="results-head">
-        <Link to={`/w/${ws}`} className="btn btn-ghost btn-sm">← Workspace</Link>
+        <BackToWorkspace ws={ws} />
         <div>
           <h1>Comparing {plural(runIds.length, 'run')}</h1>
           <p className="muted small">{runs.map((r) => `${r.label} · ${r.listName}`).join('  |  ')}</p>
@@ -317,7 +318,9 @@ function SelectionExports({ terms }: { terms: ComparisonTerm[] }) {
     <div className="row wrap">
       <CopyButton text={terms.map((t) => `${t.id}\t${t.name}\t${t.tools}\t${formatP(t.combPvalue)}`).join('\n')} />
       <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(rows, cols), 'flame_comparison_selection.csv', 'text/csv')}>CSV</button>
-      <button className="btn btn-ghost btn-sm" onClick={() => saveText(html, 'flame_comparison_selection.xls', 'application/vnd.ms-excel')}>Excel</button>
+      <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx(sheetsByCategory(terms.map((t) => ({ Source: t.source, 'Term ID': t.id, Term: t.name, 'Found by': t.tools,
+        Runs: t.rank, 'Combined p': t.combPvalue, 'Term size': t.termSize, 'Genes (all runs)': t.intersectionHits, 'Genes (any run)': t.unionHits })), 'Source', 'Selected terms'),
+        'flame_comparison_selection.xlsx')}>Excel</button>
       <button className="btn btn-ghost btn-sm" onClick={() => saveText(html, 'flame_comparison_selection.html', 'text/html')}>HTML</button>
       <button className="btn btn-ghost btn-sm" onClick={() => { const w = window.open(URL.createObjectURL(new Blob([html], { type: 'text/html' })), '_blank'); w?.addEventListener('load', () => w.print()) }}>Print / PDF</button>
     </div>

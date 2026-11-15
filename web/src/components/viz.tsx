@@ -2,6 +2,7 @@ import { arc as d3arc, chord as d3chord, curveBundle, descending, line as d3line
 import { useMemo, useRef, useState } from 'react'
 import { BrushModes, pointInPolygon, useBrush, type BrushMode, type Pt } from '../lib/brush'
 import { saveBlob } from '../api/client'
+import { saveXlsx } from '../lib/xlsx'
 
 /** Client → SVG user coordinates. */
 const toSvgPoint = (svg: SVGSVGElement | null, x: number, y: number): Pt => {
@@ -198,6 +199,10 @@ export function SetOverlapUpSet({ sets, membership, colors, onSelect, describe, 
           </>
         ) : <span className="muted small">Click a column to select its {itemNoun} and copy them.</span>}
         <CopyText label="Copy all combinations" text={['combination\tcount\tids', ...combos.map((c) => `${comboName(c.key)}\t${c.items.length}\t${c.items.join(',')}`)].join('\n')} />
+        <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary of the combinations and one sheet per combination" onClick={() => saveXlsx([
+          { name: 'Combinations', rows: combos.map((c) => ({ Combination: comboName(c.key), Count: c.items.length, Items: c.items.map((i) => (describe ? describe(i) : i)).join(', ') })) },
+          ...combos.slice(0, 60).map((c) => ({ name: comboName(c.key), rows: c.items.map((i) => ({ ID: i, Name: describe ? describe(i) : '' })) })),
+        ], 'flame_upset_combinations.xlsx')}>Excel</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveBlob(new Blob([['combination\tcount\tid\tname', ...combos.flatMap((c) => c.items.map((i) => `${comboName(c.key)}\t${c.items.length}\t${i}\t${describe ? describe(i) : ''}`))].join('\n')], { type: 'text/tab-separated-values' }), 'flame_upset_combinations.tsv')}>Download (TSV)</button>
       </div>
     </div>

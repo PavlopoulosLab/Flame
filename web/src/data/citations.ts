@@ -55,7 +55,7 @@ export const CITATION_GROUPS: { title: string; items: Citation[] }[] = [
     { key: 'extract', resource: 'EXTRACT', ref: 'Pafilis E et al. (2016) EXTRACT: interactive extraction of environment metadata and term suggestion for metagenomic sample annotation. Database 2016:baw005', doi: '10.1093/database/baw005' },
   ] },
   { title: 'Network viewers', items: [
-    { key: 'arena3d', resource: 'Arena3Dweb', ref: 'Kokoli M et al. (2023) Arena3Dweb: interactive 3D visualization of multilayered networks supporting multiple directional information channels, clustering analysis and application integration. NAR Genom Bioinform 5:lqad053', doi: '10.1093/nargab/lqad053' },
-    { key: 'norma', resource: 'NORMA', ref: 'Koutrouli M et al. (2022) NORMA: the network makeup artist — a web tool for network annotation visualization. Genomics Proteomics Bioinformatics 20:578–586', doi: '10.1016/j.gpb.2021.02.005' },
+    { key: 'arena3d', resource: 'Arena3D', ref: 'Karatzas E, Baltoumas F, Kokoli M et al. (2026) Arena3D 3.0: a web server for exploring, analyzing, annotating and sharing multilayered networks in 3D. bioRxiv 2026.10.23.761450', doi: '10.64898/2026.10.23.761450' },
+    { key: 'norma', resource: 'NORMA', ref: 'Baltoumas F, Karatzas E, Koutrouli M et al. (2026) NORMA 3.0: aesthetic and group-aware visualization and analysis of annotated biological networks. bioRxiv 2026.11.03.763961', doi: '10.64898/2026.11.03.763961' },
   ] },
 ]

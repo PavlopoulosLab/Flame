@@ -4,6 +4,8 @@ import { useConfig, useOrganismSearch } from '../api/hooks'
 import type { OrganismOption } from '../api/types'
 import { PaletteSelect } from './PaletteSelect'
 import { geneCardsUrl } from '../lib/links'
+import { saveXlsx, type Sheet } from '../lib/xlsx'
+import { Link } from 'react-router-dom'
 
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
@@ -344,6 +346,42 @@ export function GeneChips({ genes, taxid = 9606, max = 60 }: { genes: string[]; 
     <span className="gene-chips">
       {genes.slice(0, max).map((g) => <GeneCardsLink key={g} gene={g} taxid={taxid} className="gene" />)}
       {genes.length > max && <span className="muted small">+{genes.length - max} more (copy to get all)</span>}
+    </span>
+  )
+}
+
+/** The way back from a results page: a clear button with the workspace as destination. */
+export function BackToWorkspace({ ws }: { ws: string }) {
+  return (
+    <Link to={`/w/${ws}`} className="btn btn-secondary back-to-workspace" title="Back to your lists, runs and analyses">
+      <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      Back to workspace
+    </Link>
+  )
+}
+
+/** Excel export button: `sheets` is called when clicked. */
+export function ExcelButton({ sheets, filename, label = 'Excel', className = 'btn btn-ghost btn-sm', title }: {
+  sheets: () => Sheet[]; filename: string; label?: string; className?: string; title?: string
+}) {
+  return <button type="button" className={className} title={title ?? 'Download as an Excel workbook'} onClick={() => saveXlsx(sheets(), filename)}>{label}</button>
+}
+
+/** A term's genes: the first few, with "+N more" to expand the full list and "less" to collapse it. */
+export function GeneList({ genes, max = 8 }: { genes: string[] | string; max?: number }) {
+  const [open, setOpen] = useState(false)
+  const list = Array.isArray(genes) ? genes : genes.split(/[,;]\s*/).map((g) => g.trim()).filter(Boolean)
+  if (!list.length) return <span className="muted">—</span>
+  const shown = open ? list : list.slice(0, max)
+  return (
+    <span className={`gene-list${open ? ' open' : ''}`}>
+      <span className="gene-list-names">{shown.join(', ')}</span>
+      {list.length > max && (
+        <button type="button" className="gene-list-toggle" aria-expanded={open}
+          onClick={(e) => { e.stopPropagation(); setOpen(!open) }}>
+          {open ? 'show less' : `+${list.length - max} more`}
+        </button>
+      )}
     </span>
   )
 }

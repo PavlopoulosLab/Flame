@@ -1,13 +1,17 @@
 import { useMemo, useState } from 'react'
 import { saveText } from '../../api/client'
 import type { ComparisonRunMeta, ComparisonTerm } from '../../api/types'
-import { CopyButton } from '../../components/ui'
+import { CopyButton, GeneList } from '../../components/ui'
 import { ToolLogo } from '../../components/ToolLogo'
 import { formatP, toCsv } from '../../lib/format'
 import { aggregateRanks } from '../../lib/rankAgg'
+import { saveXlsx, sheetsByCategory } from '../../lib/xlsx'
 
 type ByRun = Record<string, { p: number; genes: number } | null | Record<string, never>>
 export type Row = ComparisonTerm & { byRun?: ByRun }
+const genesOf = (s?: string) => (s ?? '').split(/[,;]\s*/).map((g) => g.trim()).filter(Boolean)
+/** Shared genes first, then the genes found by only some of the runs. */
+const orderedGenes = (t: Row) => { const shared = genesOf(t.intersectionHits); const set = new Set(shared); return [...shared, ...genesOf(t.unionHits).filter((g) => !set.has(g))] }
 export const hit = (t: Row, r: string) => { const x = t.byRun?.[r]; return x && typeof (x as { p?: number }).p === 'number' ? (x as { p: number; genes: number }) : null }
 
 /**
@@ -52,7 +56,8 @@ export function CompareTable({ terms, runs, colors, selected, onSelect, labels }
   )
   const exportRows = rows.map((t) => {
     const r: Record<string, unknown> = { term_id: t.id, term: t.name, source: t.source, found_by: found(t).map((x) => runs.find((y) => y.id === x)?.label).join('; '),
-      agreement: `${found(t).length}/${ids.length}`, consensus_rank: agg.get(t.id)?.consensus, rra_score: agg.get(t.id)?.rra, mean_rank: agg.get(t.id)?.meanRank, combined_p: t.combPvalue, shared_genes: t.intersectionCount, all_genes: t.unionCount }
+      agreement: `${found(t).length}/${ids.length}`, consensus_rank: agg.get(t.id)?.consensus, rra_score: agg.get(t.id)?.rra, mean_rank: agg.get(t.id)?.meanRank, combined_p: t.combPvalue,
+      shared_genes: t.intersectionCount, all_genes: t.unionCount, shared_gene_list: genesOf(t.intersectionHits).join(', '), all_gene_list: genesOf(t.unionHits).join(', ') }
     runs.forEach((run) => { const h = hit(t, run.id); r[`p_${run.label}`] = h ? h.p : ''; r[`rank_${run.label}`] = agg.get(t.id)?.ranks[run.id] ?? ''; r[`genes_${run.label}`] = h ? h.genes : '' })
     return r
   })
@@ -68,6 +73,7 @@ export function CompareTable({ terms, runs, colors, selected, onSelect, labels }
         </select></label>
         <span className="muted small">{rows.length.toLocaleString()} terms · click a header to sort, a row to select (Shift adds)</span>
         <span className="toolbar-spacer" />
+        <button className="btn btn-ghost btn-sm" title="Excel workbook: all terms, then one sheet per annotation source" onClick={() => saveXlsx(sheetsByCategory(exportRows, 'source', 'All terms'), 'flame_comparison_table.xlsx')}>Excel</button>
         <CopyButton label="Copy" text={toCsv(exportRows, exportCols).replace(/,/g, '\t')} />
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(exportRows, exportCols), 'flame_comparison_table.csv', 'text/csv')}>CSV</button>
       </div>
@@ -89,6 +95,7 @@ export function CompareTable({ terms, runs, colors, selected, onSelect, labels }
                 </th>
               ))}
               {head('genes', 'Shared genes', -1)}
+              <th title="Genes found in the term by any run; genes found by every run that reported the term come first">Genes</th>
             </tr>
           </thead>
           <tbody>
@@ -107,6 +114,7 @@ export function CompareTable({ terms, runs, colors, selected, onSelect, labels }
                   <td>{f.length > 1 ? formatP(t.combPvalue) : <span className="muted">{formatP(t.combPvalue)}</span>}</td>
                   {runs.map((r) => { const h = hit(t, r.id); return <td key={r.id} className="run-col">{h ? (cells === 'rank' ? <>#{agg.get(t.id)?.ranks[r.id]}<span className="muted small"> · {formatP(h.p)}</span></> : <>{formatP(h.p)}<span className="muted small"> · {h.genes}</span></>) : <span className="muted">—</span>}</td> })}
                   <td>{t.intersectionCount ?? 0}<span className="muted small"> / {t.unionCount ?? 0}</span></td>
+                  <td className="genes-cell"><GeneList genes={orderedGenes(t)} /></td>
                 </tr>
               )
             })}

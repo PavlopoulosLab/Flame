@@ -117,6 +117,11 @@ test.describe('with external services', () => {
     await expect(page.getByText(/All 2 analyses finished/)).toBeVisible({ timeout: 240_000 })
     await page.locator('.run-card').first().getByRole('button', { name: /View .* terms/ }).click()
     await expect(page.locator('.selection')).toBeVisible()
+    await expect(page.getByRole('link', { name: /Back to workspace/ })).toBeVisible()
+    // Excel export: one workbook, every term with its genes
+    await page.getByRole('button', { name: /Export/ }).first().click()
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: /All filtered terms \(Excel/ }).click()])
+    expect(download.suggestedFilename()).toMatch(/\.xlsx$/)
     expect(errors).toEqual([])
   })
 })

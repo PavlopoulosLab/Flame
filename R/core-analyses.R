@@ -81,12 +81,13 @@ ppi_modules <- function(ids, taxid, score = 700L, sources = c("GO:BP", "KEGG", "
   short <- ORGANISMS$short_name[ORGANISMS$taxid == taxid][1]
   modules <- lapply(seq_along(groups), function(k) {
     flame_progress(0.35 + 0.6 * k / length(groups), sprintf("Enriching module %d of %d (%d proteins)", k, length(groups), length(groups[[k]])))
-    res <- tryCatch(gprofiler2::gost(groups[[k]], organism = short, sources = sources, correction_method = "fdr", user_threshold = 0.05)$result,
+    res <- tryCatch(gprofiler2::gost(groups[[k]], organism = short, sources = sources, correction_method = "fdr", user_threshold = 0.05, evcodes = TRUE)$result,
                     error = function(e) NULL)
     top <- if (!is.null(res) && nrow(res)) utils::head(res[order(res$p_value), ], 5) else NULL
     list(id = k, size = length(groups[[k]]), genes = as.list(groups[[k]]),
          label = if (!is.null(top)) top$term_name[1] else sprintf("Module %d", k),
-         terms = if (!is.null(top)) lapply(seq_len(nrow(top)), function(i) list(id = top$term_id[i], name = top$term_name[i], source = top$source[i], p = top$p_value[i], size = top$intersection_size[i])) else list(),
+         terms = if (!is.null(top)) lapply(seq_len(nrow(top)), function(i) list(id = top$term_id[i], name = top$term_name[i], source = top$source[i], p = top$p_value[i], size = top$intersection_size[i],
+                                                                         genes = if ("intersection" %in% names(top)) gsub(",", ", ", top$intersection[i]) else "")) else list(),
          density = round(igraph::edge_density(igraph::induced_subgraph(g, groups[[k]])), 3))
   })
   list(modules = modules, membership = as.list(stats::setNames(as.integer(memb), names(memb))), score = score,
@@ -129,6 +130,7 @@ enrichment_robustness <- function(ids, taxid, sources = c("GO:BP", "KEGG", "REAC
   }
   stab <- rowMeans(boot); fp <- rowMeans(rnd)
   terms <- lapply(sig[order(obs[sig])], function(i) list(id = names(byTerm)[i], name = names_[i], source = src[i], padj = obs[i],
+                                                            genes = paste(sort(intersect(byTerm[[i]], query)), collapse = ", "),
                                                             stability = round(stab[i], 3), randomRate = round(fp[i], 3)))
   thresholds <- lapply(c(0.001, 0.01, 0.05, 0.1, 0.25), function(t) list(fdr = t, terms = sum(obs <= t)))
   list(query = length(query), universe = length(universe), sets = length(byTerm), significant = length(sig),

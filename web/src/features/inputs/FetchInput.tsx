@@ -6,6 +6,7 @@ import { Plot } from '../../components/charts'
 import { CopyButton, ErrorNote, Field, GeneCardsLink, GeneChips, Modal, Note, OrganismPicker, Spinner } from '../../components/ui'
 import { formatP, plural } from '../../lib/format'
 import { SaveList } from './InputModal'
+import { saveXlsx } from '../../lib/xlsx'
 
 export type FetchMode = 'disease' | 'pubmed' | 'geo' | 'dbsnp'
 
@@ -239,7 +240,10 @@ function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode; on
     <div className="stack-sm fetch-genes">
       <div className="row between wrap">
         <h3>{plural(r.genes.length, 'gene')}{r.source ? ` · ${r.source}` : ''}{r.total && r.total > r.genes.length ? ` (top ${r.genes.length} of ${r.total.toLocaleString()})` : ''}</h3>
-        <span className="row"><CopyButton label="Copy genes" text={chosen.map((g) => g.gene).join('\n')} />{r.link && <a className="btn btn-ghost btn-sm" href={r.link} target="_blank" rel="noopener noreferrer">Source ↗</a>}</span>
+        <span className="row"><CopyButton label="Copy genes" text={chosen.map((g) => g.gene).join('\n')} />
+          <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: (r.source ?? mode).slice(0, 31), rows: r.genes.map((g, i) => ({ Rank: i + 1, Gene: g.gene, Name: g.name ?? '',
+            ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}),
+            ...(g.evidence ? Object.fromEntries(Object.entries(g.evidence).map(([k, v]) => [`Evidence: ${k}`, v])) : {}) })) }], `flame_${mode}_genes.xlsx`)}>Excel</button>{r.link && <a className="btn btn-ghost btn-sm" href={r.link} target="_blank" rel="noopener noreferrer">Source ↗</a>}</span>
       </div>
       {valueLabel && (
         <Plot height={Math.max(260, shown.length * 15 + 70)} onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{

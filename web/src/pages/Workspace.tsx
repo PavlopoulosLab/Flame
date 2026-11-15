@@ -16,6 +16,7 @@ import { ToolLogo } from '../components/ToolLogo'
 import { ConceptIcon, IconLabel } from '../components/Icons'
 import { AnalysesPanel } from '../features/analyses/Analyses'
 import { startTask } from '../features/analyses/tasks'
+import { saveXlsx } from '../lib/xlsx'
 import { SessionModal, SessionStatusPill, useSaveShortcut, useSessionStatus, type Tab as SessionTab } from '../features/session/Session'
 
 type Dialog =
@@ -476,6 +477,8 @@ function ListsSection({ lists, max, onAdd, onRun, onQuick }: {
                     <div className="menu" onMouseLeave={() => setMenu(null)}>
                       <button onClick={() => { setMenu(null); onRun(l.id) }}>Run enrichment</button>
                       <button onClick={() => { setMenu(null); setEditing(l.id); setName(l.name) }}>Rename</button>
+                      <button onClick={() => { setMenu(null); api<{ ids: string[]; scores?: number[] }>(`/lists/${l.id}`).then((d) => saveXlsx([{ name: l.name,
+                        rows: d.ids.map((id, i) => ({ ID: id, ...(d.scores ? { Score: d.scores[i] } : {}) })) }], `${l.name}.xlsx`)) }}>Download Excel</button>
                       <button onClick={() => { setMenu(null); downloadFromApi(`/lists/${l.id}/csv`, `${l.name}.csv`) }}>Download CSV</button>
                       <button onClick={() => { setMenu(null); onQuick('convert', l.id) }}>Convert IDs</button>
                       <button onClick={() => { setMenu(null); onQuick('orthologs', l.id) }}>Find orthologs</button>

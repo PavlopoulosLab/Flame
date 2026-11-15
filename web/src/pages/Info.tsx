@@ -161,7 +161,7 @@ function Privacy() {
       <h2>How long</h2>
       <p>Workspaces are deleted automatically after {days} days without use. You can clear or permanently delete your workspace at any time from <em>Save, load or clear session</em> in the workspace.</p>
       <h2>Third-party services</h2>
-      <p>To run analyses, Flame sends the IDs (and, for text mining, the text) you submit to the corresponding services: g:Profiler, STRING, Enrichr, WebGestalt, PANTHER, GeneCodis, Reactome, ChEA3 and KEA3, KEGG, Ensembl VEP, the EXTRACT tagger; searches typed in the disease, PubMed, GEO and dbSNP inputs go to Open Targets, NCBI E-utilities, RummaGEO and the GWAS Catalog; and — only if you press <em>3D view</em> — Arena3Dweb. Nothing else is shared.</p>
+      <p>To run analyses, Flame sends the IDs (and, for text mining, the text) you submit to the corresponding services: g:Profiler, STRING, Enrichr, WebGestalt, PANTHER, GeneCodis, Reactome, ChEA3 and KEA3, KEGG, Ensembl VEP, the EXTRACT tagger; searches typed in the disease, PubMed, GEO and dbSNP inputs go to Open Targets, NCBI E-utilities, RummaGEO and the GWAS Catalog; and — only if you press <em>3D view</em> — Arena3D. Nothing else is shared.</p>
       <h2>Cookies and tracking</h2>
       <p>Flame sets no cookies, uses no analytics or tracking, and loads no third-party scripts, fonts or images. Your colour theme and open views are remembered only for the current browser session.</p>
     </article>

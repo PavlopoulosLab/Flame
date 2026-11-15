@@ -5,10 +5,11 @@ import type { AnalyteList } from '../../api/types'
 import { NetworkGraph, Plot } from '../../components/charts'
 import { ConceptIcon } from '../../components/Icons'
 import { ProgressBar } from '../../components/Progress'
-import { CopyButton, EmptyState, ErrorNote, Field, GeneCardsLink, GeneChips, Modal, Note, OrganismPicker, Segmented } from '../../components/ui'
+import { CopyButton, EmptyState, ErrorNote, Field, GeneCardsLink, GeneChips, GeneList, Modal, Note, OrganismPicker, Segmented } from '../../components/ui'
 import { formatP, plural, toCsv } from '../../lib/format'
 import { categorical, PaletteScope, usePaletteKey, usePaletteMode } from '../../lib/palette'
 import { SaveDerived } from '../utilities/QuickActions'
+import { saveXlsx, sheetsByCategory } from '../../lib/xlsx'
 import {
   startTask, TASK_INFO, useTask, useTasks, type DrugResult, type DrugRow, type ModulesResult, type RegulatorResult,
   type RobustnessResult, type TaskType,
@@ -235,6 +236,9 @@ function RegulatorsView({ r, onDone }: { r: RegulatorResult; onDone: () => void 
         <span className="muted small">Drag a box over bars (or click) to select {what}s; their target genes from your list appear below.</span>
         <span className="toolbar-spacer" />
         <CopyButton label="Copy names" text={top.map((x) => x.name).join('\n')} />
+        <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: r.kind === 'tf' ? 'Transcription factors' : 'Kinases', rows: r.regulators.map((x) => ({
+          Rank: x.rank, [r.kind === 'tf' ? 'Transcription factor' : 'Kinase']: x.name, 'Mean rank': x.score, 'Genes of your list': x.overlap.length,
+          Genes: x.overlap.join(', '), 'Evidence libraries': x.libraries.map((l) => `${l.library} (${l.rank})`).join('; ') })) }], `flame_${r.tool.toLowerCase()}.xlsx`)}>Excel</button>
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(rows, cols), `flame_${r.tool.toLowerCase()}.csv`, 'text/csv')}>CSV</button>
       </div>
       <Plot height={Math.max(300, top.length * 20 + 80)} onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
@@ -283,6 +287,11 @@ function DrugsView({ r }: { r: DrugResult }) {
         <span className="muted small">{r.library} · {r.upCount} up / {r.downCount} down genes</span>
         <span className="toolbar-spacer" />
         <CopyButton label="Copy names" text={rows.map((x) => x.agent).join('\n')} />
+        <button className="btn btn-ghost btn-sm" title="Excel workbook: one sheet for compounds that reverse the signature, one for those that mimic it" onClick={() => saveXlsx(
+          (['reverse', 'mimic'] as const).map((d) => ({ name: d === 'reverse' ? 'Reverse' : 'Mimic', rows: r[d].map((x) => ({
+            [r.kind === 'crispr' ? 'Knock-out' : 'Compound']: x.agent, Score: x[d],
+            'Up genes, adj. p': d === 'reverse' ? x.upInDown ?? '' : x.upInUp ?? '', 'Down genes, adj. p': d === 'reverse' ? x.downInUp ?? '' : x.downInDown ?? '',
+            Genes: (d === 'reverse' ? x.genesReverse : x.genesMimic).join(', ') })) })), 'flame_lincs_signatures.xlsx')}>Excel</button>
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(exp, Object.keys(exp[0] ?? {}).map((k) => ({ key: k, label: k }))), `flame_lincs_${dir}.csv`, 'text/csv')}>CSV</button>
       </div>
       {rows.length === 0 ? <Note kind="info">No signature {dir === 'reverse' ? 'reverses' : 'mimics'} this response significantly.</Note> : (
@@ -314,7 +323,13 @@ export function ModuleList({ r, colorOf, onPick, picked, taxid, onDone, details 
   const m = r.modules.find((x) => x.id === picked)
   return (
     <div className="stack-sm">
-      <p className="small">{plural(r.modules.length, 'module')} · modularity {r.modularity} · {r.nodes} proteins, {r.edges} interactions. Click a module to select it.</p>
+      <div className="row between wrap">
+        <p className="small">{plural(r.modules.length, 'module')} · modularity {r.modularity} · {r.nodes} proteins, {r.edges} interactions. Click a module to select it.</p>
+        <button className="btn btn-ghost btn-sm" title="Excel workbook: modules with their proteins, then the enriched terms of every module (all and per source)" onClick={() => saveXlsx([
+          { name: 'Modules', rows: r.modules.map((m) => ({ Module: m.id, Label: m.label, Proteins: m.size, Density: m.density, Genes: m.genes.join(', ') })) },
+          ...sheetsByCategory(r.modules.flatMap((m) => m.terms.map((t) => ({ Module: m.id, Source: t.source, 'Term ID': t.id, Term: t.name, 'Adjusted p': t.p, 'Genes found': t.size, Genes: t.genes ?? '' }))), 'Source', 'Module terms'),
+        ], 'flame_network_modules.xlsx')}>Excel</button>
+      </div>
       <div className="module-grid">
         {r.modules.map((x) => (
           <button key={x.id} type="button" className={`module-card${picked === x.id ? ' on' : ''}`} style={{ borderLeftColor: colorOf(x.id) }} onClick={() => onPick(picked === x.id ? null : x.id)}>
@@ -367,7 +382,7 @@ function RobustnessView({ r }: { r: RobustnessResult }) {
   const [sel, setSel] = useState<string[]>([])
   const [only, setOnly] = useState<'all' | 'stable' | 'fragile'>('all')
   const shown = r.terms.filter((t) => (only === 'all' ? true : only === 'stable' ? t.stability >= 0.8 : t.stability < 0.5))
-  const exp = r.terms.map((t) => ({ term_id: t.id, term: t.name, source: t.source, padj: t.padj, stability: t.stability, random_rate: t.randomRate }))
+  const exp = r.terms.map((t) => ({ term_id: t.id, term: t.name, source: t.source, padj: t.padj, stability: t.stability, random_rate: t.randomRate, genes: t.genes ?? '' }))
   return (
     <div className="stack">
       <div className="stat-tiles">
@@ -407,14 +422,19 @@ function RobustnessView({ r }: { r: RobustnessResult }) {
         {sel.length > 0 && <><span className="small">{sel.length} selected</span><button className="btn btn-ghost btn-sm" onClick={() => setSel([])}>Clear</button></>}
         <span className="toolbar-spacer" />
         <CopyButton label="Copy names" text={(sel.length ? r.terms.filter((t) => sel.includes(t.id)) : shown).map((t) => t.name).join('\n')} />
+        <button className="btn btn-ghost btn-sm" title="Excel workbook: all terms, one sheet per source, and the FDR thresholds" onClick={() => saveXlsx([
+          ...sheetsByCategory(r.terms.map((t) => ({ Source: t.source, 'Term ID': t.id, Term: t.name, 'Adjusted p': t.padj, Stability: t.stability, 'Random rate': t.randomRate, Genes: t.genes ?? '' })), 'Source', 'Terms'),
+          { name: 'FDR thresholds', rows: r.thresholds.map((t) => ({ 'FDR threshold': t.fdr, 'Significant terms': t.terms })) },
+        ], 'flame_robustness.xlsx')}>Excel</button>
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(exp, Object.keys(exp[0] ?? {}).map((k) => ({ key: k, label: k }))), 'flame_robustness.csv', 'text/csv')}>CSV</button>
       </div>
       <div className="table-scroll"><table className="table compact">
-        <thead><tr><th>Term</th><th>Source</th><th>Adjusted p</th><th>Stability</th><th>Random rate</th></tr></thead>
+        <thead><tr><th>Term</th><th>Source</th><th>Adjusted p</th><th>Stability</th><th>Random rate</th><th>Genes</th></tr></thead>
         <tbody>{(sel.length ? r.terms.filter((t) => sel.includes(t.id)) : shown).slice(0, 200).map((t) => (
           <tr key={t.id}><td>{t.name}</td><td>{t.source}</td><td>{formatP(t.padj)}</td>
             <td><span className="meter"><i style={{ width: `${t.stability * 100}%`, background: t.stability >= 0.8 ? '#16a34a' : t.stability >= 0.5 ? '#f59e0b' : '#e11d48' }} /></span> {Math.round(t.stability * 100)}%</td>
-            <td>{Math.round(t.randomRate * 100)}%</td></tr>
+            <td>{Math.round(t.randomRate * 100)}%</td>
+            <td className="genes-cell"><GeneList genes={t.genes ?? ''} /></td></tr>
         ))}</tbody>
       </table></div>
       <p className="muted small">{r.method}</p>

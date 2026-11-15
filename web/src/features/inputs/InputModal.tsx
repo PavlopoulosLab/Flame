@@ -8,6 +8,7 @@ import { plural } from '../../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
 import { METHODS, type InputKind } from './MethodPicker'
 import { FetchInput } from './FetchInput'
+import { saveXlsx } from '../../lib/xlsx'
 
 interface Props {
   kind: InputKind
@@ -627,6 +628,10 @@ function Upset({ lists, onClose, onCreated, title }: P) {
               <div className="row wrap">
                 <span className="muted small">All combinations:</span>
                 <CopyButton label="Copy table" text={['combination\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.count}\t${c.ids.join(',')}`)].join('\n')} />
+                <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary and one sheet per combination" onClick={() => saveXlsx([
+                  { name: 'Combinations', rows: res.combinations.map((c) => ({ Combination: c.label, Lists: c.sourceNames.join(' + '), Count: c.count, IDs: c.ids.join(', ') })) },
+                  ...res.combinations.slice(0, 60).map((c) => ({ name: c.label, rows: c.ids.map((i) => ({ ID: i })) })),
+                ], `flame_upset_${res.mode}.xlsx`)}>Excel</button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(['combination\tlists\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.sourceNames.join(' + ')}\t${c.count}\t${c.ids.join(',')}`)].join('\n'), `flame_upset_${res.mode}.tsv`, 'text/tab-separated-values')}>Download (TSV)</button>
               </div>
             </div>
@@ -877,6 +882,8 @@ function PathwayActivity({ text, fileName, log, organism }: { text: string; file
             <span className="muted small">{res.pathways.length} most variable of {res.totalPathways} pathways · click rows to select</span>
             <span className="toolbar-spacer" />
             <CopyButton label="Copy names" text={(sel.length ? sel : res.pathways).join('\n')} />
+            <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: `Activity (${res.method})`, rows: res.pathways.map((pw, i) => ({ Pathway: pw, ...Object.fromEntries(res.samples.map((sm, j) => [sm, res.scores[i][j]])) })) }],
+              `flame_pathway_activity_${res.method}.xlsx`)}>Excel</button>
             <button className="btn btn-ghost btn-sm" onClick={() => saveText(tsv, `flame_pathway_activity_${res.method}.tsv`, 'text/tab-separated-values')}>TSV</button>
           </div>
           <Plot height={Math.max(320, res.pathways.length * 16 + 120)} data={[{
