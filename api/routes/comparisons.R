@@ -56,3 +56,34 @@ function(req, res) {
                                       as.character(b$runId %||% "")))
   })
 }
+
+#* Open the comparison in Arena3D: one layer per run (its terms), a Genes layer,
+#* and links between copies of the same term in different runs.
+#* Body: { runIds, filters, top, sortBy }
+#* @post /arena3d
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    cs <- .comparison_for(ws, b$runIds)
+    top <- b$top %||% 30L
+    if (identical(top, "all")) top <- 200L
+    body <- tryCatch(arena3d_payload_for_comparison(cs, b$filters %||% list(), min(as.integer(top), 200L), b$sortBy %||% "-log10Pvalue"),
+                     error = function(e) api_abort(422, conditionMessage(e)))
+    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+  })
+}
+
+#* Statistics across the compared runs: overlap, rank agreement, tests, concordance at the top, MDS.
+#* Body: { runIds, filters }
+#* @post /statistics
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    cs <- .comparison_for(ws, b$runIds)
+    tryCatch(comparison_statistics(cs, b$filters %||% list()), error = function(e) api_abort(422, conditionMessage(e)))
+  })
+}

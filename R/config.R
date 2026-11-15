@@ -106,7 +106,8 @@ ToolId <- list(
   ENRICHR = "enrichR",
   WEBGESTALT = "WebGestalt",
   PANTHER = "PANTHER",
-  GENECODIS = "GeneCodis"
+  GENECODIS = "GeneCodis",
+  CLUSTERPROFILER = "clusterProfiler"
 )
 
 #' Workspace tool metadata
@@ -141,6 +142,11 @@ WORKSPACE_TOOL_UI <- list(
     key = "genecodis",
     label = "GeneCodis",
     toolId = ToolId$GENECODIS
+  ),
+  list(
+    key = "clusterprofiler",
+    label = "clusterProfiler",
+    toolId = ToolId$CLUSTERPROFILER
   )
 )
 
@@ -195,9 +201,9 @@ PARADIGMS[[ParadigmId$ORA]] <- list(
 
 PARADIGMS[[ParadigmId$GSEA]] <- list(
   name = "Gene Set Enrichment Analysis",
-  requiredInputClass = NULL,
-  outputs = NULL,
-  requiresBackground = NULL
+  requiredInputClass = "RankedAnalyteList",
+  outputs = PARADIGMS[[ParadigmId$ORA]]$outputs,
+  requiresBackground = FALSE
 )
 
 PARADIGMS[[ParadigmId$TOPOLOGY]] <- list(
@@ -584,7 +590,8 @@ TOOLS[[ToolId$ENRICHR]] <- list(
 # -----------------------------------------------------------------------------
 TOOLS[[ToolId$WEBGESTALT]] <- list(
   name = "WebGestalt",
-  paradigms = c(ParadigmId$ORA, ParadigmId$GSEA),
+  # GSEA in Flame runs through clusterProfiler/fgsea (execute_gsea_run), not WebGestaltR.
+  paradigms = c(ParadigmId$ORA),
 
   datasources = c("GO:MF", "GO:CC", "GO:BP", "KEGG", "REAC", "WP",
                   "PANTHER Pathways", "DISGENET", "OMIM", "GLAD4U_DISEASE",
@@ -736,6 +743,44 @@ TOOL_ORGANISMS <- tryCatch(
   readRDS(getOrganismsPath("toolOrganismsList.RDS")),
   error = function(e) readRDS("./organisms/toolOrganismsList.RDS")
 )
+
+# -----------------------------------------------------------------------------
+# clusterProfiler (MSigDB gene sets via msigdbr; ORA with enricher(), GSEA with GSEA())
+# -----------------------------------------------------------------------------
+TOOLS[[ToolId$CLUSTERPROFILER]] <- list(
+  name = "clusterProfiler",
+  paradigms = c(ParadigmId$ORA, ParadigmId$GSEA),
+  datasources = c("GO:BP", "GO:MF", "GO:CC", "KEGG", "REAC", "WP", "HP", "TF", "MIRNA",
+                  "HALLMARK", "BIOCARTA", "PID", "CELLTYPE", "IMMUNESIGDB", "ONCOGENIC"),
+  # FLAME source -> msigdbr collection / subcollection
+  datasourceCodes = list(
+    "GO:BP" = c("C5", "GO:BP"), "GO:MF" = c("C5", "GO:MF"), "GO:CC" = c("C5", "GO:CC"),
+    "KEGG" = c("C2", "CP:KEGG_LEGACY"), "REAC" = c("C2", "CP:REACTOME"), "WP" = c("C2", "CP:WIKIPATHWAYS"),
+    "HP" = c("C5", "HPO"), "TF" = c("C3", "TFT:GTRD"), "MIRNA" = c("C3", "MIR:MIRDB"),
+    "HALLMARK" = c("H", ""), "BIOCARTA" = c("C2", "CP:BIOCARTA"), "PID" = c("C2", "CP:PID"),
+    "CELLTYPE" = c("C8", ""), "IMMUNESIGDB" = c("C7", "IMMUNESIGDB"), "ONCOGENIC" = c("C6", "")
+  ),
+  namespaces = list("Entrez Gene Accession" = "ENTREZGENE_ACC"),
+  defaultNamespace = "ENTREZGENE_ACC",
+  metrics = list("Benjamini-Hochberg FDR" = "BH", "Benjamini-Yekutieli" = "BY",
+                 "Bonferroni" = "bonferroni", "Holm" = "holm", "None (p-value)" = "none"),
+  defaultMetricGenome = "BH",
+  defaultMetricBackground = "BH",
+  supportsBackground = TRUE
+)
+
+# msigdbr species (NCBI taxonomy id -> msigdbr species name)
+MSIGDB_SPECIES <- c(
+  "9606" = "Homo sapiens", "10090" = "Mus musculus", "10116" = "Rattus norvegicus",
+  "7955" = "Danio rerio", "7227" = "Drosophila melanogaster", "6239" = "Caenorhabditis elegans",
+  "4932" = "Saccharomyces cerevisiae", "559292" = "Saccharomyces cerevisiae",
+  "9913" = "Bos taurus", "9615" = "Canis lupus familiaris", "9031" = "Gallus gallus",
+  "9823" = "Sus scrofa", "9544" = "Macaca mulatta", "9598" = "Pan troglodytes",
+  "9796" = "Equus caballus", "9685" = "Felis catus", "8364" = "Xenopus tropicalis",
+  "13616" = "Monodelphis domestica", "9258" = "Ornithorhynchus anatinus",
+  "28377" = "Anolis carolinensis", "284812" = "Schizosaccharomyces pombe 972h-"
+)
+TOOL_ORGANISMS[[ToolId$CLUSTERPROFILER]] <- as.integer(names(MSIGDB_SPECIES))
 
 # Special organisms with non-standard tool/namespace preferences
 SPECIAL_ORGANISMS <- c("amellifera", "dmelanogaster")
@@ -945,6 +990,11 @@ DATASOURCES_PRINT <- list(
   ),
   'Literature' = list(
     "PubMed Publications" = "PUBMED"
+  ),
+  'MSigDB collections' = list(
+    "Hallmark gene sets" = "HALLMARK", "BioCarta pathways" = "BIOCARTA",
+    "PID pathways" = "PID", "Cell type signatures (C8)" = "CELLTYPE",
+    "Immunologic signatures (C7)" = "IMMUNESIGDB", "Oncogenic signatures (C6)" = "ONCOGENIC"
   )
 )
 
@@ -983,7 +1033,9 @@ DATASOURCE_COLORS <- c(
   "BTO" = "#f0d871", "WBBT" = "#9cb59c", "TF" = "#5574a6", "CollecTRI" = "#A67C52", "MIRNA" = "#22aa99",
   "CORUM" = "#66aa00", "HPA" = "#6633cc", "HP" = "#990099", "WBP" = "#fffd78", "MGI" = "#fc4503",
   "BioPlanet" = "#9370DB", "PharmGKB" = "#FF6B6B", "LINCS" = "#4ECDC4",
-  "PUBMED" = "#cc9f9f", "GENE" = GENE_NODE_COLOR
+  "PUBMED" = "#cc9f9f", "GENE" = GENE_NODE_COLOR,
+  "HALLMARK" = "#e6550d", "BIOCARTA" = "#31a354", "PID" = "#756bb1",
+  "CELLTYPE" = "#de2d26", "IMMUNESIGDB" = "#3182bd", "ONCOGENIC" = "#636363"
 )
 
 # Short labels for external datasource links shown in the results selection sidebar.

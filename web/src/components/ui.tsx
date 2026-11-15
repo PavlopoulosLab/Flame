@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { api } from '../api/client'
 import { useConfig, useOrganismSearch } from '../api/hooks'
 import type { OrganismOption } from '../api/types'
 
@@ -258,5 +259,67 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
       <h3>{title}</h3>
       {children && <div className="muted">{children}</div>}
     </div>
+  )
+}
+
+/**
+ * Sends the current data to an external viewer (Arena3D, NORMA) through the API
+ * and opens the returned link in a new tab. Only http(s) links are opened.
+ */
+export function OpenExternalButton({ path, body, label, title, className = 'btn btn-secondary btn-sm', icon, caption }: {
+  path: string; body: unknown; label: string; title: string; className?: string
+  /** Optional picture of what the viewer does, with a short caption under the name. */
+  icon?: ReactNode; caption?: string
+}) {
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+  return (
+    <>
+      <button type="button" className={className} disabled={busy} title={title} aria-busy={busy}
+        onClick={() => {
+          setBusy(true); setErr(null)
+          // Open the tab synchronously (popup blockers), then point it at the link.
+          const win = window.open('', '_blank')
+          api<{ url: string }>(path, { body })
+            .then((r) => {
+              if (!/^https?:\/\//i.test(r.url)) throw new Error('The viewer returned an unexpected link.')
+              if (win) { win.opener = null; win.location.href = r.url } else window.open(r.url, '_blank', 'noopener')
+            })
+            .catch((e) => { win?.close(); setErr(e) })
+            .finally(() => setBusy(false))
+        }}>
+        {icon ? (
+          <span className="ext-btn">
+            {icon}
+            <span className="ext-btn-text"><strong>{busy ? 'Sending…' : label}</strong>{caption && <span>{caption}</span>}</span>
+            <span aria-hidden="true" className="ext-btn-arrow">↗</span>
+          </span>
+        ) : busy ? 'Sending…' : label}
+      </button>
+      {err ? <ErrorNote error={err} /> : null}
+    </>
+  )
+}
+
+/** Small "open in…" menu of external links, grouped. */
+export function LinkMenu({ links, label, title = 'Open in genome browsers and databases' }: {
+  links: { label: string; url: string; group?: string }[]; label: ReactNode; title?: string
+}) {
+  if (!links.length) return <>{label}</>
+  const groups = [...new Set(links.map((l) => l.group ?? ''))]
+  return (
+    <details className="link-menu">
+      <summary title={title}>{label}<span aria-hidden="true" className="link-menu-icon">↗</span></summary>
+      <div className="link-menu-panel" role="menu">
+        {groups.map((g) => (
+          <div key={g}>
+            {g && <div className="link-menu-group">{g}</div>}
+            {links.filter((l) => (l.group ?? '') === g).map((l) => (
+              <a key={l.url} role="menuitem" href={l.url} target="_blank" rel="noopener noreferrer">{l.label}</a>
+            ))}
+          </div>
+        ))}
+      </div>
+    </details>
   )
 }

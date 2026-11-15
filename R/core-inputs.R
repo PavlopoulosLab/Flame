@@ -26,6 +26,25 @@ parse_id_text <- function(text, skipFirstRow = FALSE) {
        invalidExamples = utils::head(unique(tokens[!valid]), 5))
 }
 
+#' Parse a ranked list: one "ID <tab/comma/space> score" pair per line.
+#' Lines whose second field is not numeric (e.g. a header) are skipped and counted.
+parse_ranked_text <- function(text, skipFirstRow = FALSE) {
+  text <- paste(as.character(text %||% ""), collapse = "\n")
+  if (nchar(text, type = "bytes") > MAX_INPUT_BYTES) stop("The input is larger than the 1 MB limit.")
+  lines <- strsplit(text, "\r\n|\n|\r", perl = TRUE)[[1]]
+  if (isTRUE(skipFirstRow) && length(lines) > 0) lines <- lines[-1]
+  lines <- trimws(lines[nzchar(trimws(lines))])
+  parts <- strsplit(lines, "[\t,; ]+", perl = TRUE)
+  id <- vapply(parts, function(p) p[1] %||% "", character(1))
+  score <- suppressWarnings(vapply(parts, function(p) as.numeric(p[2] %||% NA), numeric(1)))
+  valid <- nzchar(id) & grepl("^[A-Za-z0-9_.:-]+$", id) & is.finite(score)
+  dup <- duplicated(tolower(id)) & valid
+  keep <- valid & !dup
+  list(ids = id[keep], scores = score[keep], total = length(lines), unique = sum(keep),
+       duplicates = sum(dup), invalid = sum(!valid),
+       invalidExamples = utils::head(unique(lines[!valid]), 5))
+}
+
 # ---- Delimited tables (volcano, reduction) ----------------------------------
 
 clean_column_names <- function(namesIn) {
@@ -221,21 +240,67 @@ flameComputeUpsetCombinations <- function(namedSets, mode = UpsetMode$INTERSECTI
 # ---- Example data -----------------------------------------------------------
 
 #' Example inputs used by every "Load example" button and the guided demo
-example_input <- function(kind = c("upload", "snps", "textmining", "volcano", "reduction")) {
+EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna")
+
+#' TRUE for recognisable gene names; FALSE for uncharacterised ORFs and
+#' placeholder symbols (C11orf24, LOC647225, KIAA0100, FAM100A, FLJ..., LINC...,
+#' antisense / readthrough transcripts, clone names), so examples read well.
+named_gene <- function(x) {
+  x <- as.character(x)
+  !is.na(x) & nzchar(x) & grepl("^[A-Za-z][A-Za-z0-9-]*$", x) &
+    !grepl("^(C[0-9XY]+orf[0-9]+|LOC[0-9]+|KIAA[0-9]+|FAM[0-9]+[A-Z]?[0-9]*|FLJ[0-9]+|DKFZ|LINC[0-9]+|MGC[0-9]+|ORF[0-9]+|RP[0-9]+-|CT[DC]-|AC[0-9]{6}|AL[0-9]{6}|AP[0-9]{6}|SNOR[AD][0-9]+|MIR[0-9]+HG)", x, ignore.case = TRUE) &
+    !grepl("-(AS|IT|OT|DT)[0-9]*$|orf", x, ignore.case = TRUE)
+}
+
+example_input <- function(kind = EXAMPLE_KINDS) {
   kind <- match.arg(kind)
+  de <- function() {
+    df <- as.data.frame(readRDS(getExamplesPath("volcano_example.RDS")), stringsAsFactors = FALSE)
+    df <- df[named_gene(df$symbol) & is.finite(df$pvalue) & df$pvalue > 0 & is.finite(df$logFC), , drop = FALSE]
+    df[!duplicated(toupper(df$symbol)), , drop = FALSE]
+  }
   switch(kind,
+    # Every gene of the example differential-expression table, scored by
+    # sign(log2 fold change) x -log10 p: input for GSEA.
+    ranked = {
+      df <- de()
+      score <- round(sign(df$logFC) * -log10(df$pvalue), 4)
+      o <- order(-score)
+      list(text = paste(c("gene\tscore", paste(df$symbol[o], score[o], sep = "\t")), collapse = "\n"),
+           fileName = "flame_example_ranked.tsv", skipFirstRow = TRUE)
+    },
+    # Up- and down-regulated genes (|log2FC| >= 1, p <= 0.05) of the same table.
+    de_lists = {
+      df <- de()
+      sig <- df$pvalue <= 0.05
+      list(up = df$symbol[sig & df$logFC >= 1], down = df$symbol[sig & df$logFC <= -1],
+           thresholds = list(log2FC = 1, pvalue = 0.05))
+    },
+    # The MSigDB Hallmark collection (human) as a GMT file: an example of custom gene sets.
+    gmt = {
+      sets <- msigdb_sets(9606, "HALLMARK")
+      by <- split(sets$symbol, sets$term)
+      names <- sets$name[match(names(by), sets$term)]
+      list(text = paste(vapply(seq_along(by), function(i) paste(c(names(by)[i], names[i], unique(by[[i]])), collapse = "\t"), ""), collapse = "\n"),
+           fileName = "flame_example_hallmark.gmt", name = "Example: MSigDB Hallmark")
+    },
     upload = {
       genes <- as.character(unlist(readRDS(getExamplesPath("random_genes_example.RDS"))))
+      genes <- genes[named_gene(genes)]
       list(text = paste(sample(genes, min(200L, length(genes))), collapse = "\n"))
     },
     snps = list(text = paste(as.character(unlist(readRDS(getExamplesPath("variants.RDS")))), collapse = "\n")),
     textmining = list(text = paste(as.character(unlist(readRDS(getExamplesPath("textmining_example.RDS")))), collapse = "\n")),
+    expression = example_expression(),
+    mirna = example_mirnas(),
     volcano = {
       df <- as.data.frame(readRDS(getExamplesPath("volcano_example.RDS")), stringsAsFactors = FALSE)
+      df <- df[named_gene(df$symbol), , drop = FALSE]
       list(text = .table_text(df), fileName = "volcano_example.tsv")
     },
     reduction = {
       df <- as.data.frame(readRDS(getExamplesPath("reduction_example.RDS")), stringsAsFactors = FALSE)
+      if ("symbol" %in% names(df)) df <- df[named_gene(df$symbol), , drop = FALSE]
       keep <- intersect(c("symbol", "UMAP1", "UMAP2", "expression", "cluster", "gene_type"), names(df))
       list(text = .table_text(df[, keep, drop = FALSE]), fileName = "reduction_example.tsv")
     })

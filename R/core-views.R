@@ -67,9 +67,11 @@ apply_top_sort <- function(data, top = 20L, sortBy = "-log10Pvalue") {
                      "Term Coverage" = "Term Coverage %",
                      "Gene Ratio" = "Gene Ratio",
                      "Fold Enrichment" = "Fold Enrichment",
+                     "NES" = "NES",
                      "-log10Pvalue")
   if (orderCol %in% names(data)) {
     values <- .num(data[[orderCol]])
+    if (orderCol == "NES") values <- abs(values)   # strongest enrichment in either direction
     tieBreak <- if ("Term_ID_noLinks" %in% names(data)) as.character(data$Term_ID_noLinks) else seq_len(nrow(data))
     data <- data[order(-values, tieBreak, na.last = TRUE), , drop = FALSE]
   }
@@ -102,6 +104,7 @@ apply_top_sort <- function(data, top = 20L, sortBy = "-log10Pvalue") {
     foldEnrichment = .num(df$`Fold Enrichment`),
     genes = as.character(df$`Positive Hits`),
     link = as.character(df$link %||% NA_character_),
+    nes = .num(df$NES %||% NA),
     stringsAsFactors = FALSE
   )
   .records(out)
@@ -262,29 +265,47 @@ build_view <- function(results, view, filters = list(), top = 20L,
   c(meta, list(terms = terms, network = .network_payload(nodes, edges, layout)))
 }
 
-#' Edge list for Arena3Dweb export, in the shape func-arena.R expects
-arena_edgelist_for_view <- function(results, view, filters = list(), top = 20L,
-                                    sortBy = "-log10Pvalue", settings = list()) {
-  data <- apply_top_sort(apply_result_filters(results, filters), top, sortBy)
-  if (is.null(data) || nrow(data) == 0) return(NULL)
-  if (view == "network-gg") {
-    e <- gene_cooccurrence_edges(data)
-    e <- e[e$source < e$target & e$shared >= (.num(settings$minShared %||% 3)), , drop = FALSE]
-    return(data.frame(`Source Name` = e$source, `Target Name` = e$target,
-                      `Common Functions` = e$shared, check.names = FALSE))
+# ---- NORMA (network annotation viewer) export ------------------------------
+
+NORMA_API_URL <- "https://normaviz.org/api/external"
+
+#' Build a NORMA payload for a network view: edges, groups and node values.
+#' Groups: term–gene network -> each term with its genes; gene–gene -> genes
+#' grouped by the shown terms; term–term -> terms grouped by annotation source.
+norma_payload_for_view <- function(results, view, filters = list(), top = 20L,
+                                   sortBy = "-log10Pvalue", settings = list(), name = "Flame network") {
+  v <- build_view(results, view, filters, top, sortBy, settings)
+  net <- v$network
+  if (is.null(net) || length(net$edges) == 0) stop("The current view has no edges to send.")
+  terms <- v$terms
+  label <- function(id) {
+    t <- Filter(function(x) identical(x$id, id), terms)
+    if (length(t)) paste0(t[[1]]$name, " (", id, ")") else id
   }
+  edges <- lapply(net$edges, function(e) list(source = label(e$from), target = label(e$to), weight = e$weight))
+  groups <- list()
   if (view == "network-tt") {
-    e <- term_similarity_edges(data)
-    e <- e[e$source < e$target & e$similarity >= (.num(settings$similarityCutoff %||% 10)), , drop = FALSE]
-    srcIdx <- match(e$source, data$Term_ID_noLinks)
-    tgtIdx <- match(e$target, data$Term_ID_noLinks)
-    return(data.frame(
-      `Source Database` = data$Source[srcIdx], `Source Id` = e$source, `Source Name` = data$Function[srcIdx],
-      `Target Database` = data$Source[tgtIdx], `Target Id` = e$target, `Target Name` = data$Function[tgtIdx],
-      `Similarity Score %` = e$similarity, check.names = FALSE))
+    for (t in terms) groups[[t$source]] <- c(groups[[t$source]], label(t$id))
+  } else {
+    for (t in terms) {
+      genes <- .split_hits(t$genes)
+      members <- if (view == "network-tg") c(label(t$id), genes) else genes
+      groups[[substr(t$name, 1, 60)]] <- unique(members)
+    }
   }
-  pairs <- .term_pairs(data)
-  idx <- match(pairs$term, data$Term_ID_noLinks)
-  data.frame(`Source Database` = data$Source[idx], `Source Id` = pairs$term,
-             `Source Name` = data$Function[idx], `Target Gene` = pairs$gene, check.names = FALSE)
+  expression <- list()
+  for (t in terms) expression[[label(t$id)]] <- round(t$log10p, 3)
+  list(name = substr(name, 1, 80), edges = edges, groups = groups,
+       expression = if (view == "network-gg") NULL else expression,
+       settings = list(layout = "fr", showGroupHulls = TRUE))
+}
+
+#' Send a payload to NORMA; returns the link that opens it (valid 24 h).
+norma_export <- function(payload) {
+  resp <- httr::POST(NORMA_API_URL, body = jsonlite::toJSON(payload, auto_unbox = TRUE, null = "null"),
+                     httr::content_type_json(), httr::accept_json(), httr::timeout(60))
+  if (httr::status_code(resp) != 200) stop("NORMA did not accept the network (HTTP ", httr::status_code(resp), ").")
+  out <- jsonlite::fromJSON(rawToChar(httr::content(resp, "raw")))
+  if (!is.character(out$url) || !grepl("^https://", out$url)) stop("NORMA returned an unexpected answer.")
+  out$url
 }

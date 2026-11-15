@@ -5,11 +5,17 @@ import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig } from '../api/hooks'
 import type { ComparisonData, ComparisonFilters, ComparisonTerm } from '../api/types'
 import { Plot, type PlotHandle } from '../components/charts'
-import { CopyButton, ErrorNote, Field, Note, Segmented, Spinner } from '../components/ui'
+import { CopyButton, ErrorNote, Field, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { ExportMenu } from './Results'
+import { ChordDiagram, CircosBundle, SetOverlapUpSet, downloadSvg } from '../components/viz'
+import { UndoRedoButtons } from '../components/Undo'
+import { ComparisonStatistics } from '../features/compare/Statistics'
+import { Arena3DIcon } from '../components/ExternalIcons'
+import { useHistory } from '../lib/history'
 import { formatNum, formatP, plural, splitGenes, toCsv, toHtmlTable } from '../lib/format'
+import { categoricalColor, reverseScale, roleColors, sequentialScale, usePaletteMode } from '../lib/palette'
 
-type View = 'overview' | 'bubble' | 'heatmap'
+type View = 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats'
 const SORTS = [{ value: '-log10Pvalue', label: 'Combined significance' }, { value: 'Fold Enrichment', label: 'Fold enrichment' }, { value: 'Agreement', label: 'Agreement between runs' }]
 
 function useDebounced<T>(v: T, ms = 300) {
@@ -31,11 +37,18 @@ export default function ComparePage() {
   const [showLabels, setShowLabels] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const plotRef = useRef<PlotHandle | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const [circosTop, setCircosTop] = useState<number | 'all'>(60)
+  const pm = usePaletteMode()
+  const history = useHistory(
+    { view, filters, top, sortBy, labels, selected: [...selected].sort() },
+    (s) => { setView(s.view); setFilters(s.filters); setTop(s.top); setSortBy(s.sortBy); setLabels(s.labels); setSelected(new Set(s.selected)) },
+  )
   const f = useDebounced(filters)
 
   const q = useQuery({
     queryKey: ['compare', ws, runIds.join(','), view, f, top, sortBy],
-    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view, filters: f, top, sortBy, settings: { labels } } }),
+    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' ? 'overview' : view, filters: f, top, sortBy, settings: { labels } } }),
     enabled: runIds.length >= 2,
     placeholderData: keepPreviousData,
   })
@@ -76,8 +89,14 @@ export default function ComparePage() {
       <p className="muted small">Terms found by several runs get a combined p-value (Fisher's method). Agreement = how many of the active runs found a term.</p>
 
       <nav className="view-tabs" aria-label="Comparison views">
-        {(['overview', 'bubble', 'heatmap'] as View[]).map((v) => (
-          <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{v === 'overview' ? 'Overview' : v === 'bubble' ? 'Bubble plot' : 'Heatmap'}</button></span>
+        <span className="tabs-undo">
+          <UndoRedoButtons h={history} />
+          <OpenExternalButton path="/comparisons/arena3d" label="Arena3D" caption="runs as 3D layers" icon={<Arena3DIcon />} body={{ runIds, filters: f, top: top === 'all' ? 'all' : Math.max(Number(top), 30), sortBy }}
+            title="Open in Arena3D: one 3D layer per run with the terms it found, a layer of genes, and links between the same term in different runs" />
+        </span>
+        {(['overview', 'stats', 'upset', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
+          <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
+            { overview: 'Overview', stats: '∑ Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
         ))}
       </nav>
 
@@ -126,7 +145,71 @@ export default function ComparePage() {
         </aside>
 
         <section className="view-area">
-          {view !== 'overview' && (
+          {(view === 'upset' || view === 'chord' || view === 'circos') && q.data && q.data.terms.length > 0 && (() => {
+            const active = q.data!.runs.filter((r) => q.data!.activeRunIds.includes(r.id))
+            const runColors = active.map((r, i) => categoricalColor(pm, r.tool, active.map((x) => x.tool), `var(--color-${r.tool.toLowerCase().replace(/[^a-z]/g, '')}, ${['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4]})`))
+            if (view === 'upset') {
+              return (
+                <>
+                  <p className="muted small">Each column counts the terms found by exactly the runs marked below it (left: terms per run). Click a column to select its terms.</p>
+                  <SetOverlapUpSet sets={active.map((r) => ({ id: r.id, label: r.label }))} colors={runColors}
+                    membership={q.data!.terms.map((t) => ({ item: t.id, sets: t.runIds.filter((r) => q.data!.activeRunIds.includes(r)) }))}
+                    onSelect={(items) => onSelect(items, false)} describe={(id) => q.data!.terms.find((t) => t.id === id)?.name ?? id} />
+                </>
+              )
+            }
+            if (view === 'circos') {
+              const activeIds = active.map((r) => r.id)
+              const shown = [...q.data!.terms].filter((t) => t.runIds.some((r) => activeIds.includes(r)))
+                .sort((a, b) => (a.combPvalue ?? 1) - (b.combPvalue ?? 1)).slice(0, circosTop === 'all' ? undefined : circosTop)
+              const maxL = Math.max(1, ...shown.map((t) => -Math.log10(Math.max(t.combPvalue ?? 1, 1e-300))))
+              const srcColor = (src: string) => categoricalColor(pm, src, q.data!.availableSources, config.datasourceColors[src])
+              const ordered = [...shown].sort((a, b) => a.source.localeCompare(b.source) || (a.combPvalue ?? 1) - (b.combPvalue ?? 1))
+              const items = active.flatMap((r) => ordered.filter((t) => t.runIds.includes(r.id)).map((t) => ({
+                id: `${r.id}::${t.id}`, sector: r.id, label: labels === 'Term_ID' ? t.id : t.name, color: srcColor(t.source),
+                value: -Math.log10(Math.max(t.combPvalue ?? 1, 1e-300)) / maxL,
+                title: `${t.name} (${t.id})\n${t.source} · found by ${t.runIds.filter((x) => activeIds.includes(x)).length} of ${activeIds.length} runs · combined p = ${formatP(t.combPvalue)}` })))
+              const links = shown.flatMap((t) => {
+                const rs = t.runIds.filter((r) => activeIds.includes(r))
+                return rs.flatMap((a, i) => rs.slice(i + 1).map((b) => ({ source: `${a}::${t.id}`, target: `${b}::${t.id}`, color: srcColor(t.source), title: `${t.name}: ${a} ↔ ${b}` })))
+              })
+              const selKeys = new Set(items.filter((it) => selected.has(it.id.split('::')[1])).map((it) => it.id))
+              return (
+                <>
+                  <div className="toolbar">
+                    <label>Show <select className="input input-sm" value={String(circosTop)} onChange={(e) => setCircosTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
+                      {[30, 60, 100, 200].map((n) => <option key={n} value={n}>top {n} terms</option>)}<option value="all">all terms</option></select></label>
+                    <span className="toolbar-spacer" />
+                    <button className="btn btn-secondary btn-sm" onClick={() => downloadSvg(svgRef.current, 'flame_comparison_circos')}>SVG image</button>
+                  </div>
+                  <p className="muted small">One sector per run, holding the terms it found (coloured by source, in the same order in every run). Bundled links join the same term across runs, so consensus terms form thick bundles and run-specific terms have none. Outer bars: combined −log10 p.</p>
+                  <CircosBundle sectors={active.map((r, i) => ({ id: r.id, label: r.label, color: runColors[i] }))} items={items} links={links}
+                    svgRef={svgRef} selected={selKeys} trackLabel="combined −log10 p" linkLabel="shared-term links" defaultLabels={items.length <= 120}
+                    onSelect={(ids, add) => onSelect([...new Set(ids.map((id) => id.split('::')[1]))], add)} />
+                </>
+              )
+            }
+            const ids = active.map((r) => r.id)
+            const m = ids.map(() => ids.map(() => 0))
+            q.data!.terms.forEach((t) => {
+              const rs = t.runIds.filter((r) => ids.includes(r))
+              rs.forEach((a) => rs.forEach((b) => { if (a !== b) m[ids.indexOf(a)][ids.indexOf(b)] += 1 }))
+            })
+            return (
+              <>
+                <div className="toolbar"><span className="toolbar-spacer" /><button className="btn btn-secondary btn-sm" onClick={() => downloadSvg(svgRef.current, 'flame_comparison_chord')}>SVG image</button></div>
+                <p className="muted small">Arcs are runs; ribbons show how many terms two runs share. Click a ribbon to select the terms both runs found.</p>
+                {m.every((row) => row.every((v) => v === 0)) ? <Note kind="warning">The runs share no terms under the current filters.</Note> :
+                  <ChordDiagram names={active.map((r) => r.label)} matrix={m} colors={runColors} svgRef={svgRef} unit="shared terms"
+                    onSelect={(i, j) => onSelect(q.data!.terms.filter((t) => t.runIds.includes(ids[i]) && (j === undefined || t.runIds.includes(ids[j]))).map((t) => t.id), false)} />}
+              </>
+            )
+          })()}
+          {view === 'stats' && q.data && (
+            <ComparisonStatistics runIds={runIds} filters={f} onSelect={onSelect}
+              colors={Object.fromEntries(q.data.runs.map((r, i, all) => [r.id, categoricalColor(pm, r.tool, all.map((x) => x.tool), ['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4])]))} />
+          )}
+          {view !== 'overview' && view !== 'upset' && view !== 'chord' && view !== 'circos' && view !== 'stats' && (
             <div className="toolbar">
               <label>Show <select className="input input-sm" value={String(top)} onChange={(e) => setTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                 {[10, 20, 30, 50].map((n) => <option key={n} value={n}>top {n}</option>)}<option value="all">all</option></select></label>
@@ -141,7 +224,7 @@ export default function ComparePage() {
           {q.isLoading && <Spinner label="Combining runs" />}
           {q.data && !q.data.terms.length && <Note kind="warning">No terms match the current filters.</Note>}
           {q.data && q.data.terms.length > 0 && view === 'overview' && q.data.chart && (
-            <Overview data={q.data} onBubble={(metric, runId) => overviewClick('bubble', metric, runId)} onPin={(metric) => overviewClick('pin', metric)} plotRef={plotRef} />
+            <Overview data={q.data} colors={roleColors(pm).series} onBubble={(metric, runId) => overviewClick('bubble', metric, runId)} onPin={(metric) => overviewClick('pin', metric)} plotRef={plotRef} />
           )}
           {q.data && q.data.terms.length > 0 && view === 'bubble' && (
             <Plot handleRef={plotRef} height={520} onSelect={onSelect} data={[...new Set(q.data.terms.map((t) => t.source))].map((src) => {
@@ -150,7 +233,7 @@ export default function ComparePage() {
                 type: 'scatter' as const, mode: (showLabels ? 'text+markers' : 'markers') as 'markers', name: src, x: ts.map((t) => t.foldEnrichment ?? 0), y: ts.map((t) => t.negLog10p ?? 0),
                 customdata: ts.map((t) => t.id), text: ts.map(label), textposition: 'top center' as const, textfont: { size: 10 },
                 hovertext: ts.map((t) => `${t.name}<br>${t.id}<br>found by ${t.agreement} run(s)<br>combined p = ${formatP(t.activeCombPvalue)}`), hoverinfo: 'text' as const,
-                marker: { size: ts.map((t) => 10 + 8 * (t.agreement ?? 1)), color: config.datasourceColors[src] ?? '#9ca3af', opacity: 0.8,
+                marker: { size: ts.map((t) => 10 + 8 * (t.agreement ?? 1)), color: categoricalColor(pm, src, q.data!.availableSources, config.datasourceColors[src]), opacity: 0.8,
                   line: { width: ts.map((t) => (selected.has(t.id) ? 3 : 0)), color: '#f97316' } },
               }
             })} layout={{ xaxis: { title: { text: 'Mean fold enrichment (active runs)' } }, yaxis: { title: { text: '−log10 combined p-value' } }, legend: { orientation: 'h', y: -0.2 } }} />
@@ -164,11 +247,11 @@ export default function ComparePage() {
               type: 'heatmap' as const, x: runIdsActive.map(runLabel), y: d.terms.map((t) => `${label(t)} [${t.source}]`),
               z: d.terms.map((t) => runIdsActive.map((r) => val.get(`${t.id}|${r}`) ?? null)) as number[][],
               customdata: d.terms.map((t) => runIdsActive.map(() => t.id)) as unknown as string[],
-              colorscale: 'YlOrRd', reversescale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12 }, xgap: 2, ygap: 1, hoverongaps: false,
+              colorscale: sequentialScale(pm, 'YlOrRd'), reversescale: reverseScale(sequentialScale(pm, 'YlOrRd')), colorbar: { title: { text: '−log10 p' }, thickness: 12 }, xgap: 2, ygap: 1, hoverongaps: false,
               hovertemplate: '%{y}<br>%{x}: −log10 p = %{z:.2f}<extra></extra>',
             }]} layout={{ margin: { l: 360, r: 20, t: 10, b: 80 }, yaxis: { automargin: true, autorange: 'reversed' } }} />
           })()}
-          {view !== 'overview' && <p className="muted small">Blank heatmap cells: the run did not report that term. Click points or cells to select terms.</p>}
+          {(view === 'bubble' || view === 'heatmap') && <p className="muted small">Blank heatmap cells: the run did not report that term. Click points or cells to select terms.</p>}
         </section>
 
         <aside className="selection" aria-label="Selected terms">
@@ -208,10 +291,10 @@ function SelectionExports({ terms }: { terms: ComparisonTerm[] }) {
   )
 }
 
-function Overview({ data, onBubble, onPin, plotRef }: { data: ComparisonData; onBubble: (metric: string, runId: string) => void; onPin: (metric: string) => void; plotRef: { current: PlotHandle | null } }) {
+function Overview({ data, colors: series, onBubble, onPin, plotRef }: { data: ComparisonData; colors: string[]; onBubble: (metric: string, runId: string) => void; onPin: (metric: string) => void; plotRef: { current: PlotHandle | null } }) {
   const chart = data.chart!
   const metrics = ['termsFound', 'exclusiveTerms', 'consensusBlocker'] as const
-  const colors = { termsFound: '#f97316', exclusiveTerms: '#2563eb', consensusBlocker: '#a1a1aa' }
+  const colors = { termsFound: series[0], exclusiveTerms: series[1], consensusBlocker: series[2] }
   return (
     <div className="stack">
       <div className="pin-grid">

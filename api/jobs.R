@@ -28,7 +28,9 @@ active_job_count <- function(ws) {
 #' Queue a run in a worker. `job` is list(kind = "ora", toolId, lst, params, bg)
 #' or list(kind = "gmt", lst, sets, sourceName, threshold, correction, bgIds).
 submit_run <- function(ws, runId, job) {
-  m <- if (identical(job$kind, "gmt")) {
+  m <- if (identical(job$kind, "gsea")) {
+    mirai::mirai(execute_gsea_run(lst, params), lst = job$lst, params = job$params)
+  } else if (identical(job$kind, "gmt")) {
     mirai::mirai(
       execute_gmt_run(lst, sets, sourceName, threshold, correction, bgIds),
       lst = job$lst, sets = job$sets, sourceName = job$sourceName,
@@ -41,6 +43,26 @@ submit_run <- function(ws, runId, job) {
   .flame_jobs[[paste(ws, runId)]] <- list(ws = ws, runId = runId, m = m, started = now_s())
   db_exec("UPDATE runs SET status = 'running' WHERE id = ? AND ws = ?", list(runId, ws))
   invisible(runId)
+}
+
+#' Variant analysis job (Ensembl VEP + phenotypes); results go to variant_analyses
+submit_variant_job <- function(ws, analysisId, text, taxid) {
+  m <- mirai::mirai(analyse_variants(text, taxid), text = text, taxid = taxid)
+  .flame_jobs[[paste(ws, "variants", analysisId)]] <- list(ws = ws, runId = analysisId, kind = "variants", m = m, started = now_s())
+  db_exec("UPDATE variant_analyses SET status = 'running' WHERE ws = ? AND id = ?", list(ws, analysisId))
+  invisible(analysisId)
+}
+
+.finish_variant_job <- function(job) {
+  value <- job$m$data
+  if (mirai::is_mirai_error(value) || mirai::is_error_value(value) || !is.list(value)) {
+    msg <- if (mirai::is_mirai_error(value)) conditionMessage(value) else "Ensembl did not respond."
+    db_exec("UPDATE variant_analyses SET status = 'error', error = ?, finished = ? WHERE ws = ? AND id = ?",
+            list(substr(msg, 1, 500), now_s(), job$ws, job$runId))
+  } else {
+    db_exec("UPDATE variant_analyses SET status = 'complete', result_blob = ?, finished = ? WHERE ws = ? AND id = ?",
+            list(list(serialize(value, NULL)), now_s(), job$ws, job$runId))
+  }
 }
 
 cancel_run <- function(ws, runId) {
@@ -76,7 +98,8 @@ poll_jobs <- function() {
   for (key in ls(.flame_jobs)) {
     job <- .flame_jobs[[key]]
     if (!mirai::unresolved(job$m)) {
-      tryCatch(.finish_run(job), error = function(e) message("[jobs] finish failed: ", conditionMessage(e)))
+      tryCatch(if (identical(job$kind, "variants")) .finish_variant_job(job) else .finish_run(job),
+               error = function(e) message("[jobs] finish failed: ", conditionMessage(e)))
       rm(list = key, envir = .flame_jobs)
     }
   }

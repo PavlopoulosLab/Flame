@@ -8,6 +8,7 @@ import HomePage from './pages/Home'
 const WorkspacePage = lazy(() => import('./pages/Workspace'))
 const ResultsPage = lazy(() => import('./pages/Results'))
 const ComparePage = lazy(() => import('./pages/Compare'))
+const VariantsPage = lazy(() => import('./pages/Variants'))
 const HelpPage = lazy(() => import('./pages/Help'))
 const InfoPages = lazy(() => import('./pages/Info'))
 
@@ -117,6 +118,14 @@ export default function App() {
             element={
               <WorkspaceRoute>
                 <ComparePage />
+              </WorkspaceRoute>
+            }
+          />
+          <Route
+            path="/w/:ws/variants/:analysisId?"
+            element={
+              <WorkspaceRoute>
+                <VariantsPage />
               </WorkspaceRoute>
             }
           />

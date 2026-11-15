@@ -3,22 +3,31 @@
 [![Docker Pulls](https://img.shields.io/docker/pulls/pavlopouloslab/flame.svg)](https://hub.docker.com/r/pavlopouloslab/flame)
 [![License: GPL-3](https://img.shields.io/badge/License-GPL--3-blue.svg)](LICENSE)
 
-# Flame 3.0: Functional Enrichment Integration made easy
+# Flame 3.0: Functional Analysis and Integration made easy
 
-Flame runs functional and literature enrichment on one or many gene lists with six established tools
-(g:Profiler, STRING, Enrichr, WebGestalt, PANTHER, GeneCodis) plus your own GMT gene sets, combines
-their results, and lets you explore them with interactive plots and networks. It is free and open to
-everyone: no login, no registration.
+Flame runs functional and literature enrichment on one or many gene lists with seven established tools
+(g:Profiler, STRING, Enrichr, WebGestalt, PANTHER, GeneCodis, clusterProfiler) plus your own GMT gene sets,
+combines their results, and lets you explore them with interactive plots and networks. It also starts from
+variants and GWAS results. It is free and open to everyone: no login, no registration.
 
 ## Features
 
-* **Inputs**: paste/upload IDs (19 formats), select genes on a volcano or 2D-reduction (UMAP/t-SNE/PCA) plot,
-  map SNPs to genes, find genes in free text, and combine lists with UpSet set operations.
-* **Enrichment**: six tools across 14,000+ organisms, custom GMT sources, custom backgrounds, per-tool significance settings.
-* **Results**: dot plot, bar chart, scatter, three heatmaps (term×gene, term×term, gene×gene), three networks
-  (with layouts and Arena3Dweb 3D export) and a searchable table; shared selection and exports (PNG/SVG/CSV/HTML/PDF).
-* **Comparison**: compare runs or lists with Fisher's combined p-value, agreement filters, overview, bubble plot and heatmap.
+* **Inputs**: paste/upload IDs (19 formats) or ranked lists with scores, select genes on a volcano or
+  2D-reduction (UMAP/t-SNE/PCA) plot, map SNPs to genes, find genes in free text, and combine lists with UpSet
+  set operations.
+* **Enrichment**: seven tools across 14,000+ organisms; over-representation (ORA) and, with clusterProfiler/fgsea
+  on MSigDB, gene set enrichment (GSEA) of ranked lists; custom GMT sources, custom backgrounds, per-tool settings.
+* **Variants and GWAS**: rsIDs, VCF lines, HGVS or GWAS summary statistics annotated with Ensembl VEP (consequence,
+  impact, gnomAD frequency, ClinVar) and trait associations; Manhattan plot, variants → genes → traits Sankey, and
+  gene lists or ranked gene scores for enrichment.
+* **Results**: dot plot, bar chart, scatter, three heatmaps (term×gene, term×term, gene×gene), three networks,
+  Sankey, chord and hive plots, and a searchable table; shared selection, undo/redo, and exports (PNG/SVG/CSV/HTML/PDF).
+* **Comparison**: compare runs or lists with Fisher's combined p-value, agreement filters, overview, UpSet, chord,
+  bubble plot and heatmap.
+* **External viewers**: open result networks, comparisons, variant reports and STRING networks in Arena3D
+  (arena3d.org, 3D multilayer networks) and result networks in NORMA.
 * **Utilities**: ID conversion (g:Convert), orthologs (g:Orth), STRING protein interaction networks.
+* **Display**: light/dark themes and chart palettes (Flame, colour-blind safe, vivid, pastel, grayscale).
 * **Workspaces**: private bookmarkable links, session save/load, automatic expiry; REST API with a Python client.
 
 ## Architecture
@@ -40,6 +49,9 @@ tests/        testthat tests for the core
 
 Requirements: R ≥ 4.4 and Node.js ≥ 20. If R packages are built from source (e.g. Homebrew R or Linux),
 `WebGestaltR` needs a Rust toolchain (`brew install rust`) and `plumber` needs libsodium (`brew install libsodium`).
+`install_packages.R` installs the CRAN packages and, through BiocManager, the Bioconductor packages `clusterProfiler`
+and `fgsea` (used with `msigdbr` for MSigDB ORA and GSEA). MSigDB gene sets are downloaded on the first
+clusterProfiler run for each organism and cached in memory, so that first run takes longer.
 
 ```bash
 git clone https://github.com/PavlopoulosLab/Flame.git

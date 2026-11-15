@@ -17,8 +17,8 @@
 #* @serializer flamejson
 function(res, kind) {
   api_handle(res, {
-    if (!kind %in% c("upload", "snps", "textmining", "volcano", "reduction")) api_abort(404, "Unknown example.")
-    example_input(kind)
+    if (!kind %in% EXAMPLE_KINDS) api_abort(404, "Unknown example.")
+    tryCatch(example_input(kind), error = function(e) api_abort(503, paste("The example could not be prepared:", conditionMessage(e))))
   })
 }
 
@@ -28,7 +28,7 @@ function(res, kind) {
 function(res, kind) {
   files <- c(upload = "flame_example_genes.txt", snps = "flame_example_snps.txt",
              textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
-             reduction = "flame_example_umap.tsv")
+             reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt")
   if (!kind %in% names(files)) { res$status <- 404; return("Unknown example") }
   res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", files[[kind]]))
   ex <- example_input(kind)
@@ -43,8 +43,10 @@ function(res, kind) {
 function(req, res) {
   api_handle(res, {
     b <- body_of(req)
-    out <- parse_id_text(.text_arg(b), isTRUE(b$skipFirstRow))
+    out <- if (isTRUE(b$ranked)) parse_ranked_text(.text_arg(b), isTRUE(b$skipFirstRow))
+           else parse_id_text(.text_arg(b), isTRUE(b$skipFirstRow))
     out$ids <- as.list(out$ids)
+    if (!is.null(out$scores)) out$scores <- as.list(out$scores)
     out
   })
 }
@@ -144,5 +146,42 @@ function(req, res) {
          sets = lapply(names(sets), function(n) list(name = n, size = length(sets[[n]]))),
          organismTaxId = rows[[1]]$taxid, analyteType = rows[[1]]$analyte, idFormat = rows[[1]]$id_format,
          combinations = lapply(combos, function(c) { c$ids <- as.list(c$ids); c$sourceNames <- as.list(c$sourceNames); c$sourceIndexes <- as.list(c$sourceIndexes); c }))
+  })
+}
+
+#* Gene expression matrix: clusters (heatmap), gene map (PCA).
+#* Body: { text, fileName?, topN?, k?, log?: true|false|null }
+#* @post /expression/overview
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    expression_overview(x, b$topN %||% 1000L, b$k %||% 6L)
+  })
+}
+
+#* Gene expression matrix: two-group comparison (Welch t-test) for the volcano selector.
+#* Body: { text, fileName?, groupA:[samples], groupB:[samples], log? }
+#* @post /expression/de
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    tryCatch(expression_de(x, b$groupA, b$groupB), error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* microRNAs to target genes (miRDB via MSigDB). Body: { text, organismTaxId?, minMirnas? }
+#* @post /mirna/targets
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L)); if (is.na(taxid)) taxid <- 9606L
+    tryCatch(mirna_targets(.text_arg(b), taxid, b$minMirnas %||% 1L), error = function(e) api_abort(400, conditionMessage(e)))
   })
 }

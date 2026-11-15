@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS lists (
   taxid       INTEGER NOT NULL DEFAULT 9606,
   id_format   TEXT NOT NULL DEFAULT 'USERINPUT',
   ids_json    TEXT NOT NULL,
+  scores_json TEXT,                       -- ranked lists only: one score per ID (same order)
   meta_json   TEXT NOT NULL DEFAULT '{}',
   created     REAL NOT NULL,
   UNIQUE (ws, name)
@@ -54,4 +55,18 @@ CREATE TABLE IF NOT EXISTS sources (
   gmt_json    TEXT NOT NULL,              -- [{id, name, genes:[...]}]
   created     REAL NOT NULL,
   UNIQUE (ws, name)
+);
+
+CREATE TABLE IF NOT EXISTS variant_analyses (
+  id          TEXT NOT NULL,
+  ws          TEXT NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
+  name        TEXT NOT NULL,
+  taxid       INTEGER NOT NULL,
+  status      TEXT NOT NULL,              -- queued | running | complete | error
+  error       TEXT,
+  input_count INTEGER,
+  result_blob BLOB,                       -- serialized analyse_variants() output
+  created     REAL NOT NULL,
+  finished    REAL,
+  PRIMARY KEY (ws, id)
 );

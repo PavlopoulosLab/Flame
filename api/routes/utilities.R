@@ -53,3 +53,19 @@ function(req, res) {
     out
   })
 }
+
+#* Open the STRING network in Arena3D (evidence types as edge channels). Same body as /ppi.
+#* @post /ppi/arena3d
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    r <- get_list(ws, as.character(b$listId %||% ""))
+    net <- tryCatch(ppi_network(.list_ids(r), r$taxid, b$networkType %||% "functional",
+                                b$networkEdges %||% "evidence", b$score %||% 400),
+                    error = function(e) api_abort(422, conditionMessage(e)))
+    body <- tryCatch(arena3d_payload_for_ppi(net), error = function(e) api_abort(422, conditionMessage(e)))
+    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+  })
+}

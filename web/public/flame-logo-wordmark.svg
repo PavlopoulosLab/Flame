@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 -20 2480 880" width="1240" height="440" role="img" aria-label="Flame 3.0">
+  <title>Flame 3.0</title>
+  <defs>
+    <linearGradient id="wm" gradientUnits="userSpaceOnUse" x1="640" y1="0" x2="2470" y2="0">
+      <stop offset="0" stop-color="#7C3AED"/>
+      <stop offset="0.2" stop-color="#8B5CF6"/>
+      <stop offset="0.5" stop-color="#F97316"/>
+      <stop offset="0.62" stop-color="#F59E0B"/>
+      <stop offset="0.84" stop-color="#E11D48"/>
+      <stop offset="1" stop-color="#BE185D"/>
+    </linearGradient>
+  </defs>
+  <defs>
+    <linearGradient id="fl-left" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B25BE8"/>
+      <stop offset="1" stop-color="#6366F1"/>
+    </linearGradient>
+    <linearGradient id="fl-mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FCD06B"/>
+      <stop offset="0.3" stop-color="#F97316"/>
+      <stop offset="1" stop-color="#EA580C"/>
+    </linearGradient>
+    <linearGradient id="fl-right" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E11D48"/>
+      <stop offset="1" stop-color="#BE185D"/>
+    </linearGradient>
+  </defs>
+  <g stroke="#CBD5E1" stroke-width="14">
+    <line x1="150" y1="545" x2="293" y2="545"/>
+    <line x1="337" y1="668" x2="480" y2="668"/>
+    <line x1="150" y1="793" x2="293" y2="793"/>
+    <line x1="337" y1="793" x2="480" y2="793"/>
+  </g>
+  <path fill="url(#fl-left)" d="M107 800 L107 470 C103 420,95 380,97 350 C102 280,170 235,250 203 C200 250,152 330,150 420 L150 800Z"/>
+  <path fill="url(#fl-right)" d="M523 800 L523 470 C527 420,535 400,533 370 C528 310,450 275,380 250 C430 300,478 360,480 420 L480 800Z"/>
+  <path fill="url(#fl-mid)" d="M315 15 C340 90,362 180,362 250 C362 330,338 400,337 470 L337 800 L293 800 L293 470 C292 400,268 330,268 250 C268 180,290 90,315 15Z"/>
+  <circle cx="128" cy="545" r="31" fill="#8B5CF6"/><circle cx="128" cy="545" r="18" fill="#fff"/>
+  <circle cx="315" cy="545" r="31" fill="#F97316"/><circle cx="315" cy="545" r="18" fill="#fff"/>
+  <circle cx="502" cy="545" r="14" fill="#E2E8F0"/>
+  <circle cx="128" cy="668" r="14" fill="#E2E8F0"/>
+  <circle cx="315" cy="668" r="31" fill="#EA580C"/><circle cx="315" cy="668" r="18" fill="#fff"/>
+  <circle cx="502" cy="668" r="31" fill="#DB2758"/><circle cx="502" cy="668" r="18" fill="#fff"/>
+  <circle cx="128" cy="793" r="31" fill="#6366F1"/><circle cx="128" cy="793" r="18" fill="#fff"/>
+  <circle cx="315" cy="793" r="38" fill="#EA580C"/><circle cx="315" cy="793" r="22" fill="#fff"/>
+  <circle cx="502" cy="793" r="31" fill="#BE185D"/><circle cx="502" cy="793" r="18" fill="#fff"/>
+  <g fill="url(#wm)" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+    <text x="650" y="610" font-size="440" font-weight="800" letter-spacing="-14" textLength="1140" lengthAdjust="spacingAndGlyphs">Flame</text>
+    <text x="1870" y="610" font-size="440" font-weight="300" textLength="600" lengthAdjust="spacingAndGlyphs">3.0</text>
+  </g>
+</svg>

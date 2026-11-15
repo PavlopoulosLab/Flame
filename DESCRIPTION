@@ -8,7 +8,9 @@ Authors@R: c(
     )
 Description: A web platform for functional and literature enrichment analysis
     of multiple gene lists. Runs and combines g:Profiler, STRING, Enrichr,
-    WebGestalt, PANTHER, GeneCodis and custom GMT gene sets, compares runs with
+    WebGestalt, PANTHER, GeneCodis, clusterProfiler (MSigDB; ORA and GSEA with
+    fgsea) and custom GMT gene sets, annotates variants and GWAS results with
+    Ensembl VEP, compares runs with
     Fisher's combined probability test, and serves a REST API (plumber) and a
     TypeScript web client with interactive tables, plots and networks.
 License: GPL-3
@@ -30,6 +32,9 @@ Imports:
     stringr,
     plyr,
     poolr,
+    clusterProfiler,
+    fgsea,
+    msigdbr,
     igraph,
     htmltools,
     tools,
@@ -52,3 +57,4 @@ Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
+biocViews:

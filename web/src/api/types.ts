@@ -64,6 +64,7 @@ export interface AnalyteList {
   organismTaxId: number
   organismName: string
   idFormat: string
+  ranked?: boolean
   size: number
   created: number
   meta: Record<string, unknown>
@@ -134,6 +135,7 @@ export interface Term {
   foldEnrichment: number | null
   genes: string
   link: string | null
+  nes?: number | null
 }
 
 export interface NetworkNode {
@@ -192,6 +194,7 @@ export interface RunDetails extends Run {
 
 export interface ComparisonTerm {
   id: string
+  runIds: string[]
   source: string
   name: string
   tools: string

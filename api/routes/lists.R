@@ -19,17 +19,22 @@ function(req, res) {
   api_handle(res, {
     ws <- require_workspace(req)
     b <- body_of(req)
+    scores <- if (!is.null(b$scores)) unlist(b$scores) else NULL
     ids <- if (!is.null(b$ids)) unlist(b$ids) else {
       text <- as.character(b$text %||% "")[1]
       check_text_size(text)
-      parse_id_text(text, isTRUE(b$skipFirstRow))$ids
+      if (isTRUE(b$ranked)) {
+        parsed <- parse_ranked_text(text, isTRUE(b$skipFirstRow))
+        scores <- parsed$scores
+        parsed$ids
+      } else parse_id_text(text, isTRUE(b$skipFirstRow))$ids
     }
     meta <- b$meta %||% list()
     if (!is.list(meta)) meta <- list()
     meta <- meta[intersect(names(meta), c("source", "sourceLists", "mode", "derivedFrom", "method"))]
     res$status <- 201
     create_list(ws, b$name, ids, b$organismTaxId %||% 9606L, b$analyteType %||% "GENE",
-                b$idFormat %||% "USERINPUT", meta, uniquify = isTRUE(b$uniqueName))
+                b$idFormat %||% "USERINPUT", meta, uniquify = isTRUE(b$uniqueName), scores = scores)
   })
 }
 
@@ -55,6 +60,10 @@ function(req, res, id) {
     res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", fname))
     # Prefix cells that a spreadsheet could interpret as formulas.
     safe <- ifelse(grepl("^[=+@-]", ids), paste0("'", ids), ids)
+    if (!is.null(r$scores_json) && !is.na(r$scores_json) && nzchar(r$scores_json)) {
+      sc <- from_json(r$scores_json)
+      return(paste0("id,score\n", paste(safe, sc, sep = ",", collapse = "\n"), "\n"))
+    }
     paste0("id\n", paste(safe, collapse = "\n"), "\n")
   }, flame_api_error = function(e) { res$status <- e$status; e$message })
 }

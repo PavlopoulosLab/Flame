@@ -205,6 +205,7 @@ execute_ora_run <- function(toolId, lst, params, backgroundList = NULL) {
   )
 
   results <- if (session$hasResults()) clean_result_links(session$getResults()) else NULL
+  results <- rollback_hit_ids(results, session$getConversionTable())
   details <- tryCatch(session$getRunDetailsPayload(), error = function(e) NULL)
 
   list(
@@ -219,4 +220,24 @@ execute_ora_run <- function(toolId, lst, params, backgroundList = NULL) {
     details = details,
     messages = unique(messages)
   )
+}
+
+
+#' Map tool-specific gene IDs in "Positive Hits" (e.g. STRING's 9606.ENSP...)
+#' back to the IDs the user supplied, using the run's conversion table.
+#' IDs that are not in the table are kept as they are.
+rollback_hit_ids <- function(results, conversionTable) {
+  if (is.null(results) || !nrow(results) || !"Positive Hits" %in% names(results)) return(results)
+  ct <- conversionTable
+  if (is.null(ct) || !nrow(ct) || !all(c("input", "target") %in% names(ct))) return(results)
+  map <- stats::setNames(as.character(ct$input), as.character(ct$target))
+  map <- map[!duplicated(names(map)) & nzchar(names(map))]
+  hits <- as.character(results$`Positive Hits`)
+  needs <- grepl("(^|,)\\s*[0-9]+\\.[A-Za-z]", hits) | vapply(strsplit(hits, ",\\s*"), function(g) any(g %in% names(map) & !g %in% map), logical(1))
+  if (!any(needs)) return(results)
+  results$`Positive Hits`[needs] <- vapply(strsplit(hits[needs], ",\\s*"), function(g) {
+    back <- unname(map[g]); back[is.na(back)] <- g[is.na(back)]
+    paste(unique(back), collapse = ",")
+  }, character(1))
+  results
 }

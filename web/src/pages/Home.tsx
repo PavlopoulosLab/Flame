@@ -1,6 +1,7 @@
 import { Link, useSearchParams } from 'react-router-dom'
 import { useConfig } from '../api/hooks'
-import { Logo } from '../components/Shell'
+import { BrandLockup, Wordmark } from '../components/Shell'
+import { ConceptIcon } from '../components/Icons'
 import { ErrorNote } from '../components/ui'
 import { PUBLICATIONS } from './publications'
 
@@ -13,18 +14,32 @@ const EXAMPLES = [
   },
   { kind: 'upload', title: 'Gene list', text: 'Paste or upload gene/protein IDs in any of 19 formats.' },
   { kind: 'volcano', title: 'Volcano plot', text: 'Select up- and down-regulated genes from a differential expression table.' },
-  { kind: 'reduction', title: '2D reduction plot', text: 'Lasso clusters on a UMAP, t-SNE or PCA scatter.' },
+  { kind: 'reduction', title: 'UMAP / 2D plot', text: 'Lasso clusters on a UMAP, t-SNE or PCA scatter.' },
+  { kind: 'expression', title: 'Expression matrix', text: 'Genes × samples: co-expression clusters, a gene map, or two groups compared in a volcano plot.', tag: 'New' },
+  { kind: 'variants', title: 'Variant analysis', text: 'Annotate SNPs and VCF variants: consequence, impact, gnomAD frequency, ClinVar and traits.', tag: 'New' },
+  { kind: 'gwas', title: 'GWAS results', text: 'From summary statistics to a Manhattan plot, associated traits, genes and GSEA.', tag: 'New' },
+  { kind: 'mirna', title: 'microRNAs', text: 'From microRNAs (e.g. hsa-miR-21-5p) to the genes they regulate, then enrichment.', tag: 'New' },
   { kind: 'snps', title: 'SNPs to genes', text: 'Map dbSNP rsIDs to the genes they affect.' },
   { kind: 'textmining', title: 'Text mining', text: 'Find gene and protein names in an abstract or any free text.' },
   { kind: 'upset', title: 'Set operations', text: 'Build intersections and unions of several lists with an UpSet plot.' },
+  { kind: 'gsea', title: 'Ranked list (GSEA)', text: 'Every gene of an experiment ranked by its change, tested with GSEA on MSigDB.', tag: 'New' },
+  { kind: 'compare-tools', title: 'Compare tools', text: 'One list through five tools, with agreement statistics and plots.', tag: 'New' },
+  { kind: 'compare-strategies', title: 'Compare strategies', text: 'GSEA on all genes vs. over-representation on the significant ones.', tag: 'New' },
+  { kind: 'compare-lists', title: 'Up vs. down', text: 'Up- and down-regulated genes analysed and compared side by side.' },
+  { kind: 'gmt', title: 'Custom gene sets', text: 'Upload gene sets as a GMT file (here: MSigDB Hallmark) and test them.' },
+  { kind: 'ppi', title: 'Protein network', text: 'STRING interactions among your proteins; select and save sub-networks.' },
 ]
 
 const VIEWS = [
-  ['Dot plot', 'Gene ratio, significance and term size at a glance'],
+  ['Dot plot', 'Gene ratio (or NES for GSEA), significance and term size at a glance'],
   ['Bar chart', 'Top terms by significance or coverage'],
   ['Scatter plot', 'Significance against term coverage'],
   ['Heatmaps', 'Terms × genes, terms × terms, genes × genes'],
-  ['Networks', 'Term–gene, term–term and gene–gene networks, plus 3D in Arena3Dweb'],
+  ['Networks', 'Term–gene, term–term and gene–gene networks'],
+  ['Sankey, chord and hive', 'Gene → term → source flows, term overlap and multi-axis views'],
+  ['Comparison', 'Overview, UpSet, chord, bubble and heatmap across runs, with combined p-values'],
+  ['Variant reports', 'Manhattan plot, impact and ClinVar summaries, variants → genes → traits'],
+  ['3D and external viewers', 'Open any network in Arena3D (3D layers) or NORMA'],
   ['Table', 'Searchable, filterable, exportable results'],
 ]
 
@@ -45,11 +60,12 @@ export default function HomePage() {
 
       <section className="hero">
         <div className="hero-text">
-          <h1>
-            Flame 3.0: Functional Enrichment Integration made easy
+          <h1 className="hero-title" aria-label="Flame 3.0: Functional Analysis and Integration made easy">
+            <Wordmark className="hero-brand" />
+            <span className="hero-tagline">Functional Analysis and Integration <em>made easy</em></span>
           </h1>
           <p className="lead">
-            Run functional and literature enrichment on one or many gene lists with six established tools, combine their
+            Run functional and literature enrichment on one or many gene lists with seven established tools, combine their
             results, and explore them with interactive plots and networks. Free and open to everyone — no login, no
             registration.
           </p>
@@ -71,15 +87,15 @@ export default function HomePage() {
               <strong>14,000+</strong> organisms
             </li>
             <li>
-              <strong>6</strong> enrichment tools + your own GMT gene sets
+              <strong>7</strong> enrichment tools, ORA and GSEA, plus your own gene sets
             </li>
             <li>
-              <strong>10</strong> interactive result views
+              <strong>13</strong> interactive result views
             </li>
           </ul>
         </div>
         <div className="hero-art" aria-hidden="true">
-          <Logo size={220} />
+          <BrandLockup size={230} stacked />
         </div>
       </section>
 
@@ -111,6 +127,7 @@ export default function HomePage() {
           {EXAMPLES.map((e) => (
             <Link key={e.kind} to={`/start?new=1&example=${e.kind}`} className={`example-card${e.tag ? ' featured' : ''}`}>
               {e.tag && <span className="badge">{e.tag}</span>}
+              <ConceptIcon name={e.kind} size={34} />
               <h3>{e.title}</h3>
               <p>{e.text}</p>
               <span className="example-cta">Open example →</span>

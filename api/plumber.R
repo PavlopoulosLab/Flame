@@ -27,9 +27,12 @@ function(req, res) {
   if (grepl("^/api/[a-z-]+$", req$PATH_INFO %||% "")) req$PATH_INFO <- paste0(req$PATH_INFO, "/")
 
   len <- suppressWarnings(as.numeric(req$CONTENT_LENGTH %||% "0"))
-  if (!is.na(len) && len > 2.5 * 1024^2) {
+  isImport <- identical(req$PATH_INFO, "/api/workspace/import") || identical(req$PATH_INFO, "/api/workspace/import/")
+  limit <- if (isImport) FLAME_LIMITS$maxSessionBytes else 2.5 * 1024^2
+  if (!is.na(len) && len > limit) {
     res$status <- 413
-    return(list(error = "Request is larger than the 2 MB limit."))
+    return(list(error = if (isImport) sprintf("The session file is larger than the %d MB limit.", round(limit / 1024^2))
+                        else "Request is larger than the 2 MB limit."))
   }
 
   # 600 API requests per minute per client address (generous for the UI's polling).

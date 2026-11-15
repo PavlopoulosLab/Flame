@@ -24,6 +24,9 @@ function(req, res) {
     b <- body_of(req)
     lstRow <- get_list(ws, as.character(b$listId %||% ""))
     lst <- list_core(lstRow)
+    paradigm <- if (identical(toupper(as.character(b$paradigm %||% "ORA")), "GSEA")) ParadigmId$GSEA else ParadigmId$ORA
+    if (paradigm == ParadigmId$GSEA && is.null(lst$scores))
+      api_abort(400, "GSEA needs a ranked list (IDs with scores). Create one from a volcano table or upload IDs with scores.")
     toolKeys <- unique(tolower(as.character(unlist(b$tools))))
     sourceIds <- unique(as.character(unlist(b$sourceIds)))
     if (length(toolKeys) + length(sourceIds) == 0) api_abort(400, "Select at least one tool or custom source.")
@@ -37,11 +40,11 @@ function(req, res) {
     perTool <- b$perTool %||% list()
     created <- list(); reused <- list(); skipped <- list()
 
-    insert_run <- function(toolKey, toolId, params, bgName) {
+    insert_run <- function(toolKey, toolId, params, bgName, runParadigm = ParadigmId$ORA) {
       ids <- next_run_ids(ws, toolKey, toolId)
       db_exec("INSERT INTO runs (id, ws, seq, display, tool, paradigm, list_id, list_name, bg_list_name,
-               taxid, params_json, status, created) VALUES (?, ?, ?, ?, ?, 'ORA', ?, ?, ?, ?, ?, 'queued', ?)",
-              list(ids$id, ws, ids$seq, ids$display, toolId, lstRow$id, lstRow$name,
+               taxid, params_json, status, created) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', ?)",
+              list(ids$id, ws, ids$seq, ids$display, toolId, runParadigm, lstRow$id, lstRow$name,
                    if (is.null(bgName)) NA else bgName, lstRow$taxid, to_json(params), now_s()))
       ids$id
     }
@@ -53,14 +56,29 @@ function(req, res) {
         skipped[[length(skipped) + 1]] <- list(tool = key, reason = sprintf("%s does not support %s.", toolId, .organism_label(lstRow$taxid)))
         next
       }
+      if (!paradigm %in% (TOOLS[[toolId]]$paradigms %||% ParadigmId$ORA)) {
+        skipped[[length(skipped) + 1]] <- list(tool = key, reason = sprintf("%s does not offer %s.", toolId, paradigm))
+        next
+      }
       cfg <- perTool[[key]] %||% list()
+      if (paradigm == ParadigmId$GSEA) {
+        params <- build_run_params(toolId, lst, b$datasources, cfg$threshold %||% b$threshold %||% 0.05, cfg$correction, NULL)
+        params$paradigm <- ParadigmId$GSEA
+        existing <- db_query("SELECT id, taxid, params_json FROM runs WHERE ws = ? AND tool = ? AND paradigm = 'GSEA' AND status != 'error'", list(ws, toolId))
+        match <- Filter(function(i) run_params_match(from_json(existing$params_json[i]), params, existing$taxid[i], lstRow$taxid), seq_len(nrow(existing)))
+        if (length(match) > 0) { reused[[length(reused) + 1]] <- existing$id[match[[1]]]; next }
+        runId <- insert_run(paste0(key, "-gsea"), toolId, params, NULL, ParadigmId$GSEA)
+        submit_run(ws, runId, list(kind = "gsea", lst = lst, params = params))
+        created[[length(created) + 1]] <- runId
+        next
+      }
       bgRow <- NULL
       if (nzchar(as.character(cfg$backgroundListId %||% ""))) bgRow <- get_list(ws, as.character(cfg$backgroundListId))
       bg <- if (!is.null(bgRow)) list_core(bgRow) else NULL
       params <- build_run_params(toolId, lst, b$datasources, cfg$threshold %||% b$threshold %||% 0.05,
                                  cfg$correction, bg)
 
-      existing <- db_query("SELECT id, taxid, params_json, status FROM runs WHERE ws = ? AND tool = ? AND status != 'error'",
+      existing <- db_query("SELECT id, taxid, params_json, status FROM runs WHERE ws = ? AND tool = ? AND paradigm = 'ORA' AND status != 'error'",
                            list(ws, toolId))
       match <- Filter(function(i) run_params_match(from_json(existing$params_json[i]), params, existing$taxid[i], lstRow$taxid),
                       seq_len(nrow(existing)))
@@ -72,6 +90,7 @@ function(req, res) {
       created[[length(created) + 1]] <- runId
     }
 
+    if (paradigm == ParadigmId$GSEA) sourceIds <- character(0)   # custom GMT sources: ORA only
     for (sid in sourceIds) {
       src <- get_source_sets(ws, sid)
       cfg <- perTool[["custom"]] %||% list()
@@ -159,7 +178,8 @@ function(req, res, id) {
   })
 }
 
-#* Export the current network view to Arena3Dweb (3D). Same body as /view.
+#* Open the current view in Arena3D (3D multilayer network, arena3d.org). Same body as /view.
+#* Works for network views and for the term–gene heatmap / Sankey (terms by source as layers + genes).
 #* @post /<id>/arena3d
 #* @serializer flamejson
 function(req, res, id) {
@@ -167,14 +187,65 @@ function(req, res, id) {
     ws <- require_workspace(req)
     b <- body_of(req)
     view <- as.character(b$view %||% "network-tg")
-    if (!view %in% c("network-tg", "network-tt", "network-gg")) api_abort(400, "Arena3Dweb export is available for network views.")
+    if (!view %in% c("network-tg", "network-tt", "network-gg", "heatmap-tg")) api_abort(400, "Arena3D export is available for network views.")
     out <- run_output(ws, id)
-    edgelist <- arena_edgelist_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
-                                        b$sortBy %||% "-log10Pvalue", b$settings %||% list())
-    if (is.null(edgelist) || nrow(edgelist) == 0) api_abort(422, "The current view has no edges to export.")
-    result <- arena_export(edgelist)
-    if (!isTRUE(result$success) || !grepl("^https://", result$url %||% ""))
-      api_abort(502, "Arena3Dweb did not accept the network. Please try again later.")
-    list(url = result$url)
+    body <- tryCatch(arena3d_payload_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
+                                              b$sortBy %||% "-log10Pvalue", b$settings %||% list()),
+                     error = function(e) api_abort(422, conditionMessage(e)))
+    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+  })
+}
+
+#* Open the current network view in NORMA (network annotation viewer). Same body as /view.
+#* @post /<id>/norma
+#* @serializer flamejson
+function(req, res, id) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    view <- as.character(b$view %||% "network-tg")
+    if (!view %in% c("network-tg", "network-tt", "network-gg")) api_abort(400, "NORMA export is available for network views.")
+    r <- get_run_row(ws, id)
+    out <- run_output(ws, id)
+    payload <- tryCatch(norma_payload_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
+                                               b$sortBy %||% "-log10Pvalue", b$settings %||% list(),
+                                               name = paste(r$tool, r$list_name)),
+                        error = function(e) api_abort(422, conditionMessage(e)))
+    url <- tryCatch(norma_export(payload), error = function(e) api_abort(502, conditionMessage(e)))
+    list(url = url)
+  })
+}
+
+#* Links from one enriched term to pathway databases (KEGG map with the genes
+#* coloured, Reactome with genes flagged, WikiPathways, GO, HPO, searches).
+#* Body: { termId }
+#* @post /<id>/pathway-links
+#* @serializer flamejson
+function(req, res, id) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    termId <- as.character(body_of(req)$termId %||% "")[1]
+    r <- get_run_row(ws, id)
+    out <- run_output(ws, id)
+    df <- out$results
+    row <- df[as.character(df$Term_ID_noLinks %||% df$Term_ID) == termId, , drop = FALSE]
+    if (!nrow(row)) api_abort(404, "Term not found in this run.")
+    genes <- .split_hits(row$`Positive Hits`[1])
+    # Some tools report their own IDs (e.g. STRING 9606.ENSP...): map back to the user's IDs.
+    ct <- out$conversionTable
+    if (!is.null(ct) && nrow(ct) && all(c("input", "target") %in% names(ct))) {
+      back <- ct$input[match(genes, ct$target)]
+      byName <- if ("name" %in% names(ct)) ct$input[match(genes, ct$name)] else NA
+      genes <- unique(ifelse(!is.na(back), back, ifelse(!is.na(byName), byName, sub("^[0-9]+\\.", "", genes))))
+    }
+    scores <- NULL
+    if (!is.na(r$list_id %||% NA)) {
+      l <- db_query("SELECT ids_json, scores_json FROM lists WHERE ws = ? AND id = ?", list(ws, r$list_id))
+      if (nrow(l) && !is.na(l$scores_json) && nzchar(l$scores_json)) {
+        ids <- as.character(unlist(from_json(l$ids_json))); sc <- as.numeric(unlist(from_json(l$scores_json)))
+        if (length(ids) == length(sc)) scores <- as.list(stats::setNames(sc, ids)[intersect(genes, ids)])
+      }
+    }
+    pathway_links(list(id = termId, source = row$Source[1], name = row$Function[1]), genes, r$taxid, scores)
   })
 }

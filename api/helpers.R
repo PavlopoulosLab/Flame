@@ -13,7 +13,8 @@ FLAME_LIMITS <- list(
   maxNameChars    = 80L,
   retentionDays   = as.numeric(Sys.getenv("FLAME_RETENTION_DAYS", "30")),
   maxSources      = 5L,
-  maxGmtTerms     = 20000L
+  maxGmtTerms     = 20000L,
+  maxSessionBytes = as.numeric(Sys.getenv("FLAME_MAX_SESSION_MB", "25")) * 1024^2
 )
 
 # ---- Errors -----------------------------------------------------------------
@@ -91,6 +92,13 @@ db <- function() {
     stmts <- strsplit(paste(schema[!grepl("^\\s*--", schema)], collapse = "\n"), ";")[[1]]
     for (s in stmts) if (nzchar(trimws(s))) DBI::dbExecute(con, s)
     DBI::dbExecute(con, "PRAGMA foreign_keys = ON")
+    # Migrations for databases created by earlier versions.
+    if (!"scores_json" %in% DBI::dbListFields(con, "lists")) {
+      DBI::dbExecute(con, "ALTER TABLE lists ADD COLUMN scores_json TEXT")
+    }
+    wsFields <- DBI::dbListFields(con, "workspaces")
+    if (!"last_export" %in% wsFields) DBI::dbExecute(con, "ALTER TABLE workspaces ADD COLUMN last_export REAL")
+    if (!"export_fingerprint" %in% wsFields) DBI::dbExecute(con, "ALTER TABLE workspaces ADD COLUMN export_fingerprint TEXT")
     .flame_db$con <- con
   }
   con
@@ -117,10 +125,52 @@ require_workspace <- function(req) {
   id
 }
 
+#' A short hash of what the workspace holds (lists, runs, sources, variant
+#' analyses). Saved with each export, so the status can say whether anything
+#' changed since the last save.
+workspace_fingerprint <- function(ws) {
+  parts <- c(
+    with(db_query("SELECT id, name, ids_json, COALESCE(scores_json, '') AS sc FROM lists WHERE ws = ? ORDER BY id", list(ws)),
+         paste("L", id, name, nchar(ids_json), nchar(sc))),
+    with(db_query("SELECT id, status FROM runs WHERE ws = ? ORDER BY id", list(ws)), paste("R", id, status)),
+    with(db_query("SELECT id, name FROM sources WHERE ws = ? ORDER BY id", list(ws)), paste("S", id, name)),
+    with(db_query("SELECT id, name, status FROM variant_analyses WHERE ws = ? ORDER BY id", list(ws)), paste("V", id, name, status))
+  )
+  substr(sodium::bin2hex(sodium::sha256(charToRaw(enc2utf8(paste(parts, collapse = "\n"))))), 1, 16)
+}
+
+#' Session status for the workspace header and the Session dialog
+workspace_status <- function(ws) {
+  w <- db_query("SELECT created, last_seen, last_export, export_fingerprint FROM workspaces WHERE id = ?", list(ws))
+  runs <- db_query("SELECT status, COUNT(*) AS n FROM runs WHERE ws = ? GROUP BY status", list(ws))
+  va <- db_query("SELECT status, COUNT(*) AS n FROM variant_analyses WHERE ws = ? GROUP BY status", list(ws))
+  cnt <- function(df, st) sum(df$n[df$status %in% st])
+  bytes <- db_query("SELECT
+      COALESCE((SELECT SUM(LENGTH(ids_json) + COALESCE(LENGTH(scores_json), 0)) FROM lists WHERE ws = ?1), 0) +
+      COALESCE((SELECT SUM(COALESCE(LENGTH(result_blob), 0)) FROM runs WHERE ws = ?1), 0) +
+      COALESCE((SELECT SUM(LENGTH(gmt_json)) FROM sources WHERE ws = ?1), 0) +
+      COALESCE((SELECT SUM(COALESCE(LENGTH(result_blob), 0)) FROM variant_analyses WHERE ws = ?1), 0) AS b", list(ws))$b
+  fp <- workspace_fingerprint(ws)
+  lastExport <- if (is.na(w$last_export)) NULL else w$last_export
+  nLists <- db_query("SELECT COUNT(*) AS n FROM lists WHERE ws = ?", list(ws))$n
+  nSources <- db_query("SELECT COUNT(*) AS n FROM sources WHERE ws = ?", list(ws))$n
+  empty <- nLists + sum(runs$n) + nSources + sum(va$n) == 0
+  list(
+    created = w$created, lastActive = w$last_seen, expires = w$last_seen + FLAME_LIMITS$retentionDays * 86400,
+    retentionDays = FLAME_LIMITS$retentionDays, lastSaved = lastExport,
+    state = if (empty) "empty" else if (is.null(lastExport)) "unsaved" else if (identical(fp, w$export_fingerprint)) "saved" else "changed",
+    counts = list(lists = nLists, maxLists = FLAME_LIMITS$maxLists, sources = nSources,
+                  runsComplete = cnt(runs, "complete"), runsActive = cnt(runs, c("queued", "running")), runsFailed = cnt(runs, "error"),
+                  variantAnalyses = sum(va$n), variantActive = cnt(va, c("queued", "running"))),
+    storageBytes = as.numeric(bytes), maxSessionBytes = FLAME_LIMITS$maxSessionBytes
+  )
+}
+
 delete_workspace_data <- function(ws, keepWorkspace = TRUE) {
   db_exec("DELETE FROM runs WHERE ws = ?", list(ws))
   db_exec("DELETE FROM lists WHERE ws = ?", list(ws))
   db_exec("DELETE FROM sources WHERE ws = ?", list(ws))
+  db_exec("DELETE FROM variant_analyses WHERE ws = ?", list(ws))
   if (!keepWorkspace) db_exec("DELETE FROM workspaces WHERE id = ?", list(ws))
   invisible(TRUE)
 }
@@ -138,13 +188,17 @@ purge_expired_workspaces <- function() {
 list_row_to_obj <- function(r, includeIds = FALSE) {
   ids <- from_json(r$ids_json)
   org <- ORGANISMS[ORGANISMS$taxid == r$taxid, , drop = FALSE]
+  ranked <- !is.null(r$scores_json) && !is.na(r$scores_json) && nzchar(r$scores_json)
   out <- list(
-    id = r$id, name = r$name, analyteType = r$analyte, organismTaxId = r$taxid,
+    id = r$id, name = r$name, analyteType = r$analyte, organismTaxId = r$taxid, ranked = ranked,
     organismName = if (nrow(org) > 0) as.character(org$print_name[1]) else as.character(r$taxid),
     idFormat = r$id_format, size = length(ids), created = r$created,
     meta = from_json(r$meta_json) %||% list()
   )
-  if (includeIds) out$ids <- as.list(ids)
+  if (includeIds) {
+    out$ids <- as.list(ids)
+    if (ranked) out$scores <- as.list(from_json(r$scores_json))
+  }
   out
 }
 
@@ -156,7 +210,8 @@ get_list <- function(ws, idOrName) {
 
 #' Plain list record used by core functions (name, ids, organismTaxId, ...)
 list_core <- function(r) {
-  list(name = r$name, ids = from_json(r$ids_json), organismTaxId = r$taxid,
+  scores <- if (!is.null(r$scores_json) && !is.na(r$scores_json) && nzchar(r$scores_json)) from_json(r$scores_json) else NULL
+  list(name = r$name, ids = from_json(r$ids_json), scores = scores, organismTaxId = r$taxid,
        analyteType = r$analyte, idFormat = r$id_format)
 }
 
@@ -169,9 +224,22 @@ unique_list_name <- function(ws, base) {
 }
 
 create_list <- function(ws, name, ids, taxid = 9606L, analyte = "GENE",
-                        idFormat = "USERINPUT", meta = list(), uniquify = FALSE) {
+                        idFormat = "USERINPUT", meta = list(), uniquify = FALSE, scores = NULL) {
   name <- clean_name(name, "list name")
-  ids <- clean_ids(ids)
+  if (!is.null(scores)) {
+    # Ranked list: keep ID/score pairs aligned; duplicates keep the first score.
+    ids <- trimws(as.character(unlist(ids)))
+    scores <- suppressWarnings(as.numeric(unlist(scores)))
+    if (length(scores) != length(ids)) api_abort(400, "A ranked list needs one score per ID.")
+    ok <- nzchar(ids) & !is.na(ids) & grepl("^[A-Za-z0-9_.:\\-]+$", ids) & is.finite(scores)
+    ids <- ids[ok]; scores <- scores[ok]
+    keep <- !duplicated(tolower(ids))
+    ids <- ids[keep]; scores <- scores[keep]
+    if (length(ids) < 15) api_abort(400, "A ranked list needs at least 15 IDs with numeric scores.")
+    if (length(ids) > 30000) api_abort(400, "A ranked list can contain at most 30,000 IDs.")
+  } else {
+    ids <- clean_ids(ids)
+  }
   n <- db_query("SELECT COUNT(*) AS n FROM lists WHERE ws = ?", list(ws))$n
   if (FLAME_LIMITS$maxLists > 0 && n >= FLAME_LIMITS$maxLists)
     api_abort(409, sprintf("You can keep at most %d lists. Delete a list to add another.", FLAME_LIMITS$maxLists))
@@ -182,10 +250,10 @@ create_list <- function(ws, name, ids, taxid = 9606L, analyte = "GENE",
   if (is.na(taxid) || !(taxid %in% ORGANISMS$taxid)) api_abort(400, "Unknown organism.")
   idFormat <- normalizeWorkspaceIdFormat(idFormat %||% "USERINPUT")
   id <- new_object_id()
-  db_exec("INSERT INTO lists (id, ws, name, analyte, taxid, id_format, ids_json, meta_json, created)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  db_exec("INSERT INTO lists (id, ws, name, analyte, taxid, id_format, ids_json, scores_json, meta_json, created)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
     list(id, ws, name, normalizeAnalyteType(analyte), taxid, idFormat,
-         to_json(ids), to_json(meta), now_s()))
+         to_json(ids), if (is.null(scores)) NA_character_ else to_json(scores), to_json(meta), now_s()))
   list_row_to_obj(db_query("SELECT * FROM lists WHERE id = ?", list(id))[1, ])
 }
 
@@ -196,14 +264,14 @@ run_row_to_obj <- function(r) {
   list(
     id = r$id, tool = r$tool, toolKey = getWorkspaceToolKeyById(r$tool) %||% tolower(r$tool),
     displayNumber = r$display, paradigm = r$paradigm,
-    title = paste0(r$tool, " (", r$display, ")"),
+    title = paste0(r$tool, if (identical(r$paradigm, "GSEA")) " GSEA" else "", " (", r$display, ")"),
     listName = r$list_name, backgroundList = if (is.na(r$bg_list_name)) NULL else r$bg_list_name,
     organismTaxId = r$taxid,
     organismName = if (nrow(org) > 0) as.character(org$print_name[1]) else as.character(r$taxid),
     params = from_json(r$params_json),
     status = r$status, error = if (is.na(r$error)) NULL else r$error,
     resultCount = if (is.na(r$result_count)) NULL else r$result_count,
-    messages = from_json(r$messages_json) %||% list(),
+    messages = as.list(from_json(r$messages_json) %||% character(0)),
     created = r$created, finished = if (is.na(r$finished)) NULL else r$finished
   )
 }
@@ -225,6 +293,8 @@ run_output <- function(ws, runId) {
   if (!identical(r$status, "complete")) api_abort(409, "This run has not finished yet.")
   blob <- r$result_blob[[1]]
   out <- if (is.null(blob) || length(blob) == 0) NULL else unserialize(blob)
+  # Runs stored before IDs were mapped back (e.g. STRING protein IDs) are fixed on read.
+  if (!is.null(out$results)) out$results <- rollback_hit_ids(out$results, out$conversionTable)
   if (length(ls(.run_cache)) > 200) rm(list = ls(.run_cache), envir = .run_cache)
   .run_cache[[key]] <- out
   out

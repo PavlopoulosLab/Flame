@@ -3,8 +3,12 @@ import { api, saveText } from '../../api/client'
 import { useConfig, useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { NetworkGraph, type NetworkHandle } from '../../components/charts'
-import { ErrorNote, Field, Modal, Note, OrganismPicker, Segmented } from '../../components/ui'
+import { LayoutSelect, NetworkOptions } from '../../components/NetworkOptions'
+import { useNetworkStyle } from '../../lib/networkStyle'
+import { Arena3DIcon } from '../../components/ExternalIcons'
+import { ErrorNote, Field, Modal, Note, OpenExternalButton, OrganismPicker, Segmented } from '../../components/ui'
 import { plural } from '../../lib/format'
+import { categorical, roleColors, usePaletteMode } from '../../lib/palette'
 
 export type QuickAction = 'convert' | 'orthologs' | 'ppi'
 
@@ -189,6 +193,10 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
   const net = useRef<NetworkHandle | null>(null)
+  const ppiStyle = useNetworkStyle('ppi', { engine: 'barnesHut', labelSize: 12 })
+  const [picked, setPicked] = useState<string[]>([])
+  const pm = usePaletteMode()
+  const evidence = EVIDENCE.map(([k, label, c], i) => [k, label, pm === 'flame' ? c : categorical(pm)[i % categorical(pm).length]] as [string, string, string])
   const run = () => {
     setBusy(true); setErr(null)
     api<PpiResult>('/utilities/ppi', { body: { listId: list.id, networkType: type, networkEdges: edgesMode, score: Number(score) } })
@@ -196,14 +204,14 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
   }
   const graph = useMemo(() => {
     if (!res) return { nodes: [], edges: [] }
-    const nodes = res.nodes.map((n) => ({ id: n.id, label: n.label, title: `${n.label}${n.query && n.query !== n.label ? ` (${n.query})` : ''} · ${n.degree} interactions`, color: '#f97316', shape: 'dot', size: 8 + Math.min(16, n.degree) }))
+    const nodes = res.nodes.map((n) => ({ id: n.id, label: n.label, title: `${n.label}${n.query && n.query !== n.label ? ` (${n.query})` : ''} · ${n.degree} interactions`, color: roleColors(pm).accent, shape: 'dot', size: 8 + Math.min(16, n.degree) }))
     const edges = res.edges.map((e, i) => {
-      const top = EVIDENCE.map(([k, , c]) => [Number(e[k] ?? 0), c] as const).sort((a, b) => b[0] - a[0])[0]
-      return { id: i, from: e.from, to: e.to, width: edgesMode === 'confidence' ? 0.5 + 4 * e.score : 1.5,
+      const top = evidence.map(([k, , c]) => [Number(e[k] ?? 0), c] as const).sort((a, b) => b[0] - a[0])[0]
+      return { id: i, from: e.from, to: e.to, value: e.score, width: edgesMode === 'confidence' ? 0.5 + 4 * e.score : 1.5,
         color: edgesMode === 'evidence' ? top?.[1] ?? '#9ca3af' : '#71717a', title: `${e.from} – ${e.to} · score ${e.score}` }
     })
     return { nodes, edges }
-  }, [res, edgesMode])
+  }, [res, edgesMode, pm])
   return (
     <>
       <div className="row wrap">
@@ -221,13 +229,29 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
         <>
           <p className="small">{plural(res.stats.nodes, 'protein')} · {plural(res.stats.edges, 'interaction')} · average degree {res.stats.averageDegree}{res.stats.unmapped ? ` · ${res.stats.unmapped} IDs not found in STRING` : ''}</p>
           {edgesMode === 'evidence' && (
-            <div className="legend">{EVIDENCE.map(([, label, c]) => <span key={label}><i style={{ background: c }} />{label}</span>)}</div>
+            <div className="legend">{evidence.map(([, label, c]) => <span key={label}><i style={{ background: c }} />{label}</span>)}</div>
           )}
-          <NetworkGraph nodes={graph.nodes} edges={graph.edges} handleRef={net} physics height={480} />
+          <div className="toolbar">
+            <label>Layout <LayoutSelect style={ppiStyle.style} onChange={ppiStyle.setStyle} /></label>
+            <NetworkOptions style={ppiStyle.style} onChange={ppiStyle.setStyle} onReset={ppiStyle.reset} handle={net} />
+          </div>
+          <NetworkGraph nodes={graph.nodes} edges={graph.edges} handleRef={net} style={ppiStyle.style} height={480} selected={picked}
+            onSelect={(ids, add) => setPicked((cur) => (add ? [...new Set([...cur, ...ids])] : ids))} />
+          {picked.length > 0 && (
+            <div className="row wrap">
+              <span className="small"><strong>{plural(picked.length, 'protein')}</strong> selected</span>
+              <button className="btn btn-ghost btn-sm" onClick={() => setPicked([])}>Clear selection</button>
+            </div>
+          )}
+          {picked.length > 0 && <SaveDerived ids={picked} defaultName={`${list.name} selected proteins`} taxid={list.organismTaxId} idFormat="USERINPUT"
+            meta={{ method: 'ppi-selection', derivedFrom: list.name }} onDone={onDone} />}
           <div className="row wrap">
             {res.link && <a className="btn btn-ghost" href={res.link} target="_blank" rel="noopener noreferrer">Open in STRING ↗</a>}
             <button className="btn btn-ghost" onClick={() => saveText(res.tsv, `${list.name}_string_network.tsv`, 'text/tab-separated-values')}>Download TSV</button>
             <button className="btn btn-ghost" onClick={() => net.current?.toPng(`${list.name}_string_network.png`)}>Download PNG</button>
+            <OpenExternalButton className="btn btn-secondary" path="/utilities/ppi/arena3d" label="Arena3D" caption="evidence types as 3D channels" icon={<Arena3DIcon />}
+              body={{ listId: list.id, networkType: type, networkEdges: edgesMode, score: Number(score) }}
+              title="Open in Arena3D (3D): each STRING evidence type becomes its own edge channel" />
           </div>
           <SaveDerived ids={res.nodes.map((n) => n.label)} defaultName={`${list.name} network`} taxid={list.organismTaxId} idFormat="USERINPUT"
             meta={{ method: 'ppi', derivedFrom: list.name }} onDone={onDone} />

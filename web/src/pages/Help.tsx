@@ -1,11 +1,96 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
+import { CopyButton } from '../components/ui'
 
 interface Topic { id: string; title: string; body: ReactNode }
 
 const Example = ({ kind, children }: { kind: string; children: ReactNode }) => (
   <Link className="btn btn-secondary btn-sm" to={`/start?new=1&example=${kind}`}>{children}</Link>
 )
+
+
+/** A file sample with real tab characters: tabs are highlighted on screen and copied as tabs. */
+function Sample({ text }: { text: string }) {
+  const lines = text.split('\n')
+  return (
+    <div className="format-sample-wrap">
+      <pre className="format-sample" aria-label="Example file content (columns separated by tabs)">
+        {lines.map((l, i) => (
+          <span key={i}>{l.split('\t').map((cell, j) => (
+            <span key={j}>{j > 0 && <span className="tab-char">{'\t'}</span>}{cell}</span>
+          ))}{i < lines.length - 1 ? '\n' : ''}</span>
+        ))}
+      </pre>
+      <CopyButton text={text} label="Copy sample" />
+    </div>
+  )
+}
+
+interface Format { id: string; title: string; ext: string; use: string; columns: ReactNode; sample: string; file: string; example?: string; notes?: ReactNode }
+const FORMATS: Format[] = [
+  { id: 'list', title: 'Gene or protein list', ext: '.txt', use: 'Paste or upload IDs', file: '/api/inputs/examples/upload/file', example: 'upload',
+    columns: <>One identifier per line (commas, semicolons and tabs also work). Gene symbols, Ensembl, Entrez, UniProt and 15 more ID types; choose the type when uploading.</>,
+    sample: 'AURKA\nPSMC5\nRAN\nPDHB\nGNG7' },
+  { id: 'ranked', title: 'Ranked list (for GSEA)', ext: '.tsv', use: 'Paste or upload IDs → “IDs with scores”', file: '/api/inputs/examples/ranked/file', example: 'gsea',
+    columns: <>Two tab-separated columns: <code>gene</code> and <code>score</code> (any number: log2 fold change, signed −log10 p, t-statistic). Include all measured genes. A header row is allowed (tick “skip first row”).</>,
+    sample: 'gene\tscore\nGNAL\t3.8096\nWFDC6\t3.6004\nEPHA7\t3.2534\nRPS4Y1\t-2.4154' },
+  { id: 'volcano', title: 'Differential-expression table (volcano plot)', ext: '.tsv / .csv', use: 'From a volcano plot', file: '/api/inputs/examples/volcano/file', example: 'volcano',
+    columns: <>A header row and at least three columns: gene ID, log2 fold change and p-value (raw or adjusted). Other columns are ignored. Flame guesses which column is which; you can change it.</>,
+    sample: 'symbol\tpvalue\tlogFC\nRPS4Y1\t0.003842577\t-3.389841983\nGSTM2\t0.030269963\t-3.325174369\nGSTM1\t0.02951696\t-2.892598382' },
+  { id: 'reduction', title: '2D coordinates (UMAP, t-SNE, PCA)', ext: '.tsv / .csv', use: 'From a 2D plot', file: '/api/inputs/examples/reduction/file', example: 'reduction',
+    columns: <>A header row; a gene column and two coordinate columns. Optional: a column to colour by (e.g. cluster) and a numeric column to size by.</>,
+    sample: 'symbol\tUMAP1\tUMAP2\texpression\tcluster\tgene_type\nPRNCR1\t7.3046\t-4.6075\t4.7067\t5\tncRNA\nNEAT1\t6.4890\t7.3675\t10.7500\t4\tncRNA' },
+  { id: 'expression', title: 'Expression matrix', ext: '.tsv / .csv', use: 'From expression data', file: '/api/inputs/examples/expression/file', example: 'expression',
+    columns: <>A header row; first column = gene ID, then one numeric column per sample (counts, TPM, intensities or log values). Counts and intensities are log2(x + 1) transformed automatically. Up to 30,000 genes and 2 MB.</>,
+    sample: 'gene\tcontrol_1\tcontrol_2\tcontrol_3\ttreated_1\ttreated_2\ttreated_3\nTRIM68\t605.7\t523.3\t414.4\t359.1\t351.3\t360.7\nSPTBN1\t74.6\t64.1\t68.3\t42.7\t42.6\t37',
+    notes: <>The example is simulated (3 control and 3 treated samples) with fold changes taken from the example differential-expression table.</> },
+  { id: 'mirna', title: 'microRNA list', ext: '.txt', use: 'From microRNAs', file: '/api/inputs/examples/mirna/file', example: 'mirna',
+    columns: <>One microRNA per line in miRBase form (<code>hsa-miR-21-5p</code>, <code>hsa-let-7a-5p</code>). A name without <code>-5p</code>/<code>-3p</code> uses both arms. Flame finds their predicted targets (miRDB v6, score &gt; 80) and lets you keep genes hit by several of your microRNAs.</>,
+    sample: 'hsa-miR-21-5p\nhsa-miR-155-5p\nhsa-let-7a-5p\nhsa-miR-34a-5p' },
+  { id: 'snps', title: 'SNP list', ext: '.txt', use: 'From SNPs', file: '/api/inputs/examples/snps/file', example: 'snps',
+    columns: <>One dbSNP rsID per line (human).</>, sample: 'rs429358\nrs7412\nrs1801133\nrs6025' },
+  { id: 'variants', title: 'Variants', ext: '.txt / .vcf', use: 'Variants and GWAS', file: '/api/variants/examples/variants/file', example: 'variants',
+    columns: <>One variant per line, in any of these forms: rsID; VCF columns <code>CHROM POS ID REF ALT</code> (tab- or space-separated; header lines starting with <code>##</code> are skipped); <code>chr:pos:ref:alt</code>; or HGVS (<code>ENST…:c.803C&gt;T</code>). Positions are GRCh38.</>,
+    sample: 'rs429358\nrs7412\n7\t140753336\t.\tA\tT\n17:7674220:C:T\nENST00000366667:c.803C>T' },
+  { id: 'gwas', title: 'GWAS summary statistics', ext: '.tsv / .csv', use: 'Variants and GWAS', file: '/api/variants/examples/gwas/file', example: 'gwas',
+    columns: <>A header row with a variant column (<code>SNP</code>, <code>rsid</code>…) and a p-value column (<code>P</code>, <code>pval</code>…); optionally <code>CHR</code> and <code>BP</code> (GRCh38). Up to 2,000 of the most significant rows are analysed.</>,
+    sample: 'SNP\tCHR\tBP\tP\nrs429358\t19\t44908684\t1.2e-120\nrs7412\t19\t44908822\t3.4e-45\nrs6857\t19\t44888997\t2.1e-60' },
+  { id: 'gmt', title: 'Custom gene sets (GMT)', ext: '.gmt', use: 'Custom sources → + GMT', file: '/api/inputs/examples/gmt/file', example: 'gmt',
+    columns: <>One gene set per line, tab-separated: set ID, description, then the genes (as many columns as needed). No header row.</>,
+    sample: 'HALLMARK_ANGIOGENESIS\tangiogenesis\tAPOH\tAPP\tCCND2\tCOL3A1\tCOL5A2\nHALLMARK_APOPTOSIS\tapoptosis\tADD1\tAIFM3\tANKH\tANXA1\tAPP',
+    notes: <>The example file is the MSigDB Hallmark collection (human gene symbols).</> },
+  { id: 'text', title: 'Free text', ext: '.txt', use: 'From text', file: '/api/inputs/examples/textmining/file', example: 'textmining',
+    columns: <>Any plain text, such as an abstract. Gene and protein names are found with the EXTRACT tagger.</>,
+    sample: 'Mutations in TP53 and BRCA1 are frequent in ovarian cancer…' },
+]
+
+function FormatsTopic() {
+  return (
+    <>
+      <p>Every file format Flame reads, with a sample and a downloadable example file you can open, edit and upload. In the samples, <span className="tab-char tab-legend">{'\t'}</span> marks a <strong>tab character</strong>: copying a sample keeps the tabs, so it pastes correctly into Flame or a spreadsheet. Comma-separated (.csv) files work wherever tab-separated files do.</p>
+      <nav className="format-index" aria-label="Formats">{FORMATS.map((f) => <a key={f.id} href={`#fmt-${f.id}`}>{f.title}</a>)}</nav>
+      {FORMATS.map((f) => (
+        <section key={f.id} id={`fmt-${f.id}`} className="format-card">
+          <div className="row between wrap">
+            <h3>{f.title} <span className="muted small">{f.ext}</span></h3>
+            <span className="row wrap">
+              <a className="btn btn-secondary btn-sm" href={f.file} download>Download example file</a>
+              {f.example && <Link className="btn btn-ghost btn-sm" to={`/start?new=1&example=${f.example}`}>Open this example</Link>}
+            </span>
+          </div>
+          <p className="small"><strong>Use with:</strong> {f.use}</p>
+          <p className="small">{f.columns}</p>
+          <Sample text={f.sample} />
+          {f.notes && <p className="muted small">{f.notes}</p>}
+        </section>
+      ))}
+      <section className="format-card">
+        <h3>Session file <span className="muted small">.json / .json.gz</span></h3>
+        <p className="small">Written by <em>Session → Save</em> and read by <em>Session → Load</em>: a JSON document (optionally gzip-compressed) with your lists, gene sets, finished results, variant analyses and display settings. It holds plain data only. See <Link to="/help/session">Sessions</Link>.</p>
+      </section>
+    </>
+  )
+}
 
 const TOPICS: Topic[] = [
   {
@@ -37,6 +122,8 @@ const TOPICS: Topic[] = [
           </li>
         </ol>
         <p><Example kind="demo">Open the worked example</Example> — it loads a 200-gene list and runs g:Profiler and STRING so you can explore real output immediately.</p>
+        <p>Every option has a ready-made example: use the <strong>Examples</strong> menu in the workspace (or the cards on the Home tab) to load data for GSEA, comparing tools or strategies, custom gene sets, protein networks, expression matrices, microRNAs, variants and GWAS. Example and format files are listed under <Link to="/help/formats">Input files and formats</Link>.</p>
+        <p>Working with SNPs or GWAS results rather than gene lists? Start from <Link to="/help/variants">Variants and GWAS</Link>. Have a ranked list (all genes with a score)? See <Link to="/help/gsea">Ranked lists (GSEA)</Link>.</p>
       </>
     ),
   },
@@ -47,18 +134,29 @@ const TOPICS: Topic[] = [
       <>
         <h3>Paste or upload IDs</h3>
         <p>One identifier per line, or separated by commas, tabs or semicolons. Duplicates are removed (case-insensitive) and entries with unusual characters are skipped and reported. Choose the organism and the ID type; "Gene symbol" works for most tools. A list holds up to 3,000 IDs, and a workspace up to 10 lists. <Example kind="upload">Example</Example></p>
+        <h3>IDs with scores (ranked list)</h3>
+        <p>For gene set enrichment analysis, choose <em>IDs with scores (ranked list, for GSEA)</em> in the upload dialog and give two columns: the ID and a score (e.g. log2 fold change, signed −log10 p, or a t-statistic). Include all measured genes, not only the significant ones. A header row can be skipped. Ranked lists are marked <em>ranked</em> in the list rail; they can also be used for ordinary (ORA) runs, which ignore the scores.</p>
         <h3>From a volcano plot</h3>
-        <p>Upload differential-expression results (CSV/TSV) with a gene column, a log2 fold-change column and a p-value column. Flame guesses the columns; check them, set the cut-offs, then select genes by dragging a box or lasso, or with the <em>Up</em>, <em>Down</em> and <em>All significant</em> buttons. Red dotted lines show the cut-offs. <Example kind="volcano">Example</Example></p>
+        <p>Upload differential-expression results (CSV/TSV) with a gene column, a log2 fold-change column and a p-value column. Flame guesses the columns; check them, set the cut-offs, then select genes by dragging a box or lasso, or with the <em>Up</em>, <em>Down</em> and <em>All significant</em> buttons. Red dotted lines show the cut-offs. <em>Save whole table as ranked list</em> keeps every gene with the score sign(log2FC) × −log10 p, ready for GSEA. <Example kind="volcano">Example</Example></p>
         <h3>From a 2D plot (UMAP, t-SNE, PCA)</h3>
         <p>Upload a table with a gene column and two coordinate columns; optionally a column to colour by (e.g. cluster) and one to size by. Lasso the points you want. <Example kind="reduction">Example</Example></p>
         <h3>From SNPs</h3>
-        <p>Paste dbSNP rsIDs (human only). Flame maps them to genes with g:SNPense and shows the variant effects; save the genes as symbols or Ensembl IDs. <Example kind="snps">Example</Example></p>
+        <p>Paste dbSNP rsIDs (human only). Flame maps them to genes with g:SNPense and shows the variant effects; save the genes as symbols or Ensembl IDs. <Example kind="snps">Example</Example> For a full variant report (consequences, impact, ClinVar, traits, VCF and GWAS input) use <Link to="/help/variants">Variants and GWAS</Link>.</p>
         <h3>From text</h3>
         <p>Paste an abstract or any text. The EXTRACT tagger finds gene and protein names for the chosen organism. Ambiguous names are not selected by default — tick them if they are right. <Example kind="textmining">Example</Example></p>
+        <h3>From expression data</h3>
+        <p>Upload a genes × samples matrix (counts, TPM, intensities or log values). Three ways to pick genes: <strong>co-expression clusters</strong> — the most variable genes clustered by correlation and shown as a heatmap of z-scores; click a cluster to select it; <strong>gene map</strong> — a PCA of the genes' profiles where you lasso or box-select genes; <strong>compare two groups</strong> — assign samples to groups A and B and Flame runs a Welch t-test per gene (Benjamini–Hochberg) and opens the result in the volcano selector, from which you can also save all genes as a ranked list for GSEA. <Example kind="expression">Example</Example></p>
+        <h3>From microRNAs</h3>
+        <p>Paste microRNAs and get their predicted target genes (miRDB v6, MirTarget score &gt; 80, via MSigDB). Keep genes targeted by several of your microRNAs — they are the most likely to be regulated — or click one microRNA to take only its targets, then run enrichment on them. <Example kind="mirna">Example</Example></p>
         <h3>Combining lists (UpSet)</h3>
-        <p>Pick 2–6 lists with the same organism and ID type. <em>Only in</em> shows genes unique to each combination, <em>Shared by</em> shows genes common to all lists of a combination, and <em>Union</em> merges them. Click a bar to preview and save it. <Example kind="upset">Example</Example></p>
+        <p>Pick 2–6 lists with the same organism and ID type. <em>Only in</em> shows genes unique to each combination, <em>Shared by</em> shows genes common to all lists of a combination, and <em>Union</em> merges them. Click a bar to preview, copy (one per line or comma-separated), download or save it; <em>Copy table</em> and <em>Download</em> export every combination. <Example kind="upset">Example</Example></p>
       </>
     ),
+  },
+  {
+    id: 'formats',
+    title: 'Input files and formats',
+    body: <FormatsTopic />,
   },
   {
     id: 'tools',
@@ -75,8 +173,10 @@ const TOPICS: Topic[] = [
             <tr><td>WebGestalt</td><td>Disease and drug databases (DisGeNET, OMIM, DrugBank, GLAD4U).</td></tr>
             <tr><td>PANTHER</td><td>PANTHER pathways and protein classes with Fisher's exact test.</td></tr>
             <tr><td>GeneCodis</td><td>Regulatory annotations (transcription factors, miRNAs) and co-annotation.</td></tr>
+            <tr><td>clusterProfiler</td><td>Runs locally on the MSigDB collections (GO, KEGG, Reactome, WikiPathways, HPO, Hallmark, BioCarta, PID, cell types, ImmuneSigDB, oncogenic signatures) for 20 organisms. The only tool that also does <Link to="/help/gsea">GSEA</Link> on ranked lists.</td></tr>
           </tbody>
         </table>
+        <p>MSigDB gene sets are downloaded once per organism on first use and then cached, so the first clusterProfiler run for an organism takes longer.</p>
         <p>In the New run panel, sources that none of the selected tools offer are greyed out, and coloured dots show which tools provide each source. Tools that do not support the list's organism cannot be selected.</p>
         <h3>Custom gene sets</h3>
         <p>Upload your own gene sets as a GMT file (one set per line: ID, description, genes — tab separated) under <em>Custom sources</em>. They are tested with a hypergeometric test and Benjamini–Hochberg correction; the universe is all genes in the file unless you choose a background list.</p>
@@ -119,13 +219,32 @@ const TOPICS: Topic[] = [
           <li><strong>Heatmap T×G</strong> — which genes drive which terms; genes shared by many terms appear as filled columns.</li>
           <li><strong>Heatmap T×T</strong> — overlap between terms (shared genes ÷ all their genes). Blocks of high similarity are redundant terms describing one process.</li>
           <li><strong>Heatmap G×G</strong> — how many terms each pair of genes shares.</li>
-          <li><strong>Networks</strong> — the same relations as graphs. Choose a layout; for term–term and gene–gene networks raise the cut-off to keep only strong links. <em>3D view</em> opens the network in Arena3Dweb.</li>
+          <li><strong>Networks</strong> — the same relations as graphs. For term–term and gene–gene networks raise the cut-off to keep only strong links. See <em>Network layouts and style</em> below.</li>
+          <li><strong>Sankey</strong> (under <em>More views</em>) — flows from genes through terms to annotation sources. The 40 genes in most terms are shown; the rest are grouped as <em>Other genes</em>. Wide flows mark genes that drive many terms.</li>
+          <li><strong>Chord diagram</strong> — each arc is a term, ribbons join terms that share genes. Thick ribbons between arcs point to redundant terms.</li>
+          <li><strong>Circos (bundled)</strong> — terms grouped by annotation source around a circle with your genes in their own sector; term–gene links are bundled (hierarchical edge bundling) so genes shared by many terms show as thick bundles. Outer bars: −log10 p for terms, share of terms for genes. Hover to trace links, click to select, adjust the bundling strength with the slider.</li>
+          <li><strong>Hive plot</strong> — one axis for genes and one per annotation source, nodes ordered by rank. Useful to see whether the same genes drive terms in different sources.</li>
           <li><strong>Table</strong> — every statistic, sortable, with links to the source databases.</li>
         </ul>
+        <h3>Network layouts and style</h3>
+        <p>The <em>Layout</em> menu offers two kinds of layout. <strong>Static</strong> layouts (force-directed, Kamada–Kawai, GraphOpt, MDS, tree, star, circle, grid) are computed once on the server; drag nodes to adjust them. <strong>Interactive</strong> layouts run in your browser with vis-network: three physics solvers (Barnes–Hut, Force Atlas 2, repulsion), hierarchical repulsion, and a <em>hierarchical (layered)</em> layout that puts the most connected nodes first.</p>
+        <p><em>Network style</em> sets, without re-running anything:</p>
+        <ul>
+          <li><strong>Layout</strong> — spacing; for physics, whether to freeze once settled, and buttons to simulate or stop; for hierarchical, the direction and how levels are ordered.</li>
+          <li><strong>Nodes</strong> — shape (by type, or dot, box, ellipse, diamond, star, hexagon and more), size fixed or by number of connections, labels, label size and outline, shadows.</li>
+          <li><strong>Edges</strong> — straight or curved (dynamic, continuous, clockwise, Bézier and others), width by weight, opacity, dashes.</li>
+          <li><strong>Interaction</strong> — zoom buttons and arrow keys, node dragging, hiding edges while panning (faster for large networks).</li>
+          <li><strong>Clusters</strong> — <em>Group hubs</em> collapses each highly connected node with its neighbours; <em>Group leaves</em> folds nodes with a single link into their neighbour. Double-click a cluster to open it, or <em>Open all</em>.</li>
+        </ul>
+        <p>The same options are available for the STRING network under Quick actions. Style choices are kept for the browser session; PNG export captures the network as shown.</p>
+        <h3>Open in Arena3D or NORMA</h3>
+        <p><em>Arena3D ↗</em> (network, heatmap, Sankey, chord and hive views) opens the view in <a href="https://www.arena3d.org/" target="_blank" rel="noopener noreferrer">Arena3D</a> as a 3D multilayer network: the terms of each annotation source on their own layer and the genes on another. <em>NORMA ↗</em> (network views) opens it in <a href="https://normaviz.org/" target="_blank" rel="noopener noreferrer">NORMA</a>, with terms drawn as annotated groups. Only the shown network (term names, IDs and genes) is sent; the link opens in a new tab and expires after a while (one hour for Arena3D).</p>
+        <h3>Pathway maps and gene pages</h3>
+        <p>Open a selected term in the <em>Selected</em> panel to see its pathway links: for KEGG terms, the organism's KEGG map with <strong>your genes highlighted</strong> (gene IDs are mapped through NCBI Gene to KEGG with the KEGG API; for ranked lists, red = positive score, blue = negative); for Reactome terms, the Pathway Browser with your genes flagged; WikiPathways diagrams; QuickGO, AmiGO and HPO pages; and searches for the same biology in KEGG, Reactome, WikiPathways and Pathway Commons. Click any gene to open it in the Ensembl or UCSC genome browser, NCBI Gene, UniProt and, for human genes, GeneCards, gnomAD, ClinVar, GTEx and the Human Protein Atlas.</p>
         <h3>Search syntax</h3>
         <p>Words must all appear (<code>immune response</code>); use quotes for exact phrases (<code>"cell cycle"</code>), <code>OR</code> for alternatives (<code>apoptosis OR autophagy</code>) and a minus sign to exclude (<code>-mitotic</code>).</p>
         <h3>Selecting and exporting</h3>
-        <p>Click (shift-click to add) or box/lasso-select terms in any view; they collect in the <em>Selected</em> panel with their genes and database links, and stay selected when you switch views. Export the selection as CSV, HTML or print/PDF, figures as PNG or SVG, and tables as CSV.</p>
+        <p>Click (shift-click to add) or box/lasso-select terms in any view; they collect in the <em>Selected</em> panel with their genes and database links, and stay selected when you switch views. Export the selection as CSV, HTML or print/PDF, figures as PNG or SVG, and tables as CSV. Changes to filters, view settings and the selection can be undone and redone with the ↶ ↷ buttons or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> and <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>.</p>
         <p><Example kind="demo">See live sample output</Example></p>
       </>
     ),
@@ -140,10 +259,24 @@ const TOPICS: Topic[] = [
           <li><strong>Combined p-value</strong> — for terms found by more than one active run, Fisher's method combines their p-values (χ² with 2k degrees of freedom).</li>
           <li><strong>Agreement</strong> — how many of the active runs found the term.</li>
           <li><strong>Overview</strong> — per run: terms found, terms found only by that run, and "consensus blockers" (terms every other run found but this one did not). Summary cards count all distinct terms, the consensus (found by all runs) and single-run terms. Click any bar or card to select those terms.</li>
+          <li><strong>Overlap (UpSet)</strong> — one column per combination of runs, with the number of terms found by exactly that combination. Click a column to select its terms.</li>
+          <li><strong>Chord</strong> — arcs are runs; ribbon width = number of terms two runs share.</li>
+          <li><strong>Circos (bundled)</strong> — one sector per run holding the terms it found, in the same order in every run; bundled links join the same term across runs, so consensus terms form thick bundles and run-specific terms have none.</li>
           <li><strong>Bubble plot</strong> — mean fold enrichment against combined significance; bubble size = agreement.</li>
           <li><strong>Heatmap</strong> — −log10 p per term and run; blank cells mean the run did not report the term.</li>
         </ul>
-        <p>Use the <em>Runs</em> filter to include or exclude runs, and <em>Found by all</em> to keep only consensus terms.</p>
+        <h3>Statistics</h3>
+        <p>The <em>Statistics</em> tab measures how far the runs agree — whether they are different tools on the same list, the same tool on different lists, or different strategies (ORA vs GSEA):</p>
+        <ul>
+          <li><strong>Overlap</strong> — Jaccard index (shared ÷ all terms) and overlap coefficient (shared ÷ smaller set), as a heatmap for every pair of runs; an <strong>MDS map</strong> places similar runs close together.</li>
+          <li><strong>Rank agreement</strong> — Spearman ρ and Kendall τ on the terms both runs found: do they rank them in the same order? The <strong>concordance scatter</strong> plots −log10 p of one run against the other (box or lasso-select terms).</li>
+          <li><strong>Concordance at the top</strong> — of each run's k best terms, the share the other run also has in its top k, for growing k.</li>
+          <li><strong>Gene agreement</strong> — for shared terms, how similar the reported genes are.</li>
+          <li><strong>Tests</strong> — McNemar (2 runs) or Cochran's Q (3+) for differences in which terms are detected; Kruskal–Wallis for term size (broad vs specific) and for significance; a paired Wilcoxon test per pair for systematically stronger p-values. Pairwise p-values are Benjamini–Hochberg adjusted.</li>
+          <li><strong>Terms per source</strong>, <strong>term-size</strong> box plots and an <strong>agreement</strong> histogram — click or select to collect the terms.</li>
+        </ul>
+        <p>Terms are matched by identifier, so runs that use different term IDs for the same pathway (e.g. Enrichr names) overlap less. Tests use only terms found by at least one compared run.</p>
+        <p>Use the <em>Runs</em> filter to include or exclude runs, and <em>Found by all</em> to keep only consensus terms. <em>Arena3D ↗</em> opens the comparison in 3D, with one layer per run, a layer of genes, and links between the same term in different runs.</p>
       </>
     ),
   },
@@ -157,18 +290,98 @@ const TOPICS: Topic[] = [
         <h3>Find orthologs</h3>
         <p>Maps a list to the corresponding genes of another organism with g:Orth — useful for running mouse data through human-only resources.</p>
         <h3>Protein interaction network</h3>
-        <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Download the network as TSV or PNG, open it in STRING, or save its proteins as a list.</p>
+        <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Download the network as TSV or PNG, open it in STRING or in Arena3D (each evidence type becomes its own edge channel), or save its proteins as a list.</p>
+      </>
+    ),
+  },
+  {
+    id: 'gsea',
+    title: 'Ranked lists (GSEA)',
+    body: (
+      <>
+        <p>Over-representation analysis (ORA) asks whether a function is over-represented among a <em>cut-off</em> list of genes. Gene set enrichment analysis (GSEA) needs no cut-off: it takes <em>all</em> measured genes ranked by a score and asks whether the genes of a function sit unusually high or low in the ranking. It picks up coordinated, modest changes that a cut-off would miss.</p>
+        <h3>Running GSEA</h3>
+        <ol>
+          <li>Add a ranked list: upload IDs with scores, or <em>Save whole table as ranked list</em> from a volcano plot. GWAS gene scores from a <Link to="/help/variants">variant analysis</Link> also work.</li>
+          <li>In <strong>+ New run</strong>, switch to <em>Ranked list (GSEA)</em>. Only ranked lists and GSEA-capable tools (clusterProfiler, using fgsea) are offered.</li>
+          <li>Choose MSigDB collections and run. The background option is hidden: in GSEA the universe is the ranked list itself.</li>
+        </ol>
+        <h3>Reading GSEA results</h3>
+        <dl className="details">
+          <dt>NES</dt><dd>Normalised enrichment score. Positive = the set's genes are concentrated at the top of your ranking (e.g. up-regulated); negative = at the bottom. Its size is comparable across sets.</dd>
+          <dt>P-value</dt><dd>Corrected for multiple testing with the method you chose (Benjamini–Hochberg by default).</dd>
+          <dt>Genes found</dt><dd>The <em>leading edge</em>: the genes that account for the enrichment signal.</dd>
+        </dl>
+        <p>GSEA runs open with NES on the x-axis of the dot plot and bar chart, and the table gains an NES column. Sets with fewer than 10 or more than 500 genes in your list are skipped, and the run reports how many.</p>
+      </>
+    ),
+  },
+  {
+    id: 'variants',
+    title: 'Variants and GWAS',
+    body: (
+      <>
+        <p>For geneticists who start from variants rather than genes. Open <strong>Variants and GWAS</strong> from the workspace rail.</p>
+        <h3>Input</h3>
+        <ul>
+          <li><strong>Variant list</strong> — dbSNP rsIDs, VCF lines (CHROM POS ID REF ALT), <code>chr:pos:ref:alt</code> or HGVS notation, one per line. <Example kind="variants">Example</Example></li>
+          <li><strong>GWAS summary statistics</strong> — a table with columns <code>SNP</code>, <code>CHR</code>, <code>BP</code> and <code>P</code> (tab, comma or space separated). <Example kind="gwas">Example</Example></li>
+        </ul>
+        <p>Up to 2,000 variants per analysis. Human and several model organisms are supported (the organisms Ensembl annotates). Annotation takes about 1–2 seconds per variant.</p>
+        <h3>What Flame does</h3>
+        <p>Each variant is annotated with the <a href="https://rest.ensembl.org/" target="_blank" rel="noopener noreferrer">Ensembl Variant Effect Predictor</a>: the most severe consequence, its impact (HIGH, MODERATE, LOW, MODIFIER), the affected genes, population frequency and ClinVar significance. Known associations with traits and diseases (GWAS Catalog, ClinVar, OMIM and others) are retrieved for rsIDs.</p>
+        <h3>The report</h3>
+        <ul>
+          <li><strong>Summary cards</strong> and bar charts of impact, consequence, ClinVar significance and chromosome.</li>
+          <li><strong>Manhattan plot</strong> (GWAS input) — −log10 p along the genome; the dotted red line marks genome-wide significance (5 × 10⁻⁸).</li>
+          <li><strong>Variants → genes → traits</strong> Sankey diagram, the most frequent traits first.</li>
+          <li><strong>Genome Circos</strong> — chromosomes around a circle with your variants in genomic order, outer bars for −log10 p (GWAS) or impact, and bundled links between variants associated with the same trait. Click a trait to focus on it.</li>
+          <li><strong>Traits table</strong> — click a trait to filter the variants. <strong>Variants table</strong> — filter by impact, download as CSV. Click a variant or gene to open it in the Ensembl, UCSC or NCBI genome browsers, dbSNP, gnomAD, ClinVar, the GWAS Catalog or LitVar.</li>
+          <li><strong>Arena3D ↗</strong> — the same three layers (variants coloured by impact, genes, traits) as a 3D network.</li>
+        </ul>
+        <h3>From variants to enrichment</h3>
+        <p>In the <em>Genes</em> panel, save the affected genes as a list and run any enrichment tool on it. For GWAS input you can also save a <em>ranked list</em> (gene score = −log10 of its best variant p-value) and run <Link to="/help/gsea">GSEA</Link>, which uses all loci rather than only genome-wide significant ones.</p>
+      </>
+    ),
+  },
+  {
+    id: 'display',
+    title: 'Colours, undo and accessibility',
+    body: (
+      <>
+        <h3>Chart palettes</h3>
+        <p>The ◐ menu in the top bar switches the colours of every chart at once:</p>
+        <ul>
+          <li><strong>Flame</strong> — the default colours, matching the logo; annotation sources keep their usual colours.</li>
+          <li><strong>Colour-blind safe</strong> — Okabe–Ito categories and the Cividis scale, distinguishable with all common colour-vision deficiencies.</li>
+          <li><strong>Vivid</strong> — Tableau 10 and Plasma, high contrast for slides.</li>
+          <li><strong>Pastel</strong> — soft colours for posters and backgrounds.</li>
+          <li><strong>Grayscale (print)</strong> — shades of grey for black-and-white printing.</li>
+        </ul>
+        <p>Continuous scales always run from light (weak) to dark (strong). Exported PNG and SVG figures use the palette that is active. The ☾ button switches between light and dark themes. Both choices are kept for the browser session only.</p>
+        <h3>Undo and redo</h3>
+        <p>On result and comparison pages, ↶ and ↷ (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd>) step through changes to the view, filters, settings and selection. In the workspace, deleting or renaming a list, removing a run, or clearing all data shows an <em>Undo</em> button for a few seconds before it takes effect.</p>
+        <h3>Selecting in charts</h3>
+        <p>Charts that hold items you can select show a small switch: <strong>Box select</strong>, <strong>Lasso</strong>, <strong>Zoom</strong> and <strong>Pan</strong> (Plotly charts), or <strong>Click / drag</strong>, <strong>Box select</strong> and <strong>Lasso</strong> (networks, Circos and hive plots). Hold Shift to add to the selection. Selections feed the <em>Selected</em> panel (results and comparisons), the variants table (variant reports) or a <em>Save as list</em> box (inputs and the protein network).</p>
+        <h3>Keyboard and screen readers</h3>
+        <p>All controls can be reached with the keyboard; <em>Skip to content</em> appears on the first Tab. Charts have text alternatives, and every chart's data can be downloaded as a table.</p>
       </>
     ),
   },
   {
     id: 'session',
-    title: 'Workspaces, saving and privacy',
+    title: 'Sessions: save, load and status',
     body: (
       <>
-        <p>Your workspace link is the only key to your data — keep it to yourself unless you want to share results. Workspaces are deleted after 30 days without use.</p>
-        <p><em>Save, load or clear session</em> lets you download everything (lists, custom sources and finished results) as one JSON file and load it again later, here or on another Flame server. You can also clear all data or delete the workspace permanently.</p>
-        <p>See the <Link to="/privacy">privacy page</Link> for details.</p>
+        <p>Your workspace link is the only key to your data — keep it to yourself unless you want to share results. A workspace is deleted after 30 days without use; every visit restarts the clock.</p>
+        <h3>Status</h3>
+        <p>The bar under the workspace link shows whether everything is in your last session file (<em>Saved</em>), whether you changed anything since (<em>Changes since last save</em>) or never saved (<em>Not saved to a file</em>), how many jobs are still running, and until when the workspace is kept. The <em>Status</em> tab of the Session dialog adds counts of lists, runs, analyses and gene sets, and the amount of stored data.</p>
+        <h3>Save</h3>
+        <p><em>Save</em> (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>S</kbd>) downloads a session file. Choose what to include — gene lists (with scores for ranked lists), custom gene sets, finished enrichment results (all or selected runs), variant and GWAS analyses, and your display settings (theme, chart palette, network style, visible tabs) — the file name, and whether to compress it (.json.gz, usually 5–10× smaller). Running jobs are not saved.</p>
+        <h3>Load</h3>
+        <p><em>Load</em> accepts .json and .json.gz session files (choose or drop the file). Flame shows what the file contains and when it was saved; pick the parts to load and where: <strong>add</strong> to this workspace, <strong>replace</strong> its contents (undoable for a few seconds), or open it in a <strong>new workspace</strong>. Session files hold plain data only and are checked on loading; anything that cannot be read is skipped and reported. Files up to 25 MB can be loaded.</p>
+        <h3>Clear or delete</h3>
+        <p>Clear all data (undoable for a few seconds) or delete the workspace and its link permanently. See the <Link to="/privacy">privacy page</Link> for details.</p>
       </>
     ),
   },
@@ -181,6 +394,10 @@ const TOPICS: Topic[] = [
         <dt>A run finished with no significant terms. Why?</dt><dd>The list may be small or functionally diverse, the IDs may not match the organism, or the chosen sources may not cover your genes. Check <em>Run details</em> for unmapped IDs, add sources, or try another tool.</dd>
         <dt>Why do tools give different results?</dt><dd>They use different database versions, statistics and backgrounds. Comparing runs shows where they agree; consensus terms are the most robust.</dd>
         <dt>Fold enrichment is missing.</dt><dd>Some tools do not report the background size needed to compute it. Provide a custom background list, or use gene ratio instead.</dd>
+        <dt>I have SNPs or GWAS results, not genes.</dt><dd>Use <Link to="/help/variants">Variants and GWAS</Link>: it annotates the variants, finds the genes and traits they affect, and turns them into a gene list or ranked list for enrichment.</dd>
+        <dt>I work with microRNAs. What can Flame do?</dt><dd>Two things. <strong>Starting from microRNAs</strong> (e.g. those changed in your experiment): choose <em>From microRNAs</em> under Add list, paste them, and Flame finds their predicted target genes (miRDB via MSigDB); keep the genes hit by several of your microRNAs and run enrichment on them. <strong>Starting from genes</strong>: run a gene list (or a ranked list with GSEA) against the microRNA sources — miRTarBase in g:Profiler, miRNA annotations in GeneCodis, and MSigDB miRDB target sets in clusterProfiler — to see which microRNAs may regulate it. <Example kind="mirna">Open the microRNA example</Example></dd>
+        <dt>Should I use ORA or GSEA?</dt><dd>Use ORA when you have a clear list of genes (e.g. significant hits). Use GSEA when you have scores for all measured genes; it needs no cut-off and detects subtle, coordinated shifts. See <Link to="/help/gsea">Ranked lists (GSEA)</Link>.</dd>
+        <dt>Are the figures colour-blind friendly?</dt><dd>Choose <em>Colour-blind safe</em> in the ◐ palette menu; see <Link to="/help/display">Colours, undo and accessibility</Link>.</dd>
         <dt>Can I analyse metabolites or lipids?</dt><dd>Not yet — Flame currently analyses genes and proteins.</dd>
         <dt>How do I cite Flame?</dt><dd>See <Link to="/cite">How to cite</Link>.</dd>
         <dt>Can I use Flame from scripts?</dt><dd>Yes — see the <Link to="/api-docs">API page</Link> and the Python example.</dd>

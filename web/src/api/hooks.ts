@@ -45,6 +45,8 @@ export function useInvalidateWorkspace() {
 export interface CreateListBody {
   name: string
   ids?: string[]
+  scores?: number[]
+  ranked?: boolean
   text?: string
   skipFirstRow?: boolean
   organismTaxId: number
@@ -81,6 +83,7 @@ export function useDeleteList() {
 
 export interface StartRunsBody {
   listId: string
+  paradigm?: 'ORA' | 'GSEA'
   tools: string[]
   sourceIds?: string[]
   datasources: string[]

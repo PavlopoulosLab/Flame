@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api } from '../../api/client'
+import { api, saveText } from '../../api/client'
 import { useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
-import { ErrorNote, Field, FileDrop, IdFormatSelect, Modal, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
+import { CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
 import { plural } from '../../lib/format'
+import { categorical, roleColors, usePaletteMode } from '../../lib/palette'
 import { METHODS, type InputKind } from './MethodPicker'
 
 interface Props {
@@ -13,6 +14,11 @@ interface Props {
   lists: AnalyteList[]
   onClose: () => void
   onCreated: (list: AnalyteList) => void
+  /** Pre-filled table (e.g. a two-group comparison handed to the volcano selector). */
+  initialText?: string
+  initialFileName?: string
+  /** Open the volcano selector with a table (used by the expression input). */
+  onOpenVolcano?: (text: string, fileName: string) => void
 }
 
 export function InputModal(props: Props) {
@@ -29,6 +35,10 @@ export function InputModal(props: Props) {
       return <TableInput {...props} title={title} />
     case 'upset':
       return <Upset {...props} title={title} />
+    case 'expression':
+      return <ExpressionInput {...props} title={title} />
+    case 'mirna':
+      return <MirnaInput {...props} title={title} />
   }
 }
 
@@ -52,6 +62,7 @@ function useExample(kind: string, enabled: boolean | undefined, apply: (text: st
 /** Shared "save as list" footer: name, organism, ID format. */
 function SaveList({
   ids,
+  scores,
   defaultName,
   organism,
   setOrganism,
@@ -64,6 +75,7 @@ function SaveList({
   extra,
 }: {
   ids: string[]
+  scores?: number[]
   defaultName: string
   organism: number
   setOrganism?: (t: number) => void
@@ -90,13 +102,13 @@ function SaveList({
       </div>
       <ErrorNote error={create.error} />
       <div className="row end">
-        <span className="muted small">{plural(ids.length, 'ID')} will be saved</span>
+        <span className="muted small">{plural(ids.length, 'ID')}{scores ? ' with scores (ranked list, for GSEA)' : ''} will be saved</span>
         <button
           className="btn btn-primary"
           disabled={!ids.length || !name.trim() || create.isPending}
           onClick={() =>
             create.mutate(
-              { name: name.trim(), ids, organismTaxId: organism, idFormat, meta, uniqueName: false },
+              { name: name.trim(), ids, scores, organismTaxId: organism, idFormat, meta, uniqueName: false },
               { onSuccess: onCreated },
             )
           }
@@ -113,9 +125,10 @@ function SaveList({
 function UploadPaste({ example, onClose, onCreated, title }: P) {
   const [text, setText] = useState('')
   const [skip, setSkip] = useState(false)
+  const [ranked, setRanked] = useState(false)
   const [organism, setOrganism] = useState(9606)
   const [idFormat, setIdFormat] = useState('USERINPUT')
-  const [parsed, setParsed] = useState<{ ids: string[]; unique: number; duplicates: number; invalid: number; invalidExamples: string[] } | null>(null)
+  const [parsed, setParsed] = useState<{ ids: string[]; scores?: number[]; unique: number; duplicates: number; invalid: number; invalidExamples: string[] } | null>(null)
   const [err, setErr] = useState<unknown>(null)
   const ex = useExample('upload', example, (t) => setText(t))
   useEffect(() => {
@@ -124,10 +137,10 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
       return
     }
     const h = setTimeout(() => {
-      api<typeof parsed>('/inputs/upload/parse', { body: { text, skipFirstRow: skip } }).then(setParsed).catch(setErr)
+      api<typeof parsed>('/inputs/upload/parse', { body: { text, skipFirstRow: skip, ranked } }).then(setParsed).catch(setErr)
     }, 300)
     return () => clearTimeout(h)
-  }, [text, skip])
+  }, [text, skip, ranked])
   return (
     <Modal title={title} onClose={onClose} size="lg" subtitle="One ID per line, or separated by commas, tabs or semicolons.">
       <div className="row between">
@@ -136,7 +149,12 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
       </div>
       <textarea className="input mono" rows={10} value={text} onChange={(e) => setText(e.target.value)} placeholder={'TP53\nBRCA1\nEGFR'} aria-label="IDs" />
       <FileDrop accept=".txt,.csv,.tsv" onText={(t) => setText(t)} />
-      <label className="check"><input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} /> First row is a header</label>
+      <div className="row wrap">
+        <label className="check"><input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} /> First row is a header</label>
+        <label className="check" title="Two columns: ID and a numeric score (e.g. log2 fold change or a signed statistic). Needed for GSEA.">
+          <input type="checkbox" checked={ranked} onChange={(e) => setRanked(e.target.checked)} /> IDs with scores (ranked list, for GSEA)
+        </label>
+      </div>
       {parsed && (
         <Note kind={parsed.invalid ? 'warning' : 'success'}>
           {plural(parsed.unique, 'unique ID')}
@@ -145,7 +163,7 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
         </Note>
       )}
       <ErrorNote error={err} />
-      <SaveList ids={parsed?.ids ?? []} defaultName="My genes" organism={organism} setOrganism={setOrganism}
+      <SaveList ids={parsed?.ids ?? []} scores={ranked ? parsed?.scores : undefined} defaultName={ranked ? 'My ranked genes' : 'My genes'} organism={organism} setOrganism={setOrganism}
         idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'upload' }} onCreated={onCreated} />
     </Modal>
   )
@@ -288,10 +306,10 @@ interface Prepared { rowCount: number; columns: { all: string[]; numeric: string
 interface VolcanoPoint { pointId: string; id: string; logfc: number; pvalue: number; negLog10p: number; status: 'up' | 'down' | 'ns' }
 interface ReductionPoint { pointId: string; id: string; x: number; y: number; color?: string | number; size?: number }
 
-function TableInput({ kind, example, onClose, onCreated, title }: P) {
+function TableInput({ kind, example, onClose, onCreated, title, initialText, initialFileName }: P) {
   const isVolcano = kind === 'volcano'
-  const [text, setText] = useState('')
-  const [fileName, setFileName] = useState('')
+  const [text, setText] = useState(initialText ?? '')
+  const [fileName, setFileName] = useState(initialFileName ?? '')
   const [prep, setPrep] = useState<Prepared | null>(null)
   const [mapping, setMapping] = useState<Record<string, string>>({})
   const [p, setP] = useState(0.05)
@@ -303,6 +321,8 @@ function TableInput({ kind, example, onClose, onCreated, title }: P) {
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const ex = useExample(kind, example, (t, f) => { setText(t); setFileName(f ?? '') })
+  const pm = usePaletteMode()
+  const rc = roleColors(pm)
 
   useEffect(() => {
     if (!text.trim()) return
@@ -329,7 +349,7 @@ function TableInput({ kind, example, onClose, onCreated, title }: P) {
     if (!points) return []
     if (isVolcano) {
       const groups: Record<string, { name: string; color: string }> = {
-        up: { name: 'Up-regulated', color: '#dc2626' }, down: { name: 'Down-regulated', color: '#2563eb' }, ns: { name: 'Not significant', color: '#a1a1aa' },
+        up: { name: 'Up-regulated', color: rc.up }, down: { name: 'Down-regulated', color: rc.down }, ns: { name: 'Not significant', color: rc.ns },
       }
       return Object.entries(groups).map(([k, g]) => {
         const pts = (points.points as VolcanoPoint[]).filter((x) => x.status === k)
@@ -357,7 +377,7 @@ function TableInput({ kind, example, onClose, onCreated, title }: P) {
         },
       }
     })
-  }, [points, isVolcano, sel, mapping.color])
+  }, [points, isVolcano, sel, mapping.color, rc])
 
   const quick = (status: 'sig' | 'up' | 'down') => {
     const pts = (points?.points ?? []) as VolcanoPoint[]
@@ -427,9 +447,35 @@ function TableInput({ kind, example, onClose, onCreated, title }: P) {
           <p className="muted small">Plotted {points.plotted.toLocaleString()} of {points.total.toLocaleString()} rows · {plural(selectedIds.length, 'gene')} selected{selectedIds.length > 3000 ? ' (a list holds at most 3,000 IDs)' : ''}</p>
           <SaveList ids={selectedIds.slice(0, 3000)} defaultName={isVolcano ? 'Volcano selection' : 'Cluster selection'} organism={organism}
             setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: kind }} onCreated={onCreated} />
+          {isVolcano && <RankedFromVolcano points={points.points as VolcanoPoint[]} organism={organism} idFormat={idFormat} onCreated={onCreated} />}
         </>
       )}
     </Modal>
+  )
+}
+
+/** Whole volcano table as a ranked list: score = sign(log2FC) × −log10 p (for GSEA). */
+function RankedFromVolcano({ points, organism, idFormat, onCreated }: { points: VolcanoPoint[]; organism: number; idFormat: string; onCreated: (l: AnalyteList) => void }) {
+  const create = useCreateList()
+  const best = new Map<string, number>()
+  points.forEach((p) => {
+    const sc = Math.sign(p.logfc) * p.negLog10p
+    const prev = best.get(p.id)
+    if (prev === undefined || Math.abs(sc) > Math.abs(prev)) best.set(p.id, sc)
+  })
+  return (
+    <div className="note note-info">
+      <strong>Want to use every gene instead of a selection?</strong> Save the whole table as a ranked list (score = sign(log2FC) × −log10 p) and run
+      GSEA on it — no cut-offs needed.
+      <div className="row end">
+        <button className="btn btn-secondary btn-sm" disabled={create.isPending} onClick={() =>
+          create.mutate({ name: 'Volcano ranked (GSEA)', ids: [...best.keys()], scores: [...best.values()], organismTaxId: organism, idFormat, uniqueName: true, meta: { method: 'volcano-ranked' } },
+            { onSuccess: onCreated })}>
+          Save whole table as ranked list ({best.size.toLocaleString()} genes)
+        </button>
+      </div>
+      <ErrorNote error={create.error} />
+    </div>
   )
 }
 
@@ -497,6 +543,11 @@ function Upset({ lists, onClose, onCreated, title }: P) {
                 </button>
               ))}
               <p className="muted small">Dots, left to right: {res.sets.map((s) => s.name).join(', ')}</p>
+              <div className="row wrap">
+                <span className="muted small">All combinations:</span>
+                <CopyButton label="Copy table" text={['combination\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.count}\t${c.ids.join(',')}`)].join('\n')} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(['combination\tlists\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.sourceNames.join(' + ')}\t${c.count}\t${c.ids.join(',')}`)].join('\n'), `flame_upset_${res.mode}.tsv`, 'text/tab-separated-values')}>Download (TSV)</button>
+              </div>
             </div>
           )}
         </div>
@@ -504,6 +555,12 @@ function Upset({ lists, onClose, onCreated, title }: P) {
       {active && res && (
         <>
           <p className="small"><strong>{active.label}</strong>: {active.ids.slice(0, 30).join(', ')}{active.count > 30 ? ` … (+${active.count - 30})` : ''}</p>
+          <div className="row wrap">
+            <span className="muted small">{plural(active.count, 'ID')}:</span>
+            <CopyButton label="Copy (one per line)" text={active.ids.join('\n')} />
+            <CopyButton label="Copy (comma-separated)" text={active.ids.join(', ')} />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(active.ids.join('\n'), `${active.label.replace(/[^\w.-]+/g, '_').slice(0, 60)}.txt`)}>Download (.txt)</button>
+          </div>
           <SaveList ids={active.ids.slice(0, 3000)} defaultName={active.label.slice(0, 80)} organism={res.organismTaxId} idFormat={res.idFormat}
             showOrganism={false} showFormat={false} meta={{ method: 'upset', mode: res.mode, sourceLists: active.sourceNames }} onCreated={onCreated} />
         </>
@@ -531,3 +588,255 @@ export function SimpleTable({ rows, max = 100 }: { rows: Record<string, unknown>
 }
 
 export { Spinner }
+
+// ---------------------------------------------------------------------------
+// Gene expression matrix: clusters, gene map, two-group comparison
+// ---------------------------------------------------------------------------
+interface ExprGene { id: string; cluster: number; x: number; y: number; sd: number }
+interface ExprOverview {
+  samples: string[]; logged: boolean; totalGenes: number; shownGenes: number; dropped: number
+  genes: ExprGene[]; heatmap: { genes: string[]; clusters: number[]; z: number[][] }; clusterSizes: Record<string, number>; variance: number[]
+}
+
+function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano }: P) {
+  const [text, setText] = useState('')
+  const [fileName, setFileName] = useState('')
+  const [topN, setTopN] = useState(1000)
+  const [k, setK] = useState(6)
+  const [logMode, setLogMode] = useState<'auto' | 'yes' | 'no'>('auto')
+  const [ov, setOv] = useState<ExprOverview | null>(null)
+  const [view, setView] = useState<'clusters' | 'map' | 'groups'>('clusters')
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const [groups, setGroups] = useState<Record<string, 'A' | 'B' | ''>>({})
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+  const [note, setNote] = useState<string | null>(null)
+  const [organism, setOrganism] = useState(9606)
+  const [idFormat, setIdFormat] = useState('USERINPUT')
+  const pm = usePaletteMode()
+  const ex = useExample('expression', example, (t, f) => { setText(t); setFileName(f ?? '') })
+  const log = logMode === 'auto' ? null : logMode === 'yes'
+
+  useEffect(() => {
+    if (!text.trim()) return
+    setErr(null); setBusy(true)
+    api<ExprOverview>('/inputs/expression/overview', { body: { text, fileName, topN, k, log } })
+      .then((r) => {
+        setOv(r); setSel(new Set())
+        // Guess two groups from sample names (e.g. control_1 / treated_1).
+        const stem = (s: string) => s.replace(/[_.\- ]?(rep)?\d+$/i, '')
+        const stems = [...new Set(r.samples.map(stem))]
+        setGroups(Object.fromEntries(r.samples.map((s) => [s, stems.length === 2 ? (stem(s) === stems[1] ? 'A' : 'B') : ''])))
+      })
+      .catch((e) => { setOv(null); setErr(e) })
+      .finally(() => setBusy(false))
+  }, [text, fileName, topN, k, log])
+
+  const clusterColor = (c: number) => categorical(pm)[(c - 1) % categorical(pm).length]
+  const pickCluster = (c: number, add: boolean) => {
+    const ids = ov!.genes.filter((g) => g.cluster === c).map((g) => g.id)
+    setSel((cur) => (add ? new Set([...cur, ...ids]) : new Set(ids)))
+  }
+  const runDe = () => {
+    const A = Object.entries(groups).filter(([, g]) => g === 'A').map(([s]) => s)
+    const B = Object.entries(groups).filter(([, g]) => g === 'B').map(([s]) => s)
+    setBusy(true); setErr(null)
+    api<{ text: string; fileName: string; significant: number; n: number; note: string }>('/inputs/expression/de', { body: { text, fileName, groupA: A, groupB: B, log } })
+      .then((r) => {
+        setNote(`${r.significant} of ${r.n} genes differ between the groups (BH-adjusted p ≤ 0.05). ${r.note}`)
+        if (onOpenVolcano) onOpenVolcano(r.text, r.fileName)
+      })
+      .catch(setErr).finally(() => setBusy(false))
+  }
+
+  return (
+    <Modal title={title} size="xl" onClose={onClose}
+      subtitle="One row per gene (first column: gene ID), one numeric column per sample. Counts or intensities are log2-transformed automatically.">
+      <div className="stack">
+        <div className="row wrap">
+          <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={2 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n) }} />
+          <button className="btn btn-ghost btn-sm" onClick={ex.load} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
+          <a className="btn btn-ghost btn-sm" href="/api/inputs/examples/expression/file">Example file</a>
+        </div>
+        {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
+        <ErrorNote error={err} />
+        {busy && <Spinner label="Analysing the matrix" />}
+        {ov && (
+          <>
+            <div className="row wrap small">
+              <span><strong>{ov.totalGenes.toLocaleString()}</strong> genes × <strong>{ov.samples.length}</strong> samples{ov.dropped ? ` (${ov.dropped} rows skipped)` : ''} · {ov.logged ? 'log2(x + 1) transformed' : 'used as given'}</span>
+              <label>Log2 <select className="input input-sm" value={logMode} onChange={(e) => setLogMode(e.target.value as 'auto' | 'yes' | 'no')}><option value="auto">auto</option><option value="yes">yes</option><option value="no">no</option></select></label>
+              <label>Most variable <select className="input input-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))}>{[200, 500, 1000, 2000, 3000].map((n) => <option key={n} value={n}>{n} genes</option>)}</select></label>
+              <label>Clusters <input className="input input-sm input-narrow" type="number" min={2} max={20} value={k} onChange={(e) => setK(Number(e.target.value))} /></label>
+            </div>
+            <Segmented label="View" value={view} onChange={setView}
+              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }]} />
+            {view === 'clusters' && (
+              <div className="expr-clusters">
+                <Plot height={Math.min(560, 120 + ov.heatmap.genes.length * 0.5)} data={[{
+                  type: 'heatmap', z: ov.heatmap.z, x: ov.samples, y: ov.heatmap.genes, colorscale: 'RdBu', reversescale: true, zmid: 0, zmin: -2.5, zmax: 2.5,
+                  customdata: ov.heatmap.genes.map((_, i) => ov.samples.map(() => `c${ov.heatmap.clusters[i]}`)) as never,
+                  hovertemplate: '%{y} · %{x}<br>z = %{z}<extra></extra>', colorbar: { title: { text: 'z-score' } },
+                } as never]}
+                  layout={{ yaxis: { showticklabels: false, autorange: 'reversed' }, margin: { l: 20, r: 20, t: 10, b: 90 } }}
+                  onSelect={(keys, add) => { const c = Number((keys[0] ?? '').slice(1)); if (c) pickCluster(c, add) }} />
+                <div className="stack-sm">
+                  <p className="muted small">Genes with similar profiles across samples, clustered by correlation. Click a cluster (or the heatmap) to select its genes; Shift adds.</p>
+                  {Object.entries(ov.clusterSizes).map(([c, n]) => (
+                    <button key={c} type="button" className="example-mini" onClick={(e) => pickCluster(Number(c), e.shiftKey)}>
+                      <i className="swatch" style={{ background: clusterColor(Number(c)) }} />
+                      <span><strong>Cluster {c}</strong><span className="muted small">{n} genes</span></span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            {view === 'map' && (
+              <Plot height={460} dragmode="lasso" onSelect={(ids, add) => setSel((cur) => (add ? new Set([...cur, ...ids]) : new Set(ids)))}
+                data={Object.keys(ov.clusterSizes).map((c) => {
+                  const g = ov.genes.filter((x) => x.cluster === Number(c))
+                  return { type: 'scatter', mode: 'markers', name: `Cluster ${c}`, x: g.map((p) => p.x), y: g.map((p) => p.y), customdata: g.map((p) => p.id), text: g.map((p) => p.id),
+                    hovertemplate: '%{text}<extra>%{fullData.name}</extra>',
+                    marker: { size: g.map((p) => (sel.has(p.id) ? 9 : 6)), color: clusterColor(Number(c)), opacity: 0.8, line: { width: g.map((p) => (sel.has(p.id) ? 1.5 : 0)), color: '#111827' } } }
+                })}
+                layout={{ xaxis: { title: { text: `PC1 (${ov.variance[0]}%)` } }, yaxis: { title: { text: `PC2 (${ov.variance[1] ?? 0}%)` } }, legend: { orientation: 'h', y: -0.2 } }} />
+            )}
+            {view === 'groups' && (
+              <div className="stack-sm">
+                <p className="muted small">Put samples into group A and group B (at least two each). Flame tests every gene (Welch t-test, Benjamini–Hochberg) and opens the result in the volcano selector, where you pick up- and down-regulated genes or save all genes as a ranked list for GSEA.</p>
+                <table className="table compact">
+                  <thead><tr><th>Sample</th><th>Group A</th><th>Group B</th><th>Not used</th></tr></thead>
+                  <tbody>{ov.samples.map((s) => (
+                    <tr key={s}><td>{s}</td>
+                      {(['A', 'B', ''] as const).map((g) => (
+                        <td key={g || 'none'}><input type="radio" name={`grp-${s}`} aria-label={`${s} in ${g ? `group ${g}` : 'no group'}`} checked={(groups[s] ?? '') === g} onChange={() => setGroups({ ...groups, [s]: g })} /></td>
+                      ))}
+                    </tr>
+                  ))}</tbody>
+                </table>
+                <div className="row between wrap">
+                  <span className="small">A = {Object.values(groups).filter((g) => g === 'A').length} samples, B = {Object.values(groups).filter((g) => g === 'B').length} samples · log2FC = A − B</span>
+                  <button className="btn btn-primary" disabled={busy || Object.values(groups).filter((g) => g === 'A').length < 2 || Object.values(groups).filter((g) => g === 'B').length < 2} onClick={runDe}>Compare and open volcano</button>
+                </div>
+                {note && <Note kind="info">{note}</Note>}
+              </div>
+            )}
+            {view !== 'groups' && (
+              <>
+                <div className="row wrap">
+                  <span className="small"><strong>{plural(sel.size, 'gene')}</strong> selected</span>
+                  {sel.size > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear</button>}
+                  {sel.size > 0 && <CopyButton label="Copy" text={[...sel].join('\n')} />}
+                </div>
+                {sel.size > 0 && (
+                  <SaveList ids={[...sel].slice(0, 3000)} defaultName={`Expression ${view === 'map' ? 'selection' : 'cluster'}`} organism={organism} setOrganism={setOrganism}
+                    idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'expression', view }} onCreated={onCreated} />
+                )}
+              </>
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// microRNAs -> predicted target genes (miRDB via MSigDB)
+// ---------------------------------------------------------------------------
+interface MirnaResult {
+  organismTaxId: number; orthology: boolean; source: string; totalTargets: number; minMirnas: number
+  mirnas: { input: string; matched: string[]; targets: number }[]; unmatched: string[]
+  genes: { gene: string; mirnas: string[]; count: number }[]
+}
+
+function MirnaInput({ example, onClose, onCreated, title }: P) {
+  const [text, setText] = useState('')
+  const [organism, setOrganism] = useState(9606)
+  const [res, setRes] = useState<MirnaResult | null>(null)
+  const [minMirnas, setMinMirnas] = useState(2)
+  const [only, setOnly] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+  const pm = usePaletteMode()
+  const ex = useExample('mirna', example, (t) => setText(t))
+  const run = () => {
+    setBusy(true); setErr(null)
+    api<MirnaResult>('/inputs/mirna/targets', { body: { text, organismTaxId: organism } })
+      .then((r) => { setRes(r); setOnly(null); setMinMirnas(r.mirnas.filter((m) => m.targets).length > 2 ? 2 : 1) })
+      .catch(setErr).finally(() => setBusy(false))
+  }
+  useEffect(() => { if (example && text) run() // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text])
+  const chosen = res ? res.genes.filter((g) => (only ? g.mirnas.includes(only) : g.count >= minMirnas)) : []
+  const maxCount = res ? Math.max(1, ...res.genes.map((g) => g.count)) : 1
+  return (
+    <Modal title={title} size="xl" onClose={onClose}
+      subtitle="Start from microRNAs — for example those changed in your experiment — and analyse the genes they are predicted to regulate.">
+      <div className="stack">
+        <div className="two-col-tight">
+          <div className="stack-sm">
+            <Field label="microRNAs" hint="miRBase names, one per line: hsa-miR-21-5p, hsa-let-7a-5p… A name without -5p/-3p (miR-21) uses both arms.">
+              <textarea className="input mono" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'hsa-miR-21-5p\nhsa-miR-155-5p\nhsa-let-7a-5p'} />
+            </Field>
+            <div className="row wrap">
+              <button className="btn btn-ghost btn-sm" onClick={ex.load} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
+              <a className="btn btn-ghost btn-sm" href="/api/inputs/examples/mirna/file">Example file</a>
+            </div>
+          </div>
+          <div className="stack-sm">
+            <OrganismPicker value={organism} onChange={setOrganism} />
+            <button className="btn btn-primary" disabled={!text.trim() || busy} onClick={run}>{busy ? 'Finding targets…' : 'Find target genes'}</button>
+            <p className="muted small">Targets are miRDB v6 predictions with MirTarget score &gt; 80 (MSigDB C3 MIR:MIRDB). For organisms other than human, MSigDB maps the human predictions through orthologs.</p>
+          </div>
+        </div>
+        <ErrorNote error={err} />
+        {res && (
+          <>
+            {res.unmatched.length > 0 && <Note kind="warning">Not found in miRDB: {res.unmatched.join(', ')}. Check the names (e.g. hsa-miR-21-5p).</Note>}
+            {res.orthology && <Note kind="info">Targets for this organism are human miRDB predictions mapped through orthologs.</Note>}
+            <div className="chart-grid">
+              <div className="chart-card">
+                <h3>Targets per microRNA</h3>
+                <Plot height={Math.max(200, 26 * res.mirnas.length + 60)}
+                  data={[{ type: 'bar', orientation: 'h', y: [...res.mirnas].reverse().map((m) => m.input), x: [...res.mirnas].reverse().map((m) => m.targets),
+                    customdata: [...res.mirnas].reverse().map((m) => m.input), marker: { color: [...res.mirnas].reverse().map((m) => (m.input === only ? '#e11d48' : roleColors(pm).accent)) },
+                    hovertemplate: '%{y}: %{x} targets — click to use only its targets<extra></extra>' }]}
+                  layout={{ margin: { l: 140, r: 10, t: 6, b: 30 }, yaxis: { automargin: true } }}
+                  onSelect={(keys) => setOnly(keys[0] && keys[0] !== only ? keys[0] : null)} />
+              </div>
+              <div className="chart-card">
+                <h3>Targeted by how many of your microRNAs</h3>
+                <Plot height={260} data={[{ type: 'bar', x: Array.from({ length: maxCount }, (_, i) => i + 1), y: Array.from({ length: maxCount }, (_, i) => res.genes.filter((g) => g.count === i + 1).length),
+                  customdata: Array.from({ length: maxCount }, (_, i) => String(i + 1)), marker: { color: Array.from({ length: maxCount }, (_, i) => (i + 1 >= minMirnas && !only ? '#8b5cf6' : '#d4d4d8')) },
+                  hovertemplate: '%{y} genes targeted by %{x} microRNAs — click to keep genes hit at least this often<extra></extra>' }]}
+                  layout={{ xaxis: { title: { text: 'microRNAs targeting the gene' }, dtick: 1 }, yaxis: { title: { text: 'Genes' }, type: 'log' } }}
+                  onSelect={(keys) => { if (keys[0]) { setOnly(null); setMinMirnas(Number(keys[0])) } }} />
+              </div>
+            </div>
+            <div className="row wrap">
+              {only ? (
+                <span className="small">Targets of <strong>{only}</strong> <button className="link-btn" onClick={() => setOnly(null)}>(use all microRNAs)</button></span>
+              ) : (
+                <label className="small">Keep genes targeted by at least <input className="input input-sm input-narrow" type="number" min={1} max={maxCount} value={minMirnas} onChange={(e) => setMinMirnas(Math.max(1, Number(e.target.value)))} /> of your microRNAs</label>
+              )}
+              <span className="small"><strong>{plural(chosen.length, 'gene')}</strong> of {res.totalTargets.toLocaleString()} targets</span>
+              <CopyButton label="Copy genes" text={chosen.map((g) => g.gene).join('\n')} />
+            </div>
+            <div className="table-scroll" style={{ maxHeight: 220 }}>
+              <table className="table compact">
+                <thead><tr><th>Gene</th><th>microRNAs</th><th>Targeted by</th></tr></thead>
+                <tbody>{chosen.slice(0, 300).map((g) => <tr key={g.gene}><td>{g.gene}</td><td>{g.count}</td><td className="small">{g.mirnas.join(', ')}</td></tr>)}</tbody>
+              </table>
+            </div>
+            {chosen.length > 0 && (
+              <SaveList ids={chosen.slice(0, 3000).map((g) => g.gene)} defaultName={only ? `${only} targets` : `miRNA targets (≥${minMirnas} miRNAs)`}
+                organism={res.organismTaxId} idFormat="USERINPUT" showOrganism={false} showFormat={false}
+                meta={{ method: 'mirna', mirnas: res.mirnas.map((m) => m.input), minMirnas: only ? null : minMirnas, only, source: res.source }} onCreated={onCreated} />
+            )}
+          </>
+        )}
+      </div>
+    </Modal>
+  )
+}

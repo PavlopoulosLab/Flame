@@ -1,9 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 import { getWorkspaceId } from '../api/client'
+import { PALETTES, setPaletteMode, usePaletteMode, type PaletteMode } from '../lib/palette'
+import { UndoProvider } from './Undo'
 
 export function Logo({ size = 32 }: { size?: number }) {
   return <img src="/flame-logo.svg" alt="" width={size * 0.6} height={size} className="logo" />
+}
+
+/** The "Flame 3.0" wordmark, in the logo's flame gradient. */
+export function Wordmark({ className = '' }: { className?: string }) {
+  return <span className={`wordmark ${className}`}><span>Flame</span><span className="wm-version">3.0</span></span>
+}
+
+/** Logo mark + wordmark, side by side (top bar) or stacked (home page). */
+export function BrandLockup({ size = 30, stacked = false }: { size?: number; stacked?: boolean }) {
+  return <span className={`lockup${stacked ? ' lockup-stacked' : ''}`}><Logo size={size} /><Wordmark /></span>
 }
 
 function ThemeToggle() {
@@ -30,6 +42,20 @@ function ThemeToggle() {
   )
 }
 
+function PalettePicker() {
+  const mode = usePaletteMode()
+  const hint = PALETTES.find((p) => p.value === mode)?.hint
+  return (
+    <label className="palette-picker" title={`Chart colours: ${hint}`}>
+      <span aria-hidden="true">◐</span>
+      <span className="sr-only">Chart palette</span>
+      <select className="input input-sm" value={mode} onChange={(e) => setPaletteMode(e.target.value as PaletteMode)} aria-label="Chart palette">
+        {PALETTES.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
+      </select>
+    </label>
+  )
+}
+
 export function AppShell({ children }: { children: ReactNode }) {
   const loc = useLocation()
   const ws = getWorkspaceId()
@@ -43,9 +69,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="topbar">
         <Link to="/" className="brand" aria-label="Flame 3.0 home">
           <Logo size={30} />
-          <span className="brand-name">
-            Flame <span className="brand-version">3.0</span>
-          </span>
+          <Wordmark className="brand-name" />
         </Link>
         <nav className="tabs-nav" aria-label="Main">
           <NavLink to="/" end>
@@ -60,11 +84,12 @@ export function AppShell({ children }: { children: ReactNode }) {
           <NavLink to="/about">About</NavLink>
         </nav>
         <div className="topbar-right">
+          <PalettePicker />
           <ThemeToggle />
         </div>
       </header>
       <main id="main" className="main">
-        {children}
+        <UndoProvider>{children}</UndoProvider>
       </main>
       <footer className="footer">
         <span>

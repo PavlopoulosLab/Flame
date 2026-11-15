@@ -61,7 +61,8 @@ function About() {
         <li><a href="https://www.webgestalt.org/" target="_blank" rel="noopener noreferrer">WebGestalt</a></li>
         <li><a href="https://pantherdb.org/" target="_blank" rel="noopener noreferrer">PANTHER</a></li>
         <li><a href="https://genecodis.genyo.es/" target="_blank" rel="noopener noreferrer">GeneCodis</a></li>
-        <li><a href="https://arena3d.pavlopouloslab.info/" target="_blank" rel="noopener noreferrer">Arena3Dweb</a></li>
+        <li><a href="https://www.arena3d.org/" target="_blank" rel="noopener noreferrer">Arena3D</a> and <a href="https://normaviz.org/" target="_blank" rel="noopener noreferrer">NORMA</a> (network viewers)</li>
+        <li><a href="https://rest.ensembl.org/" target="_blank" rel="noopener noreferrer">Ensembl VEP</a> (variant annotation)</li>
       </ul>
       <p><Link to="/cite">How to cite</Link> · <Link to="/privacy">Privacy</Link></p>
     </article>
@@ -111,30 +112,83 @@ for run in requests.get(f"{BASE}/runs", headers=H).json():
     print(run["title"], len(terms), "terms; top:", terms[0]["name"] if terms else "-")
 print("Open in the browser:", BASE.replace("/api", f"/w/{ws}"))`
 
-const ENDPOINTS: [string, string, string][] = [
-  ['POST', '/api/workspace', 'Create a workspace; returns its id (send it as the X-Flame-Workspace header).'],
-  ['GET', '/api/workspace', 'Lists, runs and custom sources of the workspace.'],
-  ['GET / POST', '/api/workspace/export · /import', 'Save or load a whole session (JSON).'],
-  ['DELETE', '/api/workspace · /api/workspace/data', 'Delete the workspace, or only its data.'],
-  ['GET', '/api/config', 'Tools, metrics, annotation sources, ID formats, limits.'],
-  ['GET', '/api/organisms?q=', 'Search organisms; /api/organisms/{taxid}/tools shows tool support.'],
-  ['GET / POST', '/api/lists', 'List or create lists (from ids or pasted text).'],
-  ['GET / PATCH / DELETE', '/api/lists/{id}', 'Read, rename or delete a list; /csv downloads it.'],
-  ['POST', '/api/inputs/upload/parse', 'Parse pasted IDs (counts duplicates and invalid entries).'],
-  ['POST', '/api/inputs/snps/map', 'Map rsIDs to genes (g:SNPense).'],
-  ['POST', '/api/inputs/textmining/extract', 'Find gene names in text (EXTRACT).'],
-  ['POST', '/api/inputs/table/prepare · volcano/points · reduction/points', 'Volcano and 2D-reduction inputs.'],
-  ['POST', '/api/inputs/upset', 'Set combinations of lists.'],
-  ['GET', '/api/inputs/examples/{kind}[/file]', 'Example inputs (upload, snps, textmining, volcano, reduction).'],
-  ['POST', '/api/utilities/convert · orthologs · ppi', 'Convert IDs, find orthologs, STRING network.'],
-  ['GET / POST', '/api/sources', 'Custom GMT gene sets.'],
-  ['GET / POST', '/api/runs', 'List runs (with status) or start runs.'],
-  ['GET / DELETE', '/api/runs/{id}', 'One run; /details gives parameters and ID mapping.'],
-  ['POST', '/api/runs/{id}/view', 'Result data for any view (filters, top, sortBy, settings).'],
-  ['POST', '/api/runs/{id}/arena3d', 'Send a network view to Arena3Dweb.'],
-  ['POST', '/api/comparisons', 'Compare runs (overview, bubble, heatmap); /overview-terms resolves clicks.'],
-  ['GET / POST', '/api/legacy', 'Flame v2-style import: ?url_genes=A,B;C,D or JSON gene lists.'],
+const ENDPOINT_GROUPS: { title: string; rows: [string, string, string][] }[] = [
+  { title: 'Workspace and sessions', rows: [
+    ['POST', '/api/workspace', 'Create a workspace; returns its id (send it as the X-Flame-Workspace header).'],
+    ['GET', '/api/workspace', 'Lists, runs, custom sources and session status of the workspace.'],
+    ['GET', '/api/workspace/status', 'Session status: saved / changed / unsaved, counts, running jobs, expiry, stored data.'],
+    ['GET', '/api/workspace/export?parts=&runIds=', 'Session file (JSON). parts = lists,sources,runs,variants (default all); runIds limits the runs.'],
+    ['POST', '/api/workspace/import?mode=add|replace&parts=', 'Load a session file (body = the JSON); up to 25 MB.'],
+    ['PUT', '/api/workspace/email', 'Optional address for a "runs finished" email (if the server sends email).'],
+    ['DELETE', '/api/workspace · /api/workspace/data', 'Delete the workspace, or only its data.'],
+  ] },
+  { title: 'Reference data', rows: [
+    ['GET', '/api/config', 'Tools, paradigms (ORA/GSEA), metrics, annotation sources, ID formats, limits.'],
+    ['GET', '/api/organisms?q=', 'Search organisms; /api/organisms/{taxid}/tools shows tool support.'],
+  ] },
+  { title: 'Lists and inputs', rows: [
+    ['GET / POST', '/api/lists', 'List or create lists from ids or text; ranked lists: scores[] or ranked=true with "ID<TAB>score" text.'],
+    ['GET / PATCH / DELETE', '/api/lists/{id}', 'Read, rename or delete a list; /csv downloads it (with scores).'],
+    ['POST', '/api/inputs/upload/parse', 'Parse pasted IDs, or IDs with scores (ranked=true).'],
+    ['POST', '/api/inputs/snps/map', 'Map rsIDs to genes (g:SNPense).'],
+    ['POST', '/api/inputs/textmining/extract', 'Find gene names in text (EXTRACT).'],
+    ['POST', '/api/inputs/table/prepare · volcano/points · reduction/points', 'Volcano (differential expression) and 2D (UMAP / t-SNE / PCA) inputs.'],
+    ['POST', '/api/inputs/expression/overview', 'Expression matrix: co-expression clusters (heatmap) and gene map (PCA).'],
+    ['POST', '/api/inputs/expression/de', 'Expression matrix: two-group Welch t-test; returns a table for the volcano input.'],
+    ['POST', '/api/inputs/mirna/targets', 'microRNAs → predicted target genes (miRDB via MSigDB); minMirnas keeps genes hit by several.'],
+    ['POST', '/api/inputs/upset', 'Set combinations of lists (intersection, distinct, union).'],
+    ['GET', '/api/inputs/examples/{kind}[/file]', 'Example inputs: upload, ranked, de_lists, volcano, reduction, expression, mirna, snps, textmining, gmt.'],
+    ['GET / POST / DELETE', '/api/sources', 'Custom gene sets (GMT).'],
+  ] },
+  { title: 'Enrichment runs', rows: [
+    ['GET / POST', '/api/runs', 'List runs (with status) or start runs. Body: listId, tools[], datasources[], sourceIds[], threshold, paradigm = ORA | GSEA, perTool{}.'],
+    ['GET / DELETE', '/api/runs/{id}', 'One run; /details gives parameters, ID mapping and unmapped IDs.'],
+    ['POST', '/api/runs/{id}/view', 'Result data for any view: table, dotplot, barchart, scatter, heatmap-*, network-* (filters, top, sortBy, settings).'],
+    ['POST', '/api/runs/{id}/pathway-links', 'For one term: KEGG map with the genes coloured, Reactome with genes flagged, ontology pages, searches.'],
+    ['POST', '/api/runs/{id}/arena3d', 'Open a network view in Arena3D (3D layers); returns a link valid for one hour.'],
+    ['POST', '/api/runs/{id}/norma', 'Open a network view in NORMA (terms as annotated groups).'],
+  ] },
+  { title: 'Comparing runs', rows: [
+    ['POST', '/api/comparisons', 'Compare 2–10 runs (overview, bubble, heatmap) with Fisher\'s combined p-value.'],
+    ['POST', '/api/comparisons/statistics', 'Overlap (Jaccard, overlap coefficient), rank agreement (Spearman, Kendall), paired Wilcoxon, McNemar / Cochran\'s Q, Kruskal–Wallis, concordance at the top, MDS.'],
+    ['POST', '/api/comparisons/overview-terms', 'Term ids behind an overview bar or card.'],
+    ['POST', '/api/comparisons/arena3d', 'Open the comparison in Arena3D (one layer per run, a genes layer).'],
+  ] },
+  { title: 'Variants and GWAS', rows: [
+    ['GET', '/api/variants/species', 'Organisms with variant annotation.'],
+    ['GET / POST', '/api/variants', 'List or start analyses (rsIDs, VCF lines, chr:pos:ref:alt, HGVS or GWAS summary statistics).'],
+    ['GET / DELETE', '/api/variants/{id}', 'Status and report: consequences, impact, gnomAD, ClinVar, genes, traits.'],
+    ['POST', '/api/variants/{id}/arena3d', 'Variants → genes → traits in Arena3D.'],
+    ['GET', '/api/variants/examples/{variants|gwas}[/file]', 'Example inputs.'],
+  ] },
+  { title: 'Utilities and legacy', rows: [
+    ['POST', '/api/utilities/convert · orthologs · ppi', 'Convert IDs (g:Convert), find orthologs (g:Orth), STRING network.'],
+    ['POST', '/api/utilities/ppi/arena3d', 'Open a STRING network in Arena3D, evidence types as edge channels.'],
+    ['GET / POST', '/api/legacy', 'Flame v2-style import: ?url_genes=A,B;C,D or JSON gene lists.'],
+    ['GET', '/api/health', 'Server status.'],
+  ] },
 ]
+
+const CLI_EXAMPLES = `# Enrichment of one or more gene lists with several tools, CSV per run, comparison statistics
+python flame_client.py enrich genes_a.txt genes_b.txt --tools gprofiler,string,enrichr --stats
+
+# Add KEGG maps with your genes highlighted for the top pathway terms
+python flame_client.py enrich genes.txt --pathways 5
+
+# GSEA on a ranked list (two columns: gene<TAB>score)
+python flame_client.py gsea ranked.tsv --sources HALLMARK,KEGG,REAC
+
+# Variants or GWAS summary statistics: genes, traits, and enrichment of the affected genes
+python flame_client.py variants gwas.tsv --enrich
+
+# Expression matrix: two-group comparison, then enrichment of the significant genes
+python flame_client.py expression matrix.tsv --group-a treated_1,treated_2,treated_3 --group-b control_1,control_2,control_3
+
+# microRNAs: targets hit by at least 2 of your miRNAs, then enrichment
+python flame_client.py mirna mirnas.txt --min-mirnas 2
+
+# Save the whole workspace as a session file (load it later in the web app)
+python flame_client.py enrich genes.txt --save-session my_session.json`
 
 function ApiDocs() {
   return (
@@ -151,12 +205,20 @@ function ApiDocs() {
       <h2>Open lists directly in the browser</h2>
       <p>Link to Flame with gene lists in the URL (lists separated by <code>;</code>, genes by <code>,</code>):</p>
       <pre className="code">{`${window.location.origin}/?url_genes=TP53,BRCA1,EGFR;KRAS,MYC&organism=9606`}</pre>
+      <h2>Command-line client</h2>
+      <p>The Python script covers the common tasks; run <code>python flame_client.py -h</code> for all options.</p>
+      <pre className="code">{CLI_EXAMPLES}</pre>
       <h2>Endpoints</h2>
-      <table className="table">
-        <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
-        <tbody>{ENDPOINTS.map(([m, p, d]) => <tr key={p}><td><code>{m}</code></td><td><code>{p}</code></td><td>{d}</td></tr>)}</tbody>
-      </table>
-      <p className="small muted">Limits: requests up to 2 MB; 600 requests per minute per address; up to 6 runs in progress per workspace.</p>
+      {ENDPOINT_GROUPS.map((g) => (
+        <section key={g.title}>
+          <h3>{g.title}</h3>
+          <table className="table">
+            <thead><tr><th>Method</th><th>Path</th><th>Purpose</th></tr></thead>
+            <tbody>{g.rows.map(([m, p, d]) => <tr key={p}><td><code>{m}</code></td><td><code>{p}</code></td><td>{d}</td></tr>)}</tbody>
+          </table>
+        </section>
+      ))}
+      <p className="small muted">Limits: requests up to 2 MB (session files up to 25 MB); 600 requests per minute per address; up to 6 jobs in progress per workspace; Arena3D links last one hour.</p>
     </article>
   )
 }

@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
-import { useConfig, useStartRuns } from '../api/hooks'
+import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
 import type { AnalyteList, CustomSource } from '../api/types'
-import { ErrorNote, Field, Modal, Note } from '../components/ui'
+import { ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
 
 const METRIC_HELP: Record<string, string> = {
   gSCS: 'g:SCS — g:Profiler’s own correction, accounts for the GO structure',
@@ -24,9 +24,23 @@ interface ToolSettings { correction?: string; threshold?: number; backgroundList
 export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; onClose: () => void }) {
   const { data: config } = useConfig()
   const start = useStartRuns()
+  const invalidateWs = useInvalidateWorkspace()
+  const [loadingExample, setLoadingExample] = useState(false)
+  const initial = lists.find((l) => l.id === initialListId)
+  const [paradigm, setParadigm] = useState<'ORA' | 'GSEA'>(initial?.ranked ? 'GSEA' : 'ORA')
+  const usableLists = paradigm === 'GSEA' ? lists.filter((l) => l.ranked) : lists
   const [listId, setListId] = useState(initialListId ?? lists[0]?.id ?? '')
-  const list = lists.find((l) => l.id === listId)
-  const [tools, setTools] = useState<string[]>(['gprofiler'])
+  const list = usableLists.find((l) => l.id === listId) ?? usableLists[0]
+  const [tools, setTools] = useState<string[]>(initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
+  const toolOffers = (key: string) => (config?.tools.find((t) => t.key === key)?.paradigms ?? ['ORA']).includes(paradigm)
+  useEffect(() => {
+    setTools((ts) => {
+      const kept = ts.filter(toolOffers)
+      return kept.length ? kept : paradigm === 'GSEA' ? ['clusterprofiler'] : ['gprofiler']
+    })
+    if (paradigm === 'GSEA') setCustomIds([])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paradigm, config])
   const [customIds, setCustomIds] = useState<string[]>([])
   const [datasources, setDatasources] = useState<string[]>([])
   const [threshold, setThreshold] = useState(0.05)
@@ -57,11 +71,12 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
   const chosenSources = datasources.filter((d) => supportedSources.has(d))
   const backgroundOptions = lists.filter((l) => l.id !== listId && l.organismTaxId === list?.organismTaxId)
   const canSubmit = !!list && (tools.length > 0 || customIds.length > 0) && (customIds.length > 0 || chosenSources.length > 0)
+    && (paradigm === 'ORA' || !!list?.ranked)
 
   const submit = () => {
     if (!list) return
     const body = {
-      listId: list.id, tools, sourceIds: customIds, datasources: chosenSources, threshold,
+      listId: list.id, paradigm, tools, sourceIds: customIds, datasources: chosenSources, threshold,
       perTool: Object.fromEntries(Object.entries(perTool).map(([k, v]) => [k, { ...v, threshold: v.threshold ?? threshold }])),
     }
     start.mutate(body, { onSuccess: (r) => { setResult(r); if (!r.skipped.length) setTimeout(onClose, 900) } })
@@ -80,17 +95,39 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
       <div className="run-form">
         <section>
           <h3>1 · What to analyse</h3>
-          <Field label="List">
-            <select className="input" value={listId} onChange={(e) => setListId(e.target.value)}>
-              {lists.map((l) => <option key={l.id} value={l.id}>{l.name} — {l.size} IDs, {l.organismName.replace(/ \[NCBI.*$/, '')}</option>)}
-            </select>
+          <Field label="Analysis type" hint={paradigm === 'ORA'
+            ? 'Over-representation: are some functions more common in your list than expected by chance?'
+            : 'Gene set enrichment (GSEA): do the genes of a function sit at the top or bottom of your ranked list? Needs a list with scores.'}>
+            <Segmented label="Analysis type" value={paradigm} onChange={setParadigm}
+              options={[{ value: 'ORA', label: 'Over-representation (ORA)' }, { value: 'GSEA', label: 'Ranked list (GSEA)' }]} />
           </Field>
+          {paradigm === 'GSEA' && !usableLists.length ? (
+            <div className="stack-sm">
+              <Note kind="warning">You have no ranked lists yet. Create one from a volcano table (“Save whole table as ranked list”) or paste IDs with scores (“IDs with scores” in Paste or upload).</Note>
+              <button type="button" className="btn btn-secondary" disabled={loadingExample} onClick={async () => {
+                setLoadingExample(true)
+                try {
+                  const ex = await api<{ text: string }>('/inputs/examples/ranked')
+                  const l = await api<{ id: string }>('/lists', { body: { name: 'Example ranked genes (DE)', text: ex.text, ranked: true, skipFirstRow: true, organismTaxId: 9606, uniqueName: true, meta: { source: 'example', method: 'volcano-ranked' } } })
+                  await invalidateWs()
+                  setListId(l.id)
+                } finally { setLoadingExample(false) }
+              }}>{loadingExample ? 'Loading…' : 'Load an example ranked list (6,000 genes from a differential-expression table)'}</button>
+            </div>
+          ) : (
+            <Field label="List">
+              <select className="input" value={list?.id ?? ''} onChange={(e) => setListId(e.target.value)}>
+                {usableLists.map((l) => <option key={l.id} value={l.id}>{l.name} — {l.size} IDs{l.ranked ? ', ranked' : ''}, {l.organismName.replace(/ \[NCBI.*$/, '')}</option>)}
+              </select>
+            </Field>
+          )}
         </section>
 
         <section>
           <h3>2 · Which tools</h3>
           <div className="chip-grid">
             {(config?.tools ?? []).map((t) => {
+              if (!toolOffers(t.key)) return null
               const ok = supported(t.key)
               const on = tools.includes(t.key)
               return (
@@ -103,7 +140,7 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
               )
             })}
           </div>
-          {sources.length > 0 && (
+          {paradigm === 'ORA' && sources.length > 0 && (
             <div className="chip-grid">
               {sources.map((s) => {
                 const on = customIds.includes(s.id)
@@ -179,12 +216,12 @@ export function NewRunPanel({ lists, sources, initialListId, onClose }: { lists:
                     <Field label="Threshold">
                       <input className="input input-narrow" type="number" min="0.0001" max="1" step="0.01" value={s.threshold ?? threshold} onChange={(e) => setTool(k, { threshold: Number(e.target.value) })} />
                     </Field>
-                    <Field label="Background (statistical universe)" hint={t.supportsBackground ? 'By default, all annotated genes of the organism. Use a list when your experiment measured only some genes.' : 'This tool always uses its own background.'}>
+                    {paradigm === 'ORA' && <Field label="Background (statistical universe)" hint={t.supportsBackground ? 'By default, all annotated genes of the organism. Use a list when your experiment measured only some genes.' : 'This tool always uses its own background.'}>
                       <select className="input" disabled={!t.supportsBackground} value={s.backgroundListId ?? ''} onChange={(e) => setTool(k, { backgroundListId: e.target.value || undefined })}>
                         <option value="">Tool default (whole genome)</option>
                         {backgroundOptions.map((l) => <option key={l.id} value={l.id}>{l.name} ({l.size} IDs)</option>)}
                       </select>
-                    </Field>
+                    </Field>}
                   </fieldset>
                 )
               })}
