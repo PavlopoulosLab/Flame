@@ -253,7 +253,7 @@ export function TableView({ data, config, selected, onSelect, columns, runId }: 
             <tr key={t.id} className={selected.has(t.id) ? 'selected' : ''} onClick={() => onSelect([t.id], true)}>
               <td><input type="checkbox" checked={selected.has(t.id)} readOnly aria-label={`Select ${t.name}`} /></td>
               {cols.map((c) => (
-                <td key={c.key} className={c.key === 'genes' ? 'genes-cell' : ''}>
+                <td key={c.key} className={c.key === 'genes' ? 'genes-cell' : c.numeric ? 'num' : ''}>
                   {c.key === 'source' ? <span className="source-tag" style={{ borderColor: colorOf(t.source) }}>{t.source}</span>
                     : c.key === 'id' && runId && isKeggTerm(t) ? <KeggMapLink runId={runId} term={t} />
                     : c.key === 'id' && isHttpUrl(t.link) ? <a href={t.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{t.id}</a>

@@ -1,0 +1,221 @@
+/* =============================================================================
+   Flame 3.0 — interface style (loaded last; overrides the earlier styles)
+   Principles (Nielsen's heuristics, Shneiderman's rules, Gestalt grouping):
+   - one accent colour for actions and links; colour otherwise only carries meaning
+     (status, analysis section, data); no decorative gradients, glows or tints
+   - flat surfaces separated by borders; small radii; no drop shadows except overlays
+   - native system fonts; tabular numbers; compact, scannable tables
+   - consistent controls: underlined tabs, square-ish chips, same button sizes
+   ============================================================================= */
+
+:root {
+  --default-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --radius-sm: 3px; --radius-md: 4px; --radius-lg: 5px; --radius-xl: 6px;
+
+  --shadow-sm: none; --shadow-md: none;
+  --shadow-floating: 0 6px 24px rgba(15, 23, 42, 0.16);
+
+  --background-color: #f5f6f8;
+  --app-bg: #f5f6f8;
+  --surface-color: #ffffff;
+  --heading-color: #1b1f24;
+  --default-color: #2f363d;
+  --muted-color: #5c6670;
+  --light-color: #8c959f;
+  --border-color: #d5dae0;
+  --border-color-light: #e7eaee;
+  --border-color-dark: #b8c0c8;
+
+  /* One action colour (blue): buttons, links, focus, selection. */
+  --accent-color: #0f5ea8;
+  --accent-color-hover: #0b4a86;
+  --accent-color-light: rgba(15, 94, 168, 0.08);
+  --link-color: #0f5ea8;
+  --link-hover: #0b4a86;
+  --select-bg: #e8f0f9;
+  --select-border: #0f5ea8;
+  --focus: 0 0 0 2px rgba(15, 94, 168, 0.35);
+
+  --danger-color: #b42318; --danger-color-light: #fdecea;
+  --success-color: #1a7f37; --success-color-light: #e9f5ec;
+  --warning-color: #9a6700; --warning-color-light: #fff6dd;
+
+  --header-bg: #ffffff; --header-border: var(--border-color);
+  --sidebar-hover-bg: #eef1f4;
+  --card-bg: #ffffff; --card-border: var(--border-color); --card-hover-border: var(--border-color-dark);
+  --card-selected-bg: var(--select-bg);
+  --chip-active-bg: var(--select-bg); --chip-active-border: var(--accent-color);
+
+  /* Analysis sections: muted colours used only as thin identifying lines. */
+  --sec-data: #57606a;      --sec-data-tint: transparent;
+  --sec-enrich: #b35c00;    --sec-enrich-tint: transparent;
+  --sec-regulators: #0e7469; --sec-regulators-tint: transparent;
+  --sec-variants: #b42318;  --sec-variants-tint: transparent;
+  --sec-tools: #4c3fb3;     --sec-tools-tint: transparent;
+
+  --brand-gradient: none;
+  --brand-glow: none;
+}
+[data-theme="dark"] {
+  --background-color: #0f1216; --app-bg: #0f1216;
+  --surface-color: #171b21; --heading-color: #e9edf2; --default-color: #c4ccd5; --muted-color: #8d98a5; --light-color: #5f6b78;
+  --border-color: #2c333c; --border-color-light: #222831; --border-color-dark: #3d4652;
+  --accent-color: #5aa2e6; --accent-color-hover: #7db6ec; --accent-color-light: rgba(90, 162, 230, 0.12);
+  --link-color: #7db6ec; --link-hover: #a4cbf2; --select-bg: rgba(90, 162, 230, 0.16); --select-border: #5aa2e6;
+  --danger-color: #f47067; --danger-color-light: rgba(244, 112, 103, 0.12);
+  --success-color: #57ab5a; --success-color-light: rgba(87, 171, 90, 0.12);
+  --warning-color: #c69026; --warning-color-light: rgba(198, 144, 38, 0.12);
+  --header-bg: #171b21; --sidebar-hover-bg: #212730; --card-bg: #171b21;
+  --sec-data: #8d98a5; --sec-enrich: #e08a2c; --sec-regulators: #2fb3a3; --sec-variants: #f47067; --sec-tools: #9a8cf0;
+}
+
+body { font-size: 14px; background: var(--background-color); }
+code, .mono, .share-url { font-family: var(--font-mono); }
+a { color: var(--link-color); }
+td, .table td, .stat-tile strong, .gene-val, .count, .sec-count { font-variant-numeric: tabular-nums; }
+
+/* ---- Top bar: plain, one border line --------------------------------------- */
+.topbar { background: var(--header-bg); box-shadow: none; border-bottom: 1px solid var(--border-color); }
+.topbar::after { display: none; }
+.tabs-nav a { border-radius: 0; padding: 14px 12px 12px; font-weight: 500; color: var(--default-color); }
+.tabs-nav a.active, .tabs-nav a.active:hover { background: transparent; color: var(--heading-color); box-shadow: inset 0 -2px 0 var(--accent-color); }
+.tabs-nav a:hover { background: transparent; color: var(--heading-color); }
+
+/* Wordmark as text: solid ink (the logo keeps its own colours). */
+.wordmark, .hero-tagline em { background: none; -webkit-background-clip: border-box; background-clip: border-box; color: var(--heading-color); }
+.wordmark .wm-version { color: var(--muted-color); font-weight: 400; }
+.brand .wordmark { font-size: 1.15rem; font-weight: 700; letter-spacing: -0.01em; }
+.hero-tagline em::after { display: none; }
+
+/* ---- Buttons and inputs --------------------------------------------------- */
+.btn { border-radius: var(--radius-md); font-weight: 500; padding: 6px 12px; border: 1px solid transparent; box-shadow: none; }
+.btn-sm { padding: 3px 9px; }
+.btn-lg { padding: 9px 16px; font-size: 0.95rem; }
+.btn-primary, .sec-panel .btn-primary { background: var(--accent-color); border-color: var(--accent-color); color: #fff; }
+.btn-primary:hover:not(:disabled), .sec-panel .btn-primary:hover:not(:disabled) { background: var(--accent-color-hover); border-color: var(--accent-color-hover); }
+.btn-secondary { background: var(--surface-color); border-color: var(--border-color-dark); color: var(--heading-color); }
+.btn-secondary:hover:not(:disabled) { border-color: var(--accent-color); background: var(--select-bg); }
+.btn-ghost { color: var(--link-color); }
+.btn-ghost:hover:not(:disabled) { background: var(--sidebar-hover-bg); color: var(--link-hover); }
+.input { border-radius: var(--radius-md); padding: 6px 8px; border-color: var(--border-color-dark); }
+.input:focus { border-color: var(--accent-color); box-shadow: var(--focus); }
+.icon-btn { border-radius: var(--radius-md); }
+:focus-visible { outline: 2px solid var(--accent-color); outline-offset: 1px; }
+
+/* Chips: small square-cornered toggles, not pills. */
+.chip, .chip-check, .src-chip, .found-chip, .tool-chip, .kw, .agree, .dir-chip, .tile-tool, .sec-count, .tag-ranked {
+  border-radius: var(--radius-sm); }
+.chip { border-width: 1px; padding: 2px 8px; }
+.chip.on, .tool-chip.on { background: var(--select-bg); border-color: var(--accent-color); color: var(--heading-color); }
+.gene { border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: 0.72rem; }
+.badge { display: none; }   /* no "New"/"Recommended" badges: everything listed is available */
+
+/* ---- Surfaces: flat, bordered -------------------------------------------- */
+.card, .chart-card, .run-card, .tool-tile, .related-card, .stat-tile, .module-card, .theme-card, .cite-card, .format-card,
+.example-card, .method-card, .rail-section, .filters, .selection, .view-area, .empty-state, .jobs-window, .share-banner, .ws-topbar {
+  border-radius: var(--radius-lg); box-shadow: none; }
+.run-card, .tool-tile, .example-card, .method-card, .related-card { transform: none !important; }
+.run-card { border-left-width: 3px; }
+.run-card.selected { background: var(--select-bg); border-color: var(--accent-color); }
+.tool-tile:hover:not(:disabled), .example-card:hover, .method-card:hover:not(:disabled), .related-card:hover {
+  border-color: var(--accent-color); box-shadow: none; background: var(--surface-color); }
+.example-card.featured { background: var(--surface-color); border-color: var(--border-color); }
+.modal { border-radius: var(--radius-xl); }
+.modal-header { background: var(--surface-color); }
+.note { border-radius: var(--radius-md); }
+.note-info { background: var(--surface-color); border-color: var(--border-color); border-left: 3px solid var(--accent-color); }
+.note-success { background: var(--success-color-light); border-color: transparent; border-left: 3px solid var(--success-color); }
+.note-warning { background: var(--warning-color-light); border-color: transparent; border-left: 3px solid var(--warning-color); }
+.note-error { background: var(--danger-color-light); border-color: transparent; border-left: 3px solid var(--danger-color); color: var(--heading-color); }
+
+/* ---- Workspace sections: white panels with a thin coloured top line -------- */
+.sec-tabs { gap: 0; border-bottom: 1px solid var(--border-color); }
+.sec-tab { border: 0; border-radius: 0; background: transparent; border-top: 0; padding: 10px 14px; box-shadow: none;
+  border-bottom: 3px solid transparent; }
+.sec-tab:hover { background: transparent; border-bottom-color: var(--border-color-dark); }
+.sec-tab.active { background: transparent; border-color: transparent; box-shadow: none; border-bottom: 3px solid var(--sec-color); }
+.sec-tab.active strong { color: var(--heading-color); }
+.sec-tab .concept-icon { opacity: 0.85; }
+.sec-count { background: var(--sec-color); }
+.sec-panel { background: var(--surface-color); border: 1px solid var(--border-color); border-top: 3px solid var(--sec-color);
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg); padding: var(--spacing-md) var(--spacing-lg); }
+.sec-panel .page-header h1, .sec-subhead { color: var(--heading-color); }
+.sec-panel .run-card, .sec-panel .empty-state, .sec-panel .filters-row { background: var(--surface-color); }
+.rail.sec-data, .sec-data { background: transparent; border: 0; }
+.rail { background: transparent; }
+.sec-label { color: var(--muted-color); }
+.tile-tool { background: var(--sidebar-hover-bg); color: var(--muted-color); font-weight: 500; }
+.page-header h1 { font-size: 1.25rem; }
+h1 { letter-spacing: -0.01em; }
+
+/* ---- Tabs: underlined, consistent everywhere ------------------------------ */
+.view-tabs { gap: 0; padding-bottom: 0; border-bottom: 1px solid var(--border-color); }
+.view-tab { border-radius: 0; }
+.view-tab > button:first-child { padding: 8px 12px; }
+.view-tab.active { background: transparent; box-shadow: inset 0 -2px 0 var(--accent-color); }
+.view-tab.active > button:first-child { color: var(--heading-color); font-weight: 600; }
+.segmented button.on, .segmented [aria-pressed="true"] { background: var(--select-bg); color: var(--heading-color); }
+
+/* ---- Tables: compact, numbers never break --------------------------------- */
+.table { font-size: 0.8125rem; }
+.table th, .table td { padding: 5px 8px; vertical-align: top; }
+.table th { background: #f6f8fa; font-weight: 600; font-size: 0.75rem; text-transform: none; color: var(--muted-color);
+  border-bottom: 1px solid var(--border-color); white-space: nowrap; }
+[data-theme="dark"] .table th { background: #1c2129; }
+.table tbody tr:nth-child(even) { background: rgba(140, 149, 159, 0.05); }
+.table tbody tr:hover { background: var(--sidebar-hover-bg); }
+.table tr.selected, .table tr.selected:nth-child(even) { background: var(--select-bg); }
+.table td.num, .table td:has(> .num) { white-space: nowrap; }
+.genes-cell { max-width: 360px; }
+.genes-cell > span { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted-color); }
+.table td.num { text-align: right; }
+.table th:has(+ th) { }
+.table-scroll { border-radius: var(--radius-md); }
+
+/* ---- Home: calm, information first --------------------------------------- */
+.hero { padding: var(--spacing-lg) 0; gap: var(--spacing-lg); }
+.hero::before { display: none; }
+.hero-brand { font-size: clamp(2.2rem, 5vw, 3rem); filter: none; }
+.hero-tagline { font-size: clamp(1.1rem, 2vw, 1.4rem); font-weight: 500; color: var(--muted-color); }
+.hero-art::before { display: none; }
+.lead { font-size: 0.98rem; max-width: 62ch; }
+.home-section h2 { font-size: 1.1rem; }
+.steps li { border-radius: var(--radius-lg); box-shadow: none; }
+.step-num { background: var(--heading-color); }
+
+/* ---- Selection, legends, misc -------------------------------------------- */
+.progress-steps li { border-radius: var(--radius-md); }
+.sel-item.has-gene { background: var(--select-bg); box-shadow: inset 3px 0 0 var(--accent-color); }
+.gene-bar > i { background: var(--accent-color); }
+.related-badge { background: var(--muted-color); border-radius: var(--radius-md); }
+.gc-mini { border-radius: var(--radius-sm); }
+.jobs-window { border-radius: var(--radius-lg); }
+.toast { border-radius: var(--radius-md); }
+.spinner-dot { background: var(--accent-color); }
+.example-cta { color: var(--link-color); }
+
+/* ---- Home: grouped example lists ---------------------------------------- */
+.example-groups { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--spacing-md) var(--spacing-lg); }
+.example-group h3 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted-color); margin: 0 0 6px;
+  padding-bottom: 4px; border-bottom: 1px solid var(--border-color); }
+.example-group ul { list-style: none; margin: 0; padding: 0; }
+.example-row { display: flex; gap: 10px; align-items: flex-start; padding: 7px 6px; border-radius: var(--radius-md); color: var(--default-color); text-decoration: none; }
+.example-row:hover { background: var(--sidebar-hover-bg); }
+.example-row strong { color: var(--link-color); font-weight: 600; }
+.example-row > span { display: flex; flex-direction: column; line-height: 1.35; }
+.example-row .concept-icon { flex: none; margin-top: 2px; }
+.tool-card, .view-card { border-radius: var(--radius-lg); box-shadow: none; }
+.tool-card { border-top-width: 3px; }
+
+/* ---- Refinements after review ---------------------------------------------- */
+/* Example groups flow as balanced columns. */
+.example-groups { display: block; columns: 4 280px; column-gap: var(--spacing-lg); }
+.example-group { break-inside: avoid; margin-bottom: var(--spacing-md); }
+/* Term names get room; IDs and sources stay compact. */
+.results-table .table td:nth-child(4), .results-table .table th:nth-child(4) { min-width: 220px; }
+.compare-table .term-cell { min-width: 220px; }
+/* One primary action per view: open-results buttons on run cards are secondary. */
+.run-card .run-card-foot .btn-primary { background: var(--surface-color); color: var(--link-color); border-color: var(--border-color-dark); }
+.run-card .run-card-foot .btn-primary:hover:not(:disabled) { background: var(--select-bg); border-color: var(--accent-color); color: var(--link-hover); }

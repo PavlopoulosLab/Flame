@@ -106,7 +106,7 @@ function ComparePageBody() {
         </span>
         {(['table', 'ranks', 'themes', 'overview', 'stats', 'upset', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
           <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
-            { table: '☰ Table', ranks: '↕ Ranks', themes: '☁ Themes', overview: 'Overview', stats: '∑ Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
+            { table: 'Table', ranks: 'Ranks', themes: 'Themes', overview: 'Overview', stats: 'Statistics', upset: 'Overlap (UpSet)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
         ))}
       </nav>
 

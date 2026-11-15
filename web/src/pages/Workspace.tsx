@@ -295,11 +295,11 @@ export default function WorkspacePage() {
 
           {section === 'enrich' && (
             <section className="sec-panel sec-enrich" aria-label="Functional enrichment">
-              <ol className="progress-steps" aria-label="Progress">
+              {runs.length === 0 && <ol className="progress-steps" aria-label="Progress">
                 <li className={step >= 1 ? (step > 1 ? 'done' : 'current') : ''}><span>1</span> Add a list</li>
                 <li className={step >= 2 ? (step > 2 ? 'done' : 'current') : ''}><span>2</span> Run enrichment</li>
                 <li className={step >= 3 ? 'current' : ''}><span>3</span> Explore and compare</li>
-              </ol>
+              </ol>}
               <div className="page-header">
                 <div>
                   <h1>Enrichment runs</h1>
@@ -347,7 +347,7 @@ export default function WorkspacePage() {
                       </select>
                     </label>
                     {selected.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>Clear selection</button>}
-                    <span className="muted small">Tip: tick two or more runs to compare tools or lists.</span>
+                    <span className="muted small">Tick two or more runs to compare them.</span>
                   </div>
                   <div className="run-grid">
                     {shownRuns.map((r) => (

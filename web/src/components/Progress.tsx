@@ -69,9 +69,12 @@ export function JobsWindow({ runs, ws }: { runs: Run[]; ws: string }) {
   }, [active.map((r) => r.id).join()])
   const shown = runs.filter((r) => watch.has(r.id))
   const allDone = shown.length > 0 && active.length === 0
+  // When everything has finished, shrink to the one-line summary (the results are on the cards)
+  // and leave after a few seconds, so the window never covers the run cards for long.
   useEffect(() => {
     if (!allDone) return
-    const t = window.setTimeout(() => { setWatch(new Set()); setMinimised(false) }, 20000)
+    setMinimised(true)
+    const t = window.setTimeout(() => { setWatch(new Set()); setMinimised(false) }, 8000)
     return () => window.clearTimeout(t)
   }, [allDone])
   if (closed || !shown.length) return null
@@ -81,7 +84,7 @@ export function JobsWindow({ runs, ws }: { runs: Run[]; ws: string }) {
   return (
     <aside className={`jobs-window${minimised ? ' min' : ''}`} role="status" aria-live="polite" aria-label="Running analyses">
       <header>
-        <strong>{allDone ? (failed ? `${done} finished, ${failed} failed` : `All ${shown.length} analyses finished ✓`) : `Running ${active.length} of ${shown.length} analyses`}</strong>
+        <strong>{allDone ? (failed ? `${done} finished, ${failed} failed` : `All ${shown.length} analyses finished`) : `Running ${active.length} of ${shown.length} analyses`}</strong>
         <span className="row">
           <button type="button" className="icon-btn" aria-label={minimised ? 'Expand' : 'Minimise'} onClick={() => setMinimised(!minimised)}>{minimised ? '▴' : '▾'}</button>
           <button type="button" className="icon-btn" aria-label="Close" onClick={() => { setClosed(true); if (allDone) setWatch(new Set()) }}>×</button>
