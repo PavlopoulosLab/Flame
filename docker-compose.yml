@@ -1,19 +1,29 @@
 # Flame 3.0 with Docker Compose:  docker compose up -d   →   http://localhost:8000
+#
+# Configuration is read from a ".env" file in this directory (Docker Compose
+# loads it automatically); every "${VAR:-default}" below falls back to the
+# default shown when .env doesn't set VAR, or when there is no .env at all.
+# Copy .env.example to .env and edit it to override any of these.
 services:
   flame:
     build: .
     image: pavlopouloslab/flame:3.0
     ports:
-      - "8000:8000"
+      - "${FLAME_HTTP_PORT:-8000}:${FLAME_PORT:-8000}"
     volumes:
       - flame-data:/data
     environment:
-      FLAME_WORKERS: "4"
-      FLAME_RETENTION_DAYS: "30"
-      # FLAME_PUBLIC_URL: "https://flame.example.org"   # used in links and emails
-      # FLAME_NCBI_API_KEY: "…"                          # PubMed / dbSNP inputs: 10 instead of 3 requests/s
-      # FLAME_SMTP_URL: "smtps://user:password@smtp.example.org:465"
-      # FLAME_SMTP_FROM: "flame@example.org"
+      FLAME_PORT: "${FLAME_PORT:-8000}"
+      FLAME_DB: "${FLAME_DB:-/data/flame.sqlite}"
+      FLAME_WORKERS: "${FLAME_WORKERS:-4}"
+      FLAME_RETENTION_DAYS: "${FLAME_RETENTION_DAYS:-30}"
+      FLAME_MAX_LISTS: "${FLAME_MAX_LISTS:-10}"
+      FLAME_WORKSPACE_LIMIT: "${FLAME_WORKSPACE_LIMIT:-30}"
+      FLAME_RATE_LIMIT: "${FLAME_RATE_LIMIT:-600}"
+      FLAME_PUBLIC_URL: "${FLAME_PUBLIC_URL:-}"   # used in links and emails
+      FLAME_NCBI_API_KEY: "${FLAME_NCBI_API_KEY:-}"   # PubMed / dbSNP inputs: 10 instead of 3 requests/s
+      FLAME_SMTP_URL: "${FLAME_SMTP_URL:-}"
+      FLAME_SMTP_FROM: "${FLAME_SMTP_FROM:-}"
     restart: unless-stopped
 
 volumes:
