@@ -13,7 +13,21 @@
 
 COMPARISON_VIEWS <- c("overview", "bubble", "heatmap")
 
+#' Tools write the same KEGG pathway as "hsa05210", "map05210", "ko05210" or
+#' "KEGG:05210". For matching terms across runs, KEGG rows use the
+#' organism-neutral reference ID ("map05210"); other sources are unchanged.
+canonical_kegg_ids <- function(results) {
+  if (!is.data.frame(results) || nrow(results) == 0 || !"Source" %in% names(results)) return(results)
+  kegg <- grepl("KEGG", as.character(results$Source), ignore.case = TRUE)
+  if (!any(kegg)) return(results)
+  canon <- function(x) sub("^(?:KEGG:|path:)?(?:[a-z]{2,4})?(\\d{5})$", "map\\1", trimws(as.character(x)), perl = TRUE)
+  for (col in intersect(c("Term_ID_noLinks", "Term_ID"), names(results)))
+    results[[col]][kegg] <- canon(results[[col]][kegg])
+  results
+}
+
 .rebuild_session <- function(run) {
+  run$results <- canonical_kegg_ids(run$results)
   input <- UnrankedAnalyteList$new(
     name = run$listName %||% "list",
     analyteType = normalizeAnalyteType(run$analyteType %||% AnalyteType$GENE),
