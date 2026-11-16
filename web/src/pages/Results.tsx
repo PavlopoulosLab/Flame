@@ -61,6 +61,10 @@ const SORTS = [
   { value: 'Fold Enrichment', label: 'Fold enrichment' },
   { value: 'NES', label: '|NES| (GSEA)' },
 ]
+// Per-view default for the "by" ranking; views not listed rank by significance.
+const DEFAULT_SORT: Record<string, string> = { dotplot: 'Gene Ratio', barchart: '-log10Pvalue' }
+// Views that share one ranking: the table lists exactly the terms the dotplot draws, in the same order.
+const SORT_GROUP: Record<string, string> = { table: 'dotplot' }
 
 function useDebounced<T>(value: T, ms = 300) {
   const [v, setV] = useState(value)
@@ -85,23 +89,27 @@ function ResultsPageBody() {
   const tabs = [...(config?.resultTabs ?? []), ...EXTRA_TABS]
   const [visible, setVisible] = useState<string[]>(() => {
     try {
-      const saved = sessionStorage.getItem('flame-visible-tabs-v3')
+      const saved = sessionStorage.getItem('flame-visible-tabs-v4')
       if (saved) return JSON.parse(saved)
     } catch { /* ignore */ }
-    return ['table', 'themes', 'dotplot', 'barchart', 'network-tg']
+    return ['table', 'dotplot', 'barchart', 'themes', 'network-tg']
   })
-  const view = tab && tabs.some((t) => t.tabId === tab) ? tab : visible[0] ?? 'table'
+  // Results open on the table unless the URL names another view.
+  const view = tab && tabs.some((t) => t.tabId === tab) ? tab : 'table'
+  // The table tab always comes first.
+  const tabOrder = visible.includes('table') ? ['table', ...visible.filter((v) => v !== 'table')] : visible
   usePaletteKey(view)
   useEffect(() => {
     if (!visible.includes(view)) setVisible((v) => [...v, view])
   }, [view, visible])
   useEffect(() => {
-    try { sessionStorage.setItem('flame-visible-tabs-v3', JSON.stringify(visible)) } catch { /* ignore */ }
+    try { sessionStorage.setItem('flame-visible-tabs-v4', JSON.stringify(visible)) } catch { /* ignore */ }
   }, [visible])
 
   const [filters, setFilters] = useState<ResultFilters>({})
   const [top, setTop] = useState<number | 'all'>(20)
-  const [sortBy, setSortBy] = useState('-log10Pvalue')
+  // The ranking is remembered per view, so the dotplot and barchart keep their own defaults.
+  const [sortByView, setSortByView] = useState<Record<string, string>>({})
   const [settings, setSettings] = useState<ViewSettings>({ labels: 'name', xAxis: 'geneRatio', palette: 'OrRd', layout: 'force', similarityCutoff: 10, minShared: 3 })
   const [columns, setColumns] = useState<string[]>(['source', 'id', 'name', 'pvalue', 'intersection', 'coverage', 'genes'])
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -111,6 +119,10 @@ function ResultsPageBody() {
       setColumns((c) => (c.includes('nes') ? c : [...c.slice(0, 4), 'nes', ...c.slice(4)]))
     }
   }, [run?.paradigm])
+  const isGseaRun = run?.paradigm === 'GSEA'
+  const sortKey = SORT_GROUP[view] ?? view
+  const sortBy = sortByView[sortKey] ?? (sortKey === 'dotplot' && isGseaRun ? 'NES' : DEFAULT_SORT[sortKey]) ?? '-log10Pvalue'
+  const setSortBy = (v: string) => setSortByView((m) => ({ ...m, [sortKey]: v }))
   const [showDetails, setShowDetails] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const plotRef = useRef<PlotHandle | null>(null)
@@ -118,9 +130,9 @@ function ResultsPageBody() {
   const svgRef = useRef<SVGSVGElement | null>(null)
   // Undo/redo covers filters, ranking, view settings, table columns and the selection.
   const history = useHistory(
-    { filters, top, sortBy, settings, columns, selected: [...selected].sort() },
+    { filters, top, sortByView, settings, columns, selected: [...selected].sort() },
     (snap) => {
-      setFilters(snap.filters); setTop(snap.top); setSortBy(snap.sortBy)
+      setFilters(snap.filters); setTop(snap.top); setSortByView(snap.sortByView)
       setSettings(snap.settings); setColumns(snap.columns); setSelected(new Set(snap.selected))
     },
   )
@@ -186,7 +198,7 @@ function ResultsPageBody() {
       ) : (
         <>
           <nav className="view-tabs" aria-label="Result views">
-            {visible.map((id) => {
+            {tabOrder.map((id) => {
               const t = tabs.find((x) => x.tabId === id)
               if (!t) return null
               return (

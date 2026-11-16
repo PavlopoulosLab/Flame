@@ -57,13 +57,26 @@ function escapeForPlotly(s: string) {
   return String(s ?? '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
 }
 
-const selLine = (ids: string[], selected: Set<string>) => ({
-  color: ids.map((id) => (selected.has(id) ? '#f97316' : 'rgba(0,0,0,0)')),
-  width: ids.map((id) => (selected.has(id) ? 3 : 0)),
-})
+// Selected items get an outline in the text colour (dark on light, light on dark), which stands out
+// on any palette; while something is selected, everything else is faded.
+const selColor = () => getComputedStyle(document.documentElement).getPropertyValue('--heading-color').trim() || '#18181b'
+// `rest` is the outline of unselected items (none by default).
+const selLine = (ids: string[], selected: Set<string>, rest: { color: string; width: number } = { color: 'rgba(0,0,0,0)', width: 0 }) => {
+  const c = selColor()
+  return {
+    color: ids.map((id) => (selected.has(id) ? c : rest.color)),
+    width: ids.map((id) => (selected.has(id) ? 2.5 : rest.width)),
+  }
+}
+// `anySelected` covers the whole plot, so traces (sources) without a selected item fade too.
+const selOpacity = (ids: string[], selected: Set<string>, base = 1, anySelected = ids.some((id) => selected.has(id))) =>
+  anySelected ? ids.map((id) => (selected.has(id) ? base : 0.25)) : base
 
 // Plotly has no built-in OrRd; light orange → dark red, so more significant = darker.
 const ORRD: [number, string][] = [[0, '#fee8c8'], [0.5, '#fc8d59'], [1, '#b30000']]
+
+// Dotplot row spacing and dot diameters (px).
+const ROW = 28, DOT_MIN = 7, DOT_MAX = 22
 
 export function DotplotView({ data, settings, selected, onSelect, plotRef }: ViewProps) {
   const cb = usePaletteMode()
@@ -71,37 +84,69 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef }: Vie
   const dotScale: string | [number, string][] = choice === 'OrRd'
     ? (cb === 'flame' ? ORRD : sequentialScale(cb, 'OrRd'))
     : choice === 'Magma' ? 'Hot' : choice
-  const terms = [...data.terms].reverse()
   const xKey = settings.xAxis ?? 'geneRatio'
+  // Rows follow the x axis (largest at the top); Plotly draws the first category at the bottom.
+  const terms = [...data.terms].sort((a, b) => (a[xKey] ?? 0) - (b[xKey] ?? 0))
   const xLabel = { geneRatio: 'Gene ratio', foldEnrichment: 'Fold enrichment', coverage: 'Term coverage (%)', nes: 'Normalized enrichment score (NES)' }[xKey]
+  // Dot area is proportional to the number of genes; the largest dot just fits its row, so
+  // neighbours never overlap.
+  const counts = terms.map((t) => t.intersection)
+  const kMin = Math.min(...counts), kMax = Math.max(...counts, 1)
+  const sizeOf = (k: number) => Math.max(DOT_MIN, DOT_MAX * Math.sqrt(k / kMax))
+  // Colour bar on top right, size legend below it; both sized in px of the plotting area.
+  const height = Math.max(360, ROW * terms.length + 110)
+  const area = height - 60
+  const cbLen = Math.min(220, area * 0.5) / area
+  const legendY = 1 - cbLen - 40 / area
+  // A few reference sizes for the "Genes" legend.
+  const legendCounts = [...new Set(kMax === kMin ? [kMin] : [kMin, Math.round((kMin + kMax) / 2), kMax])]
   const plot = useMemo(() => [{
-    type: 'scatter' as const, mode: 'markers' as const,
+    type: 'scatter' as const, mode: 'markers' as const, showlegend: false,
     x: terms.map((t) => t[xKey] ?? 0), y: terms.map((t) => label(t, settings)), customdata: terms.map((t) => t.id),
     text: terms.map(hover), hoverinfo: 'text' as const,
     marker: {
-      size: terms.map((t) => 8 + Math.sqrt(t.intersection) * 4), color: terms.map((t) => t.log10p),
+      size: counts.map(sizeOf), color: terms.map((t) => t.log10p),
       colorscale: dotScale as never,
       reversescale: typeof dotScale === 'string' && reverseScale(dotScale),
-      showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12 },
-      line: selLine(terms.map((t) => t.id), selected),
+      showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12, len: cbLen, y: 1, yanchor: 'top' as const },
+      line: selLine(terms.map((t) => t.id), selected, { color: 'rgba(255,255,255,0.9)', width: 1 }),
+      opacity: selOpacity(terms.map((t) => t.id), selected),
     },
   }], [terms, settings, xKey, selected, cb])
   if (xKey === 'foldEnrichment' && data.terms.every((t) => t.foldEnrichment == null)) {
     return <p className="muted">Fold enrichment needs the background size, which this tool does not report. Choose another x-axis.</p>
   }
-  return <Plot data={plot} height={Math.max(360, 26 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
-    layout={{ margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: xLabel } }, yaxis: { automargin: true } }} />
+  return <Plot data={plot} height={height} handleRef={plotRef} onSelect={onSelect}
+    layout={{
+      margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: xLabel } },
+      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => label(t, settings)) },
+      // Size legend under the colour bar, drawn as pixel-sized circles (Plotly's legend caps marker sizes).
+      showlegend: false,
+      shapes: legendCounts.map((k, i) => {
+        const d = sizeOf(k), y = legendY - (28 + i * (DOT_MAX + 8) + DOT_MAX / 2) / area
+        return { type: 'circle' as const, xref: 'paper' as const, yref: 'paper' as const, xsizemode: 'pixel' as const, ysizemode: 'pixel' as const,
+          xanchor: 1.03, yanchor: y, x0: DOT_MAX / 2 - d / 2, x1: DOT_MAX / 2 + d / 2, y0: -d / 2, y1: d / 2,
+          fillcolor: 'rgba(128,128,128,0.45)', line: { color: 'rgba(128,128,128,0.9)', width: 1 } }
+      }),
+      annotations: [
+        { xref: 'paper' as const, yref: 'paper' as const, x: 1.03, y: legendY, xanchor: 'left' as const, yanchor: 'top' as const, text: 'Genes', showarrow: false },
+        ...legendCounts.map((k, i) => ({ xref: 'paper' as const, yref: 'paper' as const, x: 1.03, xshift: DOT_MAX + 8, xanchor: 'left' as const,
+          y: legendY - (28 + i * (DOT_MAX + 8) + DOT_MAX / 2) / area, yanchor: 'middle' as const, text: String(k), showarrow: false, font: { size: 11 } })),
+      ],
+    }} />
 }
 
 export function BarchartView({ data, config, settings, selected, onSelect, plotRef }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const metric = settings.barMetric ?? 'log10p'
-  const terms = [...data.terms].reverse()
+  const value = (t: Term) => (metric === 'log10p' ? t.log10p : metric === 'nes' ? t.nes ?? 0 : t.coverage)
+  // Bars follow their length (longest at the top); Plotly draws the first category at the bottom.
+  const terms = [...data.terms].sort((a, b) => value(a) - value(b))
   const plot = useMemo(() => [...bySource(terms)].map(([src, ts]) => ({
     type: 'bar' as const, orientation: 'h' as const, name: src,
-    x: ts.map((t) => (metric === 'log10p' ? t.log10p : metric === 'nes' ? t.nes ?? 0 : t.coverage)), y: ts.map((t) => label(t, settings)),
+    x: ts.map(value), y: ts.map((t) => label(t, settings)),
     customdata: ts.map((t) => t.id), text: ts.map(hover), hoverinfo: 'text' as const, textposition: 'none' as const,
-    marker: { color: colorOf(src), line: selLine(ts.map((t) => t.id), selected) },
+    marker: { color: colorOf(src), line: selLine(ts.map((t) => t.id), selected), opacity: selOpacity(ts.map((t) => t.id), selected, 1, terms.some((t) => selected.has(t.id))) },
   })), [terms, metric, settings, config, selected])
   return <Plot data={plot} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
     layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: metric === 'log10p' ? '−log10 p-value' : metric === 'nes' ? 'NES (positive = top of ranking)' : 'Term coverage (%)' } },
@@ -114,7 +159,7 @@ export function ScatterView({ data, config, selected, onSelect, plotRef }: ViewP
     type: 'scatter' as const, mode: 'markers' as const, name: src,
     x: ts.map((t) => t.log10p), y: ts.map((t) => t.coverage), customdata: ts.map((t) => t.id),
     text: ts.map(hover), hoverinfo: 'text' as const,
-    marker: { size: 11, color: colorOf(src), opacity: 0.85, line: selLine(ts.map((t) => t.id), selected) },
+    marker: { size: 11, color: colorOf(src), opacity: selOpacity(ts.map((t) => t.id), selected, 0.85, data.terms.some((t) => selected.has(t.id))), line: selLine(ts.map((t) => t.id), selected) },
   })), [data.terms, config, selected])
   return <Plot data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
     layout={{ xaxis: { title: { text: '−log10 p-value' } }, yaxis: { title: { text: 'Term coverage (%)' } }, legend: { orientation: 'h', y: -0.2 } }} />
