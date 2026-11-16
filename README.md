@@ -102,6 +102,7 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_WORKSPACE_LIMIT` | `30` | New workspaces per hour per client address (0 = no limit) |
 | `FLAME_RATE_LIMIT` | `600` | API requests per minute per client address (0 = no limit, e.g. for local testing) |
 | `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and dbSNP inputs (10 instead of 3 requests per second; recommended for public servers) |
+| `FLAME_HTTP_PORT` | `8000` | Compose only: host port mapped to `FLAME_PORT` inside the container |
 
 ### Docker
 
@@ -116,14 +117,18 @@ docker run -d --name flame -p 8000:8000 -v flame-data:/data pavlopouloslab/flame
 Or with Compose (same settings, restarts automatically):
 
 ```bash
+cp .env.example .env   # edit .env to override any variable from the table above
 docker compose up -d
 ```
 
-Open http://localhost:8000. Workspaces are stored in the `flame-data` volume (`/data/flame.sqlite`), so they
-survive container upgrades. Set the variables in the table above with `-e` (or in `docker-compose.yml`);
-`FLAME_HOST` is already `0.0.0.0` inside the image. The container reports its health from `/api/v1/health`.
-Use `--build-arg R_VERSION=…` to build on another R release. The first build takes a while (Bioconductor
-packages); later builds reuse the cached layers unless `install_packages.R` changes.
+`docker-compose.yml` reads every variable from `.env` (ignored by git) as `${VAR:-default}`, so anything left
+commented out in `.env`, or a missing `.env` file altogether, falls back to the defaults in the table above.
+
+Open http://localhost:8000 (or `FLAME_HTTP_PORT` from `.env`). Workspaces are stored in the `flame-data` volume
+(`/data/flame.sqlite`), so they survive container upgrades. Outside Compose, set the variables in the table
+above with `-e`; `FLAME_HOST` is already `0.0.0.0` inside the image. The container reports its health from
+`/api/v1/health`. Use `--build-arg R_VERSION=…` to build on another R release. The first build takes a while
+(Bioconductor packages); later builds reuse the cached layers unless `install_packages.R` changes.
 
 ### Deployment
 

@@ -5,6 +5,7 @@
 !.gitignore
 !.Rbuildignore
 !.dockerignore
+!.env.example
 !web/.oxlintrc.json
 
 # macOS resource forks (anywhere in tree)
