@@ -16,6 +16,8 @@ test('home page shows the hero, examples and links', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/')
   await expect(page.getByRole('heading', { level: 1 })).toContainText('Functional Analysis and Integration')
+  await expect(page.locator('.featured-example').first()).toBeVisible()
+  await page.getByText(/^All \d+ examples$/).click()
   await expect(page.locator('.example-row').first()).toBeVisible()
   expect(await page.locator('.example-row').count()).toBeGreaterThan(25)
   await expect(page.getByRole('link', { name: 'Flame 3.0 home' })).toBeVisible()
