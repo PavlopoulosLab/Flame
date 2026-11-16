@@ -35,16 +35,17 @@ ENV DEBIAN_FRONTEND=noninteractive \
     FLAME_RETENTION_DAYS=30
 
 # System libraries for the R packages (curl/openssl/xml for web APIs, sodium for
-# plumber, glpk/gmp for igraph, image and font libraries for clusterProfiler's
-# plotting dependencies). Rust is needed only to build WebGestaltR from source
-# and is removed again in the same layer.
+# plumber, glpk/gmp for igraph, libuv for the fs package pulled in by
+# clusterProfiler's dependency tree, image and font libraries for
+# clusterProfiler's plotting dependencies). Rust is needed only to build
+# WebGestaltR from source and is removed again in the same layer.
 COPY install_packages.R DESCRIPTION /tmp/flame/
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
       curl ca-certificates libcurl4-openssl-dev libssl-dev libxml2-dev libsodium-dev \
       libglpk-dev libgmp3-dev zlib1g-dev libpng-dev libjpeg-dev libtiff5-dev \
       libfontconfig1-dev libfreetype6-dev libharfbuzz-dev libfribidi-dev libicu-dev \
-      cargo rustc \
+      libuv1-dev cargo rustc \
  && FLAME_RUNTIME_ONLY=1 Rscript /tmp/flame/install_packages.R \
  && apt-get purge -y cargo rustc && apt-get autoremove -y \
  && rm -rf /var/lib/apt/lists/* /tmp/flame /tmp/Rtmp* /root/.cache /root/.cargo
