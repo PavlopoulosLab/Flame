@@ -1,10 +1,10 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
-import { getWorkspaceId } from '../api/client'
+import { asset, getWorkspaceId } from '../api/client'
 import { UndoProvider } from './Undo'
 
 export function Logo({ size = 32 }: { size?: number }) {
-  return <img src="/flame-logo.png?v=12" alt="" width={Math.round(size * 0.66)} height={size} className="logo" />
+  return <img src={asset('/flame-logo.png?v=12')} alt="" width={Math.round(size * 0.66)} height={size} className="logo" />
 }
 
 /** The "Flame 3.0" wordmark, in the logo's flame gradient. */

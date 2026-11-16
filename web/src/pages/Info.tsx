@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { API_BASE, asset } from '../api/client'
 import { useConfig } from '../api/hooks'
 import { CITATION_GROUPS } from '../data/citations'
 import { CopyButton } from '../components/ui'
@@ -117,7 +118,7 @@ function RelatedTools() {
           <div className="related-grid">
             {c.items.map((t) => (
               <a key={t.name} className="related-card" href={t.url} target="_blank" rel="noopener noreferrer">
-                {t.logo ? <img src={t.logo} alt="" width={32} height={32} loading="lazy" />
+                {t.logo ? <img src={asset(t.logo)} alt="" width={32} height={32} loading="lazy" />
                   : <span className="related-badge" aria-hidden="true">{t.name.replace(/[^A-Za-z0-9]/g, '').slice(0, 2).toUpperCase()}</span>}
                 <span><strong>{t.name}</strong><span className="muted small">{t.text}</span></span>
               </a>
@@ -260,7 +261,7 @@ const ENDPOINT_GROUPS: { title: string; rows: [string, string, string][] }[] = [
   ] },
 ]
 
-const CURL_SNIPPET = `BASE=${typeof window === 'undefined' ? 'https://your-flame-server' : window.location.origin}/api/v1
+const CURL_SNIPPET = `BASE=${typeof window === 'undefined' ? 'https://your-flame-server' : window.location.origin + API_BASE}/v1
 # 1. A workspace (keep the id)
 WS=$(curl -s -X POST $BASE/workspace | python3 -c "import json,sys; print(json.load(sys.stdin)['id'])")
 # 2. A gene list
@@ -299,11 +300,11 @@ function ApiDocs() {
   return (
     <article className="doc">
       <h1>API</h1>
-      <p>Everything the web app does is available as a versioned REST API returning JSON, at <code>{window.location.origin}/api/v1</code>. Create a workspace and send its id in the <code>X-Flame-Workspace</code> header on every other call.</p>
+      <p>Everything the web app does is available as a versioned REST API returning JSON, at <code>{window.location.origin}{API_BASE}/v1</code>. Create a workspace and send its id in the <code>X-Flame-Workspace</code> header on every other call.</p>
       <p>
-        <a className="btn btn-primary" href="/flame_client.py" download>Download the Python example script</a>{' '}
-        <a className="btn btn-secondary" href="/__docs__/" target="_blank" rel="noopener noreferrer">Interactive API reference (Swagger)</a>{' '}
-        <a className="btn btn-ghost" href="/openapi.json" target="_blank" rel="noopener noreferrer">OpenAPI 3 specification (JSON)</a>
+        <a className="btn btn-primary" href={`${import.meta.env.BASE_URL}flame_client.py`} download>Download the Python example script</a>{' '}
+        <a className="btn btn-secondary" href={`${import.meta.env.BASE_URL}__docs__/`} target="_blank" rel="noopener noreferrer">Interactive API reference (Swagger)</a>{' '}
+        <a className="btn btn-ghost" href={`${import.meta.env.BASE_URL}openapi.json`} target="_blank" rel="noopener noreferrer">OpenAPI 3 specification (JSON)</a>
       </p>
       <ul className="small">
         <li><strong>Try it in the browser:</strong> in the interactive reference, run <code>POST /api/v1/workspace</code>, press <em>Authorize</em> and paste the id; every endpoint then has <em>Try it out</em> with a ready-made example body.</li>
@@ -319,7 +320,7 @@ function ApiDocs() {
       <CopyButton text={PY_SNIPPET} label="Copy" />
       <h2>Open lists directly in the browser</h2>
       <p>Link to Flame with gene lists in the URL (lists separated by <code>;</code>, genes by <code>,</code>):</p>
-      <pre className="code">{`${window.location.origin}/?url_genes=TP53,BRCA1,EGFR;KRAS,MYC&organism=9606`}</pre>
+      <pre className="code">{`${window.location.origin}${import.meta.env.BASE_URL}?url_genes=TP53,BRCA1,EGFR;KRAS,MYC&organism=9606`}</pre>
       <h2>Command-line client</h2>
       <p>The Python script covers the common tasks; run <code>python flame_client.py -h</code> for all options.</p>
       <pre className="code">{CLI_EXAMPLES}</pre>

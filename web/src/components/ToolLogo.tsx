@@ -1,3 +1,5 @@
+import { asset } from '../api/client'
+
 /**
  * Official logos of the enrichment tools (downloaded from each tool's website,
  * served from /logos). `icon` is a square mark for small places, `full` the
@@ -35,7 +37,7 @@ export function ToolLogo({ tool, size = 20, variant = 'icon', withName = false }
   }
   return (
     <span className="tool-logo" title={label}>
-      <img src={src} alt={withName ? '' : label} style={variant === 'full' ? { height: size } : { width: size, height: size }} />
+      <img src={asset(src)} alt={withName ? '' : label} style={variant === 'full' ? { height: size } : { width: size, height: size }} />
       {withName && <span className="tool-logo-name">{label}</span>}
     </span>
   )

@@ -1,6 +1,13 @@
 // Minimal typed fetch wrapper for the Flame API.
 // The workspace id travels in the X-Flame-Workspace header (no cookies).
 
+// BASE_URL is "/" by default, or e.g. "/flame/" when built with FLAME_BASE_PATH
+// set (see vite.config.ts), so this resolves to "/api" or "/flame/api".
+export const API_BASE = `${import.meta.env.BASE_URL}api`
+
+/** Prefixes a root-relative public file (e.g. "/logos/string.png") with BASE_URL. */
+export const asset = (path: string) => `${import.meta.env.BASE_URL}${path.replace(/^\//, '')}`
+
 export class ApiError extends Error {
   status: number
   constructor(status: number, message: string) {
@@ -36,7 +43,7 @@ export async function api<T>(
   }
   let res: Response
   try {
-    res = await fetch(`/api${path}`, {
+    res = await fetch(`${API_BASE}${path}`, {
       method: options.method ?? (body ? 'POST' : 'GET'),
       headers,
       body,
@@ -73,7 +80,7 @@ export async function api<T>(
 export async function downloadFromApi(path: string, filename: string) {
   const headers: Record<string, string> = {}
   if (currentWorkspace) headers['X-Flame-Workspace'] = currentWorkspace
-  const res = await fetch(`/api${path}`, { headers, credentials: 'omit' })
+  const res = await fetch(`${API_BASE}${path}`, { headers, credentials: 'omit' })
   if (!res.ok) throw new ApiError(res.status, 'Download failed')
   saveBlob(await res.blob(), filename)
 }

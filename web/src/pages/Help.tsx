@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link, NavLink, useParams } from 'react-router-dom'
+import { API_BASE } from '../api/client'
 import { CopyButton } from '../components/ui'
 
 interface Topic { id: string; title: string; body: ReactNode }
@@ -28,48 +29,48 @@ function Sample({ text }: { text: string }) {
 
 interface Format { id: string; title: string; ext: string; use: string; columns: ReactNode; sample: string; file: string; example?: string; notes?: ReactNode }
 const FORMATS: Format[] = [
-  { id: 'list', title: 'Gene or protein list', ext: '.txt', use: 'Paste or upload IDs', file: '/api/inputs/examples/upload/file', example: 'upload',
+  { id: 'list', title: 'Gene or protein list', ext: '.txt', use: 'Paste or upload IDs', file: '/inputs/examples/upload/file', example: 'upload',
     columns: <>One identifier per line (commas, semicolons and tabs also work). Gene symbols, Ensembl, Entrez, UniProt and 15 more ID types; choose the type when uploading.</>,
     sample: 'CACNB2\nALOX15B\nDUSP1\nSTEAP2\nMAOA',
     notes: <>Example: the 200 genes most changed by dexamethasone in airway smooth-muscle cells (Himes et al. 2014, <em>PLoS One</em>; GEO GSE52778).</> },
-  { id: 'ranked', title: 'Ranked list (for GSEA)', ext: '.tsv', use: 'Paste or upload IDs → “IDs with scores”', file: '/api/inputs/examples/ranked/file', example: 'gsea',
+  { id: 'ranked', title: 'Ranked list (for GSEA)', ext: '.tsv', use: 'Paste or upload IDs → “IDs with scores”', file: '/inputs/examples/ranked/file', example: 'gsea',
     columns: <>Two tab-separated columns: <code>gene</code> and <code>score</code> (any number: log2 fold change, signed −log10 p, t-statistic). Include all measured genes. A header row is allowed (tick “skip first row”).</>,
     sample: 'gene\tscore\nCACNB2\t9.5884\nALOX15B\t9.2522\nDUSP1\t9.004\nDNM1\t-8.6878',
     notes: <>Example: all ~12,400 expressed genes of the airway dexamethasone experiment (Himes et al. 2014), scored by sign(log2FC) × −log10 p from limma-voom paired by donor.</> },
-  { id: 'volcano', title: 'Differential-expression table (volcano plot)', ext: '.tsv / .csv', use: 'From a volcano plot', file: '/api/inputs/examples/volcano/file', example: 'volcano',
+  { id: 'volcano', title: 'Differential-expression table (volcano plot)', ext: '.tsv / .csv', use: 'From a volcano plot', file: '/inputs/examples/volcano/file', example: 'volcano',
     columns: <>A header row and at least three columns: gene ID, log2 fold change and p-value (raw or adjusted). Other columns are ignored. Flame guesses which column is which; you can change it.</>,
     sample: 'gene\tlog2FC\tpvalue\tpadj\nCACNB2\t3.2059\t2.58e-10\t3.297e-06\nALOX15B\t7.9912\t5.595e-10\t3.297e-06\nDUSP1\t2.8649\t9.908e-10\t3.297e-06',
     notes: <>Example: dexamethasone vs untreated airway smooth-muscle cells, 4 donors (Himes et al. 2014, <em>PLoS One</em> 9:e99625; Bioconductor <code>airway</code>), analysed with limma-voom paired by donor.</> },
-  { id: 'reduction', title: '2D coordinates (UMAP, t-SNE, PCA)', ext: '.tsv / .csv', use: 'From a 2D plot', file: '/api/inputs/examples/reduction/file', example: 'reduction',
+  { id: 'reduction', title: '2D coordinates (UMAP, t-SNE, PCA)', ext: '.tsv / .csv', use: 'From a 2D plot', file: '/inputs/examples/reduction/file', example: 'reduction',
     columns: <>A header row; a gene column and two coordinate columns. Optional: a column to colour by (e.g. cluster) and a numeric column to size by.</>,
     sample: 'gene\tUMAP1\tUMAP2\tcell_type\tmean_expression\nIL7R\t-2.167\t-4.609\tMemory CD4 T cells\t0.869\nLYZ\t2.143\t2.092\tCD14 monocytes\t1.846\nMS4A1\t-3.335\t-0.197\tB cells\t0.353',
     notes: <>Example: a real UMAP of 2,500 genes from 2,638 blood cells (10x Genomics PBMC 3k; Zheng et al. 2017, <em>Nat Commun</em>; CC BY 4.0). Genes expressed in the same cells sit together; colour = the cell type where a gene is specific.</> },
-  { id: 'expression', title: 'Expression matrix', ext: '.tsv / .csv', use: 'From expression data', file: '/api/inputs/examples/expression/file', example: 'expression',
+  { id: 'expression', title: 'Expression matrix', ext: '.tsv / .csv', use: 'From expression data', file: '/inputs/examples/expression/file', example: 'expression',
     columns: <>A header row; first column = gene ID, then one numeric column per sample (counts, TPM, intensities or log values). Counts and intensities are log2(x + 1) transformed automatically. Up to 30,000 genes and 2 MB.</>,
     sample: 'gene\tuntreated_N052611\tuntreated_N061011\tdexamethasone_N052611\tdexamethasone_N061011\nZBTB16\t5\t12\t429\t1113\nKLF15\t52\t34\t702\t1355\nDUSP1\t1213\t695\t4541\t6840',
     notes: <>Example (the sample shows 4 of the 8 columns): raw counts of the 4,000 most variable genes in 8 airway samples (4 donors, untreated vs dexamethasone; Himes et al. 2014). One donor is female, so Y-chromosome genes form their own cluster — a real donor effect.</> },
-  { id: 'mirna', title: 'microRNA list', ext: '.txt', use: 'From microRNAs', file: '/api/inputs/examples/mirna/file', example: 'mirna',
+  { id: 'mirna', title: 'microRNA list', ext: '.txt', use: 'From microRNAs', file: '/inputs/examples/mirna/file', example: 'mirna',
     columns: <>One microRNA per line in miRBase form (<code>hsa-miR-21-5p</code>, <code>hsa-let-7a-5p</code>). A name without <code>-5p</code>/<code>-3p</code> uses both arms. Flame finds their predicted targets (miRDB v6, score &gt; 80) and lets you keep genes hit by several of your microRNAs.</>,
     sample: 'hsa-miR-21-5p\nhsa-miR-17-5p\nhsa-miR-191-5p\nhsa-miR-155-5p',
     notes: <>Example: the 21 microRNAs up-regulated in at least 3 of 6 solid cancers (Volinia et al. 2006, <em>PNAS</em> 103:2257, Table 2), with 2006 names mapped to current miRBase names.</> },
-  { id: 'metabolites', title: 'Metabolite or lipid list', ext: '.txt', use: 'Regulators & drugs → Metabolite pathways', file: '/api/inputs/examples/metabolites/file',
+  { id: 'metabolites', title: 'Metabolite or lipid list', ext: '.txt', use: 'Regulators & drugs → Metabolite pathways', file: '/inputs/examples/metabolites/file',
     columns: <>One metabolite per line: a name (<code>sarcosine</code>, <code>L-proline</code>), a KEGG compound ID (<code>C00213</code>) or a ChEBI ID (<code>CHEBI:15611</code>). Names are matched to KEGG compounds; unmatched entries are listed.</>,
     sample: 'sarcosine\nuracil\nkynurenine\nglycerol 3-phosphate\nleucine\nproline',
     notes: <>Example: the six metabolites raised in metastatic prostate cancer and validated by Sreekumar et al. 2009 (<em>Nature</em> 457:910).</> },
-  { id: 'snps', title: 'SNP list', ext: '.txt', use: 'From SNPs', file: '/api/inputs/examples/snps/file', example: 'snps',
+  { id: 'snps', title: 'SNP list', ext: '.txt', use: 'From SNPs', file: '/inputs/examples/snps/file', example: 'snps',
     columns: <>One dbSNP rsID per line (human).</>, sample: 'rs429358\nrs7412\nrs1801133\nrs6025' },
-  { id: 'variants', title: 'Variants', ext: '.txt / .vcf', use: 'Variants and GWAS', file: '/api/variants/examples/variants/file', example: 'variants',
+  { id: 'variants', title: 'Variants', ext: '.txt / .vcf', use: 'Variants and GWAS', file: '/variants/examples/variants/file', example: 'variants',
     columns: <>One variant per line, in any of these forms: rsID; VCF columns <code>CHROM POS ID REF ALT</code> (tab- or space-separated; header lines starting with <code>##</code> are skipped); <code>chr:pos:ref:alt</code>; or HGVS (<code>ENST…:c.803C&gt;T</code>). Positions are GRCh38.</>,
     sample: 'rs429358\nrs7412\n7\t140753336\t.\tA\tT\n17:7674220:C:T\nENST00000366667:c.803C>T' },
-  { id: 'gwas', title: 'GWAS summary statistics', ext: '.tsv / .csv', use: 'Variants and GWAS', file: '/api/variants/examples/gwas/file', example: 'gwas',
+  { id: 'gwas', title: 'GWAS summary statistics', ext: '.tsv / .csv', use: 'Variants and GWAS', file: '/variants/examples/gwas/file', example: 'gwas',
     columns: <>A header row with a variant column (<code>SNP</code>, <code>rsid</code>…) and a p-value column (<code>P</code>, <code>pval</code>…); optionally <code>CHR</code> and <code>BP</code> (GRCh38). Up to 2,000 of the most significant rows are analysed.</>,
     sample: 'SNP\tCHR\tBP\tP\nrs6733839\t2\t127135234\t6e-118\nrs3851179\t11\t86157598\t3e-48\nrs679515\t1\t207577223\t7e-46',
     notes: <>Example: 89 lead associations for Alzheimer’s disease from Bellenguez et al. 2022, <em>Nat Genet</em> 54:412 (GWAS Catalog GCST90027158).</> },
-  { id: 'gmt', title: 'Custom gene sets (GMT)', ext: '.gmt', use: 'Custom sources → + GMT', file: '/api/inputs/examples/gmt/file', example: 'gmt',
+  { id: 'gmt', title: 'Custom gene sets (GMT)', ext: '.gmt', use: 'Custom sources → + GMT', file: '/inputs/examples/gmt/file', example: 'gmt',
     columns: <>One gene set per line, tab-separated: set ID, description, then the genes (as many columns as needed). No header row.</>,
     sample: 'HALLMARK_ANGIOGENESIS\tangiogenesis\tAPOH\tAPP\tCCND2\tCOL3A1\tCOL5A2\nHALLMARK_APOPTOSIS\tapoptosis\tADD1\tAIFM3\tANKH\tANXA1\tAPP',
     notes: <>The example file is the MSigDB Hallmark collection (human gene symbols).</> },
-  { id: 'text', title: 'Free text', ext: '.txt', use: 'From text', file: '/api/inputs/examples/textmining/file', example: 'textmining',
+  { id: 'text', title: 'Free text', ext: '.txt', use: 'From text', file: '/inputs/examples/textmining/file', example: 'textmining',
     columns: <>Any plain text, such as an abstract. Gene and protein names are found with the EXTRACT tagger.</>,
     sample: 'The combined treatment of aspirin and cisplatin suppressed the expression of the anti-apoptotic protein Bcl-2…' },
 ]
@@ -84,7 +85,7 @@ function FormatsTopic() {
           <div className="row between wrap">
             <h3>{f.title} <span className="muted small">{f.ext}</span></h3>
             <span className="row wrap">
-              <a className="btn btn-secondary btn-sm" href={f.file} download>Download example file</a>
+              <a className="btn btn-secondary btn-sm" href={`${API_BASE}${f.file}`} download>Download example file</a>
               {f.example && <Link className="btn btn-ghost btn-sm" to={`/start?new=1&example=${f.example}`}>Open this example</Link>}
             </span>
           </div>

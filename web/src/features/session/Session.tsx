@@ -145,7 +145,7 @@ function StatusPanel({ ws, status, onSave }: { ws: string; status?: SessionStatu
   if (!status) return <p className="muted">Loading…</p>
   const st = STATE_LABEL[status.state]
   const c = status.counts
-  const url = `${window.location.origin}/w/${ws}`
+  const url = `${window.location.origin}${import.meta.env.BASE_URL}w/${ws}`
   const daysLeft = Math.max(0, Math.round((status.expires * 1000 - Date.now()) / 86_400_000))
   return (
     <div className="stack">

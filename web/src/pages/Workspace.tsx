@@ -411,7 +411,7 @@ export default function WorkspacePage() {
 }
 
 function ShareBanner({ ws, expires }: { ws: string; expires?: number }) {
-  const url = `${window.location.origin}/w/${ws}`
+  const url = `${window.location.origin}${import.meta.env.BASE_URL}w/${ws}`
   const days = expires ? Math.max(1, Math.round((expires * 1000 - Date.now()) / 86_400_000)) : null
   return (
     <div className="share-banner">

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useRef, useState } from 'react'
-import { api, getWorkspaceId, saveText } from '../../api/client'
+import { api, asset, getWorkspaceId, saveText } from '../../api/client'
 import { useConfig, useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { NetworkGraph, type NetworkHandle } from '../../components/charts'
@@ -255,7 +255,7 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
         </Field>
         <button className="btn btn-secondary align-end" onClick={run} disabled={busy}>{busy ? 'Building…' : res ? 'Rebuild network' : 'Build network'}</button>
         {stringUrl && <a className="btn btn-ghost align-end string-link" href={stringUrl} target="_blank" rel="noopener noreferrer"
-          title="Open this list on the STRING website with the same settings"><img src="/logos/string-icon.png" alt="" width={18} height={18} /> Open in STRING ↗</a>}
+          title="Open this list on the STRING website with the same settings"><img src={asset('/logos/string-icon.png')} alt="" width={18} height={18} /> Open in STRING ↗</a>}
       </div>
       {err != null && (
         <div className="row wrap">

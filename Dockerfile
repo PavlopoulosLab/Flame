@@ -4,17 +4,26 @@
 #   docker build -t pavlopouloslab/flame:3.0 .
 #   docker run -d -p 8000:8000 -v flame-data:/data pavlopouloslab/flame:3.0
 # Then open http://localhost:8000 (API: /api/v1, docs: /__docs__/).
+# To serve under a subpath instead (e.g. example.com/flame), add
+# --build-arg FLAME_BASE_PATH=/flame/ and have the reverse proxy strip that
+# prefix before forwarding to this container.
 # =============================================================================
 
 ARG R_VERSION=4.6.2
+# Set to a subpath (e.g. "/flame/") to serve the app behind a reverse proxy
+# that strips that prefix before forwarding to this container; it's baked into
+# the built asset paths and the router's basename, so it can't be changed at
+# container run time. Leave unset ("/") for a normal, root-served deployment.
+ARG FLAME_BASE_PATH=/
 
 # ---- Stage 1: build the web app (React + TypeScript) -------------------------
 FROM node:22.12.0-bookworm-slim AS web
+ARG FLAME_BASE_PATH
 WORKDIR /src/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci --no-audit --no-fund
 COPY web/ ./
-RUN npm run build
+RUN FLAME_BASE_PATH=$FLAME_BASE_PATH npm run build
 
 # ---- Stage 2: R runtime with the plumber API ---------------------------------
 FROM rocker/r-ver:${R_VERSION} AS app

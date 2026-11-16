@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom'
+import { API_BASE } from '../api/client'
 import { useConfig } from '../api/hooks'
 import { BrandLockup, Wordmark } from '../components/Shell'
 import { ConceptIcon } from '../components/Icons'
@@ -157,11 +158,11 @@ export default function HomePage() {
           </div>
           <p className="muted small">
             Sample input files:{' '}
-            <a href="/api/inputs/examples/upload/file" download>gene list</a> ·{' '}
-            <a href="/api/inputs/examples/volcano/file" download>volcano table</a> ·{' '}
-            <a href="/api/inputs/examples/reduction/file" download>2D coordinates</a> ·{' '}
-            <a href="/api/inputs/examples/snps/file" download>SNP list</a> ·{' '}
-            <a href="/api/inputs/examples/textmining/file" download>text</a>
+            <a href={`${API_BASE}/inputs/examples/upload/file`} download>gene list</a> ·{' '}
+            <a href={`${API_BASE}/inputs/examples/volcano/file`} download>volcano table</a> ·{' '}
+            <a href={`${API_BASE}/inputs/examples/reduction/file`} download>2D coordinates</a> ·{' '}
+            <a href={`${API_BASE}/inputs/examples/snps/file`} download>SNP list</a> ·{' '}
+            <a href={`${API_BASE}/inputs/examples/textmining/file`} download>text</a>
           </p>
         </details>
       </section>

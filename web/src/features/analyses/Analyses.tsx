@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, getWorkspaceId, saveText } from '../../api/client'
+import { API_BASE, api, getWorkspaceId, saveText } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { NetworkGraph, Plot } from '../../components/charts'
 import { ConceptIcon } from '../../components/Icons'
@@ -155,7 +155,7 @@ export function StartAnalysisDialog({ type, lists, initialListId, onClose, onSta
             </Field>
             <div className="row wrap">
               <button className="btn btn-ghost btn-sm" onClick={loadExample}>Load example</button>
-              <a className="btn btn-ghost btn-sm" href="/api/inputs/examples/metabolites/file">Example file</a>
+              <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/metabolites/file`}>Example file</a>
             </div>
             {source && <p className="muted small example-source">Example: {source}</p>}
             <div className="row wrap">

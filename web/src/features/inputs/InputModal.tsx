@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { api, saveText } from '../../api/client'
+import { API_BASE, api, saveText } from '../../api/client'
 import { useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
@@ -742,7 +742,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
         <div className="row wrap">
           <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={2 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n) }} />
           <button className="btn btn-ghost btn-sm" onClick={ex.load} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
-          <a className="btn btn-ghost btn-sm" href="/api/inputs/examples/expression/file">Example file</a>
+          <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/expression/file`}>Example file</a>
         </div>
         {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
         <ExampleSource text={ex.source} />
@@ -940,7 +940,7 @@ function MirnaInput({ example, onClose, onCreated, title }: P) {
             </Field>
             <div className="row wrap">
               <button className="btn btn-ghost btn-sm" onClick={ex.load} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
-              <a className="btn btn-ghost btn-sm" href="/api/inputs/examples/mirna/file">Example file</a>
+              <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/mirna/file`}>Example file</a>
             </div>
           </div>
           <div className="stack-sm">
