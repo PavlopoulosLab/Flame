@@ -104,7 +104,40 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and dbSNP inputs (10 instead of 3 requests per second; recommended for public servers) |
 | `FLAME_HTTP_PORT` | `8000` | Compose only: host port mapped to `FLAME_PORT` inside the container |
 
-### Docker
+### Docker Hub
+
+<!-- Maintainer note: when releasing a new version, also tag and push `latest`
+     (docker tag pavlopouloslab/flame:X.Y pavlopouloslab/flame:latest && docker push pavlopouloslab/flame:latest),
+     and bump the "3.0" tag used below, in README_DOCKERHUB.md, and in the Dockerfile's image version LABEL. -->
+
+Ready-to-use images are published at [hub.docker.com/r/pavlopouloslab/flame](https://hub.docker.com/r/pavlopouloslab/flame) — no build step needed:
+
+```bash
+docker pull pavlopouloslab/flame:3.0
+docker run -d --name flame -p 8000:8000 -v flame-data:/data pavlopouloslab/flame:3.0
+```
+
+Or with Compose:
+
+```yaml
+services:
+  flame:
+    image: pavlopouloslab/flame:3.0
+    ports:
+      - "8000:8000"
+    volumes:
+      - flame-data:/data
+    restart: unless-stopped
+volumes:
+  flame-data:
+```
+
+Open http://localhost:8000. Set any variable from the table above with `-e` (or `environment:` in Compose);
+`FLAME_HOST` is already `0.0.0.0` inside the image. Pin a version tag (e.g. `3.0`) for reproducible deployments.
+This published image is built for the main path (`FLAME_BASE_PATH=/`); build from source (below) if you need a
+subpath deployment or another `R_VERSION`.
+
+### Docker (build from source)
 
 The `Dockerfile` builds one image with the web app and the REST API (Node builds the web app, then an
 R 4.6 image from rocker installs the R packages and runs the server as an unprivileged user).
@@ -127,8 +160,9 @@ commented out in `.env`, or a missing `.env` file altogether, falls back to the 
 Open http://localhost:8000 (or `FLAME_HTTP_PORT` from `.env`). Workspaces are stored in the `flame-data` volume
 (`/data/flame.sqlite`), so they survive container upgrades. Outside Compose, set the variables in the table
 above with `-e`; `FLAME_HOST` is already `0.0.0.0` inside the image. The container reports its health from
-`/api/v1/health`. Use `--build-arg R_VERSION=…` to build on another R release. The first build takes a while
-(Bioconductor packages); later builds reuse the cached layers unless `install_packages.R` changes.
+`/api/v1/health`. Use `--build-arg R_VERSION=…` to build on another R release, or `--build-arg FLAME_BASE_PATH=…`
+to serve the app under a subpath. The first build takes a while (Bioconductor packages); later builds reuse the
+cached layers unless `install_packages.R` changes.
 
 ### Deployment
 
