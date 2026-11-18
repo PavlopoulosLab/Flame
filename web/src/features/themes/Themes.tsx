@@ -4,7 +4,7 @@ import { api, getWorkspaceId } from '../../api/client'
 import { Plot } from '../../components/charts'
 import { ToolLogo } from '../../components/ToolLogo'
 import { CopyButton, ErrorNote, Spinner } from '../../components/ui'
-import { downloadSvg } from '../../components/viz'
+import { usePlainSelection } from '../../lib/imageExport'
 import { WordCloud, type CloudWord } from '../../components/WordCloud'
 import { saveXlsx } from '../../lib/xlsx'
 import { formatP } from '../../lib/format'
@@ -29,6 +29,7 @@ export function ThemesView({ path, body, terms, onSelect, colorOf, baseName }: {
 }) {
   const [cutoff, setCutoff] = useState(0.35)
   const [word, setWord] = useState<string | null>(null)
+  const shownWord = usePlainSelection(word, null)
   const [showAll, setShowAll] = useState(false)
   const cloudRef = useRef<SVGSVGElement | null>(null)
   const q = useQuery({
@@ -62,10 +63,9 @@ export function ThemesView({ path, body, terms, onSelect, colorOf, baseName }: {
                 { name: 'Terms by theme', rows: d.themes.flatMap((t) => t.terms.map((id) => ({ Theme: t.label, 'Term ID': id, Term: terms.find((x) => x.id === id)?.name ?? '' }))) },
                 { name: 'Word cloud', rows: d.words.map((w) => ({ Word: w.word, Weight: w.weight })) },
               ], `${baseName}_themes.xlsx`)}>Excel</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => downloadSvg(cloudRef.current, `${baseName}_wordcloud`)}>SVG</button>
             </span>
           </div>
-          <WordCloud words={d.words} onWord={pickWord} active={word} svgRef={cloudRef} width={620} height={280} />
+          <WordCloud words={d.words} onWord={pickWord} active={shownWord} svgRef={cloudRef} width={620} height={280} exportName={`${baseName}_wordcloud`} />
           <p className="muted small">Word size = summed −log10 p of the terms using the word (common words such as “regulation” or “process” are left out). Click a word to select its terms.</p>
         </div>
         <div className="chart-card themes-summary">
@@ -75,7 +75,7 @@ export function ThemesView({ path, body, terms, onSelect, colorOf, baseName }: {
           </label>
           <p className="muted small">Lower = fewer, broader themes; higher = more, tighter themes. {d.method}</p>
           {runs.length > 0 && (
-            <Plot height={Math.max(220, 26 * Math.min(d.themes.length, 20) + 90)} data={[{
+            <Plot exportName={`${baseName}_themes`} height={Math.max(220, 26 * Math.min(d.themes.length, 20) + 90)} data={[{
               type: 'heatmap', x: runs.map((r) => r.label), y: d.themes.slice(0, 20).map((t) => (t.label.length > 40 ? `${t.label.slice(0, 39)}…` : t.label)),
               z: d.themes.slice(0, 20).map((t) => runs.map((r) => t.runs?.[r.id]?.terms ?? 0)),
               customdata: d.themes.slice(0, 20).map((t) => runs.map(() => t.id)), colorscale: [[0, '#f5f3ff'], [1, '#6d28d9']],

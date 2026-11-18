@@ -334,7 +334,7 @@ function ApiDocs() {
           </table>
         </section>
       ))}
-      <p className="small muted">Limits: requests up to 2 MB (session files up to 25 MB); 600 requests per minute per address; up to 6 jobs in progress per workspace; Arena3D links last one hour.</p>
+      <p className="small muted">Limits: requests up to 2 MB (session files up to 25 MB); 600 requests per minute per address; up to 8 jobs in progress per workspace; Arena3D links last one hour.</p>
     </article>
   )
 }

@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, isWorkspaceId, setWorkspaceId } from './api/client'
 import { AppShell } from './components/Shell'
+import { ExportImageHost } from './components/ExportImage'
 import { ErrorNote, Spinner } from './components/ui'
 import HomePage from './pages/Home'
 
@@ -148,6 +149,7 @@ export default function App() {
           <Route path="*" element={<ErrorNote error="Page not found." />} />
         </Routes>
       </Suspense>
+      <ExportImageHost />
     </AppShell>
   )
 }

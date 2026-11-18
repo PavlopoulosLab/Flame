@@ -15,7 +15,8 @@ import { useHistory } from '../lib/history'
 import { useNetworkStyle } from '../lib/networkStyle'
 import { LayoutSelect, NetworkOptions } from '../components/NetworkOptions'
 import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, type ViewSettings } from '../features/results/views'
-import { downloadSvg } from '../components/viz'
+import { svgSource } from '../components/viz'
+import { openImageExport, usePlainSelection } from '../lib/imageExport'
 import { saveXlsx, sheetsByCategory, termSheetRows } from '../lib/xlsx'
 import { BackToWorkspace } from '../components/ui'
 import { PaletteSelect } from '../components/PaletteSelect'
@@ -54,6 +55,8 @@ const EXTRA_TABS = [
   { tabId: 'circos', label: 'Circos (bundled)', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'svg', from: 'heatmap-tg' },
 ]
 
+const EMPTY_SELECTION = new Set<string>()
+
 const SORTS = [
   { value: '-log10Pvalue', label: 'Significance' },
   { value: 'Term Coverage', label: 'Term coverage' },
@@ -61,6 +64,10 @@ const SORTS = [
   { value: 'Fold Enrichment', label: 'Fold enrichment' },
   { value: 'NES', label: '|NES| (GSEA)' },
 ]
+// Per-view default for the "by" ranking; views not listed rank by significance.
+const DEFAULT_SORT: Record<string, string> = { dotplot: 'Gene Ratio', barchart: '-log10Pvalue' }
+// Views that share one ranking: the table lists exactly the terms the dotplot draws, in the same order.
+const SORT_GROUP: Record<string, string> = { table: 'dotplot' }
 
 function useDebounced<T>(value: T, ms = 300) {
   const [v, setV] = useState(value)
@@ -85,32 +92,42 @@ function ResultsPageBody() {
   const tabs = [...(config?.resultTabs ?? []), ...EXTRA_TABS]
   const [visible, setVisible] = useState<string[]>(() => {
     try {
-      const saved = sessionStorage.getItem('flame-visible-tabs-v3')
+      const saved = sessionStorage.getItem('flame-visible-tabs-v4')
       if (saved) return JSON.parse(saved)
     } catch { /* ignore */ }
-    return ['table', 'themes', 'dotplot', 'barchart', 'network-tg']
+    return ['table', 'dotplot', 'barchart', 'themes', 'network-tg']
   })
-  const view = tab && tabs.some((t) => t.tabId === tab) ? tab : visible[0] ?? 'table'
+  // Results open on the table unless the URL names another view.
+  const view = tab && tabs.some((t) => t.tabId === tab) ? tab : 'table'
+  // The table tab always comes first.
+  const tabOrder = visible.includes('table') ? ['table', ...visible.filter((v) => v !== 'table')] : visible
   usePaletteKey(view)
   useEffect(() => {
     if (!visible.includes(view)) setVisible((v) => [...v, view])
   }, [view, visible])
   useEffect(() => {
-    try { sessionStorage.setItem('flame-visible-tabs-v3', JSON.stringify(visible)) } catch { /* ignore */ }
+    try { sessionStorage.setItem('flame-visible-tabs-v4', JSON.stringify(visible)) } catch { /* ignore */ }
   }, [visible])
 
   const [filters, setFilters] = useState<ResultFilters>({})
   const [top, setTop] = useState<number | 'all'>(20)
-  const [sortBy, setSortBy] = useState('-log10Pvalue')
+  // The ranking is remembered per view, so the dotplot and barchart keep their own defaults.
+  const [sortByView, setSortByView] = useState<Record<string, string>>({})
   const [settings, setSettings] = useState<ViewSettings>({ labels: 'name', xAxis: 'geneRatio', palette: 'OrRd', layout: 'force', similarityCutoff: 10, minShared: 3 })
   const [columns, setColumns] = useState<string[]>(['source', 'id', 'name', 'pvalue', 'intersection', 'coverage', 'genes'])
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Drawn selection; empty while an image is exported without highlighting.
+  const shownSelection = usePlainSelection(selected, EMPTY_SELECTION)
   useEffect(() => {
     if (run?.paradigm === 'GSEA') {
       setSettings((st) => ({ ...st, xAxis: 'nes', barMetric: 'nes' }))
       setColumns((c) => (c.includes('nes') ? c : [...c.slice(0, 4), 'nes', ...c.slice(4)]))
     }
   }, [run?.paradigm])
+  const isGseaRun = run?.paradigm === 'GSEA'
+  const sortKey = SORT_GROUP[view] ?? view
+  const sortBy = sortByView[sortKey] ?? (sortKey === 'dotplot' && isGseaRun ? 'NES' : DEFAULT_SORT[sortKey]) ?? '-log10Pvalue'
+  const setSortBy = (v: string) => setSortByView((m) => ({ ...m, [sortKey]: v }))
   const [showDetails, setShowDetails] = useState(false)
   const [moreOpen, setMoreOpen] = useState(false)
   const plotRef = useRef<PlotHandle | null>(null)
@@ -118,9 +135,9 @@ function ResultsPageBody() {
   const svgRef = useRef<SVGSVGElement | null>(null)
   // Undo/redo covers filters, ranking, view settings, table columns and the selection.
   const history = useHistory(
-    { filters, top, sortBy, settings, columns, selected: [...selected].sort() },
+    { filters, top, sortByView, settings, columns, selected: [...selected].sort() },
     (snap) => {
-      setFilters(snap.filters); setTop(snap.top); setSortBy(snap.sortBy)
+      setFilters(snap.filters); setTop(snap.top); setSortByView(snap.sortByView)
       setSettings(snap.settings); setColumns(snap.columns); setSelected(new Set(snap.selected))
     },
   )
@@ -162,7 +179,6 @@ function ResultsPageBody() {
   const isNetwork = view.startsWith('network')
   const isSvg = view === 'chord' || view === 'hive' || view === 'circos'
   const isGsea = run.paradigm === 'GSEA'
-  const isPlot = !isNetwork && !isSvg && view !== 'table'
   const arenaView = isNetwork ? view : ({ 'heatmap-tg': 'heatmap-tg', sankey: 'heatmap-tg', hive: 'heatmap-tg', circos: 'heatmap-tg', 'heatmap-tt': 'network-tt', chord: 'network-tt', 'heatmap-gg': 'network-gg' } as Record<string, string>)[view]
   const exportRows = (terms: Term[]) => terms.map((t) => ({ ...t, pvalue: formatP(t.pvalue) }))
   const exportCols = TABLE_COLUMNS.map((c) => ({ key: c.key, label: c.label }))
@@ -186,7 +202,7 @@ function ResultsPageBody() {
       ) : (
         <>
           <nav className="view-tabs" aria-label="Result views">
-            {visible.map((id) => {
+            {tabOrder.map((id) => {
               const t = tabs.find((x) => x.tabId === id)
               if (!t) return null
               return (
@@ -308,9 +324,12 @@ function ResultsPageBody() {
                 <PaletteSelect />
                 <UndoRedoButtons h={history} />
                 <ExportMenu items={[
-                  ...(isPlot ? [{ label: 'PNG image', run: () => plotRef.current?.toImage('png', baseName) }, { label: 'SVG image', run: () => plotRef.current?.toImage('svg', baseName) }] : []),
-                  ...(isNetwork ? [{ label: 'PNG image', run: () => networkRef.current?.toPng(baseName) }] : []),
-                  ...(isSvg ? [{ label: 'SVG image', run: () => downloadSvg(svgRef.current, `${baseName}_${view}`) }] : []),
+                  ...(view !== 'table' && view !== 'themes' ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
+                    const name = `${baseName}_${view}`
+                    if (isNetwork) networkRef.current?.exportImage(name)
+                    else if (isSvg) { const src = svgSource(svgRef.current, name); if (src) openImageExport(src) }
+                    else plotRef.current?.exportImage(name)
+                  } }] : []),
                   { label: 'Shown terms (Excel)', run: () => saveXlsx(sheetsByCategory(termSheetRows(q.data?.terms ?? []), 'Source', 'All terms'), `${baseName}_${view}.xlsx`) },
                   { label: 'All filtered terms (Excel, one sheet per source)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
                       .then((d) => saveXlsx(sheetsByCategory(termSheetRows(d.terms), 'Source', 'All terms'), `${baseName}_all.xlsx`)) },
@@ -329,7 +348,7 @@ function ResultsPageBody() {
               {q.isLoading && <Spinner />}
               {q.data && q.data.shownCount === 0 && <Note kind="warning">No terms match the current filters.</Note>}
               {q.data && q.data.shownCount > 0 && (() => {
-                const props = { data: q.data, config, settings, selected, onSelect, plotRef, networkRef, networkStyle: netStyle.style }
+                const props = { data: q.data, config, settings, selected: shownSelection, onSelect, plotRef, networkRef, networkStyle: netStyle.style, exportName: `${baseName}_${view}` }
                 switch (view) {
                   case 'dotplot': return <DotplotView {...props} />
                   case 'barchart': return <BarchartView {...props} />

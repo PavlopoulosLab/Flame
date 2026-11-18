@@ -128,7 +128,14 @@ export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: 
         </section>
 
         <section>
-          <h3>2 · Which tools</h3>
+          <div className="row between">
+            <h3>2 · Which tools</h3>
+            <span className="row">
+              <button className="btn btn-ghost btn-sm" title="Select every tool that offers this analysis type and supports the list's organism"
+                onClick={() => setTools((config?.tools ?? []).filter((t) => toolOffers(t.key) && supported(t.key)).map((t) => t.key))}>Select all</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setTools([])}>Clear</button>
+            </span>
+          </div>
           <div className="chip-grid">
             {(config?.tools ?? []).map((t) => {
               if (!toolOffers(t.key)) return null

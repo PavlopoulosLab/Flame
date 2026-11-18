@@ -9,7 +9,8 @@
     list(
       key = t$key, id = t$toolId, label = t$label, name = cfg$name %||% t$label,
       paradigms = as.list(cfg$paradigms),
-      datasources = as.list(cfg$datasources %||% character(0)),
+      # Tools with organism-specific sources (Enrichr, GeneCodis) have no plain list: offer the union.
+      datasources = as.list(cfg$datasources %||% unique(unlist(cfg$organismDatasources)) %||% character(0)),
       metrics = lapply(names(metrics), function(n) list(label = n, value = as.character(metrics[[n]]))),
       defaultMetricGenome = cfg$defaultMetricGenome,
       defaultMetricBackground = cfg$defaultMetricBackground,

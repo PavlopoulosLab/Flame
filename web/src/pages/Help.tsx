@@ -256,7 +256,7 @@ const TOPICS: Topic[] = [
           <li><strong>Interaction</strong> — zoom buttons and arrow keys, node dragging, hiding edges while panning (faster for large networks).</li>
           <li><strong>Clusters</strong> — <em>Group hubs</em> collapses each highly connected node with its neighbours; <em>Group leaves</em> folds nodes with a single link into their neighbour. Double-click a cluster to open it, or <em>Open all</em>.</li>
         </ul>
-        <p>The same options are available for the STRING network under Quick actions. Style choices are kept for the browser session; PNG export captures the network as shown.</p>
+        <p>The same options are available for the STRING network under Quick actions. Style choices are kept for the browser session; ⤓ Image saves the whole network or the current view.</p>
         <h3>Open in Arena3D or NORMA</h3>
         <p><em>Arena3D ↗</em> (network, heatmap, Sankey, chord and hive views) opens the view in <a href="https://www.arena3d.org/" target="_blank" rel="noopener noreferrer">Arena3D</a> as a 3D multilayer network: the terms of each annotation source on their own layer and the genes on another. <em>NORMA ↗</em> (network views) opens it in <a href="https://normaviz.org/" target="_blank" rel="noopener noreferrer">NORMA</a>, with terms drawn as annotated groups. Only the shown network (term names, IDs and genes) is sent; the link opens in a new tab and expires after a while (one hour for Arena3D).</p>
         <h3>Pathway maps and gene pages</h3>
@@ -266,7 +266,7 @@ const TOPICS: Topic[] = [
         <h3>Selecting and exporting</h3>
         <p>Click (shift-click to add) or box/lasso-select terms in any view; they collect in the <em>Selected</em> panel with their genes and database links, and stay selected when you switch views. Below them, the <strong>Genes</strong> list ranks every gene of the selected terms — by how many selected terms contain it, by how many significant terms contain it (the default when one term is selected), by its score in your list (ranked lists) or by its position in your list. Click a gene to see its terms, open it in gene databases, or add every significant term that contains it.</p>
         <p><strong>Themes</strong> group overlapping terms that share most of their genes (Jaccard index ≥ the cutoff, Louvain communities), name each theme after its most significant term and summarise it with keywords. The <strong>word cloud</strong> sizes each word of the term names by the summed −log10 p of the terms that use it; click a word to select those terms.</p>
-        <p>Every table lists the genes behind each term (all of them, as in Flame 2.0). Export tables, selections and analysis results as <strong>Excel</strong> workbooks — one sheet with all terms plus one sheet per annotation source (GO:BP, KEGG, Reactome…), with the genes of every term — or as CSV, HTML or print/PDF; figures as PNG or SVG. Changes to filters, view settings and the selection can be undone and redone with the ↶ ↷ buttons or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> and <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>.</p>
+        <p>Every table lists the genes behind each term (all of them, as in Flame 2.0). Export tables, selections and analysis results as <strong>Excel</strong> workbooks — one sheet with all terms plus one sheet per annotation source (GO:BP, KEGG, Reactome…), with the genes of every term — or as CSV, HTML or print/PDF. Every figure has an <strong>⤓ Image</strong> button: save it as PNG, SVG (vector), PDF, JPEG or WebP, at 1×–4× resolution (96–384 dpi), on the theme colour, white or a transparent background, with or without its legend and the selection highlighting. Changes to filters, view settings and the selection can be undone and redone with the ↶ ↷ buttons or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd> and <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>.</p>
         <p><Example kind="demo">See live sample output</Example></p>
       </>
     ),
@@ -315,7 +315,7 @@ const TOPICS: Topic[] = [
         <h3>Find orthologs</h3>
         <p>Maps a list to the corresponding genes of another organism with g:Orth — useful for running mouse data through human-only resources.</p>
         <h3>Protein interaction network</h3>
-        <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Download the network as TSV or PNG, open it in STRING or in Arena3D (each evidence type becomes its own edge channel), or save its proteins as a list.</p>
+        <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Download the network as TSV or as an image (PNG, SVG, PDF, JPEG, WebP), open it in STRING or in Arena3D (each evidence type becomes its own edge channel), or save its proteins as a list.</p>
       </>
     ),
   },
@@ -416,7 +416,7 @@ const TOPICS: Topic[] = [
           <li><strong>Pastel</strong> — soft colours for posters and backgrounds.</li>
           <li><strong>Grayscale (print)</strong> — shades of grey for black-and-white printing.</li>
         </ul>
-        <p>Continuous scales always run from light (weak) to dark (strong). Exported PNG and SVG figures use the palette of that visualization. The ☾ button switches between light and dark themes.</p>
+        <p>Continuous scales always run from light (weak) to dark (strong). Exported figures use the palette of that visualization. The ☾ button switches between light and dark themes.</p>
         <h3>Undo and redo</h3>
         <p>On result and comparison pages, ↶ and ↷ (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd>) step through changes to the view, filters, settings and selection. In the workspace, deleting or renaming a list, removing a run, or clearing all data shows an <em>Undo</em> button for a few seconds before it takes effect.</p>
         <h3>Selecting in charts</h3>

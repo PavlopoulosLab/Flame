@@ -9,6 +9,10 @@ import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib
 import { METHODS, type InputKind } from './MethodPicker'
 import { FetchInput } from './FetchInput'
 import { saveXlsx } from '../../lib/xlsx'
+import { usePlainSelection } from '../../lib/imageExport'
+import { ExportImageButton } from '../../components/ExportImage'
+import { htmlSource } from '../../components/viz'
+const NO_SET = new Set<string>()
 
 interface Props {
   kind: InputKind
@@ -350,6 +354,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
   const fmtP = (v: number) => (v >= 0.001 ? String(Number(v.toPrecision(3))) : v.toExponential(1))
   const [points, setPoints] = useState<{ points: (VolcanoPoint | ReductionPoint)[]; plotted: number; total: number; counts?: Record<string, number>; colorType?: string } | null>(null)
   const [sel, setSel] = useState<Set<string>>(new Set())
+  const selV = usePlainSelection(sel, NO_SET) // none while an image is exported without highlighting
   const [organism, setOrganism] = useState(9606)
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const [err, setErr] = useState<unknown>(null)
@@ -413,7 +418,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
           x: pts.map((x) => x.logfc), y: pts.map((x) => x.negLog10p), customdata: pts.map((x) => x.pointId),
           text: pts.map((x) => `${x.id}<br>log2FC ${x.logfc.toFixed(2)}<br>p ${x.pvalue.toExponential(2)}`),
           hoverinfo: 'text' as const,
-          marker: { color: g.color, size: 6, opacity: 0.75, line: { width: pts.map((x) => (sel.has(x.pointId) ? 2 : 0)), color: '#f97316' } },
+          marker: { color: g.color, size: 6, opacity: 0.75, line: { width: pts.map((x) => (selV.has(x.pointId) ? 2 : 0)), color: '#f97316' } },
         }
       })
     }
@@ -428,12 +433,12 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
         marker: {
           size: sub.map((x) => (x.size != null ? Math.max(4, Math.min(18, x.size)) : 7)), opacity: 0.8,
           ...(points.colorType === 'continuous' ? { color: sub.map((x) => Number(x.color)), colorscale: 'Viridis', showscale: true } : {}),
-          line: { width: sub.map((x) => (sel.has(x.pointId) ? 2 : 0)), color: '#f97316' },
+          line: { width: sub.map((x) => (selV.has(x.pointId) ? 2 : 0)), color: '#f97316' },
         },
       }
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, isVolcano, sel, mapping.color, rc, p, lfc])
+  }, [points, isVolcano, selV, mapping.color, rc, p, lfc])
 
   const quick = (status: 'sig' | 'up' | 'down') => {
     const pts = (points?.points ?? []) as VolcanoPoint[]
@@ -571,6 +576,8 @@ function Upset({ lists, onClose, onCreated, title }: P) {
   const [mode, setMode] = useState<'intersection' | 'distinct' | 'union'>('distinct')
   const [res, setRes] = useState<UpsetResult | null>(null)
   const [active, setActive] = useState<Combo | null>(null)
+  const activeShown = usePlainSelection(active, null) // none while an image is exported without highlighting
+  const upsetRef = useRef<HTMLDivElement | null>(null)
   const [err, setErr] = useState<unknown>(null)
   const first = lists.find((l) => l.id === picked[0])
   const compatible = (l: AnalyteList) => !first || (l.organismTaxId === first.organismTaxId && l.idFormat === first.idFormat && l.analyteType === first.analyteType)
@@ -613,9 +620,9 @@ function Upset({ lists, onClose, onCreated, title }: P) {
           <ErrorNote error={err} />
           {!res && <p className="muted">Select at least two lists.</p>}
           {res && (
-            <div className="upset" role="list">
+            <div className="upset" role="list" ref={upsetRef}>
               {res.combinations.map((c) => (
-                <button key={c.id} role="listitem" className={`upset-row${active?.id === c.id ? ' active' : ''}`} onClick={() => setActive(c)}>
+                <button key={c.id} role="listitem" className={`upset-row${activeShown?.id === c.id ? ' active' : ''}`} onClick={() => setActive(c)}>
                   <span className="upset-dots" aria-hidden="true">
                     {res.sets.map((s) => <span key={s.name} className={c.sourceNames.includes(s.name) ? 'on' : ''} />)}
                   </span>
@@ -625,7 +632,8 @@ function Upset({ lists, onClose, onCreated, title }: P) {
                 </button>
               ))}
               <p className="muted small">Dots, left to right: {res.sets.map((s) => s.name).join(', ')}</p>
-              <div className="row wrap">
+              <div className="row wrap" data-no-export="">
+                <ExportImageButton source={() => htmlSource(upsetRef.current, `flame_upset_${res.mode}`)} />
                 <span className="muted small">All combinations:</span>
                 <CopyButton label="Copy table" text={['combination\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.count}\t${c.ids.join(',')}`)].join('\n')} />
                 <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary and one sheet per combination" onClick={() => saveXlsx([
@@ -693,6 +701,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
   const [ov, setOv] = useState<ExprOverview | null>(null)
   const [view, setView] = useState<'clusters' | 'map' | 'groups' | 'activity'>(initialView === 'activity' ? 'activity' : 'clusters')
   const [sel, setSel] = useState<Set<string>>(new Set())
+  const selV = usePlainSelection(sel, NO_SET) // none while an image is exported without highlighting
   const [groups, setGroups] = useState<Record<string, 'A' | 'B' | ''>>({})
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
@@ -784,7 +793,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
                   const g = ov.genes.filter((x) => x.cluster === Number(c))
                   return { type: 'scatter', mode: 'markers', name: `Cluster ${c}`, x: g.map((p) => p.x), y: g.map((p) => p.y), customdata: g.map((p) => p.id), text: g.map((p) => p.id),
                     hovertemplate: '%{text}<extra>%{fullData.name}</extra>',
-                    marker: { size: g.map((p) => (sel.has(p.id) ? 9 : 6)), color: clusterColor(Number(c)), opacity: 0.8, line: { width: g.map((p) => (sel.has(p.id) ? 1.5 : 0)), color: '#111827' } } }
+                    marker: { size: g.map((p) => (selV.has(p.id) ? 9 : 6)), color: clusterColor(Number(c)), opacity: 0.8, line: { width: g.map((p) => (selV.has(p.id) ? 1.5 : 0)), color: '#111827' } } }
                 })}
                 layout={{ xaxis: { title: { text: `PC1 (${ov.variance[0]}%)` } }, yaxis: { title: { text: `PC2 (${ov.variance[1] ?? 0}%)` } }, legend: { orientation: 'h', y: -0.2 } }} />
             )}

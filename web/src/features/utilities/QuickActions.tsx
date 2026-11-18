@@ -290,7 +290,7 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
             </button>
           </div>
           {modTask && mod.data?.status !== 'complete' && (mod.data?.status === 'error' ? <ErrorNote error={new Error(mod.data.error ?? 'Module search failed')} /> : <ProgressBar progress={mod.data?.progress} status="running" />)}
-          <NetworkGraph nodes={graph.nodes} edges={graph.edges} handleRef={net} style={ppiStyle.style} height={480} selected={picked}
+          <NetworkGraph exportName={`${list.name}_string_network`} nodes={graph.nodes} edges={graph.edges} handleRef={net} style={ppiStyle.style} height={480} selected={picked}
             onSelect={(ids, add) => setPicked((cur) => (add ? [...new Set([...cur, ...ids])] : ids))} />
           {picked.length > 0 && (
             <div className="row wrap">
@@ -311,7 +311,7 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
                 { name: 'Module terms', rows: modules.modules.flatMap((m) => m.terms.map((t) => ({ Module: m.id, Source: t.source, 'Term ID': t.id, Term: t.name, 'Adjusted p': t.p, Genes: t.genes ?? '' }))) }] : []),
             ], `${list.name}_string_network.xlsx`)}>Download Excel</button>
             <button className="btn btn-ghost" onClick={() => saveText(res.tsv, `${list.name}_string_network.tsv`, 'text/tab-separated-values')}>Download TSV</button>
-            <button className="btn btn-ghost" onClick={() => net.current?.toPng(`${list.name}_string_network.png`)}>Download PNG</button>
+            <button className="btn btn-ghost" onClick={() => net.current?.exportImage(`${list.name}_string_network`)}>Save image…</button>
             <OpenExternalButton className="btn btn-secondary" path="/utilities/ppi/arena3d" label="Arena3D" caption="evidence types as 3D channels" icon={<Arena3DIcon />}
               body={{ listId: list.id, networkType: type, networkEdges: edgesMode, score: Number(score) }}
               title="Open in Arena3D (3D): each STRING evidence type becomes its own edge channel" />

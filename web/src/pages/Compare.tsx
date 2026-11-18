@@ -7,7 +7,8 @@ import type { ComparisonData, ComparisonFilters, ComparisonTerm } from '../api/t
 import { Plot, type PlotHandle } from '../components/charts'
 import { BackToWorkspace, CopyButton, ErrorNote, Field, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { ExportMenu } from './Results'
-import { ChordDiagram, CircosBundle, SetOverlapUpSet, downloadSvg } from '../components/viz'
+import { ChordDiagram, CircosBundle, SetOverlapUpSet } from '../components/viz'
+import { usePlainSelection } from '../lib/imageExport'
 import { UndoRedoButtons } from '../components/Undo'
 import { ComparisonStatistics } from '../features/compare/Statistics'
 import { CompareTable } from '../features/compare/CompareTable'
@@ -29,6 +30,8 @@ function useDebounced<T>(v: T, ms = 300) {
   return d
 }
 
+const EMPTY_SELECTION = new Set<string>()
+
 export default function ComparePage() {
   return <PaletteScope id="compare"><ComparePageBody /></PaletteScope>
 }
@@ -46,6 +49,8 @@ function ComparePageBody() {
   const [labels, setLabels] = useState<'Function' | 'Term_ID'>('Function')
   const [showLabels, setShowLabels] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Drawn selection; empty while an image is exported without highlighting.
+  const shownSel = usePlainSelection(selected, EMPTY_SELECTION)
   const plotRef = useRef<PlotHandle | null>(null)
   const svgRef = useRef<SVGSVGElement | null>(null)
   const [circosTop, setCircosTop] = useState<number | 'all'>(60)
@@ -184,18 +189,16 @@ function ComparePageBody() {
                 const rs = t.runIds.filter((r) => activeIds.includes(r))
                 return rs.flatMap((a, i) => rs.slice(i + 1).map((b) => ({ source: `${a}::${t.id}`, target: `${b}::${t.id}`, color: srcColor(t.source), title: `${t.name}: ${a} ↔ ${b}` })))
               })
-              const selKeys = new Set(items.filter((it) => selected.has(it.id.split('::')[1])).map((it) => it.id))
+              const selKeys = new Set(items.filter((it) => shownSel.has(it.id.split('::')[1])).map((it) => it.id))
               return (
                 <>
                   <div className="toolbar">
                     <label>Show <select className="input input-sm" value={String(circosTop)} onChange={(e) => setCircosTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                       {[30, 60, 100, 200].map((n) => <option key={n} value={n}>top {n} terms</option>)}<option value="all">all terms</option></select></label>
-                    <span className="toolbar-spacer" />
-                    <button className="btn btn-secondary btn-sm" onClick={() => downloadSvg(svgRef.current, 'flame_comparison_circos')}>SVG image</button>
                   </div>
                   <p className="muted small">One sector per run, holding the terms it found (coloured by source, in the same order in every run). Bundled links join the same term across runs, so consensus terms form thick bundles and run-specific terms have none. Outer bars: combined −log10 p.</p>
                   <CircosBundle sectors={active.map((r, i) => ({ id: r.id, label: r.label, color: runColors[i] }))} items={items} links={links}
-                    svgRef={svgRef} selected={selKeys} trackLabel="combined −log10 p" linkLabel="shared-term links" defaultLabels={items.length <= 120}
+                    svgRef={svgRef} exportName="flame_comparison_circos" selected={selKeys} trackLabel="combined −log10 p" linkLabel="shared-term links" defaultLabels={items.length <= 120}
                     onSelect={(ids, add) => onSelect([...new Set(ids.map((id) => id.split('::')[1]))], add)} />
                 </>
               )
@@ -208,10 +211,9 @@ function ComparePageBody() {
             })
             return (
               <>
-                <div className="toolbar"><span className="toolbar-spacer" /><button className="btn btn-secondary btn-sm" onClick={() => downloadSvg(svgRef.current, 'flame_comparison_chord')}>SVG image</button></div>
                 <p className="muted small">Arcs are runs; ribbons show how many terms two runs share. Click a ribbon to select the terms both runs found.</p>
                 {m.every((row) => row.every((v) => v === 0)) ? <Note kind="warning">The runs share no terms under the current filters.</Note> :
-                  <ChordDiagram names={active.map((r) => r.label)} matrix={m} colors={runColors} svgRef={svgRef} unit="shared terms"
+                  <ChordDiagram names={active.map((r) => r.label)} matrix={m} colors={runColors} svgRef={svgRef} exportName="flame_comparison_chord" unit="shared terms"
                     onSelect={(i, j) => onSelect(q.data!.terms.filter((t) => t.runIds.includes(ids[i]) && (j === undefined || t.runIds.includes(ids[j]))).map((t) => t.id), false)} />}
               </>
             )
@@ -222,7 +224,7 @@ function ComparePageBody() {
               colors={Object.fromEntries(q.data.runs.map((r, i, all) => [r.id, categoricalColor(pm, r.tool, all.map((x) => x.tool), ['#f97316', '#8b5cf6', '#e11d48', '#6366f1'][i % 4])]))} />
           )}
           {view === 'ranks' && q.data && (
-            <RankChart terms={q.data.terms} runs={q.data.runs.filter((r) => q.data!.activeRunIds.includes(r.id))} selected={selected} onSelect={onSelect} labels={labels}
+            <RankChart terms={q.data.terms} runs={q.data.runs.filter((r) => q.data!.activeRunIds.includes(r.id))} selected={shownSel} onSelect={onSelect} labels={labels}
               colorOf={(src) => categoricalColor(pm, src, q.data?.availableSources ?? [], config.datasourceColors[src])} />
           )}
           {view === 'themes' && (
@@ -241,7 +243,7 @@ function ComparePageBody() {
               {view === 'bubble' && <label className="check"><input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} /> Show labels</label>}
               <label>Labels <select className="input input-sm" value={labels} onChange={(e) => setLabels(e.target.value as 'Function' | 'Term_ID')}><option value="Function">Term names</option><option value="Term_ID">Term IDs</option></select></label>
               <span className="toolbar-spacer" />
-              <ExportMenu items={[{ label: 'PNG image', run: () => plotRef.current?.toImage('png', 'flame_comparison') }, { label: 'SVG image', run: () => plotRef.current?.toImage('svg', 'flame_comparison') }]} />
+              <ExportMenu items={[{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => plotRef.current?.exportImage(`flame_comparison_${view}`) }]} />
             </div>
           )}
           <ErrorNote error={q.error} />
@@ -251,14 +253,14 @@ function ComparePageBody() {
             <Overview data={q.data} colors={roleColors(pm).series} onBubble={(metric, runId) => overviewClick('bubble', metric, runId)} onPin={(metric) => overviewClick('pin', metric)} plotRef={plotRef} />
           )}
           {q.data && q.data.terms.length > 0 && view === 'bubble' && (
-            <Plot handleRef={plotRef} height={520} onSelect={onSelect} data={[...new Set(q.data.terms.map((t) => t.source))].map((src) => {
+            <Plot handleRef={plotRef} exportName={`flame_comparison_${view}`} height={520} onSelect={onSelect} data={[...new Set(q.data.terms.map((t) => t.source))].map((src) => {
               const ts = q.data!.terms.filter((t) => t.source === src)
               return {
                 type: 'scatter' as const, mode: (showLabels ? 'text+markers' : 'markers') as 'markers', name: src, x: ts.map((t) => t.foldEnrichment ?? 0), y: ts.map((t) => t.negLog10p ?? 0),
                 customdata: ts.map((t) => t.id), text: ts.map(label), textposition: 'top center' as const, textfont: { size: 10 },
                 hovertext: ts.map((t) => `${t.name}<br>${t.id}<br>found by ${t.agreement} run(s)<br>combined p = ${formatP(t.activeCombPvalue)}`), hoverinfo: 'text' as const,
                 marker: { size: ts.map((t) => 10 + 8 * (t.agreement ?? 1)), color: categoricalColor(pm, src, q.data!.availableSources, config.datasourceColors[src]), opacity: 0.8,
-                  line: { width: ts.map((t) => (selected.has(t.id) ? 3 : 0)), color: '#f97316' } },
+                  line: { width: ts.map((t) => (shownSel.has(t.id) ? 3 : 0)), color: '#f97316' } },
               }
             })} layout={{ xaxis: { title: { text: 'Mean fold enrichment (active runs)' } }, yaxis: { title: { text: '−log10 combined p-value' } }, legend: { orientation: 'h', y: -0.2 } }} />
           )}
@@ -267,7 +269,7 @@ function ComparePageBody() {
             const runIdsActive = d.activeRunIds
             const runLabel = (id: string) => d.runs.find((r) => r.id === id)?.label ?? id
             const val = new Map((d.cells ?? []).map((c) => [`${c.term}|${c.run}`, c.value]))
-            return <Plot handleRef={plotRef} height={Math.max(360, 26 * d.terms.length + 120)} onSelect={onSelect} data={[{
+            return <Plot handleRef={plotRef} exportName={`flame_comparison_${view}`} height={Math.max(360, 26 * d.terms.length + 120)} onSelect={onSelect} data={[{
               type: 'heatmap' as const, x: runIdsActive.map(runLabel), y: d.terms.map((t) => `${label(t)} [${t.source}]`),
               z: d.terms.map((t) => runIdsActive.map((r) => val.get(`${t.id}|${r}`) ?? null)) as number[][],
               customdata: d.terms.map((t) => runIdsActive.map(() => t.id)) as unknown as string[],
@@ -342,7 +344,7 @@ function Overview({ data, colors: series, onBubble, onPin, plotRef }: { data: Co
           </button>
         ))}
       </div>
-      <Plot handleRef={plotRef} height={380} data={metrics.map((m) => ({
+      <Plot handleRef={plotRef} exportName="flame_comparison_overview" height={380} data={metrics.map((m) => ({
         type: 'bar' as const, name: chart.metricLabels[m], x: chart.runs.map((r) => r.runLabel), y: chart.runs.map((r) => r[m]),
         customdata: chart.runs.map((r) => `${m}|${r.runId}`), marker: { color: colors[m] }, hovertemplate: `%{x}<br>${chart.metricLabels[m]}: %{y}<extra></extra>`,
       }))} layout={{ barmode: 'group', yaxis: { title: { text: 'Terms' } }, legend: { orientation: 'h', y: -0.2 } }}

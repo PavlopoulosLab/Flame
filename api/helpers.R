@@ -8,7 +8,7 @@ FLAME_LIMITS <- list(
   maxLists        = as.integer(Sys.getenv("FLAME_MAX_LISTS", "10")),
   maxIdsPerList   = 3000L,
   maxRuns         = as.integer(Sys.getenv("FLAME_MAX_RUNS", "60")),
-  maxActiveJobs   = as.integer(Sys.getenv("FLAME_MAX_ACTIVE_JOBS", "6")),
+  maxActiveJobs   = as.integer(Sys.getenv("FLAME_MAX_ACTIVE_JOBS", "8")),
   maxTextBytes    = 1024L * 1024L,          # 1 MB pasted/uploaded text
   maxNameChars    = 80L,
   retentionDays   = as.numeric(Sys.getenv("FLAME_RETENTION_DAYS", "30")),

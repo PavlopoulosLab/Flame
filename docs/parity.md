@@ -61,7 +61,7 @@ custom GMT upload dialog, workspace undo toasts, the disease / PubMed / GEO / db
 ## Results (per run)
 - [x] Table first, dot plot, bar chart, scatter, Sankey, chord, hive, Circos, themes and word cloud
 - [ ] Heatmaps T×G / G×G and term–term / gene–gene networks (T×T and term–gene verified)
-- [x] Filters, search grammar, Top N, sort, undo/redo, exports (PNG/SVG/CSV/HTML/print)
+- [x] Filters, search grammar, Top N, sort, undo/redo, exports (PNG/SVG/PDF/JPEG/WebP images with resolution, background and legend options; CSV/HTML/print)
 - [x] Selection panel with ranked, clickable genes (GeneCards links), pathway links (KEGG colouring), copy buttons
 - [x] Arena3D and NORMA buttons; each view has its own colour palette
 

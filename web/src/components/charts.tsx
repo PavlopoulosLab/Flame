@@ -6,6 +6,8 @@ import 'vis-network/styles/vis-network.css'
 import { DEFAULT_STYLE, visOptions, type NetworkStyle } from '../lib/networkStyle'
 import { BrushModes, pointInPolygon, useBrush, type BrushMode } from '../lib/brush'
 import { categorical, usePaletteMode, type PaletteMode } from '../lib/palette'
+import { ExportImageButton } from './ExportImage'
+import { LIGHT, openImageExport, type ImageSource, type RenderOptions } from '../lib/imageExport'
 
 type PlotData = Partial<Plotly.PlotData>[]
 
@@ -25,7 +27,55 @@ function themeLayout(pm: PaletteMode = 'flame'): Partial<Plotly.Layout> {
 }
 
 export interface PlotHandle {
-  toImage: (format: 'png' | 'svg', filename: string) => void
+  /** Open the export dialog for this chart. */
+  exportImage: (name?: string) => void
+}
+
+type Gd = HTMLElement & { data: Record<string, unknown>[]; layout: Record<string, unknown>; _fullData?: Record<string, unknown>[]; _fullLayout?: Record<string, unknown> }
+
+/** Shapes and annotations whose `name` starts with "legend" belong to a hand-drawn legend. */
+const isLegendItem = (x: unknown) => String((x as { name?: string })?.name ?? '').startsWith('legend')
+
+function plotHasLegend(gd: Gd) {
+  const full = gd._fullData ?? []
+  return !!gd._fullLayout?.showlegend || full.some((t) => t.showscale || (t.marker as { showscale?: boolean } | undefined)?.showscale)
+    || ((gd.layout.shapes as unknown[] | undefined) ?? []).some(isLegendItem)
+}
+
+/** The chart as an export figure: background, light text on white, legend on/off. */
+function exportFigure(gd: Gd, o: RenderOptions) {
+  const data = JSON.parse(JSON.stringify(gd.data)) as Record<string, unknown>[]
+  const layout = JSON.parse(JSON.stringify(gd.layout)) as Record<string, unknown>
+  delete layout.selections // the drag rectangle / lasso outline
+  layout.paper_bgcolor = o.background ?? 'rgba(0,0,0,0)'
+  layout.plot_bgcolor = 'rgba(0,0,0,0)'
+  if (o.light) {
+    layout.font = { ...(layout.font as object), color: LIGHT.text }
+    Object.keys(layout).filter((k) => /^[xy]axis\d*$/.test(k)).forEach((k) => {
+      layout[k] = { ...(layout[k] as object), gridcolor: LIGHT.grid, zerolinecolor: LIGHT.grid, linecolor: LIGHT.grid }
+    })
+  }
+  if (!o.legend) {
+    layout.showlegend = false
+    data.forEach((t) => { t.showscale = false; if (t.marker) (t.marker as Record<string, unknown>).showscale = false })
+    if (Array.isArray(layout.shapes)) layout.shapes = layout.shapes.filter((x) => !isLegendItem(x))
+    if (Array.isArray(layout.annotations)) layout.annotations = layout.annotations.filter((x) => !isLegendItem(x))
+  }
+  return { data, layout }
+}
+
+/** Export source for a Plotly chart element. */
+export function plotSource(el: HTMLElement, name: string, selectable: boolean): ImageSource {
+  const gd = el as Gd
+  return {
+    name,
+    size: () => ({ w: gd.clientWidth, h: gd.clientHeight }),
+    features: { legend: plotHasLegend(gd), selection: selectable },
+    svg: async (o) => {
+      const url = await Plotly.toImage(exportFigure(gd, o) as never, { format: 'svg', width: gd.clientWidth, height: gd.clientHeight })
+      return decodeURIComponent(url.replace(/^data:image\/svg\+xml,/, ''))
+    },
+  }
 }
 
 /**
@@ -40,6 +90,7 @@ export function Plot({
   handleRef,
   dragmode,
   onShapesMoved,
+  exportName = 'flame_plot',
 }: {
   data: PlotData
   layout?: Partial<Plotly.Layout>
@@ -49,12 +100,16 @@ export function Plot({
   dragmode?: 'zoom' | 'select' | 'lasso' | 'pan'
   /** Makes layout shapes draggable; receives Plotly's relayout update (e.g. "shapes[0].y0"). */
   onShapesMoved?: (update: Record<string, number>) => void
+  /** Default file name when the chart is saved as an image. */
+  exportName?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
   const shapesRef = useRef(onShapesMoved)
   shapesRef.current = onShapesMoved
+  const nameRef = useRef(exportName)
+  nameRef.current = exportName
   // Box / lasso selection works on point-like traces (scatter, bar, box, histogram).
   const selectable = !!onSelect && data.some((t) => ['scatter', 'scattergl', 'bar', 'box', 'histogram', 'violin', undefined].includes((t as { type?: string }).type)
     && !((t as { mode?: string }).mode ?? '').startsWith('lines') || (t as { mode?: string }).mode === 'lines+markers')
@@ -108,11 +163,7 @@ export function Plot({
       selectRef.current?.(ids, false)
     })
     if (handleRef) {
-      handleRef.current = {
-        toImage: (format, filename) => {
-          Plotly.downloadImage(el, { format, filename, width: el.clientWidth, height: el.clientHeight })
-        },
-      }
+      handleRef.current = { exportImage: (name) => openImageExport(plotSource(el, name ?? nameRef.current, !!selectRef.current)) }
     }
   }, [data, layout, height, mode, handleRef, cb])
 
@@ -125,14 +176,17 @@ export function Plot({
 
   return (
     <>
-      {selectable && (
-        <div className="plot-modes" role="radiogroup" aria-label="Mouse mode">
-          {([['select', '▭ Box select'], ['lasso', '◌ Lasso'], ['zoom', '⌕ Zoom'], ['pan', '✥ Pan']] as const).map(([m, l]) => (
-            <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}
-              title={m === 'select' || m === 'lasso' ? 'Drag to select (Shift-click adds single items); double-click to clear' : m === 'zoom' ? 'Drag to zoom; double-click to reset' : 'Drag to move'}>{l}</button>
-          ))}
-        </div>
-      )}
+      <div className="plot-tools">
+        {selectable && (
+          <div className="plot-modes" role="radiogroup" aria-label="Mouse mode">
+            {([['select', '▭ Box select'], ['lasso', '◌ Lasso'], ['zoom', '⌕ Zoom'], ['pan', '✥ Pan']] as const).map(([m, l]) => (
+              <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}
+                title={m === 'select' || m === 'lasso' ? 'Drag to select (Shift-click adds single items); double-click to clear' : m === 'zoom' ? 'Drag to zoom; double-click to reset' : 'Drag to move'}>{l}</button>
+            ))}
+          </div>
+        )}
+        <ExportImageButton source={() => (ref.current ? plotSource(ref.current, exportName, !!onSelect) : null)} />
+      </div>
       <div ref={ref} className="plot" />
     </>
   )
@@ -147,6 +201,95 @@ export interface NetworkHandle {
   openClusters: () => void
   /** Start or stop the physics simulation. */
   setPhysicsRunning: (on: boolean) => void
+  /** Open the export dialog for this network. */
+  exportImage: (name?: string) => void
+}
+
+// vis-network internals used to redraw a network as SVG.
+interface VisNode { id: string; x: number; y: number; selected?: boolean; labelModule?: { size?: { left: number; top: number; width: number; height: number } }; options: { shape: string; size: number; label?: string; hidden?: boolean; borderWidth?: number;
+  color: { background: string; border: string; highlight?: { border?: string } }; font: { color: string; size: number; face?: string; strokeWidth?: number; strokeColor?: string } } }
+interface VisEdge { id: string; from: VisNode; to: VisNode; selected?: boolean; options: { width: number; hidden?: boolean; color: { color?: string; highlight?: string; opacity?: number; inherit?: string | boolean } };
+  edgeType?: { via?: { x: number; y: number }; _getViaCoordinates?: () => { x?: number; y?: number } } }
+
+const LABEL_INSIDE = new Set(['box', 'circle', 'ellipse', 'database', 'text'])
+
+/** Rebuild a vis-network as SVG markup from its node and edge positions. */
+function networkSvg(net: Network, el: HTMLElement, o: RenderOptions, w: number, h: number) {
+  const body = (net as unknown as { body: { nodes: Record<string, VisNode>; edges: Record<string, VisEdge>; nodeIndices: string[]; edgeIndices: string[] } }).body
+  const nodes = body.nodeIndices.map((id) => body.nodes[id]).filter((n) => n && !n.options.hidden)
+  const edges = body.edgeIndices.map((id) => body.edges[id]).filter((e) => e && !e.options.hidden && e.from && e.to)
+  const e2 = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+  let vb: { x: number; y: number; w: number; h: number }
+  if (o.area === 'view') {
+    const a = net.DOMtoCanvas({ x: 0, y: 0 }), b = net.DOMtoCanvas({ x: el.clientWidth, y: el.clientHeight })
+    vb = { x: a.x, y: a.y, w: b.x - a.x, h: b.y - a.y }
+  } else {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity
+    nodes.forEach((n) => {
+      const bb = net.getBoundingBox(n.id)
+      x0 = Math.min(x0, bb.left); x1 = Math.max(x1, bb.right); y0 = Math.min(y0, bb.top); y1 = Math.max(y1, bb.bottom)
+      const ls = n.options.label ? n.labelModule?.size : undefined // where vis drew the label
+      if (ls && ls.width) { x0 = Math.min(x0, ls.left); x1 = Math.max(x1, ls.left + ls.width); y0 = Math.min(y0, ls.top); y1 = Math.max(y1, ls.top + ls.height) }
+    })
+    if (!isFinite(x0)) { x0 = 0; y0 = 0; x1 = w; y1 = h }
+    const pad = 20
+    vb = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad }
+  }
+  const textColor = (c: string) => (o.light ? LIGHT.heading : c)
+  const out: string[] = []
+  out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet" font-family="Inter, system-ui, sans-serif">`)
+  if (o.background) out.push(`<rect x="${vb.x - vb.w}" y="${vb.y - vb.h}" width="${vb.w * 3}" height="${vb.h * 3}" fill="${e2(o.background)}"/>`)
+  out.push('<g fill="none" stroke-linecap="round">')
+  edges.forEach((e) => {
+    const c = e.options.color
+    const color = e.selected && c.highlight ? c.highlight : (c.inherit && !c.color ? e.from.options.color.border : c.color) ?? '#9ca3af'
+    let via: { x?: number; y?: number } | undefined
+    try { via = e.edgeType?.via ?? e.edgeType?._getViaCoordinates?.() } catch { via = undefined }
+    const d = via && via.x !== undefined && via.y !== undefined
+      ? `M${e.from.x},${e.from.y} Q${via.x},${via.y} ${e.to.x},${e.to.y}` : `M${e.from.x},${e.from.y} L${e.to.x},${e.to.y}`
+    out.push(`<path d="${d}" stroke="${e2(color)}" stroke-width="${e.options.width ?? 1}" stroke-opacity="${c.opacity ?? 1}"/>`)
+  })
+  out.push('</g><g>')
+  nodes.forEach((n) => {
+    const { shape, size, color } = n.options
+    const stroke = n.selected && color.highlight?.border ? color.highlight.border : color.border
+    const sw = n.selected ? 3 : (n.options.borderWidth ?? 1)
+    const paint = `fill="${e2(color.background)}" stroke="${e2(stroke)}" stroke-width="${sw}"`
+    const bb = net.getBoundingBox(n.id)
+    if (LABEL_INSIDE.has(shape) && shape !== 'circle') {
+      if (shape !== 'text') out.push(`<rect x="${bb.left}" y="${bb.top}" width="${bb.right - bb.left}" height="${bb.bottom - bb.top}" rx="${shape === 'box' ? 4 : (bb.bottom - bb.top) / 2}" ${paint}/>`)
+    } else if (shape === 'square') {
+      out.push(`<rect x="${n.x - size}" y="${n.y - size}" width="${size * 2}" height="${size * 2}" ${paint}/>`)
+    } else if (shape === 'diamond') {
+      out.push(`<polygon points="${n.x},${n.y - size} ${n.x + size},${n.y} ${n.x},${n.y + size} ${n.x - size},${n.y}" ${paint}/>`)
+    } else if (shape === 'triangle' || shape === 'triangleDown') {
+      const k = shape === 'triangle' ? 1 : -1
+      out.push(`<polygon points="${n.x},${n.y - k * size} ${n.x + size},${n.y + k * size * 0.6} ${n.x - size},${n.y + k * size * 0.6}" ${paint}/>`)
+    } else if (shape === 'hexagon' || shape === 'star') {
+      const k = shape === 'hexagon' ? 6 : 10
+      const pts = Array.from({ length: k }, (_, i) => {
+        const a = (Math.PI * 2 * i) / k - Math.PI / 2
+        const rr = shape === 'star' && i % 2 ? size * 0.45 : size
+        return `${n.x + rr * Math.cos(a)},${n.y + rr * Math.sin(a)}`
+      }).join(' ')
+      out.push(`<polygon points="${pts}" ${paint}/>`)
+    } else {
+      const r = shape === 'circle' ? (bb.right - bb.left) / 2 : size
+      out.push(`<circle cx="${n.x}" cy="${n.y}" r="${r}" ${paint}/>`)
+    }
+    if (n.options.label) {
+      const f = n.options.font
+      const inside = LABEL_INSIDE.has(shape)
+      const ls = n.labelModule?.size
+      const y = inside ? n.y : ls && ls.height ? ls.top + f.size * 0.6 : bb.bottom + f.size * 0.9
+      const outline = f.strokeWidth ? ` stroke="${e2(o.light ? '#ffffff' : f.strokeColor ?? '#ffffff')}" stroke-width="${f.strokeWidth}" paint-order="stroke"` : ''
+      n.options.label.split('\n').forEach((line, i, all) => {
+        out.push(`<text x="${n.x}" y="${y + (i - (inside ? (all.length - 1) / 2 : 0)) * f.size * 1.15}" font-size="${f.size}" fill="${e2(textColor(f.color))}" text-anchor="middle" dominant-baseline="central"${outline}>${e2(line)}</text>`)
+      })
+    }
+  })
+  out.push('</g></svg>')
+  return out.join('')
 }
 
 export interface GraphNode {
@@ -220,6 +363,7 @@ export function NetworkGraph({
   height = 560,
   handleRef,
   style = DEFAULT_STYLE,
+  exportName = 'flame_network',
 }: {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -228,6 +372,8 @@ export function NetworkGraph({
   height?: number
   handleRef?: { current: NetworkHandle | null }
   style?: NetworkStyle
+  /** Default file name when the network is saved as an image. */
+  exportName?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const netRef = useRef<Network | null>(null)
@@ -235,6 +381,56 @@ export function NetworkGraph({
   selectRef.current = onSelect
   const styleRef = useRef(style)
   const engineRef = useRef(style.engine)
+  const nameRef = useRef(exportName)
+  nameRef.current = exportName
+  // Export source: the canvas redrawn at the chosen resolution, or the network rebuilt as SVG.
+  const sourceRef = useRef((name?: string): ImageSource | null => {
+    if (!netRef.current || !ref.current) return null
+    // Look the network up when saving: it is rebuilt whenever its data changes.
+    const current = () => {
+      const net = netRef.current, el = ref.current
+      if (!net || !el) throw new Error('The network is no longer shown.')
+      return { net, el }
+    }
+    const withExportState = <T,>(o: RenderOptions, fn: (net: Network, el: HTMLDivElement) => T): T => {
+      const { net, el } = current()
+      const sel = { nodes: net.getSelectedNodes(), edges: net.getSelectedEdges() }
+      if (o.plain) net.unselectAll()
+      const { fg, bg } = themeColors()
+      if (o.light) net.setOptions({ nodes: { font: { color: LIGHT.heading, strokeColor: '#ffffff' } } })
+      try { return fn(net, el) } finally {
+        if (o.light) net.setOptions({ nodes: { font: visOptions(styleRef.current, fg, bg).nodes?.font as never } })
+        if (o.plain) { try { net.setSelection(sel, { unselectAll: true, highlightEdges: false }) } catch { /* ids gone */ } }
+        net.redraw()
+      }
+    }
+    return {
+      name: name ?? nameRef.current,
+      size: () => { const el = ref.current; return { w: el?.clientWidth ?? 0, h: el?.clientHeight ?? 0 } },
+      features: { area: true, selection: !!selectRef.current },
+      svg: (o) => withExportState(o, (net, el) => networkSvg(net, el, o, el.clientWidth, el.clientHeight)),
+      raster: (o) => withExportState(o, (net, el) => {
+        const W = el.clientWidth, H = el.clientHeight, k = o.scale
+        const view = { position: net.getViewPosition(), scale: net.getScale() }
+        const prev = { w: el.style.width, h: el.style.height }
+        el.style.width = `${W * k}px`; el.style.height = `${H * k}px`
+        net.setSize(`${W * k}px`, `${H * k}px`)
+        if (o.area === 'all') net.fit({ animation: false })
+        else net.moveTo({ position: view.position, scale: view.scale * k, animation: false })
+        net.redraw()
+        const out = document.createElement('canvas')
+        out.width = W * k; out.height = H * k
+        const ctx = out.getContext('2d')!
+        if (o.background) { ctx.fillStyle = o.background; ctx.fillRect(0, 0, out.width, out.height) }
+        const c = el.querySelector('canvas')
+        if (c) ctx.drawImage(c, 0, 0, out.width, out.height)
+        el.style.width = prev.w; el.style.height = prev.h
+        net.setSize(prev.w || '100%', prev.h || `${H}px`)
+        net.moveTo({ position: view.position, scale: view.scale, animation: false })
+        return out
+      }),
+    }
+  })
   const [brushMode, setBrushMode] = useState<BrushMode>('click')
   const brush = useBrush(brushMode, (x, y) => {
     const r = ref.current!.getBoundingClientRect()
@@ -305,6 +501,7 @@ export function NetworkGraph({
             ids.forEach((id) => net.openCluster(id))
           }
         },
+        exportImage: (name) => { const s = sourceRef.current(name); if (s) openImageExport(s) },
         setPhysicsRunning: (on) => {
           if (styleRef.current.engine === 'precomputed' || styleRef.current.engine === 'hierarchical') return
           net.setOptions({ physics: { enabled: on } })
@@ -345,7 +542,10 @@ export function NetworkGraph({
 
   return (
     <>
-      {onSelect && <BrushModes mode={brushMode} onChange={setBrushMode} />}
+      <div className="plot-tools">
+        {onSelect && <BrushModes mode={brushMode} onChange={setBrushMode} />}
+        <ExportImageButton source={() => sourceRef.current()} />
+      </div>
       <div className="network-wrap" style={{ height }}>
         <div ref={ref} className="network" style={{ height }} />
         {brushMode !== 'click' && (
