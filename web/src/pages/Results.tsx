@@ -15,7 +15,8 @@ import { useHistory } from '../lib/history'
 import { useNetworkStyle } from '../lib/networkStyle'
 import { LayoutSelect, NetworkOptions } from '../components/NetworkOptions'
 import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, type ViewSettings } from '../features/results/views'
-import { downloadSvg } from '../components/viz'
+import { svgSource } from '../components/viz'
+import { openImageExport, usePlainSelection } from '../lib/imageExport'
 import { saveXlsx, sheetsByCategory, termSheetRows } from '../lib/xlsx'
 import { BackToWorkspace } from '../components/ui'
 import { PaletteSelect } from '../components/PaletteSelect'
@@ -53,6 +54,8 @@ const EXTRA_TABS = [
   { tabId: 'hive', label: 'Hive plot', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'svg', from: 'heatmap-tg' },
   { tabId: 'circos', label: 'Circos (bundled)', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'svg', from: 'heatmap-tg' },
 ]
+
+const EMPTY_SELECTION = new Set<string>()
 
 const SORTS = [
   { value: '-log10Pvalue', label: 'Significance' },
@@ -113,6 +116,8 @@ function ResultsPageBody() {
   const [settings, setSettings] = useState<ViewSettings>({ labels: 'name', xAxis: 'geneRatio', palette: 'OrRd', layout: 'force', similarityCutoff: 10, minShared: 3 })
   const [columns, setColumns] = useState<string[]>(['source', 'id', 'name', 'pvalue', 'intersection', 'coverage', 'genes'])
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  // Drawn selection; empty while an image is exported without highlighting.
+  const shownSelection = usePlainSelection(selected, EMPTY_SELECTION)
   useEffect(() => {
     if (run?.paradigm === 'GSEA') {
       setSettings((st) => ({ ...st, xAxis: 'nes', barMetric: 'nes' }))
@@ -174,7 +179,6 @@ function ResultsPageBody() {
   const isNetwork = view.startsWith('network')
   const isSvg = view === 'chord' || view === 'hive' || view === 'circos'
   const isGsea = run.paradigm === 'GSEA'
-  const isPlot = !isNetwork && !isSvg && view !== 'table'
   const arenaView = isNetwork ? view : ({ 'heatmap-tg': 'heatmap-tg', sankey: 'heatmap-tg', hive: 'heatmap-tg', circos: 'heatmap-tg', 'heatmap-tt': 'network-tt', chord: 'network-tt', 'heatmap-gg': 'network-gg' } as Record<string, string>)[view]
   const exportRows = (terms: Term[]) => terms.map((t) => ({ ...t, pvalue: formatP(t.pvalue) }))
   const exportCols = TABLE_COLUMNS.map((c) => ({ key: c.key, label: c.label }))
@@ -320,9 +324,12 @@ function ResultsPageBody() {
                 <PaletteSelect />
                 <UndoRedoButtons h={history} />
                 <ExportMenu items={[
-                  ...(isPlot ? [{ label: 'PNG image', run: () => plotRef.current?.toImage('png', baseName) }, { label: 'SVG image', run: () => plotRef.current?.toImage('svg', baseName) }] : []),
-                  ...(isNetwork ? [{ label: 'PNG image', run: () => networkRef.current?.toPng(baseName) }] : []),
-                  ...(isSvg ? [{ label: 'SVG image', run: () => downloadSvg(svgRef.current, `${baseName}_${view}`) }] : []),
+                  ...(view !== 'table' && view !== 'themes' ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
+                    const name = `${baseName}_${view}`
+                    if (isNetwork) networkRef.current?.exportImage(name)
+                    else if (isSvg) { const src = svgSource(svgRef.current, name); if (src) openImageExport(src) }
+                    else plotRef.current?.exportImage(name)
+                  } }] : []),
                   { label: 'Shown terms (Excel)', run: () => saveXlsx(sheetsByCategory(termSheetRows(q.data?.terms ?? []), 'Source', 'All terms'), `${baseName}_${view}.xlsx`) },
                   { label: 'All filtered terms (Excel, one sheet per source)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
                       .then((d) => saveXlsx(sheetsByCategory(termSheetRows(d.terms), 'Source', 'All terms'), `${baseName}_all.xlsx`)) },
@@ -341,7 +348,7 @@ function ResultsPageBody() {
               {q.isLoading && <Spinner />}
               {q.data && q.data.shownCount === 0 && <Note kind="warning">No terms match the current filters.</Note>}
               {q.data && q.data.shownCount > 0 && (() => {
-                const props = { data: q.data, config, settings, selected, onSelect, plotRef, networkRef, networkStyle: netStyle.style }
+                const props = { data: q.data, config, settings, selected: shownSelection, onSelect, plotRef, networkRef, networkStyle: netStyle.style, exportName: `${baseName}_${view}` }
                 switch (view) {
                   case 'dotplot': return <DotplotView {...props} />
                   case 'barchart': return <BarchartView {...props} />

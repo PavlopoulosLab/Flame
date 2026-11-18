@@ -10,7 +10,8 @@ import { Arena3DIcon } from '../components/ExternalIcons'
 import { formatP, plural, toCsv } from '../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteMode } from '../lib/palette'
 import { PaletteSelect } from '../components/PaletteSelect'
-import { CircosBundle, downloadSvg } from '../components/viz'
+import { CircosBundle } from '../components/viz'
+import { usePlainSelection } from '../lib/imageExport'
 import { ProgressBar, type JobProgress } from '../components/Progress'
 import { saveXlsx, sheetsByCategory } from '../lib/xlsx'
 
@@ -155,6 +156,8 @@ function Report({ id }: { id: string }) {
   })
   const [traitFilter, setTraitFilter] = useState<string | null>(null)
   const [varSel, setVarSel] = useState<{ label: string; ids: Set<string> } | null>(null)
+  // Drawn selection; none while an image is exported without highlighting.
+  const shownSel = usePlainSelection(varSel, null)
   const IMPACT_COLOR = useImpactColors()
   const pmR = usePaletteMode()
   const series = roleColors(pmR).series
@@ -196,7 +199,7 @@ function Report({ id }: { id: string }) {
         <div className="pin-card"><span className="pin-value">{r.summary.traits.length}</span><span className="pin-label">Associated traits</span><span className="muted small">GWAS Catalog, ClinVar, OMIM…</span></div>
       </div>
 
-      {r.mode === 'gwas' && <Manhattan variants={r.variants} selected={varSel?.ids} onSelect={(ids, add) => pick(`${ids.length} on the Manhattan plot`, ids, add)} />}
+      {r.mode === 'gwas' && <Manhattan variants={r.variants} selected={shownSel?.ids} onSelect={(ids, add) => pick(`${ids.length} on the Manhattan plot`, ids, add)} />}
 
       <div className="chart-grid">
         <BarCard title="Impact" onPick={(l, add) => byField(`impact ${l}`, (v) => v.impact === l, add)} rows={r.summary.impacts.filter((i) => i.count).map((i) => ({ label: i.impact, value: i.count, color: IMPACT_COLOR[i.impact] }))} />
@@ -206,7 +209,7 @@ function Report({ id }: { id: string }) {
       </div>
 
       {r.phenotypes.length > 0 && <VariantSankey result={r} onPick={pick} />}
-      {r.variants.some((v) => v.chr && v.pos) && <GenomeCircos result={r} traitFilter={traitFilter} onTrait={setTraitFilter} selected={varSel?.ids} onPick={pick} />}
+      {r.variants.some((v) => v.chr && v.pos) && <GenomeCircos result={r} traitFilter={traitFilter} onTrait={setTraitFilter} selected={shownSel?.ids} onPick={pick} />}
 
       <TraitsTable traits={r.summary.traits} selected={traitFilter} onSelect={setTraitFilter} />
       <VariantsTable variants={r.variants} phenotypes={r.phenotypes} traitFilter={traitFilter} onClearTrait={() => setTraitFilter(null)} name={a.name} taxid={r.organismTaxId}
@@ -298,7 +301,7 @@ function VariantSankey({ result, onPick }: { result: Result; onPick: (label: str
     <div className="chart-card">
       <div className="row between"><h3>Variants → genes → traits</h3>
         <label className="small">Top traits <select className="input input-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))}>{[8, 12, 20, 30].map((n) => <option key={n}>{n}</option>)}</select></label></div>
-      <Plot data={data as never} height={Math.max(360, topN * 26)} handleRef={plotRef} layout={{ margin: { l: 10, r: 10, t: 10, b: 10 } }}
+      <Plot exportName="flame_variants_sankey" data={data as never} height={Math.max(360, topN * 26)} handleRef={plotRef} layout={{ margin: { l: 10, r: 10, t: 10, b: 10 } }}
         onSelect={(keys, add) => keys.forEach((n, i) => {
           const additive = add || i > 0
           if (n.startsWith('gene:')) { const g = n.slice(5); onPick(`variants in ${g}`, result.variants.filter((v) => (v.gene ?? 'intergenic') === g || v.allGenes.split(',').includes(g)).map((v) => v.id), additive) }
@@ -476,12 +479,11 @@ function GenomeCircos({ result, traitFilter, onTrait, selected, onPick }: { resu
             <label className="small">Traits <select className="input input-sm" value={nTraits} onChange={(e) => setNTraits(Number(e.target.value))}>
               {[4, 8, 12, 20].map((n) => <option key={n} value={n}>top {n}</option>)}</select></label>
           )}
-          <button className="btn btn-ghost btn-sm" onClick={() => downloadSvg(svgRef.current, 'flame_genome_circos')}>SVG image</button>
         </span>
       </div>
       <p className="muted small">Chromosomes around the circle with your variants in genomic order (dots coloured by impact). Outer bars: {gwas ? '−log10 p' : 'impact (HIGH tallest)'}. Bundled links join variants associated with the same trait{traitFilter ? '' : '; click a trait to focus on it'}.</p>
       {items.length < 2 ? <Note kind="info">Not enough variants with genomic positions.</Note> : (
-        <CircosBundle sectors={sectors} items={items} links={links} svgRef={svgRef} size={680} defaultLabels={items.length <= 60} selected={selected}
+        <CircosBundle sectors={sectors} items={items} links={links} svgRef={svgRef} exportName="flame_genome_circos" size={680} defaultLabels={items.length <= 60} selected={selected}
           onSelect={(ids, add) => onPick(ids.length === 1 ? ids[0] : `${ids.length} variants on the Circos`, ids, add)}
           trackLabel={gwas ? '−log10 p' : 'impact'} linkLabel="shared-trait links" />
       )}

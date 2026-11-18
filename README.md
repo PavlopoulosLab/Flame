@@ -27,7 +27,7 @@ variants and GWAS results. It is free and open to everyone.
   and robustness checks (bootstrap stability, random-list control, FDR thresholds).
 * **Results**: table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
   views; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
-  browser links, and KEGG maps with the user's genes coloured; undo/redo; PNG/SVG/CSV/HTML/PDF exports.
+  browser links, and KEGG maps with the user's genes coloured; undo/redo; image export of every figure (PNG, SVG, PDF, JPEG, WebP) and CSV/HTML exports.
 * **Comparison**: compare tools, lists or strategies with Fisher's combined p-value, a **consensus rank** (Robust Rank
   Aggregation) and a rank chart, a table of which run found what, agreement statistics (Jaccard, rank correlation,
   McNemar / Cochran's Q, concordance at the top, MDS), UpSet, chord, Circos, bubble plot and heatmap.

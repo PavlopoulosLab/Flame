@@ -744,3 +744,21 @@ html, body { overflow-x: clip; }
 .gc-mini:hover { background: #1e4e8c; }
 .cite-list { display: flex; flex-direction: column; gap: 6px; padding-left: 1.1rem; font-size: 0.88rem; }
 .cite-group h3 { margin-bottom: 4px; }
+
+/* Export image dialog */
+.export-image { display: flex; flex-direction: column; gap: 14px; }
+.export-formats { border: 0; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.export-formats legend { font-weight: 600; color: var(--heading-color); margin-bottom: 6px; padding: 0; }
+.export-format { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: var(--radius-md); cursor: pointer; background: var(--surface-color); }
+.export-format.on { border-color: var(--link-color); background: var(--select-bg); }
+.export-format input { margin-top: 3px; }
+.export-format > span { display: flex; flex-direction: column; gap: 2px; }
+.export-format strong { color: var(--heading-color); }
+.export-grid { display: grid; grid-template-columns: max-content 1fr; gap: 10px 16px; align-items: center; }
+.export-grid > label { color: var(--muted-color); }
+.export-size { margin: 4px 0 0; font-family: ui-monospace, monospace; font-size: 0.72rem; }
+.export-name { display: flex; align-items: center; gap: 6px; }
+.export-name .input { flex: 1; }
+.plot-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 560px) { .export-grid { grid-template-columns: 1fr; } }
+.figure { display: flex; flex-direction: column; gap: 6px; }

@@ -2,6 +2,8 @@ import { arc as d3arc, chord as d3chord, curveBundle, descending, line as d3line
 import { useMemo, useRef, useState } from 'react'
 import { BrushModes, pointInPolygon, useBrush, type BrushMode, type Pt } from '../lib/brush'
 import { saveBlob } from '../api/client'
+import { ExportImageButton } from './ExportImage'
+import { htmlElementToString, htmlFigureSize, svgElementToString, svgFigureSize, type ImageSource, type LegendItem } from '../lib/imageExport'
 import { saveXlsx } from '../lib/xlsx'
 
 /** Client → SVG user coordinates. */
@@ -12,24 +14,31 @@ const toSvgPoint = (svg: SVGSVGElement | null, x: number, y: number): Pt => {
   return [p.x, p.y]
 }
 
-/** Download an inline SVG element as an .svg file (fonts/colours inlined via computed style). */
-export function downloadSvg(svg: SVGSVGElement | null, filename: string) {
-  if (!svg) return
-  const clone = svg.cloneNode(true) as SVGSVGElement
-  clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg')
-  const css = getComputedStyle(document.documentElement)
-  clone.style.fontFamily = 'Inter, system-ui, sans-serif'
-  clone.style.color = css.getPropertyValue('--heading-color')
-  saveBlob(new Blob([new XMLSerializer().serializeToString(clone)], { type: 'image/svg+xml' }), filename.endsWith('.svg') ? filename : `${filename}.svg`)
+/** Export source for an inline SVG figure (optionally with a legend drawn underneath). */
+export function svgSource(svg: SVGSVGElement | null, name: string, opts: { selection?: boolean; legend?: LegendItem[] } = {}): ImageSource | null {
+  if (!svg) return null
+  return {
+    name,
+    size: () => svgFigureSize(svg, opts.legend),
+    features: { selection: opts.selection ?? true, legend: !!opts.legend?.length },
+    svg: (o) => svgElementToString(svg, o, opts.legend),
+  }
+}
+
+/** Export source for an HTML figure (parts marked data-no-export are left out). */
+export function htmlSource(el: HTMLElement | null, name: string, selection = true): ImageSource | null {
+  if (!el) return null
+  return { name, size: () => htmlFigureSize(el), features: { selection }, svg: (o) => htmlElementToString(el, o) }
 }
 
 // ---------------------------------------------------------------------------
 // Chord diagram: arcs = items (terms or runs), ribbons = shared members.
 // ---------------------------------------------------------------------------
-export function ChordDiagram({ names, matrix, colors, onSelect, selected, size = 620, svgRef, unit = 'shared genes' }: {
+export function ChordDiagram({ names, matrix, colors, onSelect, selected, size = 620, svgRef, unit = 'shared genes', exportName = 'flame_chord' }: {
   names: string[]; matrix: number[][]; colors: string[]; onSelect?: (i: number, j?: number) => void
-  selected?: Set<number>; size?: number; svgRef?: { current: SVGSVGElement | null }; unit?: string
+  selected?: Set<number>; size?: number; svgRef?: { current: SVGSVGElement | null }; unit?: string; exportName?: string
 }) {
+  const own = useRef<SVGSVGElement | null>(null)
   const outer = size / 2 - 150
   const inner = outer - 14
   const chords = useMemo(() => d3chord().padAngle(0.03).sortSubgroups(descending)(matrix), [matrix])
@@ -37,7 +46,9 @@ export function ChordDiagram({ names, matrix, colors, onSelect, selected, size =
   const ribbonGen = d3ribbon<unknown, { startAngle: number; endAngle: number; radius?: number }>().radius(inner - 1)
   const anySel = !!selected && selected.size > 0
   return (
-    <svg ref={svgRef ?? undefined} viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} width="100%" style={{ maxWidth: size }} role="img"
+    <div className="figure">
+    <div className="plot-tools"><ExportImageButton source={() => svgSource(own.current, exportName, { selection: !!onSelect })} /></div>
+    <svg ref={(el) => { own.current = el; if (svgRef) svgRef.current = el }} viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} width="100%" style={{ maxWidth: size }} role="img"
       aria-label={`Chord diagram of ${names.length} items; ribbons show ${unit}`}>
       <g>
         {chords.map((c, k) => {
@@ -67,6 +78,7 @@ export function ChordDiagram({ names, matrix, colors, onSelect, selected, size =
         })}
       </g>
     </svg>
+    </div>
   )
 }
 
@@ -75,9 +87,9 @@ export function ChordDiagram({ names, matrix, colors, onSelect, selected, size =
 // nodes are placed along their axis by rank; links are curved between axes.
 // ---------------------------------------------------------------------------
 export interface HiveNode { id: string; label: string; axis: string; rank: number; color: string }
-export function HivePlot({ axes, nodes, links, onSelect, selected, size = 640, svgRef }: {
+export function HivePlot({ axes, nodes, links, onSelect, selected, size = 640, svgRef, exportName = 'flame_hive' }: {
   axes: { name: string; color: string }[]; nodes: HiveNode[]; links: { source: string; target: string }[]
-  onSelect?: (ids: string[]) => void; selected?: Set<string>; size?: number; svgRef?: { current: SVGSVGElement | null }
+  onSelect?: (ids: string[]) => void; selected?: Set<string>; size?: number; svgRef?: { current: SVGSVGElement | null }; exportName?: string
 }) {
   const r0 = 40, r1 = size / 2 - 70
   const angleOf = (axis: string) => (2 * Math.PI * axes.findIndex((a) => a.name === axis)) / axes.length - Math.PI / 2
@@ -106,7 +118,10 @@ export function HivePlot({ axes, nodes, links, onSelect, selected, size = 640, s
   })
   return (
     <div className="circos">
-    {onSelect && <BrushModes mode={mode} onChange={setMode} />}
+    <div className="plot-tools">
+      {onSelect && <BrushModes mode={mode} onChange={setMode} />}
+      <ExportImageButton source={() => svgSource(inner.current, exportName, { selection: !!onSelect })} />
+    </div>
     <svg ref={(el) => { inner.current = el; if (svgRef) svgRef.current = el }} viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} width="100%" style={{ maxWidth: size }} role="img"
       aria-label={`Hive plot with ${axes.length} axes and ${nodes.length} nodes`}>
       {axes.map((a) => {
@@ -148,11 +163,11 @@ export function HivePlot({ axes, nodes, links, onSelect, selected, size = 640, s
 // ---------------------------------------------------------------------------
 // UpSet plot of items shared between sets (exclusive intersections).
 // ---------------------------------------------------------------------------
-export function SetOverlapUpSet({ sets, membership, colors, onSelect, describe, itemNoun = 'terms' }: {
+export function SetOverlapUpSet({ sets, membership, colors, onSelect, describe, itemNoun = 'terms', exportName = 'flame_upset' }: {
   sets: { id: string; label: string }[]; membership: { item: string; sets: string[] }[]; colors: string[]
   onSelect?: (items: string[]) => void
   /** Readable name for an item (e.g. term name), used when copying. */
-  describe?: (item: string) => string; itemNoun?: string
+  describe?: (item: string) => string; itemNoun?: string; exportName?: string
 }) {
   const [active, setActive] = useState<{ key: string; items: string[] } | null>(null)
   const comboName = (key: string) => sets.filter((_, i) => key[i] === '1').map((s) => s.label).join(' + ')
@@ -189,7 +204,8 @@ export function SetOverlapUpSet({ sets, membership, colors, onSelect, describe, 
           </button>
         ))}
       </div>
-      <div className="upset-copy row wrap">
+      <div className="upset-copy row wrap" data-no-export="">
+        <ExportImageButton source={() => htmlSource(ref.current, exportName)} />
         {active ? (
           <>
             <span className="small"><strong>{active.items.length} {itemNoun}</strong> found only by {comboName(active.key)}:</span>
@@ -228,10 +244,10 @@ export interface CircosSector { id: string; label: string; color: string }
 export interface CircosItem { id: string; label: string; sector: string; value?: number; color?: string; title?: string; /** angular share (default 1) */ weight?: number }
 export interface CircosLink { source: string; target: string; color?: string; title?: string }
 
-export function CircosBundle({ sectors, items, links, onSelect, selected, size = 760, svgRef, trackLabel, defaultLabels = true, linkLabel = 'links' }: {
+export function CircosBundle({ sectors, items, links, onSelect, selected, size = 760, svgRef, trackLabel, defaultLabels = true, linkLabel = 'links', exportName = 'flame_circos' }: {
   sectors: CircosSector[]; items: CircosItem[]; links: CircosLink[]
   onSelect?: (ids: string[], additive: boolean) => void; selected?: Set<string>
-  size?: number; svgRef?: { current: SVGSVGElement | null }; trackLabel?: string; defaultLabels?: boolean; linkLabel?: string
+  size?: number; svgRef?: { current: SVGSVGElement | null }; trackLabel?: string; defaultLabels?: boolean; linkLabel?: string; exportName?: string
 }) {
   const [tension, setTension] = useState(0.85)
   const [labels, setLabels] = useState(defaultLabels && items.length <= 160)
@@ -291,6 +307,10 @@ export function CircosBundle({ sectors, items, links, onSelect, selected, size =
         <label title="0 = straight lines, 1 = tightly bundled">Bundling <input type="range" min={0} max={1} step={0.05} value={tension} onChange={(e) => setTension(Number(e.target.value))} /></label>
         <label className="check"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Labels</label>
         {onSelect && <BrushModes mode={mode} onChange={setMode} />}
+        <ExportImageButton source={() => svgSource(inner.current, exportName, {
+          selection: !!onSelect,
+          legend: layout.arcs.map(({ s }) => ({ label: `${s.label} (${items.filter((i) => i.sector === s.id).length})`, color: s.color })),
+        })} />
         <span className="muted small">{items.length} items · {links.length} {linkLabel}{trackLabel ? ` · outer bars: ${trackLabel}` : ''} · hover to trace, click to select</span>
       </div>
       <svg ref={(el) => { inner.current = el; if (svgRef) svgRef.current = el }} viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} width="100%" style={{ maxWidth: size }} role="img"

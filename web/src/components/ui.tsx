@@ -50,12 +50,16 @@ export function Modal({
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
     ref.current?.focus()
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    // Only the top-most dialog reacts to Escape (dialogs can open on top of each other).
+    const onKey = (e: KeyboardEvent) => {
+      const all = document.querySelectorAll('.modal')
+      if (e.key === 'Escape' && all[all.length - 1] === ref.current) onClose()
+    }
     document.addEventListener('keydown', onKey)
     document.body.classList.add('modal-open')
     return () => {
       document.removeEventListener('keydown', onKey)
-      document.body.classList.remove('modal-open')
+      if (!document.querySelector('.modal-backdrop')) document.body.classList.remove('modal-open')
       prev?.focus?.()
     }
   }, [onClose])

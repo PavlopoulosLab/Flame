@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { api } from '../../api/client'
 import type { AppConfig, Term, ViewData } from '../../api/types'
 import { NetworkGraph, Plot, type NetworkHandle, type PlotHandle } from '../../components/charts'
@@ -11,8 +11,9 @@ import { categoricalColor, reverseScale, sequentialScale, usePaletteMode } from 
 /** Source colours: configured colours, or Okabe–Ito in colour-blind safe mode. */
 export function useSourceColor(config: AppConfig, sources: string[]) {
   const cb = usePaletteMode()
-  const keys = [...new Set(sources)].sort()
-  return (s: string) => categoricalColor(cb, s, keys, config.datasourceColors[s] ?? '#9ca3af')
+  const keyStr = [...new Set(sources)].sort().join('\u0001')
+  // Stable between renders, so views that depend on it (e.g. networks) are not rebuilt needlessly.
+  return useCallback((s: string) => categoricalColor(cb, s, keyStr ? keyStr.split('\u0001') : [], config.datasourceColors[s] ?? '#9ca3af'), [cb, keyStr, config])
 }
 
 export interface ViewSettings {
@@ -36,11 +37,24 @@ export interface ViewProps {
   plotRef: { current: PlotHandle | null }
   networkStyle?: NetworkStyle
   networkRef: { current: NetworkHandle | null }
+  /** Default file name for image exports. */
+  exportName?: string
 }
 
 const label = (t: Term, s: ViewSettings, max = 55) => {
   const text = s.labels === 'id' ? t.id : t.name
   return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+/** Per-term axis labels, unique within a chart: Plotly merges equal category labels into one row
+ *  (e.g. two long names that truncate alike), which breaks the ordering. Repeats get invisible suffixes. */
+const axisLabels = (terms: Term[], s: ViewSettings) => {
+  const seen = new Map<string, number>()
+  return new Map(terms.map((t) => {
+    const base = label(t, s), n = seen.get(base) ?? 0
+    seen.set(base, n + 1)
+    return [t.id, base + '\u200b'.repeat(n)] as const
+  }))
 }
 
 function bySource(terms: Term[]) {
@@ -78,7 +92,7 @@ const ORRD: [number, string][] = [[0, '#fee8c8'], [0.5, '#fc8d59'], [1, '#b30000
 // Dotplot row spacing and dot diameters (px).
 const ROW = 28, DOT_MIN = 7, DOT_MAX = 22
 
-export function DotplotView({ data, settings, selected, onSelect, plotRef }: ViewProps) {
+export function DotplotView({ data, settings, selected, onSelect, plotRef, exportName }: ViewProps) {
   const cb = usePaletteMode()
   const choice = settings.palette ?? 'OrRd'
   const dotScale: string | [number, string][] = choice === 'OrRd'
@@ -100,9 +114,10 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef }: Vie
   const legendY = 1 - cbLen - 40 / area
   // A few reference sizes for the "Genes" legend.
   const legendCounts = [...new Set(kMax === kMin ? [kMin] : [kMin, Math.round((kMin + kMax) / 2), kMax])]
+  const yLabel = axisLabels(terms, settings)
   const plot = useMemo(() => [{
     type: 'scatter' as const, mode: 'markers' as const, showlegend: false,
-    x: terms.map((t) => t[xKey] ?? 0), y: terms.map((t) => label(t, settings)), customdata: terms.map((t) => t.id),
+    x: terms.map((t) => t[xKey] ?? 0), y: terms.map((t) => yLabel.get(t.id)!), customdata: terms.map((t) => t.id),
     text: terms.map(hover), hoverinfo: 'text' as const,
     marker: {
       size: counts.map(sizeOf), color: terms.map((t) => t.log10p),
@@ -112,48 +127,49 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef }: Vie
       line: selLine(terms.map((t) => t.id), selected, { color: 'rgba(255,255,255,0.9)', width: 1 }),
       opacity: selOpacity(terms.map((t) => t.id), selected),
     },
-  }], [terms, settings, xKey, selected, cb])
+  }], [terms, yLabel, xKey, selected, cb])
   if (xKey === 'foldEnrichment' && data.terms.every((t) => t.foldEnrichment == null)) {
     return <p className="muted">Fold enrichment needs the background size, which this tool does not report. Choose another x-axis.</p>
   }
-  return <Plot data={plot} height={height} handleRef={plotRef} onSelect={onSelect}
+  return <Plot exportName={exportName} data={plot} height={height} handleRef={plotRef} onSelect={onSelect}
     layout={{
       margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: xLabel } },
-      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => label(t, settings)) },
+      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) },
       // Size legend under the colour bar, drawn as pixel-sized circles (Plotly's legend caps marker sizes).
       showlegend: false,
       shapes: legendCounts.map((k, i) => {
         const d = sizeOf(k), y = legendY - (28 + i * (DOT_MAX + 8) + DOT_MAX / 2) / area
-        return { type: 'circle' as const, xref: 'paper' as const, yref: 'paper' as const, xsizemode: 'pixel' as const, ysizemode: 'pixel' as const,
+        return { name: `legend-size-${i}`, type: 'circle' as const, xref: 'paper' as const, yref: 'paper' as const, xsizemode: 'pixel' as const, ysizemode: 'pixel' as const,
           xanchor: 1.03, yanchor: y, x0: DOT_MAX / 2 - d / 2, x1: DOT_MAX / 2 + d / 2, y0: -d / 2, y1: d / 2,
           fillcolor: 'rgba(128,128,128,0.45)', line: { color: 'rgba(128,128,128,0.9)', width: 1 } }
       }),
-      annotations: [
-        { xref: 'paper' as const, yref: 'paper' as const, x: 1.03, y: legendY, xanchor: 'left' as const, yanchor: 'top' as const, text: 'Genes', showarrow: false },
-        ...legendCounts.map((k, i) => ({ xref: 'paper' as const, yref: 'paper' as const, x: 1.03, xshift: DOT_MAX + 8, xanchor: 'left' as const,
+      annotations: ([
+        { name: 'legend-title', xref: 'paper' as const, yref: 'paper' as const, x: 1.03, y: legendY, xanchor: 'left' as const, yanchor: 'top' as const, text: 'Genes', showarrow: false },
+        ...legendCounts.map((k, i) => ({ name: `legend-label-${i}`, xref: 'paper' as const, yref: 'paper' as const, x: 1.03, xshift: DOT_MAX + 8, xanchor: 'left' as const,
           y: legendY - (28 + i * (DOT_MAX + 8) + DOT_MAX / 2) / area, yanchor: 'middle' as const, text: String(k), showarrow: false, font: { size: 11 } })),
-      ],
+      ]) as never,
     }} />
 }
 
-export function BarchartView({ data, config, settings, selected, onSelect, plotRef }: ViewProps) {
+export function BarchartView({ data, config, settings, selected, onSelect, plotRef, exportName }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const metric = settings.barMetric ?? 'log10p'
   const value = (t: Term) => (metric === 'log10p' ? t.log10p : metric === 'nes' ? t.nes ?? 0 : t.coverage)
   // Bars follow their length (longest at the top); Plotly draws the first category at the bottom.
   const terms = [...data.terms].sort((a, b) => value(a) - value(b))
+  const yLabel = axisLabels(terms, settings)
   const plot = useMemo(() => [...bySource(terms)].map(([src, ts]) => ({
     type: 'bar' as const, orientation: 'h' as const, name: src,
-    x: ts.map(value), y: ts.map((t) => label(t, settings)),
+    x: ts.map(value), y: ts.map((t) => yLabel.get(t.id)!),
     customdata: ts.map((t) => t.id), text: ts.map(hover), hoverinfo: 'text' as const, textposition: 'none' as const,
     marker: { color: colorOf(src), line: selLine(ts.map((t) => t.id), selected), opacity: selOpacity(ts.map((t) => t.id), selected, 1, terms.some((t) => selected.has(t.id))) },
-  })), [terms, metric, settings, config, selected])
-  return <Plot data={plot} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
+  })), [terms, yLabel, metric, config, selected])
+  return <Plot exportName={exportName} data={plot} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
     layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: metric === 'log10p' ? '−log10 p-value' : metric === 'nes' ? 'NES (positive = top of ranking)' : 'Term coverage (%)' } },
-      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => label(t, settings)) }, legend: { orientation: 'h', y: -0.15 } }} />
+      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) }, legend: { orientation: 'h', y: -0.15 } }} />
 }
 
-export function ScatterView({ data, config, selected, onSelect, plotRef }: ViewProps) {
+export function ScatterView({ data, config, selected, onSelect, plotRef, exportName }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const plot = useMemo(() => [...bySource(data.terms)].map(([src, ts]) => ({
     type: 'scatter' as const, mode: 'markers' as const, name: src,
@@ -161,12 +177,12 @@ export function ScatterView({ data, config, selected, onSelect, plotRef }: ViewP
     text: ts.map(hover), hoverinfo: 'text' as const,
     marker: { size: 11, color: colorOf(src), opacity: selOpacity(ts.map((t) => t.id), selected, 0.85, data.terms.some((t) => selected.has(t.id))), line: selLine(ts.map((t) => t.id), selected) },
   })), [data.terms, config, selected])
-  return <Plot data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
+  return <Plot exportName={exportName} data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
     layout={{ xaxis: { title: { text: '−log10 p-value' } }, yaxis: { title: { text: 'Term coverage (%)' } }, legend: { orientation: 'h', y: -0.2 } }} />
 }
 
 /** Heatmaps: T×G presence, T×T similarity %, G×G shared terms. */
-export function HeatmapView({ data, settings, onSelect, plotRef }: ViewProps) {
+export function HeatmapView({ data, settings, onSelect, plotRef, exportName }: ViewProps) {
   const cb = usePaletteMode()
   const termById = new Map(data.terms.map((t) => [t.id, t]))
   const cells = data.cells ?? []
@@ -216,7 +232,7 @@ export function HeatmapView({ data, settings, onSelect, plotRef }: ViewProps) {
     if (genes.length) data.terms.filter((t) => genes.every((g) => splitGenes(t.genes).includes(g))).forEach((t) => out.add(t.id))
     onSelect([...out], additive)
   }
-  return <Plot data={plot} height={Math.max(420, 18 * n + 160)} handleRef={plotRef} onSelect={resolve}
+  return <Plot exportName={exportName} data={plot} height={Math.max(420, 18 * n + 160)} handleRef={plotRef} onSelect={resolve}
     layout={{ margin: { l: 260, r: 20, t: 10, b: 160 }, xaxis: { tickangle: -45, automargin: true }, yaxis: { automargin: true } }} />
 }
 
@@ -225,7 +241,7 @@ const SHAPES: Record<string, string> = {
   DO: 'triangleDown', DISGENET: 'triangleDown', OMIM: 'triangleDown', DRUGBANK: 'star', INTERPRO: 'star', PFAM: 'star', Gene: 'dot',
 }
 
-export function NetworkView({ data, config, settings, selected, onSelect, networkRef, networkStyle }: ViewProps) {
+export function NetworkView({ data, config, settings, selected, onSelect, networkRef, networkStyle, exportName }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const cb = usePaletteMode()
   const net = data.network
@@ -242,7 +258,7 @@ export function NetworkView({ data, config, settings, selected, onSelect, networ
     return <p className="muted">No edges pass the current cut-off. Lower the {data.view === 'network-tt' ? 'similarity' : 'shared-terms'} threshold or show more terms.</p>
   }
   return (
-    <NetworkGraph nodes={nodes} edges={edges} selected={selectedNodes} handleRef={networkRef} height={600} style={networkStyle}
+    <NetworkGraph exportName={exportName} nodes={nodes} edges={edges} selected={selectedNodes} handleRef={networkRef} height={600} style={networkStyle}
       onSelect={(ids, add) => {
         const terms = ids.filter((id) => termIds.has(id))
         const genes = ids.filter((id) => !termIds.has(id))
@@ -319,7 +335,7 @@ export function TableView({ data, config, selected, onSelect, columns, runId }: 
 // ---------------------------------------------------------------------------
 // Sankey: genes → terms → annotation sources
 // ---------------------------------------------------------------------------
-export function SankeyView({ data, config, settings, onSelect, plotRef }: ViewProps) {
+export function SankeyView({ data, config, settings, onSelect, plotRef, exportName }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const pm = usePaletteMode()
   const plot = useMemo(() => {
@@ -352,14 +368,14 @@ export function SankeyView({ data, config, settings, onSelect, plotRef }: ViewPr
       link: { source: src, target: tgt, value: val, color: 'rgba(161,161,170,0.3)' },
     }]
   }, [data.terms, settings, config, colorOf, pm])
-  return <Plot data={plot as never} height={Math.max(480, Math.min(1100, data.terms.length * 34))} handleRef={plotRef}
+  return <Plot exportName={exportName} data={plot as never} height={Math.max(480, Math.min(1100, data.terms.length * 34))} handleRef={plotRef}
     onSelect={(ids, add) => onSelect(ids.filter(Boolean), add)} layout={{ margin: { l: 10, r: 10, t: 10, b: 10 } }} />
 }
 
 // ---------------------------------------------------------------------------
 // Chord: shared genes between the shown terms
 // ---------------------------------------------------------------------------
-export function ChordView({ data, config, settings, selected, onSelect, svgRef }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
+export function ChordView({ data, config, settings, selected, onSelect, svgRef, exportName }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
   const colorOf = useSourceColor(config, data.availableSources)
   const ids = data.terms.map((t) => t.id)
   const matrix = useMemo(() => {
@@ -372,7 +388,7 @@ export function ChordView({ data, config, settings, selected, onSelect, svgRef }
   }, [data.cells, ids.join('|')])  // eslint-disable-line react-hooks/exhaustive-deps
   if (matrix.every((row) => row.every((v) => v === 0))) return <p className="muted">These terms share no genes. Show more terms to see overlaps.</p>
   return (
-    <ChordDiagram names={data.terms.map((t) => label(t, settings, 40))} matrix={matrix} colors={data.terms.map((t) => colorOf(t.source))}
+    <ChordDiagram exportName={exportName} names={data.terms.map((t) => label(t, settings, 40))} matrix={matrix} colors={data.terms.map((t) => colorOf(t.source))}
       svgRef={svgRef} selected={new Set(ids.map((id, i) => (selected.has(id) ? i : -1)).filter((i) => i >= 0))}
       onSelect={(i, j) => onSelect(j === undefined ? [ids[i]] : [ids[i], ids[j]], true)} />
   )
@@ -381,7 +397,7 @@ export function ChordView({ data, config, settings, selected, onSelect, svgRef }
 // ---------------------------------------------------------------------------
 // Hive: genes on one axis, terms on one axis per annotation source
 // ---------------------------------------------------------------------------
-export function HiveView({ data, config, settings, selected, onSelect, svgRef }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
+export function HiveView({ data, config, settings, selected, onSelect, svgRef, exportName }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
   const colorOf = useSourceColor(config, data.availableSources)
   const pm = usePaletteMode()
   const { axes, nodes, links } = useMemo(() => {
@@ -400,7 +416,7 @@ export function HiveView({ data, config, settings, selected, onSelect, svgRef }:
   }, [data.terms, colorOf, pm])
   void settings
   return (
-    <HivePlot axes={axes} nodes={nodes} links={links} svgRef={svgRef} selected={selected}
+    <HivePlot exportName={exportName} axes={axes} nodes={nodes} links={links} svgRef={svgRef} selected={selected}
       onSelect={(ids) => {
         const terms = ids.filter((id) => !id.startsWith('g:'))
         const genes = ids.filter((id) => id.startsWith('g:')).map((id) => id.slice(2))
@@ -411,7 +427,7 @@ export function HiveView({ data, config, settings, selected, onSelect, svgRef }:
 }
 
 /** Circos: terms grouped by annotation source and a sector of genes; bundled term–gene links; outer bars = −log10 p (terms) or term count (genes). */
-export function CircosView({ data, config, settings, selected, onSelect, svgRef }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
+export function CircosView({ data, config, settings, selected, onSelect, svgRef, exportName }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
   const colorOf = useSourceColor(config, data.availableSources)
   const pm = usePaletteMode()
   const { sectors, items, links } = useMemo(() => {
@@ -435,7 +451,7 @@ export function CircosView({ data, config, settings, selected, onSelect, svgRef 
     return { sectors, items, links }
   }, [data.terms, colorOf, pm, settings.labels])
   return (
-    <CircosBundle sectors={sectors} items={items} links={links} svgRef={svgRef} selected={selected} linkLabel="term–gene links"
+    <CircosBundle exportName={exportName} sectors={sectors} items={items} links={links} svgRef={svgRef} selected={selected} linkLabel="term–gene links"
       trackLabel="−log10 p (terms), share of terms (genes)"
       onSelect={(ids, add) => {
         const terms = ids.filter((id) => !id.startsWith('g:'))

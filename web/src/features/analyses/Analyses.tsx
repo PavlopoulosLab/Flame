@@ -14,6 +14,8 @@ import {
   startTask, TASK_INFO, useTask, useTasks, type DrugResult, type DrugRow, type ModulesResult, type RegulatorResult,
   type RobustnessResult, type TaskType,
 } from './tasks'
+import { usePlainSelection } from '../../lib/imageExport'
+const NO_IDS: string[] = []
 
 type Tile = TaskType | 'celltypes' | 'literature'
 const TILES: Tile[] = ['tf', 'kinase', 'drugs', 'celltypes', 'literature', 'metabolites', 'modules', 'robustness']
@@ -222,6 +224,7 @@ export function TaskResultModal({ id, lists, onClose }: { id: string; lists: Ana
 
 function RegulatorsView({ r, onDone }: { r: RegulatorResult; onDone: () => void }) {
   const [sel, setSel] = useState<string[]>([])
+  const selV = usePlainSelection(sel, NO_IDS) // none while an image is exported without highlighting
   const [limit, setLimit] = useState(25)
   const top = r.regulators.slice(0, limit)
   const genes = [...new Set(r.regulators.filter((x) => sel.includes(x.name)).flatMap((x) => x.overlap))]
@@ -243,7 +246,7 @@ function RegulatorsView({ r, onDone }: { r: RegulatorResult; onDone: () => void 
       </div>
       <Plot height={Math.max(300, top.length * 20 + 80)} onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
         type: 'bar', orientation: 'h', y: top.map((x) => x.name), x: top.map((x) => x.overlap.length), customdata: top.map((x) => x.name),
-        marker: { color: top.map((x) => (sel.includes(x.name) ? '#e11d48' : x.score)), colorscale: 'Viridis', reversescale: true, showscale: !sel.length, colorbar: { title: { text: 'mean rank' } } },
+        marker: { color: top.map((x) => (selV.includes(x.name) ? '#e11d48' : x.score)), colorscale: 'Viridis', reversescale: true, showscale: !selV.length, colorbar: { title: { text: 'mean rank' } } },
         text: top.map((x) => `#${x.rank}`), textposition: 'outside',
         hovertemplate: `%{y}<br>%{x} genes of your list · mean rank %{marker.color}<extra></extra>`,
       } as never]} layout={{ yaxis: { autorange: 'reversed', automargin: true }, xaxis: { title: { text: 'genes of your list with evidence' } }, margin: { l: 90, r: 40, t: 10, b: 50 } }} />
@@ -276,6 +279,7 @@ function RegulatorsView({ r, onDone }: { r: RegulatorResult; onDone: () => void 
 function DrugsView({ r }: { r: DrugResult }) {
   const [dir, setDir] = useState<'reverse' | 'mimic'>(r.reverse.length ? 'reverse' : 'mimic')
   const [sel, setSel] = useState<string | null>(null)
+  const selV = usePlainSelection(sel, null) // none while an image is exported without highlighting
   const rows = (dir === 'reverse' ? r.reverse : r.mimic).slice(0, 30)
   const picked = rows.find((x) => x.agent === sel)
   const genesOf = (x: DrugRow) => (dir === 'reverse' ? x.genesReverse : x.genesMimic)
@@ -297,7 +301,7 @@ function DrugsView({ r }: { r: DrugResult }) {
       {rows.length === 0 ? <Note kind="info">No signature {dir === 'reverse' ? 'reverses' : 'mimics'} this response significantly.</Note> : (
         <Plot height={Math.max(300, rows.length * 20 + 80)} onSelect={(ids) => setSel(ids[0] ?? null)} data={[{
           type: 'bar', orientation: 'h', y: rows.map((x) => x.agent), x: rows.map((x) => x[dir]), customdata: rows.map((x) => x.agent),
-          marker: { color: rows.map((x) => (x.agent === sel ? '#f97316' : dir === 'reverse' ? '#2563eb' : '#e11d48')) },
+          marker: { color: rows.map((x) => (x.agent === selV ? '#f97316' : dir === 'reverse' ? '#2563eb' : '#e11d48')) },
           hovertemplate: '%{y}<br>score %{x}<extra></extra>',
         } as never]} layout={{ yaxis: { autorange: 'reversed', automargin: true }, xaxis: { title: { text: `${dir} score (−log10 adj. p, up + down)` } }, margin: { l: 160, r: 20, t: 10, b: 50 } }} />
       )}
@@ -380,6 +384,7 @@ function ModulesView({ r, taxid, onDone }: { r: ModulesResult; taxid: number; on
 
 function RobustnessView({ r }: { r: RobustnessResult }) {
   const [sel, setSel] = useState<string[]>([])
+  const selV = usePlainSelection(sel, NO_IDS) // none while an image is exported without highlighting
   const [only, setOnly] = useState<'all' | 'stable' | 'fragile'>('all')
   const shown = r.terms.filter((t) => (only === 'all' ? true : only === 'stable' ? t.stability >= 0.8 : t.stability < 0.5))
   const exp = r.terms.map((t) => ({ term_id: t.id, term: t.name, source: t.source, padj: t.padj, stability: t.stability, random_rate: t.randomRate, genes: t.genes ?? '' }))
@@ -402,7 +407,7 @@ function RobustnessView({ r }: { r: RobustnessResult }) {
           <Plot height={360} dragmode="lasso" onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
             type: 'scatter', mode: 'markers', x: r.terms.map((t) => t.stability), y: r.terms.map((t) => -Math.log10(Math.max(t.padj, 1e-300))),
             customdata: r.terms.map((t) => t.id), text: r.terms.map((t) => `${t.name} (${t.source})`),
-            marker: { size: r.terms.map((t) => (sel.includes(t.id) ? 11 : 7)), color: r.terms.map((t) => t.randomRate), colorscale: [[0, '#16a34a'], [0.2, '#f59e0b'], [1, '#e11d48']], cmin: 0, cmax: 0.5, colorbar: { title: { text: 'random rate' } }, line: { width: r.terms.map((t) => (sel.includes(t.id) ? 1.5 : 0)), color: '#111827' } },
+            marker: { size: r.terms.map((t) => (selV.includes(t.id) ? 11 : 7)), color: r.terms.map((t) => t.randomRate), colorscale: [[0, '#16a34a'], [0.2, '#f59e0b'], [1, '#e11d48']], cmin: 0, cmax: 0.5, colorbar: { title: { text: 'random rate' } }, line: { width: r.terms.map((t) => (selV.includes(t.id) ? 1.5 : 0)), color: '#111827' } },
             hovertemplate: '%{text}<br>stability %{x:.0%} · −log10 adj. p %{y:.1f}<extra></extra>',
           } as never]} layout={{ xaxis: { title: { text: 'stability (share of subsamples)' }, range: [-0.05, 1.05], tickformat: '.0%' }, yaxis: { title: { text: '−log10 adjusted p' } },
             shapes: [{ type: 'line', x0: 0.8, x1: 0.8, yref: 'paper', y0: 0, y1: 1, line: { dash: 'dot', color: '#16a34a' } }] }} />

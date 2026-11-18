@@ -1,6 +1,8 @@
 import cloud from 'd3-cloud'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { categorical, usePaletteMode } from '../lib/palette'
+import { ExportImageButton } from './ExportImage'
+import { svgSource } from './viz'
 
 export interface CloudWord { word: string; weight: number }
 interface Placed { text: string; size: number; x: number; y: number; rotate: number; weight: number }
@@ -15,10 +17,11 @@ function seeded(seed: number) {
  * Word cloud of term names weighted by significance (d3-cloud layout).
  * Click a word to act on it (e.g. select the terms that contain it).
  */
-export function WordCloud({ words, width = 560, height = 260, onWord, active, svgRef, maxWords = 60 }: {
+export function WordCloud({ words, width = 560, height = 260, onWord, active, svgRef, maxWords = 60, exportName = 'flame_wordcloud' }: {
   words: CloudWord[]; width?: number; height?: number; onWord?: (w: string) => void; active?: string | null
-  svgRef?: { current: SVGSVGElement | null }; maxWords?: number
+  svgRef?: { current: SVGSVGElement | null }; maxWords?: number; exportName?: string
 }) {
+  const own = useRef<SVGSVGElement | null>(null)
   const pm = usePaletteMode()
   const [placed, setPlaced] = useState<Placed[]>([])
   const key = useMemo(() => words.slice(0, maxWords).map((w) => `${w.word}:${w.weight}`).join('|'), [words, maxWords])
@@ -48,7 +51,9 @@ export function WordCloud({ words, width = 560, height = 260, onWord, active, sv
   const pal = categorical(pm)
   if (!words.length) return <p className="muted small">No words to show.</p>
   return (
-    <svg ref={svgRef ?? undefined} viewBox={`${-width / 2} ${-height / 2} ${width} ${height}`} width="100%" style={{ maxWidth: width }} role="img"
+    <div className="figure">
+    <div className="plot-tools"><ExportImageButton source={() => svgSource(own.current, exportName, { selection: !!onWord })} /></div>
+    <svg ref={(el) => { own.current = el; if (svgRef) svgRef.current = el }} viewBox={`${-width / 2} ${-height / 2} ${width} ${height}`} width="100%" style={{ maxWidth: width }} role="img"
       aria-label={`Word cloud of ${words.length} words; larger words come from more significant terms`} className="word-cloud">
       {placed.map((w, i) => (
         <text key={w.text} transform={`translate(${w.x},${w.y}) rotate(${w.rotate})`} textAnchor="middle" fontSize={w.size} fontWeight={600}
@@ -59,5 +64,6 @@ export function WordCloud({ words, width = 560, height = 260, onWord, active, sv
         </text>
       ))}
     </svg>
+    </div>
   )
 }
