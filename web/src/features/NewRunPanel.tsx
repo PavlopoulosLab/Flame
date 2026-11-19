@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useState } from 'react'
-import { api } from '../api/client'
+import { API_BASE, api } from '../api/client'
 import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
 import type { AnalyteList, CustomSource } from '../api/types'
 import { BusyBar, ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
@@ -39,6 +39,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const list = picked[0]   // drives organism-specific options (tool support, background lists)
   const mixedOrganisms = new Set(picked.map((l) => l.organismTaxId)).size > 1
   const [progress, setProgress] = useState<string | null>(null)
+  const [showGmt, setShowGmt] = useState(false)
   const [tools, setTools] = useState<string[]>(preset === 'celltypes' ? ['enrichr', 'clusterprofiler'] : preset === 'literature' ? ['string', 'enrichr'] : initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
   const toolOffers = (key: string) => (config?.tools.find((t) => t.key === key)?.paradigms ?? ['ORA']).includes(paradigm)
   useEffect(() => {
@@ -180,17 +181,31 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
               )
             })}
           </div>
-          {paradigm === 'ORA' && sources.length > 0 && (
-            <div className="chip-grid">
-              {sources.map((s) => {
-                const on = customIds.includes(s.id)
-                return (
-                  <button key={s.id} type="button" className={`tool-chip${on ? ' on' : ''}`} aria-pressed={on}
-                    onClick={() => setCustomIds((c) => (on ? c.filter((x) => x !== s.id) : [...c, s.id]))}>
-                    <i aria-hidden="true" />Custom: {s.name}
-                  </button>
-                )
-              })}
+          {paradigm === 'ORA' && (
+            <div className="own-sets">
+              <div className="row between wrap">
+                <span className="field-label">Your own pathway sets <span className="muted small">optional</span></span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowGmt(true)} title="Upload a collection of gene sets as a GMT file">+ Upload GMT</button>
+              </div>
+              {sources.length === 0
+                ? <p className="muted small">Besides the tools above, you can test your list against your own collection of gene sets (pathways or signatures) uploaded as a GMT file. Flame tests them itself, as a separate run.</p>
+                : (
+                  <div className="chip-grid">
+                    {sources.map((s) => {
+                      const on = customIds.includes(s.id)
+                      return (
+                        <span key={s.id} className="own-set">
+                          <button type="button" className={`tool-chip${on ? ' on' : ''}`} aria-pressed={on}
+                            onClick={() => setCustomIds((c) => (on ? c.filter((x) => x !== s.id) : [...c, s.id]))}>
+                            <i aria-hidden="true" />{s.name} <span className="muted small">{s.termCount ?? s.term_count} sets</span>
+                          </button>
+                          <button type="button" className="icon-btn" aria-label={`Delete ${s.name}`} title={`Delete the collection "${s.name}" from this workspace`}
+                            onClick={() => { setCustomIds((c) => c.filter((x) => x !== s.id)); api(`/sources/${s.id}`, { method: 'DELETE' }).then(invalidateWs) }}>×</button>
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
             </div>
           )}
         </section>
@@ -274,6 +289,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
         </section>
         <ErrorNote error={start.error} />
         {progress && <BusyBar label={progress} expect={6} />}
+        {showGmt && <GmtModal onClose={() => setShowGmt(false)} />}
         {result && (
           <Note kind={result.skipped.length ? 'warning' : 'success'}>
             {result.created.length > 0 && `Started ${result.created.length} run(s). `}
@@ -282,6 +298,35 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
           </Note>
         )}
       </div>
+    </Modal>
+  )
+}
+
+/** Upload a collection of gene sets (GMT) to test lists against; opened from the New run panel. */
+function GmtModal({ onClose }: { onClose: () => void }) {
+  const [name, setName] = useState('My gene sets')
+  const [text, setText] = useState('')
+  const [err, setErr] = useState<unknown>(null)
+  const invalidate = useInvalidateWorkspace()
+  const sets = useMemo(() => text.split(/\r?\n/).filter((l) => l.split('\t').length >= 3).length, [text])
+  return (
+    <Modal title="Upload your own pathway sets (GMT)" onClose={onClose}
+      subtitle="A GMT file holds many named gene sets, one per line. Enrichment tests your list against each of them, as it does for GO terms or KEGG pathways."
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={!sets} onClick={() =>
+          api('/sources', { body: { name, text } }).then(() => { invalidate(); onClose() }).catch(setErr)}>Add collection ({sets} gene sets)</button>
+      </>}>
+      <Note kind="info">
+        <strong>Use this for</strong> your own pathways, published signatures or a collection Flame does not offer (e.g. MSigDB Hallmark). <strong>Not for a background:</strong> to restrict the statistical universe, add those genes as a normal list and choose it under <em>Background</em> in a run's per-tool settings. <strong>Works with</strong> over-representation (ORA) runs; ranked-list GSEA runs use the built-in MSigDB collections and cannot use an uploaded file.
+      </Note>
+      <p className="small">Format: each line is <code>set ID ⇥ description ⇥ gene ⇥ gene …</code> (tab-separated, no header). The gene IDs must be of the same type as the IDs in your lists. <a href={`${API_BASE}/inputs/examples/gmt/file`}>Download an example file</a> (MSigDB Hallmark).</p>
+      <label className="field"><span className="field-label">Name of the collection</span>
+        <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field"><span className="field-label">GMT file</span>
+        <input type="file" accept=".gmt,.txt,.tsv" onChange={(e) => e.target.files?.[0]?.text().then(setText)} /></label>
+      <textarea className="input mono" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'HALLMARK_APOPTOSIS\tApoptosis\tCASP3\tCASP8\tBAX\t…'} aria-label="GMT content" />
+      <ErrorNote error={err} />
     </Modal>
   )
 }

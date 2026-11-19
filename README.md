@@ -27,7 +27,7 @@ variants and GWAS results. It is free and open to everyone.
   MSigDB, gene set enrichment (GSEA) of ranked lists; literature enrichment (PubMed, GeneSigDB, Rummagene); cell types;
   custom GMT sources, custom backgrounds, per-tool settings.
 * **Beyond term lists**: transcription factors (ChEA3) and kinases (KEA3), drug and CRISPR signatures that mimic or
-  reverse a response (LINCS L1000), metabolite and lipid pathways (KEGG), STRING network modules with module enrichment,
+  reverse a response (LINCS L1000), STRING network modules with module enrichment,
   and robustness checks (bootstrap stability, random-list control, FDR thresholds).
 * **Results**: all annotation sources together or one tab per source (GO:BP, GO:CC, KEGG…); table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
   views; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
@@ -62,7 +62,7 @@ R/                 Flame R package: enrichment strategies and science core (no U
   core-variants.R      variant and GWAS annotation
 api/               REST API (plumber): routes/, openapi.R, SQLite workspace store, background workers (mirai)
 web/               Web app (React + TypeScript + Vite; Plotly, vis-network, D3)
-  src/pages/           Home, Workspace (Input, Enrichment, Regulators & drugs, Variants & GWAS, Gene tools tabs),
+  src/pages/           Home, Workspace (Input, Enrichment, Regulators & drugs, Gene tools tabs),
                        Results, Compare, Variants, Help
   e2e/                 browser smoke tests (Playwright)
 inst/extdata/      organism tables and example data from published studies
@@ -101,6 +101,7 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_PORT`, `FLAME_HOST` | `8000`, `127.0.0.1` | Listening address (use `0.0.0.0` in containers) |
 | `FLAME_DB` | `api/data/flame.sqlite` | Workspace database |
 | `FLAME_WORKERS` | `4` | Background enrichment workers |
+| `FLAME_MAX_ACTIVE_JOBS` | `20` | Enrichment runs and analyses a workspace may have queued or running at once; `FLAME_WORKERS` of them run at the same time, the rest wait their turn |
 | `FLAME_RETENTION_DAYS` | `30` | Delete workspaces after this many days without use |
 | `FLAME_MAX_LISTS` | `10` | Lists per workspace (0 = unlimited) |
 | `FLAME_PUBLIC_URL` | – | Public base URL (used in links and emails) |

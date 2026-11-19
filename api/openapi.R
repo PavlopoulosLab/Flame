@@ -121,6 +121,7 @@ BODIES <- list(
   "POST /api/v1/sources" = .obj(list(name = STR(), text = STR("GMT file contents: name<TAB>description<TAB>gene1<TAB>gene2…")), c("name", "text")),
   "POST /api/v1/utilities/convert" = .obj(list(listId = STR(), targetFormat = STR("e.g. ENTREZGENE_ACC, ENSG, UNIPROTSWISSPROT"), mappingMode = STR("best | all")), c("listId", "targetFormat"),
                                           example = list(listId = "<list id>", targetFormat = "ENSG", mappingMode = "best")),
+  "POST /api/v1/utilities/annotate" = .obj(list(listId = STR("List to annotate.")), "listId"),
   "POST /api/v1/utilities/orthologs" = .obj(list(listId = STR(), targetTaxId = INT(), mappingMode = STR("best | all")), c("listId", "targetTaxId"),
                                             example = list(listId = "<list id>", targetTaxId = 10090, mappingMode = "best")),
   "POST /api/v1/utilities/ppi" = .obj(list(listId = STR(), networkType = STR("functional | physical"), networkEdges = STR("evidence | confidence"), score = INT("Minimum STRING score, 150–999.")),

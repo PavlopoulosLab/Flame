@@ -53,20 +53,16 @@ const FORMATS: Format[] = [
     columns: <>One microRNA per line in miRBase form (<code>hsa-miR-21-5p</code>, <code>hsa-let-7a-5p</code>). A name without <code>-5p</code>/<code>-3p</code> uses both arms. Flame finds their predicted targets (miRDB v6, score &gt; 80) and lets you keep genes hit by several of your microRNAs.</>,
     sample: 'hsa-miR-21-5p\nhsa-miR-17-5p\nhsa-miR-191-5p\nhsa-miR-155-5p',
     notes: <>Example: the 21 microRNAs up-regulated in at least 3 of 6 solid cancers (Volinia et al. 2006, <em>PNAS</em> 103:2257, Table 2), with 2006 names mapped to current miRBase names.</> },
-  { id: 'metabolites', title: 'Metabolite or lipid list', ext: '.txt', use: 'Regulators & drugs → Metabolite pathways', file: '/inputs/examples/metabolites/file',
-    columns: <>One metabolite per line: a name (<code>sarcosine</code>, <code>L-proline</code>), a KEGG compound ID (<code>C00213</code>) or a ChEBI ID (<code>CHEBI:15611</code>). Names are matched to KEGG compounds; unmatched entries are listed.</>,
-    sample: 'sarcosine\nuracil\nkynurenine\nglycerol 3-phosphate\nleucine\nproline',
-    notes: <>Example: the six metabolites raised in metastatic prostate cancer and validated by Sreekumar et al. 2009 (<em>Nature</em> 457:910).</> },
   { id: 'snps', title: 'SNP list', ext: '.txt', use: 'From SNPs', file: '/inputs/examples/snps/file', example: 'snps',
     columns: <>One dbSNP rsID per line (human).</>, sample: 'rs429358\nrs7412\nrs1801133\nrs6025' },
-  { id: 'variants', title: 'Variants', ext: '.txt / .vcf', use: 'Variants and GWAS', file: '/variants/examples/variants/file', example: 'variants',
+  { id: 'variants', title: 'Variants', ext: '.txt / .vcf', use: 'Input → From variants or GWAS', file: '/variants/examples/variants/file', example: 'variants',
     columns: <>One variant per line, in any of these forms: rsID; VCF columns <code>CHROM POS ID REF ALT</code> (tab- or space-separated; header lines starting with <code>##</code> are skipped); <code>chr:pos:ref:alt</code>; or HGVS (<code>ENST…:c.803C&gt;T</code>). Positions are GRCh38.</>,
     sample: 'rs429358\nrs7412\n7\t140753336\t.\tA\tT\n17:7674220:C:T\nENST00000366667:c.803C>T' },
-  { id: 'gwas', title: 'GWAS summary statistics', ext: '.tsv / .csv', use: 'Variants and GWAS', file: '/variants/examples/gwas/file', example: 'gwas',
+  { id: 'gwas', title: 'GWAS summary statistics', ext: '.tsv / .csv', use: 'Input → From variants or GWAS', file: '/variants/examples/gwas/file', example: 'gwas',
     columns: <>A header row with a variant column (<code>SNP</code>, <code>rsid</code>…) and a p-value column (<code>P</code>, <code>pval</code>…); optionally <code>CHR</code> and <code>BP</code> (GRCh38). Up to 2,000 of the most significant rows are analysed.</>,
     sample: 'SNP\tCHR\tBP\tP\nrs6733839\t2\t127135234\t6e-118\nrs3851179\t11\t86157598\t3e-48\nrs679515\t1\t207577223\t7e-46',
     notes: <>Example: 89 lead associations for Alzheimer’s disease from Bellenguez et al. 2022, <em>Nat Genet</em> 54:412 (GWAS Catalog GCST90027158).</> },
-  { id: 'gmt', title: 'Custom gene sets (GMT)', ext: '.gmt', use: 'Custom sources → + GMT', file: '/inputs/examples/gmt/file', example: 'gmt',
+  { id: 'gmt', title: 'Custom gene sets (GMT)', ext: '.gmt', use: 'New run → Your own pathway sets → + Upload GMT', file: '/inputs/examples/gmt/file', example: 'gmt',
     columns: <>One gene set per line, tab-separated: set ID, description, then the genes (as many columns as needed). No header row.</>,
     sample: 'HALLMARK_ANGIOGENESIS\tangiogenesis\tAPOH\tAPP\tCCND2\tCOL3A1\tCOL5A2\nHALLMARK_APOPTOSIS\tapoptosis\tADD1\tAIFM3\tANKH\tANXA1\tAPP',
     notes: <>The example file is the MSigDB Hallmark collection (human gene symbols).</> },
@@ -144,7 +140,7 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <h3>The Input tab and your lists</h3>
-        <p>The workspace has five tabs: <strong>Input</strong>, <strong>Enrichment</strong>, <strong>Regulators &amp; drugs</strong>, <strong>Variants &amp; GWAS</strong> and <strong>Gene tools</strong>. A new workspace opens on <strong>Input</strong>, which shows every way to add a list as a card; <strong>+ Add list</strong> takes you there from anywhere. After <strong>Save list</strong> you are back on the Input tab, with a line confirming what was saved and a <em>Run enrichment</em> shortcut.</p>
+        <p>The workspace has four tabs: <strong>Input</strong>, <strong>Enrichment</strong>, <strong>Regulators &amp; drugs</strong> and <strong>Gene tools</strong>. Variant and GWAS analysis is one of the input options (<em>From variants or GWAS</em>), since its result is a gene list; your variant analyses are listed under the input options. A new workspace opens on <strong>Input</strong>, which shows every way to add a list as a card; <strong>+ Add list</strong> takes you there from anywhere. After <strong>Save list</strong> you are back on the Input tab, with a line confirming what was saved and a <em>Run enrichment</em> shortcut.</p>
         <p>Your lists are always in view: in the workspace they sit in the panel on the left, and the results, comparison and variants pages show them in a <em>Your lists</em> box. In the workspace panel you can:</p>
         <ul>
           <li><strong>See a list's contents</strong> — click its name (or <em>⋯ → View contents</em>). The IDs are shown with their annotations where available: gene symbol, Ensembl gene ID and description, fetched from g:Profiler (g:Convert). The search box matches IDs, names and descriptions.</li>
@@ -217,8 +213,8 @@ const TOPICS: Topic[] = [
         <p>MSigDB gene sets are downloaded once per organism on first use and then cached, so the first clusterProfiler run for an organism takes longer.</p>
         <p>The New run panel lists your lists with checkboxes: tick several (or press <em>Run enrichment on selected</em> in the lists panel) to run the same tools and settings on each of them; the footer shows the number of runs that will start. If the lists are from different organisms, a tool that does not support one of them is skipped for that list and reported.</p>
         <p>In the New run panel, sources that none of the selected tools offer are greyed out, and coloured dots show which tools provide each source. Tools that do not support the list's organism cannot be selected.</p>
-        <h3>Custom gene sets</h3>
-        <p>Upload your own gene sets as a GMT file (one set per line: ID, description, genes — tab separated) under <em>Custom sources</em>. They are tested with a hypergeometric test and Benjamini–Hochberg correction; the universe is all genes in the file unless you choose a background list.</p>
+        <h3>Your own pathway sets (custom gene sets)</h3>
+        <p>A GMT file is a collection of named gene sets — your own pathways, published signatures, or a collection Flame does not offer. Upload it in the <strong>New run</strong> panel, under <em>Which tools → Your own pathway sets → + Upload GMT</em> (one set per line: ID, description, genes — tab separated), and tick it there; Flame tests your list against it as a separate run, beside the tool runs. It works with over-representation runs, not ranked-list GSEA. It is not one of your gene lists and not a background: a background is an ordinary list that you choose under <em>Background</em> in a run's per-tool settings (see below). They are tested with a hypergeometric test and Benjamini–Hochberg correction; the universe is all genes in the file unless you choose a background list.</p>
       </>
     ),
   },
@@ -275,7 +271,7 @@ const TOPICS: Topic[] = [
           <li><strong>Interaction</strong> — zoom buttons and arrow keys, node dragging, hiding edges while panning (faster for large networks).</li>
           <li><strong>Clusters</strong> — <em>Group hubs</em> collapses each highly connected node with its neighbours; <em>Group leaves</em> folds nodes with a single link into their neighbour. Double-click a cluster to open it, or <em>Open all</em>.</li>
         </ul>
-        <p>The same options are available for the STRING network under Quick actions. Style choices are kept for the browser session; ⤓ Image saves the whole network or the current view.</p>
+        <p>The same options are available for the STRING protein network (Regulators &amp; drugs). Style choices are kept for the browser session; ⤓ Image saves the whole network or the current view.</p>
         <h3>Open in Arena3D or NORMA</h3>
         <p><em>Arena3D ↗</em> (network, heatmap, Sankey, chord and hive views) opens the view in <a href="https://www.arena3d.org/" target="_blank" rel="noopener noreferrer">Arena3D</a> as a 3D multilayer network: the terms of each annotation source on their own layer and the genes on another. <em>NORMA ↗</em> (network views) opens it in <a href="https://normaviz.org/" target="_blank" rel="noopener noreferrer">NORMA</a>, with terms drawn as annotated groups. Only the shown network (term names, IDs and genes) is sent; the link opens in a new tab and expires after a while (one hour for Arena3D).</p>
         <h3>Pathway maps and gene pages</h3>
@@ -329,12 +325,17 @@ const TOPICS: Topic[] = [
     title: 'Quick actions',
     body: (
       <>
+        <p>The <strong>Gene tools</strong> tab (and each list's <em>⋯</em> menu) holds tools that inspect or transform a list without running an enrichment. The first three share one lookup at MyGene.info, which recognises gene symbols, older and alternative names, Ensembl, Entrez and UniProt IDs.</p>
+        <h3>Annotate a list</h3>
+        <p>A table of every gene with its current symbol, full name, gene type (protein-coding, ncRNA, pseudogene…), chromosome position and band, and Ensembl and Entrez IDs, with links to GeneCards, Ensembl and NCBI. Search it, copy the symbols, or export it as Excel or TSV.</p>
+        <h3>Check and clean a list</h3>
+        <p>Counts the IDs that are recognised as given, those that are older or alternative names of a gene (e.g. <code>MLL</code>, now <code>KMT2A</code>), those not found, and those that point to the same gene as another ID. Choose what to fix — remove the IDs not found, replace old names with the current symbol (lists of gene symbols only), keep one ID per gene — and save the cleaned list. The original list is kept.</p>
+        <h3>Filter a list</h3>
+        <p>Keep genes by type (<em>Protein-coding only</em> is one click) and by chromosome, and optionally remove placeholder and antisense names such as <code>LOC…</code>, <code>LINC…</code>, <code>C1orf…</code> and <code>…-AS1</code>. Save what is left as a new list. Useful after fetching genes from ClinVar or a disease, which can include such entries. For a ranked list, the cleaned or filtered list is saved without the scores.</p>
         <h3>Convert IDs</h3>
         <p>Translates a list to another identifier type with g:Convert. <em>Best only</em> keeps one target per input; <em>All</em> keeps every mapping. Select rows and save them as a new list.</p>
         <h3>Find orthologs</h3>
         <p>Maps a list to the corresponding genes of another organism with g:Orth — useful for running mouse data through human-only resources.</p>
-        <h3>Protein interaction network</h3>
-        <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Download the network as TSV or as an image (PNG, SVG, PDF, JPEG, WebP), open it in STRING or in Arena3D (each evidence type becomes its own edge channel), or save its proteins as a list.</p>
       </>
     ),
   },
@@ -351,17 +352,15 @@ const TOPICS: Topic[] = [
         <p>Give up- and down-regulated genes (for example from a volcano plot). Flame compares them with LINCS L1000 consensus signatures (Subramanian et al. 2017, <em>Cell</em> 171:1437) of compounds or CRISPR knock-outs via Enrichr. <strong>Reverse</strong> = perturbations that push the genes the other way (up genes go down, down genes go up) — candidate treatments; <strong>mimic</strong> = perturbations that cause a similar response. Score = −log10 adjusted p of the up genes plus that of the down genes. These are hypotheses from cell lines, not treatment advice.</p>
         <p><Example kind="drugs">Drug signatures example</Example></p>
         <h3>Cell types</h3>
-        <p>Runs an ordinary enrichment against marker-gene collections: PanglaoDB, CellMarker 2024, Azimuth, Tabula Sapiens (Enrichr) and MSigDB C8 (clusterProfiler). Useful for lists from single-cell clusters or deconvolution.</p>
+        <p>An ordinary enrichment run: in the New run panel press <em>Cell types</em> under <em>Where to look</em>. It tests your list against marker-gene collections: PanglaoDB, CellMarker 2024, Azimuth, Tabula Sapiens (Enrichr) and MSigDB C8 (clusterProfiler). Useful for lists from single-cell clusters or deconvolution.</p>
         <p><Example kind="celltypes">Cell types example (NK cells, PBMC 3k)</Example></p>
         <h3>Literature enrichment</h3>
-        <p>Choose the <em>Literature</em> sources in a new run: <strong>PubMed</strong> (STRING: articles whose text mentions several of your genes), <strong>GeneSigDB</strong> (gene signatures published in papers) and <strong>Rummagene</strong> (Clarke et al. 2024: about 640,000 gene sets mined from supplementary tables of PubMed Central articles), the last two through Enrichr. Each term links to the article on PubMed or PubMed Central, so the result reads as “papers that reported a gene set like yours”.</p>
+        <p>An ordinary enrichment run: in the New run panel press <em>Literature</em> under <em>Where to look</em>. The sources are <strong>PubMed</strong> (STRING: articles whose text mentions several of your genes), <strong>GeneSigDB</strong> (gene signatures published in papers) and <strong>Rummagene</strong> (Clarke et al. 2024: about 640,000 gene sets mined from supplementary tables of PubMed Central articles), the last two through Enrichr. Each term links to the article on PubMed or PubMed Central, so the result reads as “papers that reported a gene set like yours”.</p>
         <p><Example kind="literature">Literature example</Example></p>
-        <h3>Metabolite pathways</h3>
-        <p>Matches metabolite names, KEGG or ChEBI IDs to KEGG compounds and tests the organism's KEGG pathways (hypergeometric test, Benjamini–Hochberg). The result is an ordinary run, so tables, plots, themes and comparisons all work.</p>
-        <p><Example kind="metabolites">Metabolites example (Sreekumar et al. 2009)</Example></p>
-        <h3>Network modules</h3>
-        <p>Builds the STRING network of a list, splits it into modules with Louvain community detection and runs g:Profiler on each module, so a long list becomes a few functional units. Also available from <em>Gene tools → Protein network → Find modules</em>, which colours the network by module.</p>
-        <p><Example kind="modules">Network modules example</Example></p>
+        <h3>Protein network and modules</h3>
+        <p>Shows STRING interactions among the proteins of a list (up to 500). Edges are coloured by the strongest evidence type, or drawn thicker for higher confidence. Select proteins in the network and save them as a list; download the network as TSV, Excel or an image, or open it in STRING or in Arena3D (each evidence type becomes its own edge channel).</p>
+        <p><strong>Find modules</strong> splits the network into modules with Louvain community detection, runs g:Profiler on each module and colours the network by module, so a long list becomes a few functional units. Each module card shows its top terms; click a module to select its proteins, see all of its enriched terms in a table and save it as a list. The Excel export includes the modules and every module's terms.</p>
+        <p><Example kind="ppi">Protein network example</Example></p>
         <h3>Robustness check</h3>
         <p>Tests whether an enrichment is solid, using MSigDB gene sets locally: <strong>stability</strong> = share of 50 subsamples (80% of the genes) in which a term stays significant; <strong>random rate</strong> = share of 50 random lists of the same size in which it is significant; and the number of terms at several FDR thresholds. Few stable terms, or random lists that give almost as many terms as yours, mean the result should be treated with caution.</p>
         <p><Example kind="robustness">Robustness example</Example></p>
@@ -398,7 +397,7 @@ const TOPICS: Topic[] = [
     title: 'Variants and GWAS',
     body: (
       <>
-        <p>For geneticists who start from variants rather than genes. Open <strong>Variants and GWAS</strong> from the workspace rail.</p>
+        <p>For geneticists who start from variants rather than genes. Choose <strong>From variants or GWAS</strong> on the workspace's Input tab; analyses you have already run are listed under the input options.</p>
         <h3>Input</h3>
         <ul>
           <li><strong>Variant list</strong> — dbSNP rsIDs, VCF lines (CHROM POS ID REF ALT), <code>chr:pos:ref:alt</code> or HGVS notation, one per line. <Example kind="variants">Example</Example></li>

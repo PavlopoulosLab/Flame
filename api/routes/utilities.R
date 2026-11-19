@@ -18,6 +18,21 @@ function(req, res) {
   })
 }
 
+#* Annotate a list's genes (MyGene.info): current symbol, name, gene type, location, Ensembl and Entrez IDs,
+#* with a status per ID (ok, alias, notfound) and duplicates after mapping. Body: { listId }
+#* @post /annotate
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    r <- get_list(ws, as.character(b$listId %||% ""))
+    out <- tryCatch(annotate_genes(.list_ids(r), r$taxid), error = function(e) api_abort(422, conditionMessage(e)))
+    out$source_list <- list_row_to_obj(r)
+    out
+  })
+}
+
 #* Find orthologs (g:Orth). Body: { listId, targetTaxId, mappingMode: all|best }
 #* @post /orthologs
 #* @serializer flamejson

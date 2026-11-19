@@ -48,6 +48,64 @@ convert_list_ids <- function(ids, taxid, targetFormat, mappingMode = "all") {
                     mappingMode = mappingMode))
 }
 
+MYGENE_API <- "https://mygene.info/v3/query"
+
+#' Annotate gene IDs with MyGene.info: current symbol, name, gene type, location, Ensembl and Entrez IDs.
+#' Recognises symbols, aliases and retired symbols, Ensembl, Entrez and UniProt IDs, for any NCBI taxon.
+#' Each input gets a status: "ok", "alias" (found under another, current symbol) or "notfound";
+#' `duplicateOf` names an earlier input that maps to the same gene.
+annotate_genes <- function(ids, taxid = 9606L) {
+  ids <- unique(trimws(as.character(ids))); ids <- ids[nzchar(ids)]
+  if (!length(ids)) stop("The list is empty.")
+  first <- function(x) if (is.null(x)) NULL else if (is.null(names(x)) && length(x)) x[[1]] else x
+  rows <- list()
+  for (chunk in split(ids, ceiling(seq_along(ids) / 500))) {
+    resp <- tryCatch(httr::POST(MYGENE_API, encode = "form", httr::timeout(90), body = list(
+      q = paste(chunk, collapse = ","), species = as.character(as.integer(taxid)), size = "2",
+      scopes = "symbol,alias,retired,ensembl.gene,entrezgene,uniprot",
+      fields = "symbol,name,type_of_gene,genomic_pos.chr,genomic_pos.start,genomic_pos.end,genomic_pos.strand,ensembl.gene,entrezgene,map_location")),
+      error = function(e) stop(sprintf("mygene.info could not be reached (%s). Check the internet connection, or try again later.", conditionMessage(e))))
+    code <- httr::status_code(resp)
+    if (code >= 500) stop(sprintf("mygene.info is not available right now (it answered with HTTP %d). This is a problem at that external service, not with your list — please try again later.", code))
+    if (code >= 400) stop(sprintf("mygene.info rejected the request (HTTP %d).", code))
+    hits <- jsonlite::fromJSON(httr::content(resp, as = "text", encoding = "UTF-8"), simplifyVector = FALSE)
+    byQuery <- split(hits, vapply(hits, function(h) as.character(h$query %||% ""), ""))
+    for (id in chunk) {
+      hs <- Filter(function(h) !isTRUE(h$notfound), byQuery[[id]] %||% list())
+      if (!length(hs)) { rows[[length(rows) + 1]] <- list(input = id, status = "notfound"); next }
+      # Prefer a hit whose current symbol is the input itself over an alias match with a higher score.
+      exact <- Filter(function(h) identical(toupper(h$symbol %||% ""), toupper(id)), hs)
+      h <- if (length(exact)) exact[[1]] else hs[[1]]
+      # A gene can be placed on alternative scaffolds too: prefer its position on a regular chromosome.
+      gp <- h$genomic_pos
+      if (!is.null(gp) && is.null(names(gp))) { main <- Filter(function(g) nchar(as.character(g$chr %||% "")) <= 2, gp); gp <- if (length(main)) main[[1]] else gp[[1]] }
+      pos <- gp; ens <- first(h$ensembl)
+      sym <- as.character(h$symbol %||% ""); ensg <- as.character(ens$gene %||% ""); entrez <- as.character(h$entrezgene %||% "")
+      isId <- toupper(id) %in% toupper(c(sym, ensg, entrez)) || grepl("^(ENS[A-Z]*G[0-9]+|[0-9]+|[OPQ][0-9][A-Z0-9]{3}[0-9]|[A-NR-Z][0-9][A-Z][A-Z0-9]{2}[0-9])$", id, ignore.case = TRUE)
+      others <- unique(vapply(hs, function(x) as.character(x$symbol %||% ""), ""))
+      rows[[length(rows) + 1]] <- list(
+        input = id, status = if (isId) "ok" else "alias", symbol = sym, name = as.character(h$name %||% ""),
+        type = as.character(h$type_of_gene %||% ""), chr = as.character(pos$chr %||% ""),
+        start = pos$start %||% NA, end = pos$end %||% NA, band = as.character(h$map_location %||% ""),
+        ensembl = ensg, entrez = entrez,
+        ambiguous = !isId && length(setdiff(others, c(sym, ""))) > 0)
+    }
+  }
+  seen <- list()
+  for (i in seq_along(rows)) {
+    key <- toupper(rows[[i]]$symbol %||% "")
+    if (!nzchar(key)) next
+    if (!is.null(seen[[key]])) rows[[i]]$duplicateOf <- seen[[key]] else seen[[key]] <- rows[[i]]$input
+  }
+  st <- vapply(rows, function(r) r$status, "")
+  types <- table(vapply(rows, function(r) { t <- r$type %||% ""; if (nzchar(t)) t else if (identical(r$status, "notfound")) "not found" else "unknown" }, ""))
+  list(rows = rows,
+       stats = list(total = length(rows), ok = sum(st == "ok"), alias = sum(st == "alias"), notfound = sum(st == "notfound"),
+                    duplicates = sum(vapply(rows, function(r) !is.null(r$duplicateOf), TRUE)),
+                    types = lapply(names(types), function(n) list(type = n, n = as.integer(types[[n]])))),
+       source = "MyGene.info (Xin et al. 2016, Genome Biol 17:91; Wu et al. 2013, Nucleic Acids Res 41:D561): gene annotation aggregated from NCBI Gene, Ensembl and UniProt.")
+}
+
 #' Find orthologs in another organism (g:Orth)
 find_orthologs <- function(ids, sourceTaxid, targetTaxid, idFormat = "USERINPUT", mappingMode = "all") {
   src <- .organism_short_name(sourceTaxid); tgt <- .organism_short_name(targetTaxid)

@@ -59,6 +59,8 @@ function InputModalBody(props: Props) {
     case 'geo':
     case 'clinvar':
       return <FetchInput mode={props.kind} title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
+    case 'variants':
+      return null // opens the Variants page instead of a dialog (see Workspace)
   }
 }
 

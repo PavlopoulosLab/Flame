@@ -601,7 +601,7 @@ body { background: var(--app-bg); }
 .rail.sec-data .rail-section { background: var(--surface-color); border-color: color-mix(in srgb, var(--sec-data) 18%, var(--border-color)); }
 .rail.sec-data .rail-section h2 { color: color-mix(in srgb, var(--sec-data) 70%, var(--heading-color)); }
 
-.sec-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.sec-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .sec-tab { display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px 14px; border-radius: var(--radius-lg); cursor: pointer;
   background: var(--surface-color); border: 1px solid var(--card-border); border-top: 4px solid var(--sec-color); color: var(--default-color); position: relative; }
 .sec-tab > span { display: flex; flex-direction: column; line-height: 1.25; }

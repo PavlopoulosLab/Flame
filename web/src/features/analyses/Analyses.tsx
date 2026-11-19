@@ -17,19 +17,18 @@ import {
 import { usePlainSelection } from '../../lib/imageExport'
 const NO_IDS: string[] = []
 
-type Tile = TaskType | 'celltypes' | 'literature'
-const TILES: Tile[] = ['tf', 'kinase', 'drugs', 'celltypes', 'literature', 'metabolites', 'modules', 'robustness']
-const CELLTYPE_INFO = { title: 'Cell types', icon: 'celltypes', tool: 'PanglaoDB · CellMarker · Azimuth', text: 'Which cell types express your genes: marker sets from PanglaoDB, CellMarker, Azimuth, Tabula Sapiens and MSigDB C8.' }
-const LITERATURE_INFO = { title: 'Literature', icon: 'pubmed', tool: 'PubMed · GeneSigDB · Rummagene', text: 'Which published papers report gene sets like yours: PubMed co-mentions (STRING), published signatures and supplementary tables of PMC articles.' }
+type Tile = TaskType | 'ppi'
+const TILES: Tile[] = ['tf', 'kinase', 'drugs', 'ppi', 'robustness']
+const PPI_INFO = { title: 'Protein network and modules', icon: 'ppi', tool: 'STRING', text: 'Known and predicted interactions among your proteins; find network modules and what each one does; select and save sub-networks.' }
 const ROBUST_SOURCES = ['GO:BP', 'GO:MF', 'GO:CC', 'KEGG', 'REAC', 'WP', 'HALLMARK']
 
 /**
  * "Regulators & drugs" section: analyses that go beyond term enrichment —
- * upstream regulators, drug signatures, cell types, metabolites, network
+ * upstream regulators, drug signatures, cell types, network
  * modules and robustness checks. Each runs in the background with progress.
  */
-export function AnalysesPanel({ lists, onCellTypes, onLiterature, onAddList, open, setOpen, onExample }: {
-  lists: AnalyteList[]; onCellTypes: () => void; onLiterature: () => void; onAddList: () => void; open: string | null; setOpen: (id: string | null) => void; onExample: (kind: string) => Promise<void> | void
+export function AnalysesPanel({ lists, onPpi, onAddList, open, setOpen, onExample }: {
+  lists: AnalyteList[]; onPpi: () => void; onAddList: () => void; open: string | null; setOpen: (id: string | null) => void; onExample: (kind: string) => Promise<void> | void
 }) {
   const tasks = useTasks()
   const [dialog, setDialog] = useState<TaskType | null>(null)
@@ -38,16 +37,16 @@ export function AnalysesPanel({ lists, onCellTypes, onLiterature, onAddList, ope
   return (
     <section className="sec-panel sec-regulators" aria-label="Regulators, drugs and more">
       <div className="page-header">
-        <div><h1>Regulators, drugs and more</h1><p className="muted">Ask what controls your genes, which compounds could reverse a response, which cell types they mark, and how solid the enrichment is.</p></div>
+        <div><h1>Regulators, drugs and more</h1><p className="muted">Ask what controls your genes, which compounds could reverse a response, how your proteins interact, and how solid the enrichment is.</p></div>
       </div>
       <div className="tool-grid-ws">
         {TILES.map((t) => {
-          const info = t === 'celltypes' ? CELLTYPE_INFO : t === 'literature' ? LITERATURE_INFO : TASK_INFO[t]
+          const info = t === 'ppi' ? PPI_INFO : TASK_INFO[t]
           const needsList = t !== 'metabolites'
           return (
             <div key={t} className="tool-tile-wrap">
               <button type="button" className="tool-tile" disabled={needsList && !lists.length}
-                onClick={() => (t === 'celltypes' ? onCellTypes() : t === 'literature' ? onLiterature() : setDialog(t))}>
+                onClick={() => (t === 'ppi' ? onPpi() : setDialog(t))}>
                 <ConceptIcon name={info.icon} size={36} />
                 <strong>{info.title}</strong>
                 <span className="muted small">{info.text}</span>
@@ -61,7 +60,7 @@ export function AnalysesPanel({ lists, onCellTypes, onLiterature, onAddList, ope
           )
         })}
       </div>
-      {!lists.length && <p className="muted small">Most analyses start from one of your lists. <button className="link-btn" onClick={onAddList}>Add a list</button> first (metabolite pathways take their own input), or use <em>Try an example</em> under any analysis.</p>}
+      {!lists.length && <p className="muted small">Most analyses start from one of your lists. <button className="link-btn" onClick={onAddList}>Add a list</button> first, or use <em>Try an example</em> under any analysis.</p>}
 
       <h2 className="sec-subhead">Your analyses</h2>
       {items.length === 0 ? (
@@ -343,6 +342,18 @@ export function ModuleList({ r, colorOf, onPick, picked, taxid, onDone, details 
           </button>
         ))}
       </div>
+      {m && m.terms.length > 0 && (
+        <div className="chart-card stack-sm">
+          <strong>Module {m.id}: enriched terms <span className="count">{m.terms.length}</span></strong>
+          <div className="table-scroll module-terms"><table className="table compact">
+            <thead><tr><th>Source</th><th>Term</th><th className="num">Adjusted p</th><th className="num">Genes</th></tr></thead>
+            <tbody>{m.terms.map((t) => (
+              <tr key={`${t.source}:${t.id}`}><td className="small">{t.source}</td><td>{t.name} <span className="muted small">{t.id}</span></td><td className="num">{formatP(t.p)}</td><td className="num">{t.size}</td></tr>
+            ))}</tbody>
+          </table></div>
+        </div>
+      )}
+      {m && m.terms.length === 0 && <p className="muted small">Module {m.id} has no significantly enriched terms.</p>}
       {m && details && (
         <div className="chart-card stack-sm">
           <div className="row between wrap"><strong>Module {m.id}: {m.genes.length} proteins</strong><CopyButton label="Copy genes" text={m.genes.join('\n')} /></div>

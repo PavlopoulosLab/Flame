@@ -24,7 +24,6 @@ type Dialog =
   | { type: 'input'; kind: InputKind; example?: boolean; text?: string; fileName?: string; view?: string; listIds?: string[] }
   | { type: 'quick'; action: QuickAction; listId?: string }
   | { type: 'newRun'; listId?: string; listIds?: string[]; preset?: 'celltypes' | 'literature' }
-  | { type: 'gmt' }
   | { type: 'session'; tab?: SessionTab }
   | null
 
@@ -143,9 +142,10 @@ export default function WorkspacePage() {
         const src = await api<{ id: string }>('/sources', { body: { name: gmt.name, text: gmt.text } })
         const list = await exampleList()
         await startRuns({ listId: list.id, tools: [], sourceIds: [src.id], datasources: [] })
-        setExampleNote('Custom gene sets: the MSigDB Hallmark collection was uploaded as a GMT file and tested on 200 example genes (hypergeometric test, Benjamini–Hochberg). Upload your own GMT file under Custom sources the same way.')
+        setExampleNote('Custom gene sets: the MSigDB Hallmark collection was uploaded as a GMT file and tested on 200 example genes (hypergeometric test, Benjamini–Hochberg). Upload your own GMT file in the New run panel (Your own pathway sets) the same way.')
         break
       }
+      case 'modules': // the modules analysis now lives in the protein network (Find modules)
       case 'ppi': {
         const list = await exampleList()
         invalidate()
@@ -184,18 +184,6 @@ export default function WorkspacePage() {
         const lit = cfg.datasourceCategories.find((c) => c.category === 'Literature')?.sources.map((x) => x.id) ?? []
         await startRuns({ listId: list.id, tools: ['string', 'enrichr'], datasources: lit })
         setExampleNote('Literature example: the 200 dexamethasone genes are tested against PubMed (STRING), GeneSigDB published signatures and Rummagene gene sets from PubMed Central papers. Glucocorticoid and asthma studies should rank high; each term links to its article.')
-        break
-      }
-      case 'metabolites': {
-        const ex = await api<{ text: string }>('/inputs/examples/metabolites')
-        await runTask({ type: 'metabolites', text: ex.text, name: 'Prostate cancer metabolites (Sreekumar 2009)', organismTaxId: 9606 },
-          'Metabolite pathways example: six metabolites raised in metastatic prostate cancer (sarcosine, uracil, kynurenine, glycerol 3-phosphate, leucine, proline; Sreekumar et al. 2009, Nature) are mapped to KEGG and tested against KEGG pathways. The result opens as a normal run.')
-        break
-      }
-      case 'modules': {
-        const list = await exampleList()
-        await runTask({ type: 'modules', listId: list.id, score: 700 },
-          'Network modules example: the STRING network of the 200 dexamethasone genes is split into modules (Louvain) and each module is enriched with g:Profiler — a long list becomes a few functional units.')
         break
       }
       case 'robustness': {
@@ -248,7 +236,7 @@ export default function WorkspacePage() {
   }
 
   // A workspace with no lists yet opens on the Input tab; otherwise on Enrichment.
-  const section = (params.get('tab') as WorkspaceSection) || (data && lists.length === 0 ? 'input' : 'enrich')
+  const section = (params.get('tab') === 'variants' ? 'input' : (params.get('tab') as WorkspaceSection)) || (data && lists.length === 0 ? 'input' : 'enrich') // old ?tab=variants links open Input
   const setSection = (t: WorkspaceSection) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', t); return n }, { replace: true })
   const maxLists = config?.limits.maxLists ?? 10
   const listsFull = maxLists > 0 && lists.length >= maxLists
@@ -268,25 +256,6 @@ export default function WorkspacePage() {
           <div className="sec-label"><ConceptIcon name="upload" size={18} /> Your data</div>
           <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={() => setSection('input')} onCompare={(ids) => setDialog({ type: 'input', kind: 'upset', listIds: ids })} onRunMany={(ids) => { setSection('enrich'); setDialog({ type: 'newRun', listIds: ids }) }}
             onRun={(id) => setDialog({ type: 'newRun', listId: id })} onQuick={(action, id) => setDialog({ type: 'quick', action, listId: id })} />
-          <section className="rail-section">
-            <div className="rail-head">
-              <h2>Custom gene sets</h2>
-              <button className="btn btn-ghost btn-sm" onClick={() => setDialog({ type: 'gmt' })} title="Upload gene sets as a GMT file"><IconLabel icon="gmt">+ GMT</IconLabel></button>
-            </div>
-            {(data?.sources ?? []).length === 0 ? (
-              <p className="muted small">Upload your own gene sets (GMT) to test them like any other database.</p>
-            ) : (
-              <ul className="plain-list">
-                {data!.sources.map((s) => (
-                  <li key={s.id} className="rail-item">
-                    <span>{s.name}</span>
-                    <span className="muted small">{s.termCount ?? s.term_count} sets</span>
-                    <button className="icon-btn" aria-label={`Delete ${s.name}`} onClick={() => api(`/sources/${s.id}`, { method: 'DELETE' }).then(invalidate)}>×</button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         </aside>
 
         <div className="workspace-main">
@@ -313,7 +282,8 @@ export default function WorkspacePage() {
                 </div>
               )}
               {listsFull && <p className="note note-warning">This workspace already has the maximum of {maxLists} lists. Delete one to add another.</p>}
-              <MethodGrid lists={lists} disabledAll={listsFull} onPick={(kind) => setDialog({ type: 'input', kind })} />
+              <MethodGrid lists={lists} disabledAll={listsFull} onPick={(kind) => (kind === 'variants' ? navigate(`/w/${ws}/variants`) : setDialog({ type: 'input', kind }))} />
+              <VariantsPanel ws={ws} />
             </section>
           )}
 
@@ -385,12 +355,11 @@ export default function WorkspacePage() {
             </section>
           )}
 
-          {section === 'variants' && <VariantsPanel ws={ws} onExample={loadExample} />}
 
           {section === 'regulators' && (
             <AnalysesPanel lists={lists} onAddList={() => setSection('input')} open={openTask} setOpen={setOpenTask}
               onExample={(k) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))}
-              onCellTypes={() => setDialog({ type: 'newRun', preset: 'celltypes' })} onLiterature={() => setDialog({ type: 'newRun', preset: 'literature' })} />
+              onPpi={() => setDialog({ type: 'quick', action: 'ppi' })} />
           )}
 
           {section === 'tools' && (
@@ -423,7 +392,6 @@ export default function WorkspacePage() {
       {dialog?.type === 'newRun' && (
         <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} initialListIds={dialog.listIds} preset={dialog.preset} onClose={() => setDialog(null)} />
       )}
-      {dialog?.type === 'gmt' && <GmtModal onClose={() => setDialog(null)} />}
       <JobsWindow runs={runs} ws={ws} />
       {dialog?.type === 'session' && <SessionModal ws={ws} summary={data} status={sessionStatus.data} initialTab={dialog.tab} onClose={() => { setDialog(null); sessionStatus.refetch() }} />}
     </div>
@@ -461,6 +429,25 @@ function ListsSection({ lists, max, onAdd, onCompare, onRunMany, onRun, onQuick 
   const [editing, setEditing] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
+  // The actions menu is drawn on <body> at a fixed position: inside the scrolling lists panel it was cut off.
+  const [menuPos, setMenuPos] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null)
+  const openMenu = (id: string, btn: HTMLElement) => {
+    if (menu === id) { setMenu(null); return }
+    const r = btn.getBoundingClientRect()
+    const below = window.innerHeight - r.bottom - 12, above = r.top - 12
+    const up = below < 300 && above > below
+    setMenuPos({ left: Math.max(8, Math.min(r.right - 200, window.innerWidth - 208)), ...(up ? { bottom: window.innerHeight - r.top + 2 } : { top: r.bottom + 2 }), maxHeight: Math.max(160, up ? above : below) })
+    setMenu(id)
+  }
+  useEffect(() => {
+    if (!menu) return
+    const close = () => setMenu(null)
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
+    const onDown = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.list-menu, .list-menu-btn')) close() }
+    window.addEventListener('resize', close); window.addEventListener('scroll', close, true)
+    document.addEventListener('keydown', onKey); document.addEventListener('pointerdown', onDown)
+    return () => { window.removeEventListener('resize', close); window.removeEventListener('scroll', close, true); document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
+  }, [menu])
   const [viewing, setViewing] = useState<{ id: string; edit: boolean } | null>(null)
   // Lists ticked for comparison (ids of lists that no longer exist are ignored).
   const [ticked, setTicked] = useState<string[]>([])
@@ -501,9 +488,9 @@ function ListsSection({ lists, max, onAdd, onCompare, onRunMany, onRun, onQuick 
                   <span className="muted small">{formatNum(l.size)} IDs · {l.organismName.replace(/ \[NCBI.*$/, '')}{l.ranked && <> · <span className="tag-ranked" title="IDs with scores: can be used for GSEA">ranked</span></>}</span>
                 </div>
                 <div className="menu-wrap">
-                  <button className="icon-btn" aria-label={`Actions for ${l.name}`} aria-expanded={menu === l.id} onClick={() => setMenu(menu === l.id ? null : l.id)}>⋯</button>
+                  <button className="icon-btn list-menu-btn" aria-label={`Actions for ${l.name}`} aria-haspopup="menu" aria-expanded={menu === l.id} onClick={(e) => openMenu(l.id, e.currentTarget)}>⋯</button>
                   {menu === l.id && (
-                    <div className="menu" onMouseLeave={() => setMenu(null)}>
+                    createPortal(<div className="menu list-menu" role="menu" style={menuPos ?? undefined}>
                       <button onClick={() => { setMenu(null); setViewing({ id: l.id, edit: false }) }}>View contents</button>
                       <button onClick={() => { setMenu(null); setViewing({ id: l.id, edit: true }) }}>Edit contents</button>
                       <button onClick={() => { setMenu(null); onRun(l.id) }}>Run enrichment</button>
@@ -511,11 +498,14 @@ function ListsSection({ lists, max, onAdd, onCompare, onRunMany, onRun, onQuick 
                       <button onClick={() => { setMenu(null); api<{ ids: string[]; scores?: number[] }>(`/lists/${l.id}`).then((d) => saveXlsx([{ name: l.name,
                         rows: d.ids.map((id, i) => ({ ID: id, ...(d.scores ? { Score: d.scores[i] } : {}) })) }], `${l.name}.xlsx`)) }}>Download Excel</button>
                       <button onClick={() => { setMenu(null); downloadFromApi(`/lists/${l.id}/csv`, `${l.name}.csv`) }}>Download CSV</button>
+                      <button onClick={() => { setMenu(null); onQuick('annotate', l.id) }}>Annotate</button>
+                      <button onClick={() => { setMenu(null); onQuick('clean', l.id) }}>Check and clean</button>
+                      <button onClick={() => { setMenu(null); onQuick('filter', l.id) }}>Filter</button>
                       <button onClick={() => { setMenu(null); onQuick('convert', l.id) }}>Convert IDs</button>
                       <button onClick={() => { setMenu(null); onQuick('orthologs', l.id) }}>Find orthologs</button>
                       <button onClick={() => { setMenu(null); onQuick('ppi', l.id) }}>Protein network</button>
                       <button className="danger" onClick={() => { setMenu(null); deleteWithUndo(l) }}>Delete</button>
-                    </div>
+                    </div>, document.body)
                   )}
                 </div>
               </>
@@ -665,29 +655,6 @@ function RunCard({ run, selected, onToggle, onOpen, onRemove }: { run: Run; sele
   )
 }
 
-function GmtModal({ onClose }: { onClose: () => void }) {
-  const [name, setName] = useState('My gene sets')
-  const [text, setText] = useState('')
-  const [err, setErr] = useState<unknown>(null)
-  const invalidate = useInvalidateWorkspace()
-  const sets = useMemo(() => text.split(/\r?\n/).filter((l) => l.split('\t').length >= 3).length, [text])
-  return (
-    <Modal title="Upload custom gene sets (GMT)" onClose={onClose}
-      subtitle="Each line: set ID ⇥ description ⇥ gene ⇥ gene … (tab-separated). Gene IDs must match your list's IDs."
-      footer={<>
-        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={!sets} onClick={() =>
-          api('/sources', { body: { name, text } }).then(() => { invalidate(); onClose() }).catch(setErr)}>Add source ({sets} sets)</button>
-      </>}>
-      <label className="field"><span className="field-label">Name</span>
-        <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} /></label>
-      <label className="field"><span className="field-label">GMT file</span>
-        <input type="file" accept=".gmt,.txt,.tsv" onChange={(e) => e.target.files?.[0]?.text().then(setText)} /></label>
-      <textarea className="input mono" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'HALLMARK_APOPTOSIS\tApoptosis\tCASP3\tCASP8\tBAX\t…'} aria-label="GMT content" />
-      <ErrorNote error={err} />
-    </Modal>
-  )
-}
 
 
 export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[] = [
@@ -698,14 +665,12 @@ export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[]
   { kind: 'compare-strategies', title: 'Compare strategies', text: 'GSEA on all genes vs ORA on significant genes' },
   { kind: 'compare-lists', title: 'Compare lists', text: 'Up- vs down-regulated genes' },
   { kind: 'gmt', title: 'Custom gene sets', text: 'MSigDB Hallmark uploaded as GMT' },
-  { kind: 'ppi', title: 'Protein network', text: 'STRING interactions of an example list' },
+  { kind: 'ppi', title: 'Protein network and modules', text: 'STRING interactions of an example list; find its modules' },
   { kind: 'tf', title: 'Transcription factors', text: 'ChEA3 on genes raised by dexamethasone' },
   { kind: 'kinase', title: 'Kinases', text: 'KEA3 on the same genes' },
   { kind: 'drugs', title: 'Drug signatures', text: 'LINCS: which compounds mimic or reverse dexamethasone' },
   { kind: 'celltypes', title: 'Cell types', text: 'Marker genes of NK cells (PBMC 3k)' },
   { kind: 'literature', title: 'Literature', text: 'Papers reporting gene sets like yours' },
-  { kind: 'metabolites', title: 'Metabolite pathways', text: 'Prostate cancer metabolites → KEGG' },
-  { kind: 'modules', title: 'Network modules', text: 'STRING modules, each enriched' },
   { kind: 'robustness', title: 'Robustness check', text: 'Bootstrap and random-list controls' },
   { kind: 'activity', title: 'Pathway activity', text: 'ssGSEA / PROGENy scores per sample' },
   { kind: 'volcano', title: 'Volcano plot', text: 'Select up- and down-regulated genes' },
@@ -741,59 +706,50 @@ function ExamplesMenu({ onPick }: { onPick: (kind: string) => Promise<void> | vo
   )
 }
 
-type WorkspaceSection = 'input' | 'enrich' | 'regulators' | 'variants' | 'tools'
+type WorkspaceSection = 'input' | 'enrich' | 'regulators' | 'tools'
 const SECTIONS: { id: WorkspaceSection; label: string; hint: string; icon: string }[] = [
-  { id: 'input', label: 'Input', hint: 'Add gene lists: paste, plots, databases', icon: 'upload' },
+  { id: 'input', label: 'Input', hint: 'Add gene lists: paste, plots, databases, variants', icon: 'upload' },
   { id: 'enrich', label: 'Enrichment', hint: 'ORA and GSEA of your lists, comparisons', icon: 'run' },
-  { id: 'regulators', label: 'Regulators & drugs', hint: 'TFs, kinases, drugs, cell types, robustness', icon: 'regulators' },
-  { id: 'variants', label: 'Variants & GWAS', hint: 'From variants to genes and traits', icon: 'variants' },
-  { id: 'tools', label: 'Gene tools', hint: 'ID conversion, orthologs, STRING network', icon: 'ppi' },
+  { id: 'regulators', label: 'Regulators & drugs', hint: 'TFs, kinases, drugs, protein network, robustness', icon: 'regulators' },
+  { id: 'tools', label: 'Gene tools', hint: 'Annotate, clean, filter, convert IDs, orthologs', icon: 'convert' },
 ]
 const TOOLS: { action: QuickAction; title: string; text: string; icon: string }[] = [
   { action: 'convert', title: 'Convert IDs', text: 'Translate a list to Ensembl, Entrez, UniProt and other ID types (g:Convert).', icon: 'convert' },
   { action: 'orthologs', title: 'Find orthologs', text: 'Map a list to the matching genes of another organism (g:Orth).', icon: 'orthologs' },
-  { action: 'ppi', title: 'Protein network', text: 'Known and predicted interactions among your proteins (STRING); select and save sub-networks.', icon: 'ppi' },
+  { action: 'annotate', title: 'Annotate a list', text: 'Current symbol, name, gene type, chromosome location, Ensembl and Entrez IDs of every gene; export as Excel.', icon: 'textmining' },
+  { action: 'clean', title: 'Check and clean a list', text: 'Find IDs that are not recognised, outdated symbols and duplicates, and save a cleaned list.', icon: 'robust' },
+  { action: 'filter', title: 'Filter a list', text: 'Keep genes by type (e.g. protein-coding only) or chromosome, drop placeholder names, and save the result.', icon: 'stats' },
 ]
 
-/** Variant analyses of this workspace, with live progress. */
-function VariantsPanel({ ws, onExample }: { ws: string; onExample: (k: string) => void }) {
+/** Variant analyses of this workspace, with live progress; shown under the input options once there are any. */
+function VariantsPanel({ ws }: { ws: string }) {
   const q = useQuery({
     queryKey: ['variant-analyses', ws],
     queryFn: () => api<{ id: string; name: string; status: string; inputCount: number; created: number; error?: string; progress?: JobProgress | null }[]>('/variants'),
     refetchInterval: (qq) => ((qq.state.data ?? []).some((a) => a.status === 'queued' || a.status === 'running') ? 1500 : false),
   })
   const items = q.data ?? []
+  if (!items.length) return null
   return (
-    <section className="sec-panel sec-variants" aria-label="Variants and GWAS">
-      <div className="page-header">
-        <div><h1>Variants and GWAS</h1><p className="muted">Annotate SNPs, VCF variants or GWAS summary statistics: consequences, genes, frequencies, ClinVar and trait associations.</p></div>
-        <div className="row">
-          <Link className="btn btn-primary" to={`/w/${ws}/variants`}><IconLabel icon="variants">New variant analysis</IconLabel></Link>
-        </div>
+    <section className="variant-analyses" aria-label="Your variant analyses">
+      <div className="row between wrap">
+        <h2 className="sec-subhead">Your variant analyses</h2>
+        <Link className="btn btn-secondary btn-sm" to={`/w/${ws}/variants`}><IconLabel icon="variants">New variant analysis</IconLabel></Link>
       </div>
-      {items.length === 0 ? (
-        <EmptyState title="No variant analyses yet">
-          <p>Start one, or open a published example.</p>
-          <div className="row center">
-            <button className="btn btn-secondary" onClick={() => onExample('variants')}>Clinical variants example</button>
-            <button className="btn btn-secondary" onClick={() => onExample('gwas')}>Alzheimer GWAS example</button>
-          </div>
-        </EmptyState>
-      ) : (
-        <div className="run-grid">
-          {items.map((a) => (
-            <article key={a.id} className={`run-card sec-card${a.status === 'error' ? ' error' : ''}`}>
-              <header className="run-card-head"><h3 className="run-title"><ConceptIcon name="variants" size={20} /> {a.name}</h3></header>
-              <p className="muted small">{plural(a.inputCount, 'variant')} · {new Date(a.created * 1000).toLocaleString()}</p>
-              <div className="run-card-foot">
-                {(a.status === 'queued' || a.status === 'running') && <ProgressBar progress={a.progress} status={a.status} />}
-                {a.status === 'error' && <span className="text-danger small">{a.error}</span>}
-                {a.status === 'complete' && <Link className="btn btn-primary btn-sm" to={`/w/${ws}/variants/${a.id}`}>Open report →</Link>}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
+      <p className="muted small">Open a report to see the variants and save the genes they affect as a list.</p>
+      <div className="run-grid">
+        {items.map((a) => (
+          <article key={a.id} className={`run-card sec-card${a.status === 'error' ? ' error' : ''}`}>
+            <header className="run-card-head"><h3 className="run-title"><ConceptIcon name="variants" size={20} /> {a.name}</h3></header>
+            <p className="muted small">{plural(a.inputCount, 'variant')} · {new Date(a.created * 1000).toLocaleString()}</p>
+            <div className="run-card-foot">
+              {(a.status === 'queued' || a.status === 'running') && <ProgressBar progress={a.progress} status={a.status} />}
+              {a.status === 'error' && <span className="text-danger small">{a.error}</span>}
+              {a.status === 'complete' && <Link className="btn btn-primary btn-sm" to={`/w/${ws}/variants/${a.id}`}>Open report →</Link>}
+            </div>
+          </article>
+        ))}
+      </div>
     </section>
   )
 }

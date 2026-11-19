@@ -35,7 +35,7 @@ function(req, res) {
     if (total + length(toolKeys) + length(sourceIds) > FLAME_LIMITS$maxRuns)
       api_abort(409, sprintf("A workspace can hold at most %d runs. Remove some runs first.", FLAME_LIMITS$maxRuns))
     if (active_job_count(ws) + length(toolKeys) + length(sourceIds) > FLAME_LIMITS$maxActiveJobs)
-      api_abort(429, "Too many runs are still in progress. Wait for them to finish and try again.")
+      api_abort(429, sprintf("At most %d runs can be queued or running at once in a workspace. Wait for some to finish and try again.", FLAME_LIMITS$maxActiveJobs))
 
     perTool <- b$perTool %||% list()
     created <- list(); reused <- list(); skipped <- list()

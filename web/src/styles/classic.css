@@ -345,3 +345,12 @@ h1 { letter-spacing: -0.01em; }
 .source-tab:hover { background: var(--sidebar-hover-bg); }
 .source-tab.active { color: var(--heading-color); background: var(--surface-color); border-bottom-color: var(--src-color, var(--accent-color)); box-shadow: inset 0 0 0 1px var(--border-color); }
 .source-tab .count { font-weight: 500; }
+.variant-analyses { margin-top: var(--spacing-lg); padding-top: var(--spacing-md); border-top: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 8px; }
+.module-terms { max-height: 260px; }
+.own-sets { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-color); display: flex; flex-direction: column; gap: 6px; }
+.own-set { display: inline-flex; align-items: center; gap: 2px; }
+.ann-table { max-height: 46vh; }
+.ann-table .table th { position: sticky; top: 0; z-index: 1; }
+
+/* List actions menu: fixed to the viewport so the lists panel cannot clip it. */
+.list-menu { position: fixed; right: auto; width: 200px; min-width: 0; overflow-y: auto; z-index: 60; display: flex; flex-direction: column; }

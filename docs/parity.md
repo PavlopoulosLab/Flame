@@ -72,7 +72,7 @@ custom GMT upload dialog, workspace undo toasts, the disease / PubMed / GEO / Cl
 
 ## Regulators, drugs and more
 - [x] Transcription factors (ChEA3), kinases (KEA3), drug and CRISPR signatures (LINCS L1000)
-- [x] Cell types (PanglaoDB, CellMarker, Azimuth, Tabula Sapiens, MSigDB C8), metabolite pathways (KEGG)
+- [x] Cell types (PanglaoDB, CellMarker, Azimuth, Tabula Sapiens, MSigDB C8); metabolite pathways (KEGG) remain in the API only
 - [x] Network modules (STRING + Louvain + g:Profiler), robustness (bootstrap, random lists, FDR thresholds)
 - [x] Stored with the workspace (survive restarts), included in session files, removable (API)
 

@@ -13,7 +13,7 @@ const EXAMPLE_GROUPS: { title: string; kinds: string[] }[] = [
   { title: 'Start from data', kinds: ['volcano', 'reduction', 'expression', 'activity', 'mirna', 'textmining'] },
   { title: 'Start from public resources', kinds: ['disease', 'pubmed', 'geo', 'clinvar', 'snps'] },
   { title: 'Compare', kinds: ['compare-tools', 'compare-strategies', 'compare-lists'] },
-  { title: 'Regulators, drugs and networks', kinds: ['tf', 'kinase', 'drugs', 'celltypes', 'literature', 'metabolites', 'modules', 'robustness', 'ppi'] },
+  { title: 'Regulators, drugs and networks', kinds: ['tf', 'kinase', 'drugs', 'celltypes', 'literature', 'ppi', 'robustness'] },
   { title: 'Variants and GWAS', kinds: ['variants', 'gwas'] },
 ]
 
@@ -43,14 +43,12 @@ const EXAMPLES = [
   { kind: 'compare-strategies', title: 'Compare strategies', text: 'GSEA on all genes vs. over-representation on the significant ones.' },
   { kind: 'compare-lists', title: 'Up vs. down', text: 'Up- and down-regulated genes analysed and compared side by side.' },
   { kind: 'gmt', title: 'Custom gene sets', text: 'Upload gene sets as a GMT file (here: MSigDB Hallmark) and test them.' },
-  { kind: 'ppi', title: 'Protein network', text: 'STRING interactions among your proteins; select and save sub-networks.' },
+  { kind: 'ppi', title: 'Protein network and modules', text: 'STRING interactions among your proteins; find modules and what each does; save sub-networks.' },
   { kind: 'tf', title: 'Transcription factors', text: 'Which factors drive the dexamethasone response? ChEA3 on the airway up-regulated genes.' },
   { kind: 'kinase', title: 'Kinases', text: 'KEA3: kinases whose substrates are over-represented among the dexamethasone-induced genes.' },
   { kind: 'literature', title: 'Literature enrichment', text: 'Papers reporting gene sets like yours: PubMed (STRING), GeneSigDB and Rummagene.' },
   { kind: 'drugs', title: 'Drug signatures', text: 'LINCS L1000: glucocorticoids mimic the dexamethasone signature, mifepristone reverses it.' },
   { kind: 'celltypes', title: 'Cell types', text: 'Genes of the NK-cell island of the PBMC 3k UMAP against PanglaoDB, CellMarker and Azimuth.' },
-  { kind: 'metabolites', title: 'Metabolite pathways', text: 'Metabolites of metastatic prostate cancer (Sreekumar et al. 2009) mapped to KEGG pathways.' },
-  { kind: 'modules', title: 'Network modules', text: 'Split the STRING network of a list into modules and enrich each one.' },
   { kind: 'robustness', title: 'Robustness check', text: 'Bootstrap subsamples and random lists: how stable is the enrichment?' },
   { kind: 'activity', title: 'Pathway activity', text: 'Score Hallmark pathways or PROGENy signalling in every airway sample (ssGSEA).' },
 ]
@@ -69,7 +67,7 @@ const FEATURES: { icon: string; tone: string; title: string; text: string }[] = 
   { icon: 'ppi', tone: 'teal', title: 'Views that talk to each other',
     text: 'Networks, heatmaps, Sankey and scatter plots: select terms in one view and they stay selected in every other.' },
   { icon: 'regulators', tone: 'indigo', title: 'Beyond enrichment',
-    text: 'Transcription factors, kinases, drug signatures, cell types, literature, metabolite pathways, variants and GWAS.' },
+    text: 'Transcription factors, kinases, drug signatures, cell types, literature, network modules, variants and GWAS.' },
   { icon: 'save', tone: 'amber', title: 'Share and reproduce',
     text: 'Private workspace links, figure export, a REST API and a Python client. No login, no tracking cookies.' },
 ]

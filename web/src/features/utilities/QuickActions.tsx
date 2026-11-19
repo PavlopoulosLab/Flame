@@ -7,7 +7,7 @@ import { NetworkGraph, type NetworkHandle } from '../../components/charts'
 import { LayoutSelect, NetworkOptions } from '../../components/NetworkOptions'
 import { useNetworkStyle } from '../../lib/networkStyle'
 import { Arena3DIcon } from '../../components/ExternalIcons'
-import { BusyBar, ErrorNote, Field, Modal, Note, OpenExternalButton, OrganismPicker, Segmented } from '../../components/ui'
+import { BusyBar, CopyButton, ErrorNote, Field, Modal, Note, OpenExternalButton, OrganismPicker, Segmented } from '../../components/ui'
 import { plural } from '../../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
 import { ModuleList } from '../analyses/Analyses'
@@ -15,12 +15,15 @@ import { saveXlsx } from '../../lib/xlsx'
 import { startTask, useTask, type ModulesResult } from '../analyses/tasks'
 import { ProgressBar } from '../../components/Progress'
 
-export type QuickAction = 'convert' | 'orthologs' | 'ppi'
+export type QuickAction = 'convert' | 'orthologs' | 'ppi' | 'annotate' | 'clean' | 'filter'
 
 const TITLES: Record<QuickAction, [string, string]> = {
   convert: ['Convert IDs', 'Translate a list to another identifier type with g:Convert (g:Profiler).'],
   orthologs: ['Find orthologs', 'Map a list to the corresponding genes in another organism with g:Orth (g:Profiler).'],
   ppi: ['Protein interaction network', 'Known and predicted protein–protein interactions from STRING.'],
+  annotate: ['Annotate a list', 'Current symbol, name, gene type, location and database IDs of every gene (MyGene.info).'],
+  clean: ['Check and clean a list', 'Find IDs that are not recognised, outdated symbols and duplicates, and save a cleaned list.'],
+  filter: ['Filter a list', 'Keep genes by type (e.g. protein-coding) or chromosome and save the result as a new list.'],
 }
 
 export function QuickActionModal(props: { action: QuickAction; lists: AnalyteList[]; initialListId?: string; onClose: () => void }) {
@@ -32,7 +35,7 @@ function QuickActionBody({ action, lists, initialListId, onClose }: { action: Qu
   const list = lists.find((l) => l.id === listId)
   const [title, subtitle] = TITLES[action]
   return (
-    <Modal title={title} subtitle={subtitle} onClose={onClose} size={action === 'ppi' ? 'xl' : 'lg'}>
+    <Modal title={title} subtitle={subtitle} onClose={onClose} size={action === 'ppi' || action === 'annotate' ? 'xl' : 'lg'}>
       <Field label="List">
         <select className="input" value={listId} onChange={(e) => setListId(e.target.value)}>
           {lists.map((l) => (
@@ -45,6 +48,9 @@ function QuickActionBody({ action, lists, initialListId, onClose }: { action: Qu
       {list && action === 'convert' && <Convert key={list.id} list={list} onDone={onClose} />}
       {list && action === 'orthologs' && <Orthologs key={list.id} list={list} onDone={onClose} />}
       {list && action === 'ppi' && <Ppi key={list.id} list={list} onDone={onClose} />}
+      {list && action === 'annotate' && <Annotate key={list.id} list={list} />}
+      {list && action === 'clean' && <CleanList key={list.id} list={list} onDone={onClose} />}
+      {list && action === 'filter' && <FilterList key={list.id} list={list} onDone={onClose} />}
     </Modal>
   )
 }
@@ -100,6 +106,205 @@ export function SaveDerived({ ids, defaultName, taxid, idFormat, meta, onDone }:
           Save {plural(ids.length, 'ID')} as a new list
         </button>
       </div>
+    </div>
+  )
+}
+
+// ---- Annotate / Check and clean / Filter (one MyGene.info lookup, shared) ------
+
+interface AnnRow { input: string; status: 'ok' | 'alias' | 'notfound'; symbol?: string; name?: string; type?: string; chr?: string; start?: number; end?: number; band?: string; ensembl?: string; entrez?: string; ambiguous?: boolean; duplicateOf?: string }
+interface AnnResult { rows: AnnRow[]; stats: { total: number; ok: number; alias: number; notfound: number; duplicates: number; types: { type: string; n: number }[] }; source: string }
+
+/** The annotation of a list; fetched once and shared by the three tools. */
+function useAnnotation(list: AnalyteList) {
+  return useQuery({
+    queryKey: ['gene-annotation', getWorkspaceId(), list.id, list.size],
+    queryFn: () => api<AnnResult>('/utilities/annotate', { body: { listId: list.id } }),
+    staleTime: 10 * 60_000, retry: false,
+  })
+}
+function AnnotationState({ q }: { q: ReturnType<typeof useAnnotation> }) {
+  return <>{q.isFetching && <BusyBar label="Looking up the genes at MyGene.info" expect={8} />}<ErrorNote error={q.error} /></>
+}
+const typeLabel = (t?: string) => (!t ? 'unknown' : t)
+const CHR_ORDER = [...Array.from({ length: 22 }, (_, i) => String(i + 1)), 'X', 'Y', 'MT']
+const chrSort = (a: string, b: string) => { const i = CHR_ORDER.indexOf(a), j = CHR_ORDER.indexOf(b); return (i < 0 ? 99 : i) - (j < 0 ? 99 : j) || a.localeCompare(b, undefined, { numeric: true }) }
+// Placeholder and non-gene-like names (LOC…, antisense, readthrough, lncRNA placeholders).
+const PLACEHOLDER = /^(LOC[0-9]+|LINC[0-9]+|MIR[0-9]+HG|C[0-9XY]+orf[0-9]+|FAM[0-9]+[A-Z]?[0-9]*|KIAA[0-9]+|FLJ[0-9]+)$|-(AS|IT|OT|DT)[0-9]*$/i
+
+function Annotate({ list }: { list: AnalyteList }) {
+  const q = useAnnotation(list)
+  const [find, setFind] = useState('')
+  const rows = q.data?.rows ?? []
+  const shown = useMemo(() => {
+    const f = find.trim().toLowerCase()
+    return f ? rows.filter((r) => `${r.input} ${r.symbol ?? ''} ${r.name ?? ''} ${r.type ?? ''} ${r.ensembl ?? ''} ${r.entrez ?? ''} ${r.chr ? `chr${r.chr}` : ''} ${r.band ?? ''}`.toLowerCase().includes(f)) : rows
+  }, [rows, find])
+  const table = (rs: AnnRow[]) => rs.map((r) => ({ Input: r.input, Status: r.status === 'ok' ? 'recognised' : r.status === 'alias' ? 'other symbol' : 'not found', Symbol: r.symbol ?? '', Name: r.name ?? '',
+    'Gene type': r.type ?? '', Chromosome: r.chr ?? '', Start: r.start ?? '', End: r.end ?? '', Band: r.band ?? '', 'Ensembl gene': r.ensembl ?? '', 'Entrez gene': r.entrez ?? '' }))
+  return (
+    <div className="stack-sm">
+      <AnnotationState q={q} />
+      {q.data && (
+        <>
+          <p className="small"><strong>{q.data.stats.ok + q.data.stats.alias}</strong> of {q.data.stats.total} IDs recognised
+            {q.data.stats.alias > 0 && <> · {q.data.stats.alias} under another current symbol</>}{q.data.stats.notfound > 0 && <> · {q.data.stats.notfound} not found</>}
+            {' · '}{q.data.stats.types.filter((t) => t.type !== 'not found').sort((a, b) => b.n - a.n).map((t) => `${t.n} ${t.type}`).join(', ')}</p>
+          <div className="row between wrap">
+            <input className="input list-filter" type="search" value={find} placeholder="Find a gene, name, type or chr17" aria-label="Find in the annotation" onChange={(e) => setFind(e.target.value)} />
+            <span className="row">
+              <span className="muted small">{shown.length === rows.length ? `${rows.length} genes` : `${shown.length} of ${rows.length}`}</span>
+              <CopyButton label="Copy symbols" text={[...new Set(shown.map((r) => r.symbol).filter(Boolean))].join('\n')} />
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: 'Annotation', rows: table(rows) }], `${list.name}_annotation.xlsx`)}>Excel</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { const t = table(rows); saveText([Object.keys(t[0] ?? {}).join('\t'), ...t.map((r) => Object.values(r).join('\t'))].join('\n'), `${list.name}_annotation.tsv`, 'text/tab-separated-values') }}>TSV</button>
+            </span>
+          </div>
+          <div className="table-scroll ann-table">
+            <table className="table compact">
+              <thead><tr><th>Your ID</th><th>Symbol</th><th>Name</th><th>Gene type</th><th>Location</th><th>Ensembl</th><th>Entrez</th></tr></thead>
+              <tbody>
+                {shown.slice(0, 1000).map((r) => (
+                  <tr key={r.input} className={r.status === 'notfound' ? 'muted' : ''}>
+                    <td className="mono">{r.input}</td>
+                    <td>{r.symbol ? <a href={`https://www.genecards.org/cgi-bin/carddisp.pl?gene=${encodeURIComponent(r.symbol)}`} target="_blank" rel="noopener noreferrer">{r.symbol}</a> : <span className="muted">not found</span>}{r.status === 'alias' && <span className="tag-ranked" title="Your ID is an older or alternative name of this gene"> current symbol</span>}</td>
+                    <td className="small">{r.name}</td><td className="small">{r.type}</td>
+                    <td className="small">{r.chr ? `chr${r.chr}${r.start ? `:${r.start.toLocaleString()}` : ''}` : ''}{r.band ? <span className="muted"> {r.band}</span> : null}</td>
+                    <td className="mono small">{r.ensembl && <a href={`https://www.ensembl.org/id/${r.ensembl}`} target="_blank" rel="noopener noreferrer">{r.ensembl}</a>}</td>
+                    <td className="mono small">{r.entrez && <a href={`https://www.ncbi.nlm.nih.gov/gene/${r.entrez}`} target="_blank" rel="noopener noreferrer">{r.entrez}</a>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {shown.length > 1000 && <p className="muted small">Showing the first 1,000 rows; the Excel and TSV files hold all of them.</p>}
+          <p className="muted small">{q.data.source}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+function CleanList({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
+  const q = useAnnotation(list)
+  const [dropUnknown, setDropUnknown] = useState(true)
+  const [useCurrent, setUseCurrent] = useState(true)
+  const [mergeDup, setMergeDup] = useState(true)
+  const rows = q.data?.rows ?? []
+  const symbols = list.idFormat === 'USERINPUT' || /SYMBOL|HGNC/i.test(list.idFormat)
+  const problems = rows.filter((r) => r.status !== 'ok' || r.duplicateOf)
+  const cleaned = useMemo(() => {
+    const out: string[] = []; const seen = new Set<string>()
+    rows.forEach((r) => {
+      if (r.status === 'notfound') { if (!dropUnknown) out.push(r.input); return }
+      const id = useCurrent && symbols && r.status === 'alias' && r.symbol ? r.symbol : r.input
+      const key = (r.symbol ?? id).toUpperCase()
+      if (mergeDup && seen.has(key)) return
+      seen.add(key); out.push(id)
+    })
+    return [...new Set(out)]
+  }, [rows, dropUnknown, useCurrent, mergeDup, symbols])
+  return (
+    <div className="stack-sm">
+      <AnnotationState q={q} />
+      {q.data && (
+        <>
+          <div className="stat-tiles">
+            <div className="stat-tile"><strong>{q.data.stats.ok}</strong><span className="small">recognised as given</span></div>
+            <div className="stat-tile"><strong>{q.data.stats.alias}</strong><span className="small">older or alternative names</span></div>
+            <div className="stat-tile"><strong>{q.data.stats.notfound}</strong><span className="small">not found</span></div>
+            <div className="stat-tile"><strong>{q.data.stats.duplicates}</strong><span className="small">duplicates of another ID</span></div>
+          </div>
+          {problems.length === 0 ? <Note kind="success">Every ID is a current, unique gene identifier. Nothing to clean.</Note> : (
+            <>
+              <div className="stack-sm">
+                <label className="check"><input type="checkbox" checked={dropUnknown} onChange={(e) => setDropUnknown(e.target.checked)} /> Remove the {q.data.stats.notfound} IDs that were not found</label>
+                <label className={`check${symbols ? '' : ' muted'}`}><input type="checkbox" checked={useCurrent && symbols} disabled={!symbols} onChange={(e) => setUseCurrent(e.target.checked)} /> Replace the {q.data.stats.alias} older or alternative names with the current symbol{!symbols && ' (only for lists of gene symbols)'}</label>
+                <label className="check"><input type="checkbox" checked={mergeDup} onChange={(e) => setMergeDup(e.target.checked)} /> Keep one ID per gene (merge the {q.data.stats.duplicates} duplicates)</label>
+              </div>
+              <div className="table-scroll ann-table">
+                <table className="table compact">
+                  <thead><tr><th>Your ID</th><th>Problem</th><th>Current symbol</th><th>Name</th></tr></thead>
+                  <tbody>
+                    {problems.slice(0, 500).map((r) => (
+                      <tr key={r.input}>
+                        <td className="mono">{r.input}</td>
+                        <td className="small">{r.status === 'notfound' ? 'Not found' : [r.status === 'alias' ? `Older or alternative name${r.ambiguous ? ' (also used for other genes)' : ''}` : '', r.duplicateOf ? `Same gene as ${r.duplicateOf}` : ''].filter(Boolean).join(' · ')}</td>
+                        <td>{r.symbol}</td><td className="small">{r.name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {problems.length > 500 && <p className="muted small">Showing the first 500 of {problems.length} IDs with a problem.</p>}
+            </>
+          )}
+          <p className="small"><strong>{plural(cleaned.length, 'ID')}</strong> in the cleaned list (from {rows.length}).{list.ranked ? ' Scores are not carried over: the cleaned list is a plain list.' : ''}</p>
+          {problems.length > 0 && <SaveDerived ids={cleaned} defaultName={`${list.name} (cleaned)`} taxid={list.organismTaxId} idFormat={list.idFormat} meta={{ method: 'clean', derivedFrom: list.name }} onDone={onDone} />}
+          <p className="muted small">{q.data.source}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+function FilterList({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
+  const q = useAnnotation(list)
+  const rows = q.data?.rows ?? []
+  const types = useMemo(() => { const m = new Map<string, number>(); rows.filter((r) => r.status !== 'notfound').forEach((r) => m.set(typeLabel(r.type), (m.get(typeLabel(r.type)) ?? 0) + 1)); return [...m.entries()].sort((a, b) => b[1] - a[1]) }, [rows])
+  const chrs = useMemo(() => { const m = new Map<string, number>(); rows.forEach((r) => { if (r.chr) m.set(r.chr, (m.get(r.chr) ?? 0) + 1) }); return [...m.entries()].sort((a, b) => chrSort(a[0], b[0])) }, [rows])
+  const [offTypes, setOffTypes] = useState<string[]>([])
+  const [offChrs, setOffChrs] = useState<string[]>([])
+  const [keepUnknown, setKeepUnknown] = useState(false)
+  const [dropPlaceholders, setDropPlaceholders] = useState(false)
+  const kept = useMemo(() => rows.filter((r) => {
+    if (r.status === 'notfound') return keepUnknown
+    if (offTypes.includes(typeLabel(r.type))) return false
+    if (r.chr && offChrs.includes(r.chr)) return false
+    if (dropPlaceholders && PLACEHOLDER.test(r.symbol ?? r.input)) return false
+    return true
+  }), [rows, offTypes, offChrs, keepUnknown, dropPlaceholders])
+  const placeholders = rows.filter((r) => r.status !== 'notfound' && PLACEHOLDER.test(r.symbol ?? r.input)).length
+  const notFound = q.data?.stats.notfound ?? 0
+  const toggle = (cur: string[], set: (v: string[]) => void, v: string) => set(cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v])
+  return (
+    <div className="stack-sm">
+      <AnnotationState q={q} />
+      {q.data && (
+        <>
+          <div className="stack-sm">
+            <div className="row between wrap">
+              <span className="field-label">Gene types to keep</span>
+              <span className="row">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffTypes(types.map(([t]) => t).filter((t) => t !== 'protein-coding'))}>Protein-coding only</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffTypes([])}>All</button>
+              </span>
+            </div>
+            <div className="row wrap">
+              {types.map(([t, n]) => <label key={t} className="check small"><input type="checkbox" checked={!offTypes.includes(t)} onChange={() => toggle(offTypes, setOffTypes, t)} /> {t} <span className="muted">({n})</span></label>)}
+            </div>
+            {chrs.length > 0 && (
+              <>
+                <div className="row between wrap">
+                  <span className="field-label">Chromosomes to keep</span>
+                  <span className="row">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffChrs([])}>All</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOffChrs(chrs.map(([c]) => c))}>None</button>
+                  </span>
+                </div>
+                <div className="chip-wrap">
+                  {chrs.map(([c, n]) => <button key={c} type="button" className={`chip${offChrs.includes(c) ? '' : ' on'}`} aria-pressed={!offChrs.includes(c)} title={`${n} genes on chromosome ${c}`} onClick={() => toggle(offChrs, setOffChrs, c)}>{c} <span className="muted small">{n}</span></button>)}
+                </div>
+              </>
+            )}
+            <label className="check"><input type="checkbox" checked={dropPlaceholders} onChange={(e) => setDropPlaceholders(e.target.checked)} /> Remove placeholder and antisense names such as LOC…, LINC…, C1orf… and …-AS1 <span className="muted small">({placeholders} in this list)</span></label>
+            {notFound > 0 && <label className="check"><input type="checkbox" checked={keepUnknown} onChange={(e) => setKeepUnknown(e.target.checked)} /> Keep the {notFound} IDs that were not found (their type and chromosome are unknown)</label>}
+          </div>
+          <p className="small"><strong>{plural(kept.length, 'ID')}</strong> kept of {rows.length}.{list.ranked ? ' Scores are not carried over: the filtered list is a plain list.' : ''}</p>
+          <details className="small"><summary>Genes kept ({kept.length})</summary><p className="mono small">{kept.slice(0, 600).map((r) => r.input).join(', ')}{kept.length > 600 ? ' …' : ''}</p></details>
+          <SaveDerived ids={kept.map((r) => r.input)} defaultName={`${list.name} (filtered)`} taxid={list.organismTaxId} idFormat={list.idFormat} meta={{ method: 'filter', derivedFrom: list.name }} onDone={onDone} />
+          <p className="muted small">{q.data.source}</p>
+        </>
+      )}
     </div>
   )
 }
