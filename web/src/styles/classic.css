@@ -380,3 +380,10 @@ h1 { letter-spacing: -0.01em; }
 .upset-pick .upset-set-row { height: 12px; line-height: 12px; font-size: 0.74rem; }
 .upset-pick .upset-set-bar { height: 8px; }
 .export-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
+
+/* Page actions: palette, undo/redo, export and "open in" buttons always sit together at the right of the page
+   header, in the same order on every page, instead of floating inside the view tabs or a toolbar. */
+.page-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.page-actions .palette-select select { max-width: 130px; }
+.page-actions .undo-redo { margin: 0; }
+@media (max-width: 860px) { .page-actions { width: 100%; justify-content: flex-start; margin-left: 0; } }

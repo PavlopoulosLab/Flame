@@ -201,7 +201,34 @@ function ResultsPageBody() {
           <h1 className="run-title"><ToolLogo tool={run.toolKey} size={28} /> {run.title} <span className="muted">· {run.listName}</span></h1>
           <p className="muted small">{gsea ? 'Gene set enrichment (GSEA) · ' : ''}{run.organismName.replace(/ \[NCBI.*$/, '')} · {run.resultCount} significant terms · {run.params.metric} &lt; {run.params.threshold}</p>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={() => setShowDetails(true)}>Run details</button>
+        <span className="page-actions" role="toolbar" aria-label="View actions">
+          {run.status === 'complete' && !!run.resultCount && (
+            <>
+                {view !== 'table' && <PaletteSelect />}
+                <UndoRedoButtons h={history} />
+                <ExportMenu items={[
+                  ...(view !== 'table' && view !== 'themes' ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
+                    const name = `${baseName}_${view}`
+                    if (isNetwork) networkRef.current?.exportImage(name)
+                    else if (isSvg) { const src = svgSource(svgRef.current, name); if (src) openImageExport(src) }
+                    else plotRef.current?.exportImage(name)
+                  } }] : []),
+                  { label: 'Shown terms (Excel)', run: () => saveXlsx(sheetsByCategory(termSheetRows(q.data?.terms ?? []), 'Source', 'All terms'), `${baseName}_${view}.xlsx`) },
+                  { label: 'All filtered terms (Excel, one sheet per source)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
+                      .then((d) => saveXlsx(sheetsByCategory(termSheetRows(d.terms), 'Source', 'All terms'), `${baseName}_all.xlsx`)) },
+                  { label: 'Shown terms (CSV)', run: () => saveText(toCsv(exportRows(q.data?.terms ?? []), exportCols), `${baseName}_${view}.csv`, 'text/csv') },
+                  { label: 'All filtered terms (CSV)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
+                      .then((d) => saveText(toCsv(exportRows(d.terms), exportCols), `${baseName}_all.csv`, 'text/csv')) },
+                ]} />
+                {arenaView && <OpenExternalButton path={`/runs/${encodeURIComponent(runId)}/arena3d`} label="Arena3D" caption="3D layers" icon={<Arena3DIcon />}
+                  title="Open in Arena3D as a 3D multilayer network: terms of each annotation source on their own layer, genes on another"
+                  body={{ view: arenaView, filters, top, sortBy, settings: viewSettings }} />}
+                {isNetwork && <OpenExternalButton path={`/runs/${encodeURIComponent(runId)}/norma`} label="NORMA" caption="annotated groups" icon={<NormaIcon />}
+                  title="Open this network in NORMA, with terms as annotated groups" body={{ view, filters, top, sortBy, settings: viewSettings }} />}
+            </>
+          )}
+          <button className="btn btn-secondary btn-sm" onClick={() => setShowDetails(true)}>Run details</button>
+        </span>
       </header>
 
       {run.status !== 'complete' ? (
@@ -362,28 +389,6 @@ function ResultsPageBody() {
                     onChange={(e) => setSettings({ ...settings, minShared: Number(e.target.value) })} /></label>
                 )}
                 {view === 'table' && <ColumnPicker columns={columns} setColumns={setColumns} />}
-                <span className="toolbar-spacer" />
-                {view !== 'table' && <PaletteSelect />}
-                <UndoRedoButtons h={history} />
-                <ExportMenu items={[
-                  ...(view !== 'table' && view !== 'themes' ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
-                    const name = `${baseName}_${view}`
-                    if (isNetwork) networkRef.current?.exportImage(name)
-                    else if (isSvg) { const src = svgSource(svgRef.current, name); if (src) openImageExport(src) }
-                    else plotRef.current?.exportImage(name)
-                  } }] : []),
-                  { label: 'Shown terms (Excel)', run: () => saveXlsx(sheetsByCategory(termSheetRows(q.data?.terms ?? []), 'Source', 'All terms'), `${baseName}_${view}.xlsx`) },
-                  { label: 'All filtered terms (Excel, one sheet per source)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
-                      .then((d) => saveXlsx(sheetsByCategory(termSheetRows(d.terms), 'Source', 'All terms'), `${baseName}_all.xlsx`)) },
-                  { label: 'Shown terms (CSV)', run: () => saveText(toCsv(exportRows(q.data?.terms ?? []), exportCols), `${baseName}_${view}.csv`, 'text/csv') },
-                  { label: 'All filtered terms (CSV)', run: () => api<ViewData>(`/runs/${runId}/view`, { body: { view: 'table', filters, top: 'all', sortBy } })
-                      .then((d) => saveText(toCsv(exportRows(d.terms), exportCols), `${baseName}_all.csv`, 'text/csv')) },
-                ]} />
-                {arenaView && <OpenExternalButton path={`/runs/${encodeURIComponent(runId)}/arena3d`} label="Arena3D" caption="3D layers" icon={<Arena3DIcon />}
-                  title="Open in Arena3D as a 3D multilayer network: terms of each annotation source on their own layer, genes on another"
-                  body={{ view: arenaView, filters, top, sortBy, settings: viewSettings }} />}
-                {isNetwork && <OpenExternalButton path={`/runs/${encodeURIComponent(runId)}/norma`} label="NORMA" caption="annotated groups" icon={<NormaIcon />}
-                  title="Open this network in NORMA, with terms as annotated groups" body={{ view, filters, top, sortBy, settings: viewSettings }} />}
               </div>
               <p className="muted small view-help">{VIEW_HELP[view]}{isGsea ? ' For GSEA, positive NES = genes of the set sit at the top of your ranking; negative = at the bottom. "Genes found" are the leading-edge genes.' : ''}</p>
               <ErrorNote error={q.error} />

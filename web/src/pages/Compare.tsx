@@ -183,6 +183,16 @@ function ComparePageBody() {
           <h1>Comparing {plural(runIds.length, 'run')}</h1>
           <p className="muted small">{runs.map((r) => `${r.label} · ${r.listName}`).join('  |  ')}</p>
         </div>
+        <span className="page-actions" role="toolbar" aria-label="View actions">
+          {view !== 'table' && <PaletteSelect />}
+          <UndoRedoButtons h={history} />
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setExportTo('arena3d')} title="Open the comparison in Arena3D as layers: choose which layers to include">
+            <span className="ext-btn"><Arena3DIcon /><span className="ext-btn-text"><strong>Arena3D</strong><span>choose the layers…</span></span><span aria-hidden="true" className="ext-btn-arrow">↗</span></span>
+          </button>
+          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setExportTo('norma')} title="Open the comparison in NORMA with the tools as annotation groups: choose which term categories to include">
+            <span className="ext-btn"><NormaIcon /><span className="ext-btn-text"><strong>NORMA</strong><span>choose the categories…</span></span><span aria-hidden="true" className="ext-btn-arrow">↗</span></span>
+          </button>
+        </span>
       </header>
       <p className="muted small">Terms found by several runs get a combined p-value (Fisher's method). Agreement = how many of the active runs found a term.</p>
 
@@ -208,16 +218,6 @@ function ComparePageBody() {
         </nav>
       )}
       <nav className="view-tabs" aria-label="Comparison views">
-        <span className="tabs-undo">
-          {view !== 'table' && <PaletteSelect />}
-          <UndoRedoButtons h={history} />
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setExportTo('arena3d')} title="Open the comparison in Arena3D as layers: choose which layers to include">
-            <span className="ext-btn"><Arena3DIcon /><span className="ext-btn-text"><strong>Arena3D</strong><span>choose the layers…</span></span><span aria-hidden="true" className="ext-btn-arrow">↗</span></span>
-          </button>
-          <button type="button" className="btn btn-secondary btn-sm" onClick={() => setExportTo('norma')} title="Open the comparison in NORMA with the tools as annotation groups: choose which term categories to include">
-            <span className="ext-btn"><NormaIcon /><span className="ext-btn-text"><strong>NORMA</strong><span>choose the categories…</span></span><span aria-hidden="true" className="ext-btn-arrow">↗</span></span>
-          </button>
-        </span>
         {(['table', 'ranks', 'themes', 'overview', 'stats', 'upset', 'network', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
           <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
             { table: 'Table', ranks: 'Ranks', themes: 'Themes', overview: 'Overview', stats: 'Statistics', upset: 'Overlap (UpSet)', network: 'Network (runs–terms)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
