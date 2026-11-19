@@ -435,13 +435,13 @@ function ListsSection({ lists, max, onAdd, onCompare, onRunMany, onRun, onQuick 
   const [name, setName] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
   // The actions menu is drawn on <body> at a fixed position: inside the scrolling lists panel it was cut off.
-  const [menuPos, setMenuPos] = useState<{ left: number; top?: number; bottom?: number; maxHeight: number } | null>(null)
+  const [menuPos, setMenuPos] = useState<{ left: number; top: number | 'auto'; bottom: number | 'auto'; maxHeight: number } | null>(null)
   const openMenu = (id: string, btn: HTMLElement) => {
     if (menu === id) { setMenu(null); return }
     const r = btn.getBoundingClientRect()
     const below = window.innerHeight - r.bottom - 12, above = r.top - 12
-    const up = below < 300 && above > below
-    setMenuPos({ left: Math.max(8, Math.min(r.right - 200, window.innerWidth - 208)), ...(up ? { bottom: window.innerHeight - r.top + 2 } : { top: r.bottom + 2 }), maxHeight: Math.max(160, up ? above : below) })
+    const up = below < 460 && above > below   // the full menu is about 440 px tall
+    setMenuPos({ left: Math.max(8, Math.min(r.right - 200, window.innerWidth - 208)), ...(up ? { top: 'auto' as const, bottom: window.innerHeight - r.top + 2 } : { top: r.bottom + 2, bottom: 'auto' as const }), maxHeight: Math.max(160, up ? above : below) })
     setMenu(id)
   }
   useEffect(() => {
@@ -449,9 +449,11 @@ function ListsSection({ lists, max, onAdd, onCompare, onRunMany, onRun, onQuick 
     const close = () => setMenu(null)
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close() }
     const onDown = (e: PointerEvent) => { if (!(e.target as HTMLElement).closest('.list-menu, .list-menu-btn')) close() }
-    window.addEventListener('resize', close); window.addEventListener('scroll', close, true)
+    // Scrolling the page closes the menu; scrolling inside the menu itself must not.
+    const onScroll = (e: Event) => { if (!(e.target instanceof Element && e.target.closest('.list-menu'))) close() }
+    window.addEventListener('resize', close); window.addEventListener('scroll', onScroll, true)
     document.addEventListener('keydown', onKey); document.addEventListener('pointerdown', onDown)
-    return () => { window.removeEventListener('resize', close); window.removeEventListener('scroll', close, true); document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
+    return () => { window.removeEventListener('resize', close); window.removeEventListener('scroll', onScroll, true); document.removeEventListener('keydown', onKey); document.removeEventListener('pointerdown', onDown) }
   }, [menu])
   const [viewing, setViewing] = useState<{ id: string; edit: boolean } | null>(null)
   // Lists ticked for comparison (ids of lists that no longer exist are ignored).
