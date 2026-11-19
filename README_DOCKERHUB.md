@@ -12,6 +12,9 @@ Flame runs functional and literature enrichment on one or many gene lists with e
 combines their results, and lets you explore them with interactive plots and networks. It also starts from
 variants and GWAS results. It is free and open to everyone.
 
+The workspace has four tabs: **Input** (every way to add a gene list), **Enrichment** (runs and comparisons),
+**Regulators & drugs** (what controls a list, protein network) and **Gene tools** (inspect and transform a list).
+
 This image bundles the web app and the versioned REST API behind a single port — no separate database or
 reverse proxy needed to get started.
 
@@ -22,15 +25,20 @@ reverse proxy needed to get started.
   pathway activity per sample); map SNPs to genes; find genes in text; microRNAs → miRDB targets; UpSet set
   operations (intersection, union, XOR and more, with selectable bars); and **fetch gene lists** from a disease
   (choose among Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and GWAS Catalog; merge several
-  results), PubMed articles, GEO datasets (RummaGEO) or ClinVar (by gene, condition, rsID or accession). Every
-  selection is listed before it is saved.
+  results), PubMed articles, GEO datasets (RummaGEO) or ClinVar (by gene, condition, rsID or accession); or start
+  from variants or GWAS results and save the affected genes. Every selection is listed before it is saved, and
+  saving returns to the Input tab.
 * **Lists**: always in view; click a list to see its contents with gene annotations (symbol, Ensembl ID,
   description), edit it, or tick several lists to compare them (UpSet) or run the same enrichment on all of them.
+* **Gene tools**: annotate a list (current symbol, name, gene type, chromosome location, Ensembl and Entrez IDs;
+  Excel/TSV export), check and clean it (unrecognised IDs, outdated symbols, duplicates), filter it (by gene type or
+  chromosome, drop placeholder names), convert IDs and find orthologs. Annotation uses MyGene.info.
 * **Enrichment**: eight tools across 14,000+ organisms; over-representation (ORA) and, with clusterProfiler/fgsea on
   MSigDB, gene set enrichment (GSEA) of ranked lists; literature enrichment (PubMed, GeneSigDB, Rummagene); cell types;
-  custom GMT sources, custom backgrounds, per-tool settings.
+  your own pathway sets (GMT, uploaded in the New run panel; ORA only), custom backgrounds (one of your lists, chosen
+  per tool), per-tool settings. Up to 20 runs per workspace can be queued or running at once.
 * **Beyond term lists**: transcription factors (ChEA3) and kinases (KEA3), drug and CRISPR signatures that mimic or
-  reverse a response (LINCS L1000), STRING network modules with module enrichment,
+  reverse a response (LINCS L1000), the STRING protein network with module detection and per-module enrichment,
   and robustness checks (bootstrap stability, random-list control, FDR thresholds).
 * **Results**: all annotation sources together or one tab per source (GO:BP, GO:CC, KEGG…); table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
   views; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
@@ -38,12 +46,14 @@ reverse proxy needed to get started.
 * **Comparison**: compare tools, lists or strategies with Fisher's combined p-value, a **consensus rank** (Robust Rank
   Aggregation) and a rank chart, a table of which run found what, agreement statistics (Jaccard, rank correlation,
   McNemar / Cochran's Q, concordance at the top, MDS), UpSet, chord, Circos, bubble plot and heatmap.
-* **Variants and GWAS**: rsIDs, VCF lines, HGVS or GWAS summary statistics annotated with Ensembl VEP (consequence,
-  impact, gnomAD frequency, ClinVar) and trait associations; Manhattan and genome Circos plots; genes → enrichment.
+* **Variants and GWAS** (an input option): rsIDs, VCF lines, HGVS or GWAS summary statistics annotated with Ensembl
+  VEP (consequence, impact, gnomAD frequency, ClinVar) and trait associations; Manhattan and genome Circos plots;
+  genes → a list → enrichment.
 * **Networks**: STRING networks as multi-edge evidence networks; open networks, comparisons and variant reports in
   Arena3D (3D multilayer networks) or NORMA, or directly in STRING.
 * **Display**: light/dark themes; every visualization has its own palette (Flame, colour-blind safe, vivid, pastel,
-  grayscale); box and lasso selection on charts; progress bars on slow steps; works at phone width.
+  grayscale), offered only where there is a chart or network; box and lasso selection on charts; progress bars on
+  slow steps; works at phone width.
 * **Workspaces**: private bookmarkable links, session save/load (lists, runs, analyses), automatic expiry.
 * **Programmatic access**: versioned REST API (`/api/v1`) with an OpenAPI 3 document and Swagger UI, and a Python
   command-line client.

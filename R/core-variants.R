@@ -89,6 +89,12 @@ parse_variant_input <- function(text) {
   df
 }
 
+#' TRUE when Ensembl's REST service answers (a quick ping, about 12 seconds at most).
+.ensembl_reachable <- function() {
+  resp <- tryCatch(httr::GET(paste0(ENSEMBL_REST, "/info/ping"), httr::accept_json(), httr::timeout(12)), error = function(e) NULL)
+  !is.null(resp) && httr::status_code(resp) < 500
+}
+
 .ensembl_post <- function(path, body, tries = 3) {
   for (i in seq_len(tries)) {
     resp <- tryCatch(httr::POST(paste0(ENSEMBL_REST, path), body = jsonlite::toJSON(body, auto_unbox = TRUE),
@@ -247,8 +253,12 @@ analyse_variants <- function(text, taxid = 9606L) {
     if (mode == "gwas") input <- input[seq_len(VARIANT_MAX), , drop = FALSE]   # keep the most significant
     else stop(sprintf("At most %d variants can be analysed at once.", VARIANT_MAX))
   }
+  # Without Ensembl's REST service nothing can be annotated: say so at once instead of
+  # retrying every batch for minutes and then blaming the IDs.
+  if (!.ensembl_reachable())
+    stop("Ensembl's annotation service (rest.ensembl.org) is not reachable right now, so variants cannot be annotated. This is a problem at that external service or on the network path to it, not with your variants - please try again later.")
   ann <- vep_annotate(input, species)
-  if (nrow(ann) == 0) stop("Ensembl VEP could not annotate these variants. Check the IDs or try again later.")
+  if (nrow(ann) == 0) stop("Ensembl VEP returned no annotation for these variants. Check that the IDs are valid for this organism (e.g. rs429358, or CHROM POS ID REF ALT on GRCh38).")
 
   # Carry GWAS p-values onto the annotation.
   if (mode == "gwas") {
