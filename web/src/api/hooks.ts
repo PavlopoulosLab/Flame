@@ -73,6 +73,16 @@ export function useRenameList() {
   })
 }
 
+/** Replace a list's contents (text: one ID per line, or "ID score" pairs for a ranked list). */
+export function useUpdateListContents() {
+  const invalidate = useInvalidateWorkspace()
+  return useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) =>
+      api<AnalyteList>(`/lists/${encodeURIComponent(id)}`, { method: 'PATCH', body: { text } }),
+    onSuccess: invalidate,
+  })
+}
+
 export function useDeleteList() {
   const invalidate = useInvalidateWorkspace()
   return useMutation({

@@ -18,7 +18,7 @@ Automated checks:
 - **Web units** (`npm test`): rank aggregation (Robust Rank Aggregation).
 
 Still to click through by hand: heatmap T×G and G×G, term–term and gene–gene networks, Find orthologs dialog,
-custom GMT upload dialog, workspace undo toasts, the disease / PubMed / GEO / dbSNP dialogs at phone width.
+custom GMT upload dialog, workspace undo toasts, the disease / PubMed / GEO / ClinVar dialogs at phone width.
 
 ## Shell
 - [x] Workspace / Results / Comparison screens, Run Details panel
@@ -45,7 +45,7 @@ custom GMT upload dialog, workspace undo toasts, the disease / PubMed / GEO / db
 - [x] microRNAs → miRDB targets
 - [x] Combine lists (UpSet; copy and download combinations)
 - [x] From a disease: Open Targets (scored, ranked), DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES, GWAS Catalog genes and variants (API; dialog checked in the browser)
-- [x] From PubMed articles (NCBI gene2pubmed), from a GEO dataset (RummaGEO), from dbSNP (API)
+- [x] From PubMed articles (NCBI gene2pubmed), from a GEO dataset (RummaGEO), from ClinVar (the dbSNP lookup remains in the API)
 
 ## Gene tools
 - [x] Convert IDs (g:Convert)

@@ -7,7 +7,7 @@ import { NetworkGraph, type NetworkHandle } from '../../components/charts'
 import { LayoutSelect, NetworkOptions } from '../../components/NetworkOptions'
 import { useNetworkStyle } from '../../lib/networkStyle'
 import { Arena3DIcon } from '../../components/ExternalIcons'
-import { ErrorNote, Field, Modal, Note, OpenExternalButton, OrganismPicker, Segmented } from '../../components/ui'
+import { BusyBar, ErrorNote, Field, Modal, Note, OpenExternalButton, OrganismPicker, Segmented } from '../../components/ui'
 import { plural } from '../../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
 import { ModuleList } from '../analyses/Analyses'
@@ -132,6 +132,7 @@ function Convert({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
         </Field>
         <button className="btn btn-secondary align-end" onClick={run} disabled={busy}>{busy ? 'Converting…' : 'Convert'}</button>
       </div>
+      {busy && <BusyBar label="Converting IDs with g:Convert" expect={10} />}
       <ErrorNote error={err} />
       {res && (
         <>
@@ -168,6 +169,7 @@ function Orthologs({ list, onDone }: { list: AnalyteList; onDone: () => void }) 
         </Field>
         <button className="btn btn-secondary align-end" onClick={run} disabled={busy}>{busy ? 'Searching…' : 'Find orthologs'}</button>
       </div>
+      {busy && <BusyBar label="Finding orthologs with g:Orth" expect={10} />}
       <ErrorNote error={err} />
       {res && (
         <>
@@ -257,6 +259,7 @@ function Ppi({ list, onDone }: { list: AnalyteList; onDone: () => void }) {
         {stringUrl && <a className="btn btn-ghost align-end string-link" href={stringUrl} target="_blank" rel="noopener noreferrer"
           title="Open this list on the STRING website with the same settings"><img src={asset('/logos/string-icon.png')} alt="" width={18} height={18} /> Open in STRING ↗</a>}
       </div>
+      {busy && <BusyBar label="Building the protein network from STRING" expect={15} />}
       {err != null && (
         <div className="row wrap">
           <ErrorNote error={err} />

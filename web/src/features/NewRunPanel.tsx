@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api } from '../api/client'
 import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
 import type { AnalyteList, CustomSource } from '../api/types'
-import { ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
+import { BusyBar, ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
 import { ToolLogo } from '../components/ToolLogo'
 
 const METRIC_HELP: Record<string, string> = {
@@ -22,18 +22,23 @@ const METRIC_HELP: Record<string, string> = {
 
 interface ToolSettings { correction?: string; threshold?: number; backgroundListId?: string }
 
-export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; onClose: () => void; preset?: 'celltypes' | 'literature' }) {
+export function NewRunPanel({ lists, sources, initialListId, initialListIds, onClose, preset }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; /** Several lists ticked in the lists panel: the same analysis is started on each. */ initialListIds?: string[]; onClose: () => void; preset?: 'celltypes' | 'literature' }) {
   const { data: config } = useConfig()
   const cellTypeSources = config?.datasourceCategories.find((c) => c.category === 'Cell types')?.sources.map((s) => s.id) ?? []
   const literatureSources = config?.datasourceCategories.find((c) => c.category === 'Literature')?.sources.map((s) => s.id) ?? []
   const start = useStartRuns()
   const invalidateWs = useInvalidateWorkspace()
   const [loadingExample, setLoadingExample] = useState(false)
-  const initial = lists.find((l) => l.id === initialListId)
+  const startIds = (initialListIds?.length ? initialListIds : initialListId ? [initialListId] : []).filter((id) => lists.some((l) => l.id === id))
+  const initial = lists.find((l) => l.id === startIds[0])
   const [paradigm, setParadigm] = useState<'ORA' | 'GSEA'>(initial?.ranked ? 'GSEA' : 'ORA')
   const usableLists = paradigm === 'GSEA' ? lists.filter((l) => l.ranked) : lists
-  const [listId, setListId] = useState(initialListId ?? lists[0]?.id ?? '')
-  const list = usableLists.find((l) => l.id === listId) ?? usableLists[0]
+  // One or more lists; the same tools and settings run on each of them.
+  const [listIds, setListIds] = useState<string[]>(startIds.length ? startIds : lists[0] ? [lists[0].id] : [])
+  const picked = usableLists.filter((l) => listIds.includes(l.id))
+  const list = picked[0]   // drives organism-specific options (tool support, background lists)
+  const mixedOrganisms = new Set(picked.map((l) => l.organismTaxId)).size > 1
+  const [progress, setProgress] = useState<string | null>(null)
   const [tools, setTools] = useState<string[]>(preset === 'celltypes' ? ['enrichr', 'clusterprofiler'] : preset === 'literature' ? ['string', 'enrichr'] : initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
   const toolOffers = (key: string) => (config?.tools.find((t) => t.key === key)?.paradigms ?? ['ORA']).includes(paradigm)
   useEffect(() => {
@@ -73,17 +78,28 @@ export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [tools, config])
   const chosenSources = datasources.filter((d) => supportedSources.has(d))
-  const backgroundOptions = lists.filter((l) => l.id !== listId && l.organismTaxId === list?.organismTaxId)
+  const backgroundOptions = lists.filter((l) => !listIds.includes(l.id) && l.organismTaxId === list?.organismTaxId)
   const canSubmit = !!list && (tools.length > 0 || customIds.length > 0) && (customIds.length > 0 || chosenSources.length > 0)
-    && (paradigm === 'ORA' || !!list?.ranked)
+    && (paradigm === 'ORA' || picked.every((l) => l.ranked))
 
-  const submit = () => {
-    if (!list) return
-    const body = {
-      listId: list.id, paradigm, tools, sourceIds: customIds, datasources: chosenSources, threshold,
-      perTool: Object.fromEntries(Object.entries(perTool).map(([k, v]) => [k, { ...v, threshold: v.threshold ?? threshold }])),
-    }
-    start.mutate(body, { onSuccess: (r) => { setResult(r); if (!r.skipped.length) setTimeout(onClose, 900) } })
+  const submit = async () => {
+    if (!picked.length) return
+    let failed = false
+    const total = { created: [] as string[], reused: [] as string[], skipped: [] as { tool: string; reason: string }[] }
+    try {
+      for (const [i, l] of picked.entries()) {
+        if (picked.length > 1) setProgress(`Starting runs for ${l.name} (${i + 1} of ${picked.length})`)
+        const r = await start.mutateAsync({
+          listId: l.id, paradigm, tools, sourceIds: customIds, datasources: chosenSources, threshold,
+          perTool: Object.fromEntries(Object.entries(perTool).map(([k, v]) => [k, { ...v, threshold: v.threshold ?? threshold }])),
+        })
+        total.created.push(...r.created); total.reused.push(...r.reused)
+        total.skipped.push(...r.skipped.map((x) => ({ tool: picked.length > 1 ? `${l.name} · ${x.tool}` : x.tool, reason: x.reason })))
+      }
+    } catch { failed = true /* shown through start.error; runs already started are kept */ }
+    setProgress(null)
+    if (total.created.length || total.reused.length || total.skipped.length) setResult(total)
+    if (!failed && !total.skipped.length && (total.created.length || total.reused.length)) setTimeout(onClose, 900)
   }
 
   const setTool = (key: string, patch: ToolSettings) => setPerTool((p) => ({ ...p, [key]: { ...p[key], ...patch } }))
@@ -92,9 +108,9 @@ export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: 
     <Modal title="New enrichment run" size="xl" onClose={onClose}
       subtitle="Each selected tool runs separately; you can compare them afterwards."
       footer={<>
-        <span className="muted small">{tools.length + customIds.length} run{tools.length + customIds.length === 1 ? '' : 's'} · {chosenSources.length} sources</span>
+        <span className="muted small">{picked.length > 1 ? `${picked.length} lists × ` : ''}{tools.length + customIds.length} run{tools.length + customIds.length === 1 ? '' : 's'}{picked.length > 1 ? ` = ${picked.length * (tools.length + customIds.length)} runs` : ''} · {chosenSources.length} sources</span>
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
-        <button className="btn btn-primary" disabled={!canSubmit || start.isPending} onClick={submit}>{start.isPending ? 'Starting…' : 'Run enrichment'}</button>
+        <button className="btn btn-primary" disabled={!canSubmit || start.isPending} onClick={submit}>{start.isPending ? 'Starting…' : picked.length > 1 ? `Run enrichment on ${picked.length} lists` : 'Run enrichment'}</button>
       </>}>
       <div className="run-form">
         <section>
@@ -114,15 +130,28 @@ export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: 
                   const ex = await api<{ text: string }>('/inputs/examples/ranked')
                   const l = await api<{ id: string }>('/lists', { body: { name: 'Example ranked genes (DE)', text: ex.text, ranked: true, skipFirstRow: true, organismTaxId: 9606, uniqueName: true, meta: { source: 'example', method: 'volcano-ranked' } } })
                   await invalidateWs()
-                  setListId(l.id)
+                  setListIds([l.id])
                 } finally { setLoadingExample(false) }
               }}>{loadingExample ? 'Loading…' : 'Load an example ranked list (6,000 genes from a differential-expression table)'}</button>
             </div>
           ) : (
-            <Field label="List">
-              <select className="input" value={list?.id ?? ''} onChange={(e) => setListId(e.target.value)}>
-                {usableLists.map((l) => <option key={l.id} value={l.id}>{l.name} — {l.size} IDs{l.ranked ? ', ranked' : ''}, {l.organismName.replace(/ \[NCBI.*$/, '')}</option>)}
-              </select>
+            <Field label={picked.length > 1 ? `Lists (${picked.length} selected — the same analysis runs on each)` : 'Lists (tick several to run the same analysis on each)'}>
+              <div className="run-lists">
+                {usableLists.map((l) => (
+                  <label key={l.id} className="check">
+                    <input type="checkbox" checked={listIds.includes(l.id)} onChange={() => setListIds((cur) => (cur.includes(l.id) ? cur.filter((x) => x !== l.id) : [...cur, l.id]))} />
+                    <span>{l.name} <span className="muted small">— {l.size} IDs{l.ranked ? ', ranked' : ''}, {l.organismName.replace(/ \[NCBI.*$/, '')}</span></span>
+                  </label>
+                ))}
+              </div>
+              {usableLists.length > 1 && (
+                <span className="row">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setListIds(usableLists.map((l) => l.id))}>Select all</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setListIds([])}>None</button>
+                </span>
+              )}
+              {picked.length === 0 && <span className="muted small">Tick at least one list.</span>}
+              {mixedOrganisms && <Note kind="warning">The selected lists are from different organisms. Tool availability below is shown for {list?.organismName.replace(/ \[NCBI.*$/, '')}; a tool that does not support another list's organism is skipped for that list and reported.</Note>}
             </Field>
           )}
         </section>
@@ -244,6 +273,7 @@ export function NewRunPanel({ lists, sources, initialListId, onClose, preset }: 
           )}
         </section>
         <ErrorNote error={start.error} />
+        {progress && <BusyBar label={progress} expect={6} />}
         {result && (
           <Note kind={result.skipped.length ? 'warning' : 'success'}>
             {result.created.length > 0 && `Started ${result.created.length} run(s). `}

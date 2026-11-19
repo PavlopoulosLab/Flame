@@ -32,7 +32,7 @@ const FORMATS: Format[] = [
   { id: 'list', title: 'Gene or protein list', ext: '.txt', use: 'Paste or upload IDs', file: '/inputs/examples/upload/file', example: 'upload',
     columns: <>One identifier per line (commas, semicolons and tabs also work). Gene symbols, Ensembl, Entrez, UniProt and 15 more ID types; choose the type when uploading.</>,
     sample: 'CACNB2\nALOX15B\nDUSP1\nSTEAP2\nMAOA',
-    notes: <>Example: the 200 genes most changed by dexamethasone in airway smooth-muscle cells (Himes et al. 2014, <em>PLoS One</em>; GEO GSE52778).</> },
+    notes: <>Example: 200 genes drawn at random, on every load, from the 500 most changed by dexamethasone in airway smooth-muscle cells (Himes et al. 2014, <em>PLoS One</em>; GEO GSE52778).</> },
   { id: 'ranked', title: 'Ranked list (for GSEA)', ext: '.tsv', use: 'Paste or upload IDs → “IDs with scores”', file: '/inputs/examples/ranked/file', example: 'gsea',
     columns: <>Two tab-separated columns: <code>gene</code> and <code>score</code> (any number: log2 fold change, signed −log10 p, t-statistic). Include all measured genes. A header row is allowed (tick “skip first row”).</>,
     sample: 'gene\tscore\nCACNB2\t9.5884\nALOX15B\t9.2522\nDUSP1\t9.004\nDNM1\t-8.6878',
@@ -117,15 +117,15 @@ const TOPICS: Topic[] = [
           </li>
           <li>
             <h3>Add a list</h3>
-            <p>Press <strong>+ Add list</strong> and choose how to provide genes: paste IDs, upload a file, select genes on a volcano or 2D plot, map SNPs, find genes in text, or combine existing lists — or fetch genes from a disease, PubMed articles, a GEO dataset or dbSNP. Every method has a <em>Load example</em> button.</p>
+            <p>Open the <strong>Input</strong> tab (or press <strong>+ Add list</strong>) and choose how to provide genes: paste IDs, upload a file, select genes on a volcano or 2D plot, map SNPs, find genes in text, or combine existing lists — or fetch genes from a disease, PubMed articles, a GEO dataset or ClinVar. Every method has a <em>Load example</em> button. <strong>Save list</strong> stores the list and brings you back to the Input tab, so you can add another; the saved list appears under <em>Lists</em> on the left.</p>
           </li>
           <li>
             <h3>Run enrichment</h3>
-            <p>Press <strong>+ New run</strong>, pick one or more tools and the annotation sources to search (GO and KEGG are selected by default), then <strong>Run enrichment</strong>. Each tool becomes a card that shows progress and the number of significant terms.</p>
+            <p>Press <strong>+ New run</strong> on the Enrichment tab, tick the list (or several lists) to analyse, pick one or more tools and the annotation sources to search (GO and KEGG are selected by default), then <strong>Run enrichment</strong>. Each tool and list becomes a card that shows progress and the number of significant terms. To analyse several lists at once, tick them under <em>Lists</em> and press <strong>Run enrichment on selected</strong>.</p>
           </li>
           <li>
             <h3>Explore</h3>
-            <p>Open a finished card to see the results as a dot plot, bar chart, table, heatmaps and networks. Filter and search on the left; click terms to collect them on the right and export them.</p>
+            <p>Open a finished card to see the results as a dot plot, bar chart, table, heatmaps and networks. The tabs at the top show all annotation sources together or one at a time (GO:BP, GO:CC, KEGG…). Filter and search on the left; click terms to collect them on the right and export them.</p>
           </li>
           <li>
             <h3>Compare</h3>
@@ -143,32 +143,50 @@ const TOPICS: Topic[] = [
     title: 'Adding lists',
     body: (
       <>
+        <h3>The Input tab and your lists</h3>
+        <p>The workspace has five tabs: <strong>Input</strong>, <strong>Enrichment</strong>, <strong>Regulators &amp; drugs</strong>, <strong>Variants &amp; GWAS</strong> and <strong>Gene tools</strong>. A new workspace opens on <strong>Input</strong>, which shows every way to add a list as a card; <strong>+ Add list</strong> takes you there from anywhere. After <strong>Save list</strong> you are back on the Input tab, with a line confirming what was saved and a <em>Run enrichment</em> shortcut.</p>
+        <p>Your lists are always in view: in the workspace they sit in the panel on the left, and the results, comparison and variants pages show them in a <em>Your lists</em> box. In the workspace panel you can:</p>
+        <ul>
+          <li><strong>See a list's contents</strong> — click its name (or <em>⋯ → View contents</em>). The IDs are shown with their annotations where available: gene symbol, Ensembl gene ID and description, fetched from g:Profiler (g:Convert). The search box matches IDs, names and descriptions.</li>
+          <li><strong>Edit a list</strong> — <em>⋯ → Edit contents</em>: one ID per line (or <code>ID score</code> pairs for a ranked list). Duplicates and invalid IDs are dropped on save, and <em>Undo</em> restores the previous contents. Runs already made from the list keep their results; start a new run to analyse the edited list.</li>
+          <li><strong>Tick lists</strong> and then <strong>Run enrichment on selected</strong> (the same analysis on every ticked list) or <strong>Compare selected</strong> (an UpSet plot of two to six lists, see <em>Combining lists</em> below).</li>
+          <li>Rename, download (Excel, CSV), convert IDs, find orthologs, build a protein network or delete a list from its <em>⋯</em> menu.</li>
+        </ul>
+        <p>Steps that take a while — fetching from public databases, mapping, saving — show a progress bar with the elapsed time. These are single requests, so the bar shows that work is in progress, not a percentage; enrichment runs and variant analyses report real progress.</p>
         <h3>Paste or upload IDs</h3>
         <p>One identifier per line, or separated by commas, tabs or semicolons. Duplicates are removed (case-insensitive) and entries with unusual characters are skipped and reported. Choose the organism and the ID type; "Gene symbol" works for most tools. A list holds up to 3,000 IDs, and a workspace up to 10 lists. <Example kind="upload">Example</Example></p>
         <h3>IDs with scores (ranked list)</h3>
         <p>For gene set enrichment analysis, choose <em>IDs with scores (ranked list, for GSEA)</em> in the upload dialog and give two columns: the ID and a score (e.g. log2 fold change, signed −log10 p, or a t-statistic). Include all measured genes, not only the significant ones. A header row can be skipped. Ranked lists are marked <em>ranked</em> in the list rail; they can also be used for ordinary (ORA) runs, which ignore the scores.</p>
         <h3>From a volcano plot</h3>
-        <p>Upload differential-expression results (CSV/TSV) with a gene column, a log2 fold-change column and a p-value column. Flame guesses the columns; check them, set the cut-offs, then select genes by dragging a box or lasso, or with the <em>Up</em>, <em>Down</em> and <em>All significant</em> buttons. Red dotted lines show the cut-offs. <em>Save whole table as ranked list</em> keeps every gene with the score sign(log2FC) × −log10 p, ready for GSEA. <Example kind="volcano">Example</Example></p>
+        <p>Upload differential-expression results (CSV/TSV) with a gene column, a log2 fold-change column and a p-value column. Flame guesses the columns; check them, set the cut-offs, then select genes by dragging a box or lasso, or with the <em>Up</em>, <em>Down</em> and <em>All significant</em> buttons. Red dotted lines show the cut-offs. The <strong>Selected genes</strong> table under the plot lists what you picked, most significant first, with log2 fold change, p-value and direction; remove single genes with ×, copy them, then <em>Save list</em>. <em>Save whole table as ranked list</em> keeps every gene with the score sign(log2FC) × −log10 p, ready for GSEA. <Example kind="volcano">Example</Example></p>
         <h3>From a 2D plot (UMAP, t-SNE, PCA)</h3>
-        <p>Upload a table with a gene column and two coordinate columns; optionally a column to colour by (e.g. cluster) and one to size by. Lasso the points you want. <Example kind="reduction">Example</Example></p>
+        <p>Upload a table with a gene column and two coordinate columns; optionally a column to colour by (e.g. cluster) and one to size by. Lasso the points you want; they appear in the <strong>Selected genes</strong> table under the plot (with their colour value, e.g. the cluster), where you can remove single genes before saving. <Example kind="reduction">Example</Example></p>
         <h3>From SNPs</h3>
         <p>Paste dbSNP rsIDs (human only). Flame maps them to genes with g:SNPense and shows the variant effects; save the genes as symbols or Ensembl IDs. <Example kind="snps">Example</Example> For a full variant report (consequences, impact, ClinVar, traits, VCF and GWAS input) use <Link to="/help/variants">Variants and GWAS</Link>.</p>
         <h3>From text</h3>
         <p>Paste an abstract or any text. The EXTRACT tagger finds gene and protein names for the chosen organism. Ambiguous names are not selected by default — tick them if they are right. <Example kind="textmining">Example</Example></p>
         <h3>From expression data</h3>
-        <p>Upload a genes × samples matrix (counts, TPM, intensities or log values). Three ways to pick genes: <strong>co-expression clusters</strong> — the most variable genes clustered by correlation and shown as a heatmap of z-scores; click a cluster to select it; <strong>gene map</strong> — a PCA of the genes' profiles where you lasso or box-select genes; <strong>compare two groups</strong> — assign samples to groups A and B and Flame runs a Welch t-test per gene (Benjamini–Hochberg) and opens the result in the volcano selector, from which you can also save all genes as a ranked list for GSEA. <Example kind="expression">Example</Example></p>
+        <p>Upload a genes × samples matrix (counts, TPM, intensities or log values). Three ways to pick genes: <strong>co-expression clusters</strong> — the most variable genes clustered by correlation and shown as a heatmap of z-scores; tick one or more clusters (or click them on the heatmap) to select their genes, and tick again to remove them; <strong>gene map</strong> — a PCA of the genes' profiles where you lasso or box-select genes; <strong>compare two groups</strong> — assign samples to groups A and B and Flame runs a Welch t-test per gene (Benjamini–Hochberg) and opens the result in the volcano selector, from which you can also save all genes as a ranked list for GSEA. In the cluster and gene-map views the <strong>Selected genes</strong> table lists every picked gene with its cluster before you save. <Example kind="expression">Example</Example></p>
         <h3>From microRNAs</h3>
         <p>Paste microRNAs and get their predicted target genes (miRDB v6, MirTarget score &gt; 80, via MSigDB). Keep genes targeted by several of your microRNAs — they are the most likely to be regulated — or click one microRNA to take only its targets, then run enrichment on them. <Example kind="mirna">Example</Example></p>
         <h3>Combining lists (UpSet)</h3>
-        <p>Pick 2–6 lists with the same organism and ID type. <em>Only in</em> shows genes unique to each combination, <em>Shared by</em> shows genes common to all lists of a combination, and <em>Union</em> merges them. Click a bar to preview, copy (one per line or comma-separated), download or save it; <em>Copy table</em> and <em>Download</em> export every combination. <Example kind="upset">Example</Example></p>
+        <p>Open it with <strong>Combine lists</strong> on the Input tab, or tick lists on the left and press <strong>Compare selected</strong>. Pick 2–6 lists with the same organism and ID type. The UpSet plot shows each list's size on the left and one bar per combination, with dots marking the lists involved.</p>
+        <ul>
+          <li><strong>Each bar shows</strong> — <em>Only in</em>: IDs in exactly those lists and no other (the parts never overlap); <em>Shared by</em>: IDs common to those lists, whatever the others contain; <em>Union of</em>: IDs in at least one of them.</li>
+          <li><strong>Select bars</strong> — click one or more bars; click again to remove one.</li>
+          <li><strong>Set operations on all lists</strong> — <em>Intersection</em> (in every list), <em>Union</em> (in any list), <em>XOR</em> (in exactly one list), <em>In 2 or more</em> and <em>Not in all</em> select the matching bars for you.</li>
+          <li><strong>See the IDs</strong> — every selected bar is listed and opens to show its own IDs; the table below lists each selected ID once with the lists it is found in. Copy or download them.</li>
+          <li><strong>Save</strong> — <em>Save list</em> stores the combined selection as a new list. <em>Copy table</em>, <em>Excel</em> and <em>TSV</em> export every combination, and <em>⤓ Image</em> the plot.</li>
+        </ul>
+        <p><Example kind="upset">Example</Example></p>
         <h3>From public resources</h3>
         <ul>
-          <li><strong>From a disease</strong> — search a disease or trait. <em>Associated genes</em> come from the Open Targets Platform, ranked by an overall score that combines genetics (GWAS, rare variants), somatic mutations, known drugs, expression, literature and animal models; keep the scores to get a ranked list for GSEA. <em>GWAS variants</em> lists the GWAS Catalog associations (p ≤ 5e-8) with their mapped genes, and can send the variants to a full variant analysis. Gene sets from DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and the GWAS Catalog are matched by name (via Enrichr's libraries). <Example kind="disease">Asthma example</Example></li>
+          <li><strong>From a disease</strong> — search a disease or trait. Tick the <em>databases to search</em> (Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES, GWAS Catalog; <em>Select all</em> / <em>None</em>) — fewer databases answer faster. Results come as two tables, diseases and gene sets. Click a name to open it alone, or tick several rows and press <em>Get genes of selected</em>: their genes are merged and ranked by how many of the ticked results list each gene. <em>Back to results</em> returns to the tables with your ticks kept. Disease genes come from the Open Targets Platform, ranked by an overall score that combines genetics (GWAS, rare variants), somatic mutations, known drugs, expression, literature and animal models; keep the scores to get a ranked list for GSEA. <em>GWAS variants</em> lists the GWAS Catalog associations (p ≤ 5e-8) with their mapped genes, and can send the variants to a full variant analysis. Gene sets from DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and the GWAS Catalog are matched by name (via Enrichr's libraries). <Example kind="disease">Asthma example</Example></li>
           <li><strong>From PubMed articles</strong> — give PMIDs, or a PubMed search (the most relevant articles are used). Genes come from NCBI Gene's links to the articles (gene2pubmed: curated links and GeneRIFs) and are ranked by the number of articles. To find gene names in the text itself, use <em>From text</em>. <Example kind="pubmed">PubMed example</Example></li>
           <li><strong>From a GEO dataset</strong> — search a GEO series (GSE52778) or keywords. RummaGEO (Marino et al. 2024) re-analysed thousands of human and mouse series from ARCHS4 with limma-voom; each pair of sample groups gives an up and a down signature, shown with the groups compared. <Example kind="geo">GSE52778 example</Example></li>
-          <li><strong>From dbSNP</strong> — rsIDs or a dbSNP search (<code>APOE[gene] AND pathogenic[clinical_significance]</code>). Shows each variant's location, genes, consequence, ClinVar significance and allele frequency; save the genes as a list, or annotate the variants in full (Ensembl VEP, gnomAD, ClinVar, GWAS traits) with <em>Annotate variants</em>. <Example kind="dbsnp">dbSNP example</Example></li>
+          <li><strong>From ClinVar</strong> — a gene (<code>APOE</code>), a condition (<code>cystic fibrosis</code>), rsIDs, ClinVar accessions (<code>VCV000017864</code>) or any ClinVar search, optionally keeping only pathogenic or likely pathogenic variants. Shows each variant's genes, location, consequence, clinical classification, review status and conditions; save the genes as a list (ranked by number of variants), or annotate the variants that have an rsID in full (Ensembl VEP, gnomAD, GWAS traits) with <em>Annotate variants</em>. <Example kind="clinvar">ClinVar example</Example></li>
         </ul>
-        <p>Each source ranks its genes (score, number of articles or variants) where it can: box-select bars to keep particular genes, or keep the top N with the slider. Only your query is sent to the service.</p>
+        <p>Each source ranks its genes (score, number of articles or variants) where it can, and lists them in a table. <em>Keep the top N</em> (number box or slider) chooses how many are saved; highlighted rows and coloured bars are the genes that will be saved. To hand-pick genes instead, tick them in the table or click their bars in the bar chart (click again to remove); <em>Back to top N</em> returns to the automatic choice. Only your query is sent to the service; if a service is down, the message names it.</p>
       </>
     ),
   },
@@ -197,6 +215,7 @@ const TOPICS: Topic[] = [
           </tbody>
         </table>
         <p>MSigDB gene sets are downloaded once per organism on first use and then cached, so the first clusterProfiler run for an organism takes longer.</p>
+        <p>The New run panel lists your lists with checkboxes: tick several (or press <em>Run enrichment on selected</em> in the lists panel) to run the same tools and settings on each of them; the footer shows the number of runs that will start. If the lists are from different organisms, a tool that does not support one of them is skipped for that list and reported.</p>
         <p>In the New run panel, sources that none of the selected tools offer are greyed out, and coloured dots show which tools provide each source. Tools that do not support the list's organism cannot be selected.</p>
         <h3>Custom gene sets</h3>
         <p>Upload your own gene sets as a GMT file (one set per line: ID, description, genes — tab separated) under <em>Custom sources</em>. They are tested with a hypergeometric test and Benjamini–Hochberg correction; the universe is all genes in the file unless you choose a background list.</p>
@@ -222,7 +241,7 @@ const TOPICS: Topic[] = [
     title: 'Reading the results',
     body: (
       <>
-        <p>Every view shows the top terms after your filters (20 by default, change it with <em>Show</em> and <em>by</em>). Term statistics:</p>
+        <p>Every view shows the top terms after your filters (20 by default, change it with <em>Show</em> and <em>by</em>). The <strong>source tabs</strong> above the views show <em>All sources</em> together or one annotation source at a time (GO:BP, GO:CC, GO:MF, KEGG…), each with its number of terms; a source tab applies to every view, and <em>top 20</em> then means the top 20 of that source. The <em>Sources</em> chips in the filters do the same for any mix of sources. Term statistics:</p>
         <dl className="details">
           <dt>P-value</dt><dd>Corrected significance — smaller is stronger evidence.</dd>
           <dt>Genes found</dt><dd>How many of your genes are annotated to the term.</dd>
@@ -408,7 +427,7 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <h3>Chart palettes</h3>
-        <p>Every visualization has its own palette menu (◐) in its toolbar — on each results tab, each comparison view, the variant report and every dialog with plots. The choice applies only to that visualization and is remembered for it in this browser, so one figure can be colour-blind safe or grayscale while the others keep their colours:</p>
+        <p>Every visualization has its own palette menu (◐) in its toolbar — on each results tab, each comparison view, the variant report and the analysis dialogs with plots (the dialogs for adding a list do not show it). The choice applies only to that visualization and is remembered for it in this browser, so one figure can be colour-blind safe or grayscale while the others keep their colours:</p>
         <ul>
           <li><strong>Flame</strong> — the default colours, matching the logo; annotation sources keep their usual colours.</li>
           <li><strong>Colour-blind safe</strong> — Okabe–Ito categories and the Cividis scale, distinguishable with all common colour-vision deficiencies.</li>
@@ -420,7 +439,7 @@ const TOPICS: Topic[] = [
         <h3>Undo and redo</h3>
         <p>On result and comparison pages, ↶ and ↷ (or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Shift</kbd>+<kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>Z</kbd>, <kbd>Ctrl</kbd>+<kbd>Y</kbd>) step through changes to the view, filters, settings and selection. In the workspace, deleting or renaming a list, removing a run, or clearing all data shows an <em>Undo</em> button for a few seconds before it takes effect.</p>
         <h3>Selecting in charts</h3>
-        <p>Charts that hold items you can select show a small switch: <strong>Box select</strong>, <strong>Lasso</strong>, <strong>Zoom</strong> and <strong>Pan</strong> (Plotly charts), or <strong>Click / drag</strong>, <strong>Box select</strong> and <strong>Lasso</strong> (networks, Circos and hive plots). Hold Shift to add to the selection. Selections feed the <em>Selected</em> panel (results and comparisons), the variants table (variant reports) or a <em>Save as list</em> box (inputs and the protein network).</p>
+        <p>Charts that hold items you can select show a small switch: <strong>Box select</strong>, <strong>Lasso</strong>, <strong>Zoom</strong> and <strong>Pan</strong> (Plotly charts; the gene bar charts of the fetch dialogs are simply clicked), or <strong>Click / drag</strong>, <strong>Box select</strong> and <strong>Lasso</strong> (networks, Circos and hive plots). Hold Shift to add to the selection. Selections feed the <em>Selected</em> panel (results and comparisons), the variants table (variant reports) or a <em>Save as list</em> box (inputs and the protein network).</p>
         <h3>Keyboard and screen readers</h3>
         <p>All controls can be reached with the keyboard; <em>Skip to content</em> appears on the first Tab. Charts have text alternatives, and every chart's data can be downloaded as a table.</p>
       </>
@@ -452,7 +471,7 @@ const TOPICS: Topic[] = [
         <dt>Why do tools give different results?</dt><dd>They use different database versions, statistics and backgrounds. Comparing runs shows where they agree; consensus terms are the most robust.</dd>
         <dt>Fold enrichment is missing.</dt><dd>Some tools do not report the background size needed to compute it. Provide a custom background list, or use gene ratio instead.</dd>
         <dt>I have SNPs or GWAS results, not genes.</dt><dd>Use <Link to="/help/variants">Variants and GWAS</Link>: it annotates the variants, finds the genes and traits they affect, and turns them into a gene list or ranked list for enrichment.</dd>
-        <dt>I work with microRNAs. What can Flame do?</dt><dd>Two things. <strong>Starting from microRNAs</strong> (e.g. those changed in your experiment): choose <em>From microRNAs</em> under Add list, paste them, and Flame finds their predicted target genes (miRDB via MSigDB); keep the genes hit by several of your microRNAs and run enrichment on them. <strong>Starting from genes</strong>: run a gene list (or a ranked list with GSEA) against the microRNA sources — miRTarBase in g:Profiler, miRNA annotations in GeneCodis, and MSigDB miRDB target sets in clusterProfiler — to see which microRNAs may regulate it. <Example kind="mirna">Open the microRNA example</Example></dd>
+        <dt>I work with microRNAs. What can Flame do?</dt><dd>Two things. <strong>Starting from microRNAs</strong> (e.g. those changed in your experiment): choose <em>From microRNAs</em> on the Input tab, paste them, and Flame finds their predicted target genes (miRDB via MSigDB); keep the genes hit by several of your microRNAs and run enrichment on them. <strong>Starting from genes</strong>: run a gene list (or a ranked list with GSEA) against the microRNA sources — miRTarBase in g:Profiler, miRNA annotations in GeneCodis, and MSigDB miRDB target sets in clusterProfiler — to see which microRNAs may regulate it. <Example kind="mirna">Open the microRNA example</Example></dd>
         <dt>Should I use ORA or GSEA?</dt><dd>Use ORA when you have a clear list of genes (e.g. significant hits). Use GSEA when you have scores for all measured genes; it needs no cut-off and detects subtle, coordinated shifts. See <Link to="/help/gsea">Ranked lists (GSEA)</Link>.</dd>
         <dt>Are the figures colour-blind friendly?</dt><dd>Choose <em>Colour-blind safe</em> in the ◐ palette menu of the figure; see <Link to="/help/display">Colours, undo and accessibility</Link>.</dd>
         <dt>Can I analyse metabolites or lipids?</dt><dd>Not yet — Flame currently analyses genes and proteins.</dd>

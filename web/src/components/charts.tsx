@@ -91,6 +91,7 @@ export function Plot({
   dragmode,
   onShapesMoved,
   exportName = 'flame_plot',
+  tools = true,
 }: {
   data: PlotData
   layout?: Partial<Plotly.Layout>
@@ -102,6 +103,8 @@ export function Plot({
   onShapesMoved?: (update: Record<string, number>) => void
   /** Default file name when the chart is saved as an image. */
   exportName?: string
+  /** false: no box/lasso/zoom/pan controls — the chart is only clicked (e.g. a bar chart of genes). */
+  tools?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const selectRef = useRef(onSelect)
@@ -129,7 +132,7 @@ export function Plot({
       ...base,
       height,
       margin: { l: 60, r: 20, t: 20, b: 50 },
-      dragmode: mode,
+      dragmode: tools ? mode : false,
       ...layout,
       xaxis: { ...base.xaxis, ...(layout?.xaxis ?? {}) },
       yaxis: { ...base.yaxis, ...(layout?.yaxis ?? {}) },
@@ -139,6 +142,7 @@ export function Plot({
       Plotly.react(el, data as Plotly.Data[], merged, {
         responsive: true,
         displaylogo: false,
+        ...(tools ? {} : { displayModeBar: false }),
         ...(onShapesMoved ? { edits: { shapePosition: true } } : {}),
         modeBarButtonsToRemove: ['toImage'],
       }),
@@ -165,7 +169,7 @@ export function Plot({
     if (handleRef) {
       handleRef.current = { exportImage: (name) => openImageExport(plotSource(el, name ?? nameRef.current, !!selectRef.current)) }
     }
-  }, [data, layout, height, mode, handleRef, cb])
+  }, [data, layout, height, mode, handleRef, cb, tools])
 
   useEffect(() => {
     const el = ref.current
@@ -177,7 +181,7 @@ export function Plot({
   return (
     <>
       <div className="plot-tools">
-        {selectable && (
+        {selectable && tools && (
           <div className="plot-modes" role="radiogroup" aria-label="Mouse mode">
             {([['select', '▭ Box select'], ['lasso', '◌ Lasso'], ['zoom', '⌕ Zoom'], ['pan', '✥ Pan']] as const).map(([m, l]) => (
               <button key={m} type="button" role="radio" aria-checked={mode === m} className={mode === m ? 'on' : ''} onClick={() => setMode(m)}

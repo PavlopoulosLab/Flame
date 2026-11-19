@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig } from '../api/hooks'
+import { ListsPanel } from '../components/ListsPanel'
 import type { ComparisonData, ComparisonFilters, ComparisonTerm } from '../api/types'
 import { Plot, type PlotHandle } from '../components/charts'
 import { BackToWorkspace, CopyButton, ErrorNote, Field, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
@@ -117,7 +118,8 @@ function ComparePageBody() {
       </nav>
 
       <div className="results-body">
-        <aside className="filters" aria-label="Filters">
+        <aside className="filters" aria-label="Your lists and filters">
+          <ListsPanel />
           <h2>Filters</h2>
           <div className="field">
             <span className="field-label">Runs</span>

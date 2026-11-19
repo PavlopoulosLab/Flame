@@ -275,8 +275,14 @@ test_that("expression matrices: parsing, log transform, clusters and two-group t
 
 test_that("examples come from the published datasets", {
   up <- strsplit(example_input("upload")$text, "\n")[[1]]
+  pool <- example_gene_pool()
+  expect_length(pool, 500)
+  expect_true(all(c("DUSP1", "KLF15", "PER1") %in% pool))         # glucocorticoid-response genes
   expect_length(up, 200)
-  expect_true(all(c("DUSP1", "KLF15", "PER1") %in% up))           # glucocorticoid-response genes
+  expect_equal(anyDuplicated(up), 0L)
+  expect_true(all(up %in% pool))
+  # every load is a new random draw of 200 from the pool of 500
+  expect_false(setequal(up, strsplit(example_input("upload")$text, "\n")[[1]]))
   d <- example_input("de_lists")
   expect_true("ZBTB16" %in% d$up)
   um <- read.delim(getExamplesPath("pbmc3k_gene_umap.tsv"))

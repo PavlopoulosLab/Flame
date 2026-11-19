@@ -15,8 +15,8 @@ async function newWorkspace(page: Page, query = '') {
 test('home page shows the hero, examples and links', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Functional Analysis and Integration')
-  await expect(page.locator('.featured-example').first()).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Functional analysis')
+  await expect(page.locator('.hm-example').first()).toBeVisible()
   await page.getByText(/^All \d+ examples$/).click()
   await expect(page.locator('.example-row').first()).toBeVisible()
   expect(await page.locator('.example-row').count()).toBeGreaterThan(25)
@@ -30,9 +30,9 @@ test('add a list by pasting genes', async ({ page }) => {
   await page.getByRole('button', { name: /Add list/ }).first().click()
   await page.getByRole('button', { name: /Paste or upload IDs/ }).click()
   await page.getByLabel('IDs', { exact: true }).fill('TP53\nMDM2\nCDKN1A\nBAX\nGADD45A\nFAS\nBBC3\nSESN1')
-  await page.getByRole('button', { name: /Save list and continue/ }).click()
-  // Saving opens the New run panel; close it and find the list in the rail.
-  await page.getByRole('button', { name: 'Close' }).first().click()
+  await page.getByRole('button', { name: 'Save list', exact: true }).click()
+  // Saving closes the dialog and returns to the Input tab, with the list in the rail.
+  await expect(page.getByRole('tab', { name: /Input/ })).toHaveAttribute('aria-selected', 'true')
   await expect(page.locator('.rail').getByText('8 IDs')).toBeVisible()
   expect(errors).toEqual([])
 })
@@ -40,6 +40,9 @@ test('add a list by pasting genes', async ({ page }) => {
 test('workspace sections switch and keep their colours', async ({ page }) => {
   const errors = watchErrors(page)
   await newWorkspace(page)
+  // A new workspace has no lists, so it opens on the Input tab with the ways to add one.
+  await expect(page.getByRole('tab', { name: /Input/ })).toHaveAttribute('aria-selected', 'true')
+  await expect(page.locator('.method-card')).toHaveCount(12)
   await page.getByRole('tab', { name: /Regulators & drugs/ }).click()
   await expect(page.getByRole('heading', { name: 'Regulators, drugs and more' })).toBeVisible()
   await expect(page.locator('.tool-tile')).toHaveCount(8)

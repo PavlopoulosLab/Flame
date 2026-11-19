@@ -1,8 +1,7 @@
 import type { AnalyteList } from '../../api/types'
-import { Modal } from '../../components/ui'
 import { ConceptIcon } from '../../components/Icons'
 
-export type InputKind = 'upload' | 'snps' | 'textmining' | 'volcano' | 'reduction' | 'upset' | 'expression' | 'mirna' | 'disease' | 'pubmed' | 'geo' | 'dbsnp'
+export type InputKind = 'upload' | 'snps' | 'textmining' | 'volcano' | 'reduction' | 'upset' | 'expression' | 'mirna' | 'disease' | 'pubmed' | 'geo' | 'clinvar'
 
 export const METHODS: { kind: InputKind; title: string; text: string; needsLists?: number }[] = [
   { kind: 'upload', title: 'Paste or upload IDs', text: 'Gene or protein identifiers, one per line or separated by commas.' },
@@ -14,26 +13,25 @@ export const METHODS: { kind: InputKind; title: string; text: string; needsLists
   { kind: 'disease', title: 'From a disease', text: 'Genes of a disease: Open Targets scores, DisGeNET, OMIM, Orphanet, ClinVar, GWAS Catalog.' },
   { kind: 'pubmed', title: 'From PubMed articles', text: 'Genes linked to articles (PMIDs or a PubMed search), ranked by number of articles.' },
   { kind: 'geo', title: 'From a GEO dataset', text: 'Up- or down-regulated genes of a GEO series (RummaGEO signatures).' },
-  { kind: 'dbsnp', title: 'From dbSNP', text: 'rsIDs or a dbSNP search → variants, ClinVar significance and their genes.' },
+  { kind: 'clinvar', title: 'From ClinVar', text: 'A gene, a condition, rsIDs or ClinVar accessions → variants, their clinical significance and genes.' },
   { kind: 'textmining', title: 'From text', text: 'Find gene and protein names in an abstract or any free text.' },
   { kind: 'upset', title: 'Combine lists', text: 'Intersections, unique parts and unions of your lists (UpSet plot).', needsLists: 2 },
 ]
 
-export function MethodPicker({ lists, onClose, onPick }: { lists: AnalyteList[]; onClose: () => void; onPick: (k: InputKind) => void }) {
+/** The ways to add a list, as a grid of cards (shown on the workspace's Input tab). */
+export function MethodGrid({ lists, onPick, disabledAll = false }: { lists: AnalyteList[]; onPick: (k: InputKind) => void; disabledAll?: boolean }) {
   return (
-    <Modal title="Add a list" subtitle="How would you like to provide your genes?" onClose={onClose} size="lg">
-      <div className="method-grid">
-        {METHODS.map((m) => {
-          const disabled = !!m.needsLists && lists.length < m.needsLists
-          return (
-            <button key={m.kind} className="method-card" disabled={disabled} onClick={() => onPick(m.kind)}>
-              <ConceptIcon name={m.kind} size={34} />
-              <h3>{m.title}</h3>
-              <p>{disabled ? 'Add at least two lists first.' : m.text}</p>
-            </button>
-          )
-        })}
-      </div>
-    </Modal>
+    <div className="method-grid">
+      {METHODS.map((m) => {
+        const needsMore = !!m.needsLists && lists.length < m.needsLists
+        return (
+          <button key={m.kind} className="method-card" disabled={needsMore || disabledAll} onClick={() => onPick(m.kind)}>
+            <ConceptIcon name={m.kind} size={34} />
+            <h3>{m.title}</h3>
+            <p>{needsMore ? 'Add at least two lists first.' : m.text}</p>
+          </button>
+        )
+      })}
+    </div>
   )
 }

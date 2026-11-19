@@ -12,7 +12,7 @@ API_TAGS <- list(
   list(name = "Workspace", description = "Create a workspace (no account needed), check its status, save and load sessions, delete it."),
   list(name = "Reference", description = "Tools, annotation sources, ID types, organisms and limits."),
   list(name = "Lists", description = "Gene, protein or SNP lists (optionally ranked, with scores)."),
-  list(name = "Inputs", description = "Turn files, plots, text, microRNAs, SNPs, diseases, PubMed, GEO and dbSNP into gene lists."),
+  list(name = "Inputs", description = "Turn files, plots, text, microRNAs, SNPs, diseases, PubMed, GEO, ClinVar and dbSNP into gene lists."),
   list(name = "Enrichment runs", description = "Start ORA or GSEA runs with one or more tools, poll their status, read results in any view."),
   list(name = "Comparisons", description = "Compare runs (tools, lists or strategies): combined p-values, consensus ranks, statistics, themes."),
   list(name = "Analyses", description = "Background analyses: transcription factors, kinases, drug signatures, network modules, robustness, metabolites."),
@@ -85,7 +85,7 @@ BODIES <- list(
       uniqueName = BOOL("Add a suffix if the name is taken."), meta = .s("object", "Free-form provenance (method, source…).")),
     required = c("name", "organismTaxId"),
     example = list(name = "My genes", ids = list("TP53", "MDM2", "CDKN1A", "BAX", "GADD45A", "FAS", "BBC3", "SESN1"), organismTaxId = 9606)),
-  "PATCH /api/v1/lists/{id}" = .obj(list(name = STR("New name.")), "name", example = list(name = "Renamed list")),
+  "PATCH /api/v1/lists/{id}" = .obj(list(name = STR("New name."), text = STR("New contents: one ID per line (or \"ID score\" pairs for a ranked list)."), ids = STRS("New contents as an array (instead of text).")), example = list(name = "Renamed list")),
   "POST /api/v1/runs" = .obj(list(
       listId = STR("List to analyse."), tools = STRS("gprofiler, string, enrichr, webgestalt, panther, genecodis, clusterprofiler, reactome"),
       datasources = STRS("Annotation sources, e.g. GO:BP, GO:MF, GO:CC, KEGG, REAC, WP, HALLMARK (see /config for each tool)."),
@@ -153,6 +153,8 @@ BODIES <- list(
                                             example = list(query = "glucocorticoid receptor airway smooth muscle", organismTaxId = 9606, max = 100)),
   "POST /api/v1/inputs/geo/search" = .obj(list(query = STR("GSE accession or keywords.")), "query", example = list(query = "GSE52778")),
   "POST /api/v1/inputs/geo/genes" = .obj(list(id = STR("Signature id from /inputs/geo/search.")), "id"),
+  "POST /api/v1/inputs/clinvar/lookup" = .obj(list(query = STR("A gene symbol, a condition, rsIDs, ClinVar accessions (VCV…) or a ClinVar search expression."), significance = STR("any (default) | pathogenic | pathogenic_likely"), max = INT()), "query",
+      example = list(query = "APOE", significance = "pathogenic_likely")),
   "POST /api/v1/inputs/dbsnp/lookup" = .obj(list(query = STR("rsIDs or a dbSNP search."), max = INT()), "query",
                                             example = list(query = "APOE[gene] AND pathogenic[clinical_significance]", max = 50))
 )

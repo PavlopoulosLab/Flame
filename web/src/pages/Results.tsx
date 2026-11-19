@@ -1,5 +1,5 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig, useWorkspace } from '../api/hooks'
@@ -19,6 +19,7 @@ import { svgSource } from '../components/viz'
 import { openImageExport, usePlainSelection } from '../lib/imageExport'
 import { saveXlsx, sheetsByCategory, termSheetRows } from '../lib/xlsx'
 import { BackToWorkspace } from '../components/ui'
+import { ListsPanel } from '../components/ListsPanel'
 import { PaletteSelect } from '../components/PaletteSelect'
 import { PaletteScope, usePaletteKey } from '../lib/palette'
 import { formatNum, formatP, isHttpUrl, plural, slug, splitGenes, toCsv, toHtmlTable } from '../lib/format'
@@ -159,6 +160,14 @@ function ResultsPageBody() {
   })
   const termIndex = useMemo(() => new Map((all.data?.terms ?? []).map((t) => [t.id, t])), [all.data])
   const sources = all.data?.availableSources ?? []
+  // Terms per annotation source, for the source tabs (GO:BP, GO:CC, KEGG…).
+  const sourceCounts = useMemo(() => {
+    const m = new Map<string, number>()
+    ;(all.data?.terms ?? []).forEach((t) => m.set(t.source, (m.get(t.source) ?? 0) + 1))
+    return m
+  }, [all.data])
+  // The source tab that is open: 'all', one source, or none when several (but not all) are ticked in the filters.
+  const sourceTab = !filters.sources || filters.sources.length === sources.length ? 'all' : filters.sources.length === 1 ? filters.sources[0] : null
 
   const onSelect = (ids: string[], additive: boolean) => {
     setSelected((s) => {
@@ -201,6 +210,22 @@ function ResultsPageBody() {
         <Note kind="warning">No significant terms were found. Try more annotation sources, a looser threshold, or another tool.</Note>
       ) : (
         <>
+          {sources.length > 1 && (
+            <nav className="source-tabs" role="tablist" aria-label="Annotation source">
+              <button type="button" role="tab" aria-selected={sourceTab === 'all'} className={`source-tab${sourceTab === 'all' ? ' active' : ''}`}
+                onClick={() => setFilters({ ...filters, sources: undefined })}>
+                All sources <span className="count">{(all.data?.terms ?? []).length.toLocaleString()}</span>
+              </button>
+              {sources.map((src) => (
+                <button key={src} type="button" role="tab" aria-selected={sourceTab === src} className={`source-tab${sourceTab === src ? ' active' : ''}`}
+                  style={{ '--src-color': sourceColor(src) } as CSSProperties} title={`Show only ${src} in every view`}
+                  onClick={() => setFilters({ ...filters, sources: [src] })}>
+                  {src} <span className="count">{(sourceCounts.get(src) ?? 0).toLocaleString()}</span>
+                </button>
+              ))}
+              {sourceTab === null && <span className="muted small">{filters.sources?.length} sources shown (set in Filters)</span>}
+            </nav>
+          )}
           <nav className="view-tabs" aria-label="Result views">
             {tabOrder.map((id) => {
               const t = tabs.find((x) => x.tabId === id)
@@ -232,7 +257,8 @@ function ResultsPageBody() {
           </nav>
 
           <div className="results-body">
-            <aside className="filters" aria-label="Filters">
+            <aside className="filters" aria-label="Your lists and filters">
+              <ListsPanel />
               <h2>Filters</h2>
               <Field label="Search terms" hint={<>Words must all match; use "quotes", OR, and -exclude.</>}>
                 <input className="input" type="search" value={filters.search ?? ''} placeholder='e.g. "cell cycle" -mitotic'

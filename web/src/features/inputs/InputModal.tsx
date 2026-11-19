@@ -3,7 +3,7 @@ import { API_BASE, api, saveText } from '../../api/client'
 import { useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
-import { CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
+import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, ModalPaletteContext, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
 import { plural } from '../../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
 import { METHODS, type InputKind } from './MethodPicker'
@@ -13,6 +13,7 @@ import { usePlainSelection } from '../../lib/imageExport'
 import { ExportImageButton } from '../../components/ExportImage'
 import { htmlSource } from '../../components/viz'
 const NO_SET = new Set<string>()
+const NO_BARS: string[] = []
 
 interface Props {
   kind: InputKind
@@ -27,10 +28,12 @@ interface Props {
   onOpenVolcano?: (text: string, fileName: string) => void
   /** Expression input: open on a given view (e.g. 'activity'). */
   initialView?: string
+  /** Combine lists: the lists ticked in the lists panel. */
+  initialListIds?: string[]
 }
 
 export function InputModal(props: Props) {
-  return <PaletteScope id={`input-${props.kind}`}><InputModalBody {...props} /></PaletteScope>
+  return <PaletteScope id={`input-${props.kind}`}><ModalPaletteContext.Provider value={false}><InputModalBody {...props} /></ModalPaletteContext.Provider></PaletteScope>
 }
 
 function InputModalBody(props: Props) {
@@ -54,7 +57,7 @@ function InputModalBody(props: Props) {
     case 'disease':
     case 'pubmed':
     case 'geo':
-    case 'dbsnp':
+    case 'clinvar':
       return <FetchInput mode={props.kind} title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
   }
 }
@@ -78,7 +81,8 @@ function useExample(kind: string, enabled: boolean | undefined, apply: (text: st
 }
 
 /** Where the loaded example data come from. */
-function ExampleSource({ text }: { text: string | null }) {
+function ExampleSource({ text, loading = false }: { text: string | null; loading?: boolean }) {
+  if (loading) return <BusyBar label="Loading the example" expect={6} />
   return text ? <p className="example-source"><strong>Example data:</strong> {text}</p> : null
 }
 
@@ -124,6 +128,7 @@ export function SaveList({
         {extra}
       </div>
       <ErrorNote error={create.error} />
+      {create.isPending && <BusyBar label="Saving the list and checking its IDs" expect={8} />}
       <div className="row end">
         <span className="muted small">{plural(ids.length, 'ID')}{scores ? ' with scores (ranked list, for GSEA)' : ''} will be saved</span>
         <button
@@ -136,7 +141,7 @@ export function SaveList({
             )
           }
         >
-          {create.isPending ? 'Saving…' : 'Save list and continue'}
+          {create.isPending ? 'Saving…' : 'Save list'}
         </button>
       </div>
     </div>
@@ -185,7 +190,7 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
           {parsed.invalid ? ` · ${parsed.invalid} skipped (e.g. ${parsed.invalidExamples.slice(0, 3).join(', ')})` : ''}
         </Note>
       )}
-      <ExampleSource text={ex.source} />
+      <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
       <SaveList ids={parsed?.ids ?? []} scores={ranked ? parsed?.scores : undefined} defaultName={ranked ? 'My ranked genes' : 'My genes'} organism={organism} setOrganism={setOrganism}
         idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'upload' }} onCreated={onCreated} />
@@ -217,7 +222,8 @@ function Snps({ example, onClose, onCreated, title }: P) {
       </div>
       <textarea className="input mono" rows={6} value={text} onChange={(e) => setText(e.target.value)} placeholder="rs1130233" aria-label="SNP IDs" />
       <div className="row end"><button className="btn btn-secondary" disabled={!text.trim() || busy} onClick={map}>{busy ? 'Mapping…' : 'Map to genes'}</button></div>
-      <ExampleSource text={ex.source} />
+      {busy && <BusyBar label="Mapping SNPs to genes with g:SNPense" expect={10} />}
+      <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
       {res && (
         <>
@@ -269,7 +275,8 @@ function TextMining({ example, onClose, onCreated, title }: P) {
         <span className="muted small">{text.length.toLocaleString()} characters</span>
         <button className="btn btn-secondary" disabled={text.trim().length < 3 || busy} onClick={extract}>{busy ? 'Finding genes…' : 'Find genes'}</button>
       </div>
-      <ExampleSource text={ex.source} />
+      {busy && <BusyBar label="Finding gene and protein names with the EXTRACT tagger" expect={12} />}
+      <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
       {rows && (
         <div className="two-col-tight">
@@ -462,7 +469,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
         <summary className="small">…or paste the table</summary>
         <textarea className="input mono" rows={6} value={text} onChange={(e) => { setText(e.target.value); setFileName('') }} aria-label="Table" />
       </details>
-      <ExampleSource text={ex.source} />
+      <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
       {prep && (
         <>
@@ -495,6 +502,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
             )}
           </div>
           <div className="row end"><button className="btn btn-secondary" onClick={draw} disabled={busy}>{busy ? 'Drawing…' : points ? 'Redraw plot' : 'Draw plot'}</button></div>
+          {busy && <BusyBar label={`Reading ${prep.rowCount.toLocaleString()} rows and drawing the plot`} expect={6} />}
         </>
       )}
       {points && (
@@ -532,12 +540,78 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
               ] : [] }}
             onSelect={(ids, add) => setSel((s) => new Set(add ? [...s, ...ids] : ids))} />
           <p className="muted small">Plotted {points.plotted.toLocaleString()} of {points.total.toLocaleString()} rows · {plural(selectedIds.length, 'gene')} selected{selectedIds.length > 3000 ? ' (a list holds at most 3,000 IDs)' : ''}</p>
+          <SelectedGenes isVolcano={isVolcano} colorLabel={mapping.color || undefined}
+            points={[...sel].map((pid) => byId.get(pid)).filter((x): x is VolcanoPoint | ReductionPoint => !!x)}
+            onRemove={(geneId) => setSel((cur) => new Set([...cur].filter((pid) => byId.get(pid)?.id !== geneId)))}
+            onClear={() => setSel(new Set())} />
+          <h3 className="save-heading">Save the selected genes as a list</h3>
           <SaveList ids={selectedIds.slice(0, 3000)} defaultName={isVolcano ? 'Volcano selection' : 'Cluster selection'} organism={organism}
             setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: kind }} onCreated={onCreated} />
           {isVolcano && <RankedFromVolcano points={points.points as VolcanoPoint[]} organism={organism} idFormat={idFormat} onCreated={onCreated} />}
         </>
       )}
     </Modal>
+  )
+}
+
+/** The genes currently selected on the plot, so the user sees exactly what will be saved. */
+function SelectedGenes({ points, isVolcano, colorLabel, onRemove, onClear }: {
+  points: (VolcanoPoint | ReductionPoint)[]; isVolcano: boolean; colorLabel?: string; onRemove: (geneId: string) => void; onClear: () => void
+}) {
+  const MAX_ROWS = 300
+  // One row per gene (a table can hold the same gene on several rows): the most significant one for a volcano.
+  const rows = useMemo(() => {
+    const best = new Map<string, VolcanoPoint | ReductionPoint>()
+    points.forEach((pt) => {
+      const prev = best.get(pt.id)
+      if (!prev || (isVolcano && (pt as VolcanoPoint).pvalue < (prev as VolcanoPoint).pvalue)) best.set(pt.id, pt)
+    })
+    const out = [...best.values()]
+    if (isVolcano) (out as VolcanoPoint[]).sort((a, b) => a.pvalue - b.pvalue)
+    else out.sort((a, b) => a.id.localeCompare(b.id))
+    return out
+  }, [points, isVolcano])
+  const up = isVolcano ? (rows as VolcanoPoint[]).filter((r) => r.logfc > 0).length : 0
+  return (
+    <section className="selected-genes" aria-label="Selected genes">
+      <div className="row between">
+        <h3>Selected genes <span className="count">{rows.length.toLocaleString()}</span>
+          {isVolcano && rows.length > 0 && <span className="muted small"> · {up.toLocaleString()} up, {(rows.length - up).toLocaleString()} down</span>}</h3>
+        {rows.length > 0 && (
+          <span className="row">
+            <CopyButton text={rows.map((r) => r.id).join('\n')} label="Copy genes" />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={onClear}>Clear</button>
+          </span>
+        )}
+      </div>
+      {rows.length === 0
+        ? <p className="muted small">No genes selected yet. Drag a box or lasso on the plot{isVolcano ? ', or use a quick selection above' : ''}; the genes you pick appear here.</p>
+        : (
+          <div className="selected-genes-scroll">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Gene</th>
+                  {isVolcano ? <><th className="num">log2FC</th><th className="num">p-value</th><th>Change</th></> : colorLabel ? <th>{colorLabel}</th> : null}
+                  <th aria-label="Remove" />
+                </tr>
+              </thead>
+              <tbody>
+                {rows.slice(0, MAX_ROWS).map((r) => (
+                  <tr key={r.id}>
+                    <td className="mono">{r.id}</td>
+                    {isVolcano
+                      ? <><td className="num">{(r as VolcanoPoint).logfc.toFixed(2)}</td><td className="num">{(r as VolcanoPoint).pvalue.toExponential(2)}</td><td>{(r as VolcanoPoint).logfc > 0 ? 'Up' : 'Down'}</td></>
+                      : colorLabel ? <td>{String((r as ReductionPoint).color ?? '')}</td> : null}
+                    <td className="num"><button type="button" className="icon-btn" title={`Remove ${r.id} from the selection`} aria-label={`Remove ${r.id} from the selection`} onClick={() => onRemove(r.id)}>×</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {rows.length > MAX_ROWS && <p className="muted small">Showing the first {MAX_ROWS} of {rows.length.toLocaleString()} selected genes; all of them will be saved.</p>}
+          </div>
+        )}
+    </section>
   )
 }
 
@@ -571,14 +645,34 @@ function RankedFromVolcano({ points, organism, idFormat, onCreated }: { points: 
 interface Combo { id: string; label: string; sourceNames: string[]; degree: number; count: number; ids: string[] }
 interface UpsetResult { mode: string; modeLabel: string; sets: { name: string; size: number }[]; combinations: Combo[]; organismTaxId: number; idFormat: string }
 
-function Upset({ lists, onClose, onCreated, title }: P) {
-  const [picked, setPicked] = useState<string[]>(() => lists.slice(0, 2).map((l) => l.id))
-  const [mode, setMode] = useState<'intersection' | 'distinct' | 'union'>('distinct')
+type UpsetMode = 'intersection' | 'distinct' | 'union'
+const UPSET_MODES: { value: UpsetMode; label: string; help: string }[] = [
+  { value: 'distinct', label: 'Only in', help: 'Each bar: IDs in exactly these lists and in no other (the parts never overlap, so any set operation is a choice of bars).' },
+  { value: 'intersection', label: 'Shared by', help: 'Each bar: IDs shared by these lists, whether or not other lists have them too.' },
+  { value: 'union', label: 'Union of', help: 'Each bar: IDs found in at least one of these lists.' },
+]
+
+/**
+ * Combine lists with an interactive UpSet plot. Bars are selectable (one or
+ * more); the IDs of the selected bars are listed and can be saved as a new list.
+ * Opened from "Compare selected" in the lists panel and from "Combine lists".
+ */
+function Upset({ lists, onClose, onCreated, title, initialListIds }: P) {
+  const [picked, setPicked] = useState<string[]>(() => {
+    const init = (initialListIds ?? []).filter((id) => lists.some((l) => l.id === id)).slice(0, 6)
+    return init.length >= 2 ? init : lists.slice(0, 2).map((l) => l.id)
+  })
+  const [mode, setMode] = useState<UpsetMode>('distinct')
   const [res, setRes] = useState<UpsetResult | null>(null)
-  const [active, setActive] = useState<Combo | null>(null)
-  const activeShown = usePlainSelection(active, null) // none while an image is exported without highlighting
+  const [selIds, setSelIds] = useState<string[]>([])   // ids of the selected bars
+  // A quick operation chosen in another mode is applied once the exclusive ("only in") bars have loaded.
+  const pending = useRef<((r: UpsetResult) => string[]) | null>(null)
+  const selShown = usePlainSelection(selIds, NO_BARS) // none while an image is exported without highlighting
   const upsetRef = useRef<HTMLDivElement | null>(null)
+  const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
+  const [opNote, setOpNote] = useState<string | null>(null)
+  const pm = usePaletteMode()
   const first = lists.find((l) => l.id === picked[0])
   const compatible = (l: AnalyteList) => !first || (l.organismTaxId === first.organismTaxId && l.idFormat === first.idFormat && l.analyteType === first.analyteType)
   // Lists can arrive after the dialog opens (e.g. the UpSet example creates two):
@@ -590,74 +684,171 @@ function Upset({ lists, onClose, onCreated, title }: P) {
     if (same.length >= 2) setPicked(same.slice(0, 2).map((l) => l.id))
   }, [lists, picked.length])
   useEffect(() => {
-    if (picked.length < 2) { setRes(null); return }
-    setErr(null)
-    api<UpsetResult>('/inputs/upset', { body: { listIds: picked, mode } }).then((r) => { setRes(r); setActive(r.combinations[0] ?? null) }).catch(setErr)
+    if (picked.length < 2) { setRes(null); setSelIds([]); return }
+    setErr(null); setBusy(true)
+    let stale = false
+    api<UpsetResult>('/inputs/upset', { body: { listIds: picked, mode } })
+      .then((r) => {
+        if (stale) return
+        setRes(r)
+        const quick = pending.current; pending.current = null
+        setSelIds(quick ? quick(r) : [])
+      })
+      .catch((e) => { if (!stale) { setRes(null); setErr(e) } })
+      .finally(() => { if (!stale) setBusy(false) })
+    return () => { stale = true }
   }, [picked, mode])
-  const max = Math.max(1, ...(res?.combinations.map((c) => c.count) ?? [1]))
+
+  const combos = res?.combinations ?? []
+  const nSets = res?.sets.length ?? 0
+  const max = Math.max(1, ...combos.map((c) => c.count))
+  const maxSize = Math.max(1, ...(res?.sets.map((x) => x.size) ?? [1]))
+  const colors = categorical(pm)
+  const toggle = (id: string) => { setOpNote(null); setSelIds((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id])) }
+  // Set operations across all picked lists, as a choice of exclusive bars.
+  const quickPick = (label: string, choose: (r: UpsetResult) => string[]) => {
+    const apply = (r: UpsetResult) => { const ids = choose(r); setOpNote(ids.length ? null : `No IDs match "${label}" for these lists.`); return ids }
+    if (res && res.mode === 'distinct') setSelIds(apply(res))
+    else { pending.current = apply; setMode('distinct') }
+  }
+  const byDegree = (test: (degree: number, n: number) => boolean) => (r: UpsetResult) => r.combinations.filter((c) => test(c.degree, r.sets.length)).map((c) => c.id)
+
+  const selected = combos.filter((c) => selShown.includes(c.id))
+  const chosen = combos.filter((c) => selIds.includes(c.id))
+  // Each ID once, with the lists it belongs to (exact in "only in" mode; otherwise the lists of the bars it came from).
+  const genes = useMemo(() => {
+    const m = new Map<string, Set<string>>()
+    chosen.forEach((c) => c.ids.forEach((id) => { const cur = m.get(id) ?? new Set<string>(); c.sourceNames.forEach((n) => cur.add(n)); m.set(id, cur) }))
+    return [...m.entries()].map(([id, names]) => ({ id, lists: res ? res.sets.map((x) => x.name).filter((n) => names.has(n)) : [] }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selIds, res])
+  const MAX_ROWS = 300
+  const defaultName = chosen.length === 1 ? chosen[0].label.slice(0, 80) : chosen.length > 1 ? `Combined: ${plural(chosen.length, 'part')} of ${nSets} lists` : 'Combined list'
+
   return (
-    <Modal title={title} onClose={onClose} size="xl" subtitle="Pick 2–6 lists with the same organism and ID type, then click a bar to use that combination.">
-      <div className="grid-two">
-        <div>
+    <Modal title={title} onClose={onClose} size="xl" subtitle="Pick 2–6 lists with the same organism and ID type. Click one or more bars of the UpSet plot to select their IDs, then save them as a new list.">
+      <div className="upset-layout">
+        <div className="stack-sm">
           <h3>Lists</h3>
           <ul className="plain-list">
             {lists.map((l) => (
               <li key={l.id}>
                 <label className={`check${!compatible(l) && !picked.includes(l.id) ? ' muted' : ''}`}>
                   <input type="checkbox" checked={picked.includes(l.id)} disabled={!compatible(l) && !picked.includes(l.id)}
-                    onChange={() => setPicked((s) => (s.includes(l.id) ? s.filter((x) => x !== l.id) : s.length >= 6 ? s : [...s, l.id]))} />
+                    onChange={() => setPicked((cur) => (cur.includes(l.id) ? cur.filter((x) => x !== l.id) : cur.length >= 6 ? cur : [...cur, l.id]))} />
                   {l.name} <span className="muted small">({l.size})</span>
                 </label>
               </li>
             ))}
           </ul>
-          <Field label="Show">
-            <Segmented label="Set operation" value={mode} onChange={setMode}
-              options={[{ value: 'distinct', label: 'Only in' }, { value: 'intersection', label: 'Shared by' }, { value: 'union', label: 'Union' }]} />
+          <Field label="Each bar shows" hint={UPSET_MODES.find((m) => m.value === mode)?.help}>
+            <Segmented label="What each bar shows" value={mode} onChange={(m) => { pending.current = null; setOpNote(null); setMode(m) }} options={UPSET_MODES.map(({ value, label }) => ({ value, label }))} />
           </Field>
-        </div>
-        <div>
-          <ErrorNote error={err} />
-          {!res && <p className="muted">Select at least two lists.</p>}
           {res && (
-            <div className="upset" role="list" ref={upsetRef}>
-              {res.combinations.map((c) => (
-                <button key={c.id} role="listitem" className={`upset-row${activeShown?.id === c.id ? ' active' : ''}`} onClick={() => setActive(c)}>
-                  <span className="upset-dots" aria-hidden="true">
-                    {res.sets.map((s) => <span key={s.name} className={c.sourceNames.includes(s.name) ? 'on' : ''} />)}
-                  </span>
-                  <span className="upset-label">{c.label}</span>
-                  <span className="upset-bar"><span style={{ width: `${(c.count / max) * 100}%` }} /></span>
-                  <span className="upset-count">{c.count}</span>
-                </button>
-              ))}
-              <p className="muted small">Dots, left to right: {res.sets.map((s) => s.name).join(', ')}</p>
-              <div className="row wrap" data-no-export="">
-                <ExportImageButton source={() => htmlSource(upsetRef.current, `flame_upset_${res.mode}`)} />
-                <span className="muted small">All combinations:</span>
-                <CopyButton label="Copy table" text={['combination\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.count}\t${c.ids.join(',')}`)].join('\n')} />
-                <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary and one sheet per combination" onClick={() => saveXlsx([
-                  { name: 'Combinations', rows: res.combinations.map((c) => ({ Combination: c.label, Lists: c.sourceNames.join(' + '), Count: c.count, IDs: c.ids.join(', ') })) },
-                  ...res.combinations.slice(0, 60).map((c) => ({ name: c.label, rows: c.ids.map((i) => ({ ID: i })) })),
-                ], `flame_upset_${res.mode}.xlsx`)}>Excel</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(['combination\tlists\tcount\tids', ...res.combinations.map((c) => `${c.label}\t${c.sourceNames.join(' + ')}\t${c.count}\t${c.ids.join(',')}`)].join('\n'), `flame_upset_${res.mode}.tsv`, 'text/tab-separated-values')}>Download (TSV)</button>
+            <div className="stack-sm" data-no-export="">
+              <span className="field-label">Set operations on all {nSets} lists</span>
+              <div className="row wrap">
+                <button type="button" className="btn btn-secondary btn-sm" title="IDs present in every list" onClick={() => quickPick('Intersection (in every list)', byDegree((d, n) => d === n))}>Intersection</button>
+                <button type="button" className="btn btn-secondary btn-sm" title="IDs present in at least one list" onClick={() => quickPick('Union (in any list)', byDegree(() => true))}>Union</button>
+                <button type="button" className="btn btn-secondary btn-sm" title="Exclusive or: IDs present in exactly one list" onClick={() => quickPick('XOR (in exactly one list)', byDegree((d) => d === 1))}>XOR (in one list only)</button>
+                {nSets > 2 && <button type="button" className="btn btn-secondary btn-sm" title="IDs present in two or more lists" onClick={() => quickPick('In 2 or more lists', byDegree((d) => d >= 2))}>In 2 or more</button>}
+                {nSets > 2 && <button type="button" className="btn btn-secondary btn-sm" title="IDs present in some lists but not in all of them" onClick={() => quickPick('Not in all lists', byDegree((d, n) => d < n))}>Not in all</button>}
               </div>
             </div>
           )}
         </div>
+        <div className="stack-sm">
+          <ErrorNote error={err} />
+          {busy && <BusyBar label="Comparing the lists" expect={4} />}
+          {!res && !busy && !err && <p className="muted">Select at least two lists.</p>}
+          {res && (
+            <>
+              <div className="upset-plot upset-pick" ref={upsetRef}>
+                <div className="upset-sets">
+                  {res.sets.map((x, i) => (
+                    <div key={x.name} className="upset-set-row">
+                      <span className="upset-set-bar"><span style={{ width: `${(x.size / maxSize) * 100}%`, background: colors[i % colors.length] }} /></span>
+                      <span className="upset-set-label" title={x.name}>{x.name}</span>
+                      <span className="upset-count">{x.size}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="upset-combos" role="group" aria-label="Combinations — click to select">
+                  {combos.map((c) => {
+                    const on = selShown.includes(c.id)
+                    return (
+                      <button key={c.id} type="button" aria-pressed={on} className={`upset-col${on ? ' active' : ''}`} onClick={() => toggle(c.id)}
+                        title={`${c.label}: ${plural(c.count, 'ID')} — click to ${on ? 'remove from' : 'add to'} the selection`}>
+                        <span className="upset-col-count">{c.count}</span>
+                        <span className="upset-col-bar"><span style={{ height: `${(c.count / max) * 100}%` }} /></span>
+                        <span className="upset-col-dots">{res.sets.map((x, i) => {
+                          const inCombo = c.sourceNames.includes(x.name)
+                          return <i key={x.name} className={inCombo ? 'on' : ''} style={inCombo ? { background: colors[i % colors.length] } : undefined} />
+                        })}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              <div className="row wrap" data-no-export="">
+                <span className="small"><strong>{plural(selected.length, 'bar')}</strong> selected</span>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelIds(combos.map((c) => c.id))}>Select all bars</button>
+                <button type="button" className="btn btn-ghost btn-sm" disabled={!selIds.length} onClick={() => setSelIds([])}>Clear</button>
+                <ExportImageButton source={() => htmlSource(upsetRef.current, `flame_upset_${res.mode}`)} />
+                <CopyButton label="Copy table" text={['combination\tcount\tids', ...combos.map((c) => `${c.label}\t${c.count}\t${c.ids.join(',')}`)].join('\n')} />
+                <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary and one sheet per combination" onClick={() => saveXlsx([
+                  { name: 'Combinations', rows: combos.map((c) => ({ Combination: c.label, Lists: c.sourceNames.join(' + '), Count: c.count, IDs: c.ids.join(', ') })) },
+                  ...combos.slice(0, 60).map((c) => ({ name: c.label, rows: c.ids.map((i) => ({ ID: i })) })),
+                ], `flame_upset_${res.mode}.xlsx`)}>Excel</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(['combination\tlists\tcount\tids', ...combos.map((c) => `${c.label}\t${c.sourceNames.join(' + ')}\t${c.count}\t${c.ids.join(',')}`)].join('\n'), `flame_upset_${res.mode}.tsv`, 'text/tab-separated-values')}>TSV</button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
-      {active && res && (
-        <>
-          <p className="small"><strong>{active.label}</strong>: {active.ids.slice(0, 30).join(', ')}{active.count > 30 ? ` … (+${active.count - 30})` : ''}</p>
-          <div className="row wrap">
-            <span className="muted small">{plural(active.count, 'ID')}:</span>
-            <CopyButton label="Copy (one per line)" text={active.ids.join('\n')} />
-            <CopyButton label="Copy (comma-separated)" text={active.ids.join(', ')} />
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(active.ids.join('\n'), `${active.label.replace(/[^\w.-]+/g, '_').slice(0, 60)}.txt`)}>Download (.txt)</button>
+      {res && (
+        <section className="selected-genes" aria-label="Selected IDs">
+          <div className="row between wrap">
+            <h3>Selected IDs <span className="count">{genes.length.toLocaleString()}</span>
+              {chosen.length > 1 && <span className="muted small"> · from {plural(chosen.length, 'bar')}, each ID counted once</span>}</h3>
+            {genes.length > 0 && (
+              <span className="row">
+                <CopyButton label="Copy IDs" text={genes.map((g) => g.id).join('\n')} />
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(genes.map((g) => g.id).join('\n'), 'flame_combined_ids.txt')}>Download (.txt)</button>
+              </span>
+            )}
           </div>
-          <SaveList ids={active.ids.slice(0, 3000)} defaultName={active.label.slice(0, 80)} organism={res.organismTaxId} idFormat={res.idFormat}
-            showOrganism={false} showFormat={false} meta={{ method: 'upset', mode: res.mode, sourceLists: active.sourceNames }} onCreated={onCreated} />
-        </>
+          {chosen.length === 0 && opNote && <Note kind="info">{opNote}</Note>}
+          {chosen.length === 0 && !opNote && <p className="muted small">Nothing selected yet. Click one or more bars, or use a set operation on the left; the IDs appear here.</p>}
+          {chosen.length > 0 && (
+            <div className="upset-parts">
+              {chosen.map((c) => (
+                <details key={c.id} className="upset-part">
+                  <summary><strong>{c.label}</strong> <span className="muted small">{plural(c.count, 'ID')}</span>
+                    <button type="button" className="icon-btn" title={`Remove "${c.label}" from the selection`} aria-label={`Remove ${c.label} from the selection`} onClick={(e) => { e.preventDefault(); toggle(c.id) }}>×</button></summary>
+                  <p className="mono small">{c.ids.join(', ')}</p>
+                </details>
+              ))}
+            </div>
+          )}
+          {genes.length > 0 && (
+            <div className="selected-genes-scroll">
+              <table className="table">
+                <thead><tr><th>ID</th><th>{res.mode === 'distinct' ? 'Found in' : 'From bars of'}</th><th className="num">Lists</th></tr></thead>
+                <tbody>
+                  {genes.slice(0, MAX_ROWS).map((g) => (
+                    <tr key={g.id}><td className="mono">{g.id}</td><td>{g.lists.join(' + ')}</td><td className="num">{g.lists.length}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+              {genes.length > MAX_ROWS && <p className="muted small">Showing the first {MAX_ROWS} of {genes.length.toLocaleString()} selected IDs; all of them will be saved.</p>}
+            </div>
+          )}
+          <h3 className="save-heading">Save the selected IDs as a new list</h3>
+          <SaveList ids={genes.map((g) => g.id).slice(0, 3000)} defaultName={defaultName} organism={res.organismTaxId} idFormat={res.idFormat}
+            showOrganism={false} showFormat={false}
+            meta={{ method: 'upset', mode: res.mode, sourceLists: [...new Set(chosen.flatMap((c) => c.sourceNames))] }} onCreated={onCreated} />
+        </section>
       )}
     </Modal>
   )
@@ -728,10 +919,21 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
   }, [text, fileName, topN, k, log])
 
   const clusterColor = (c: number) => categorical(pm)[(c - 1) % categorical(pm).length]
-  const pickCluster = (c: number, add: boolean) => {
-    const ids = ov!.genes.filter((g) => g.cluster === c).map((g) => g.id)
-    setSel((cur) => (add ? new Set([...cur, ...ids]) : new Set(ids)))
+  const clusterIds = (c: number) => ov!.genes.filter((g) => g.cluster === c).map((g) => g.id)
+  // How much of a cluster is in the selection: all of it, part of it (e.g. after a lasso) or none.
+  const clusterState = (c: number): 'all' | 'some' | 'none' => {
+    const ids = clusterIds(c)
+    const n = ids.filter((id) => sel.has(id)).length
+    return n === 0 ? 'none' : n === ids.length ? 'all' : 'some'
   }
+  // Clusters add up: clicking one adds its genes to the selection, clicking it again takes them out.
+  const toggleCluster = (c: number) => {
+    const ids = clusterIds(c)
+    const remove = clusterState(c) === 'all'
+    setSel((cur) => { const next = new Set(cur); ids.forEach((id) => (remove ? next.delete(id) : next.add(id))); return next })
+  }
+  const pickedClusters = ov ? Object.keys(ov.clusterSizes).map(Number).filter((c) => clusterState(c) === 'all') : []
+  const geneById = useMemo(() => new Map((ov?.genes ?? []).map((g) => [g.id, g])), [ov])
   const runDe = () => {
     const A = Object.entries(groups).filter(([, g]) => g === 'A').map(([s]) => s)
     const B = Object.entries(groups).filter(([, g]) => g === 'B').map(([s]) => s)
@@ -754,9 +956,9 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
           <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/expression/file`}>Example file</a>
         </div>
         {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
-        <ExampleSource text={ex.source} />
+        <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
-        {busy && <Spinner label="Analysing the matrix" />}
+        {busy && <BusyBar label="Analysing the matrix: clustering genes and computing the gene map" expect={12} />}
         {ov && (
           <>
             <div className="row wrap small">
@@ -775,15 +977,23 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
                   hovertemplate: '%{y} · %{x}<br>z = %{z}<extra></extra>', colorbar: { title: { text: 'z-score' } },
                 } as never]}
                   layout={{ yaxis: { showticklabels: false, autorange: 'reversed' }, margin: { l: 20, r: 20, t: 10, b: 90 } }}
-                  onSelect={(keys, add) => { const c = Number((keys[0] ?? '').slice(1)); if (c) pickCluster(c, add) }} />
+                  onSelect={(keys) => { const c = Number((keys[0] ?? '').slice(1)); if (c) toggleCluster(c) }} />
                 <div className="stack-sm">
-                  <p className="muted small">Genes with similar profiles across samples, clustered by correlation. Click a cluster (or the heatmap) to select its genes; Shift adds.</p>
-                  {Object.entries(ov.clusterSizes).map(([c, n]) => (
-                    <button key={c} type="button" className="example-mini" onClick={(e) => pickCluster(Number(c), e.shiftKey)}>
-                      <i className="swatch" style={{ background: clusterColor(Number(c)) }} />
-                      <span><strong>Cluster {c}</strong><span className="muted small">{n} genes</span></span>
-                    </button>
-                  ))}
+                  <p className="muted small">Genes with similar profiles across samples, clustered by correlation. Tick one or more clusters (or click them on the heatmap) to select their genes; tick again to remove them.</p>
+                  {Object.entries(ov.clusterSizes).map(([c, n]) => {
+                    const state = clusterState(Number(c))
+                    return (
+                      <label key={c} className={`example-mini cluster-pick${state !== 'none' ? ' picked' : ''}`}>
+                        <input type="checkbox" checked={state === 'all'} ref={(el) => { if (el) el.indeterminate = state === 'some' }} onChange={() => toggleCluster(Number(c))} />
+                        <i className="swatch" style={{ background: clusterColor(Number(c)) }} />
+                        <span><strong>Cluster {c}</strong><span className="muted small">{n} genes</span></span>
+                      </label>
+                    )
+                  })}
+                  <div className="row">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSel(new Set(ov.genes.map((g) => g.id)))}>All clusters</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>None</button>
+                  </div>
                 </div>
               </div>
             )}
@@ -820,15 +1030,17 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
             {view === 'activity' && <PathwayActivity text={text} fileName={fileName} log={log} organism={organism} />}
             {(view === 'clusters' || view === 'map') && (
               <>
-                <div className="row wrap">
-                  <span className="small"><strong>{plural(sel.size, 'gene')}</strong> selected</span>
-                  {sel.size > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear</button>}
-                  {sel.size > 0 && <CopyButton label="Copy" text={[...sel].join('\n')} />}
-                </div>
-                {sel.size > 0 && (
-                  <SaveList ids={[...sel].slice(0, 3000)} defaultName={`Expression ${view === 'map' ? 'selection' : 'cluster'}`} organism={organism} setOrganism={setOrganism}
-                    idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'expression', view }} onCreated={onCreated} />
-                )}
+                <SelectedGenes isVolcano={false} colorLabel="Cluster"
+                  points={[...selV].map((id) => geneById.get(id)).filter((g): g is NonNullable<typeof g> => !!g)
+                    .map((g) => ({ pointId: g.id, id: g.id, x: g.x, y: g.y, color: `Cluster ${g.cluster}` }))}
+                  onRemove={(id) => setSel((cur) => { const next = new Set(cur); next.delete(id); return next })}
+                  onClear={() => setSel(new Set())} />
+                <h3 className="save-heading">Save the selected genes as a list</h3>
+                <SaveList ids={[...sel].slice(0, 3000)}
+                  defaultName={pickedClusters.length && pickedClusters.reduce((n, c) => n + ov.clusterSizes[String(c)], 0) === sel.size
+                    ? `Expression cluster${pickedClusters.length > 1 ? 's' : ''} ${pickedClusters.join('+')}` : 'Expression selection'}
+                  organism={organism} setOrganism={setOrganism}
+                  idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'expression', view, clusters: pickedClusters }} onCreated={onCreated} />
               </>
             )}
           </>
@@ -958,8 +1170,10 @@ function MirnaInput({ example, onClose, onCreated, title }: P) {
             <p className="muted small">Targets are miRDB v6 predictions with MirTarget score &gt; 80 (MSigDB C3 MIR:MIRDB). For organisms other than human, MSigDB maps the human predictions through orthologs.</p>
           </div>
         </div>
-        <ExampleSource text={ex.source} />
+        <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
+        {busy && <BusyBar label="Finding the genes these microRNAs target (miRDB)" expect={25}
+          hint="The first search for an organism downloads the miRDB target sets, so it takes longer; later searches are quick." />}
         {res && (
           <>
             {res.unmatched.length > 0 && <Note kind="warning">Not found in miRDB: {res.unmatched.join(', ')}. Check the names (e.g. hsa-miR-21-5p).</Note>}

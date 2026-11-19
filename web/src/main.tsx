@@ -8,6 +8,7 @@ import './styles/colors.css'
 import './styles/base.css'
 import './styles/app.css'
 import './styles/classic.css'
+import './styles/home.css'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },

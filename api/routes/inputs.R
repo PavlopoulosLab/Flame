@@ -210,15 +210,20 @@ function(req, res) {
 }))
 
 #* Search diseases (Open Targets) and disease gene-set libraries (DisGeNET, OMIM, Orphanet, ClinVar, Jensen, GWAS).
-#* Body: { query, libraries? }
+#* Body: { query, libraries? } — libraries: which databases to query, any of
+#* OpenTargets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen, GWAS (default: all).
 #* @post /disease/search
 #* @serializer flamejson
 function(req, res) {
   b <- body_of(req)
   .fetch(res, {
     q <- as.character(b$query %||% "")
-    libs <- as.character(unlist(b$libraries %||% names(DISEASE_LIBRARIES)))
-    list(diseases = disease_search(q), sets = disease_library_search(q, libs),
+    known <- c("OpenTargets", names(DISEASE_LIBRARIES))
+    libs <- if (is.null(b$libraries)) known else intersect(as.character(unlist(b$libraries)), known)
+    if (!length(libs)) api_abort(400, "Select at least one database to search.")
+    list(diseases = if ("OpenTargets" %in% libs) disease_search(q) else list(),
+         sets = disease_library_search(q, setdiff(libs, "OpenTargets")),
+         queried = as.list(libs),
          libraries = lapply(names(DISEASE_LIBRARIES), function(k) list(id = k, label = DISEASE_LIBRARIES[[k]]$label)))
   })
 }
@@ -266,6 +271,18 @@ function(req, res) {
     id <- as.character(b$id %||% "")
     if (!grepl("^[0-9a-f-]{36}$", id)) api_abort(400, "Invalid gene-set id.")
     geo_genes(id)
+  })
+}
+
+#* ClinVar: a gene, condition, rsIDs, VCV accessions or a ClinVar search to variants and genes.
+#* Body: { query, significance?: any|pathogenic|pathogenic_likely, max? }
+#* @post /clinvar/lookup
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, {
+    mx <- suppressWarnings(as.integer(b$max %||% 300L)); if (is.na(mx)) mx <- 300L
+    clinvar_lookup(as.character(b$query %||% ""), as.character(b$significance %||% "any"), min(max(mx, 1L), 1000L))
   })
 }
 

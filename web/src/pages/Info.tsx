@@ -219,6 +219,7 @@ const ENDPOINT_GROUPS: { title: string; rows: [string, string, string][] }[] = [
     ['POST', '/api/v1/inputs/disease/genes', 'Genes of a disease. source = opentargets (id; scored, ranked) · gwas (id; GWAS Catalog variants, p ≤ 5e-8, and mapped genes) · DisGeNET | OMIM | Orphanet | ClinVar | Jensen | GWAS (term).'],
     ['POST', '/api/v1/inputs/pubmed/genes', 'Genes linked to PubMed articles (NCBI gene2pubmed). Body: query = PMIDs or a PubMed search, organismTaxId, max (articles, ≤ 500).'],
     ['POST', '/api/v1/inputs/geo/search · geo/genes', 'GEO differential-expression signatures (RummaGEO): search by GSE accession or keywords; genes of one signature by id.'],
+    ['POST', '/api/v1/inputs/clinvar/lookup', 'ClinVar: a gene, condition, rsIDs, VCV accessions or a ClinVar search (optional significance: pathogenic | pathogenic_likely) → variants, genes, classification, conditions.'],
     ['POST', '/api/v1/inputs/dbsnp/lookup', 'dbSNP: rsIDs or a dbSNP search (e.g. APOE[gene] AND pathogenic[clinical_significance]) → variants, genes, consequences, ClinVar, frequencies.'],
     ['POST', '/api/v1/inputs/upset', 'Set combinations of lists (intersection, distinct, union).'],
     ['GET', '/api/v1/inputs/examples/{kind}[/file]', 'Example inputs: upload, ranked, de_lists, volcano, reduction, expression, mirna, metabolites, snps, textmining, gmt.'],

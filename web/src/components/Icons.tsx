@@ -209,13 +209,13 @@ const ICONS: Record<string, ReactNode> = {
     {[0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => <rect key={`${r}${c}`} x={4 + c * 4} y={5 + r * 4} width="3.4" height="3.4" rx="0.6" fill={(r + c) % 3 === 0 ? C : (r + c) % 3 === 1 ? B : 'currentColor'} fillOpacity={(r + c) % 3 === 2 ? 0.2 : 0.7} />))}
     <path d="M4 19.5h16" stroke={G} strokeWidth="1.6" strokeLinecap="round" />
   </>),
-  dbsnp: (<>
+  clinvar: (<>
     <path d="M6 3c0 5 12 5 12 9s-12 4-12 9M18 3c0 5-12 5-12 9s12 4 12 9" fill="none" stroke="currentColor" strokeWidth="1.3" />
     <circle cx="12" cy="7.6" r="1.8" fill={C} /><circle cx="12" cy="16.4" r="1.8" fill={O} />
   </>),
 }
 
-const ALIASES: Record<string, string> = { robustness: 'robust', literature: 'pubmed' }
+const ALIASES: Record<string, string> = { robustness: 'robust', literature: 'pubmed', dbsnp: 'clinvar' }
 
 export function ConceptIcon({ name, size = 22, label }: { name: string; size?: number; label?: string }) {
   const body = ICONS[name] ?? ICONS[ALIASES[name]]

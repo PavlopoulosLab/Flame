@@ -20,15 +20,19 @@ reverse proxy needed to get started.
 * **Inputs**: paste/upload IDs (19 formats) or ranked lists with scores; select genes on a volcano plot (draggable
   thresholds), a 2D plot (UMAP/t-SNE/PCA) or an expression matrix (co-expression clusters, gene map, two-group test,
   pathway activity per sample); map SNPs to genes; find genes in text; microRNAs → miRDB targets; UpSet set
-  operations; and **fetch gene lists** from a disease (Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, GWAS Catalog),
-  PubMed articles, GEO datasets (RummaGEO) or dbSNP.
+  operations (intersection, union, XOR and more, with selectable bars); and **fetch gene lists** from a disease
+  (choose among Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and GWAS Catalog; merge several
+  results), PubMed articles, GEO datasets (RummaGEO) or ClinVar (by gene, condition, rsID or accession). Every
+  selection is listed before it is saved.
+* **Lists**: always in view; click a list to see its contents with gene annotations (symbol, Ensembl ID,
+  description), edit it, or tick several lists to compare them (UpSet) or run the same enrichment on all of them.
 * **Enrichment**: eight tools across 14,000+ organisms; over-representation (ORA) and, with clusterProfiler/fgsea on
   MSigDB, gene set enrichment (GSEA) of ranked lists; literature enrichment (PubMed, GeneSigDB, Rummagene); cell types;
   custom GMT sources, custom backgrounds, per-tool settings.
 * **Beyond term lists**: transcription factors (ChEA3) and kinases (KEA3), drug and CRISPR signatures that mimic or
   reverse a response (LINCS L1000), metabolite and lipid pathways (KEGG), STRING network modules with module enrichment,
   and robustness checks (bootstrap stability, random-list control, FDR thresholds).
-* **Results**: table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
+* **Results**: all annotation sources together or one tab per source (GO:BP, GO:CC, KEGG…); table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
   views; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
   browser links, and KEGG maps with the user's genes coloured; undo/redo; image export of every figure (PNG, SVG, PDF, JPEG, WebP) and CSV/HTML exports.
 * **Comparison**: compare tools, lists or strategies with Fisher's combined p-value, a **consensus rank** (Robust Rank
@@ -39,7 +43,7 @@ reverse proxy needed to get started.
 * **Networks**: STRING networks as multi-edge evidence networks; open networks, comparisons and variant reports in
   Arena3D (3D multilayer networks) or NORMA, or directly in STRING.
 * **Display**: light/dark themes; every visualization has its own palette (Flame, colour-blind safe, vivid, pastel,
-  grayscale); box and lasso selection on every chart; works at phone width.
+  grayscale); box and lasso selection on charts; progress bars on slow steps; works at phone width.
 * **Workspaces**: private bookmarkable links, session save/load (lists, runs, analyses), automatic expiry.
 * **Programmatic access**: versioned REST API (`/api/v1`) with an OpenAPI 3 document and Swagger UI, and a Python
   command-line client.
@@ -89,7 +93,7 @@ Set any of these with `-e VAR=value` on `docker run`, or under `environment:` in
 | `FLAME_SMTP_URL`, `FLAME_SMTP_FROM` | – | Optional "results ready" emails |
 | `FLAME_WORKSPACE_LIMIT` | `30` | New workspaces per hour per client address (0 = no limit) |
 | `FLAME_RATE_LIMIT` | `600` | API requests per minute per client address (0 = no limit, e.g. for local testing) |
-| `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and dbSNP inputs (10 instead of 3 requests per second; recommended for public servers) |
+| `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and ClinVar inputs (10 instead of 3 requests per second; recommended for public servers) |
 
 ## Deployment
 

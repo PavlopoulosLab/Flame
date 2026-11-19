@@ -601,7 +601,7 @@ body { background: var(--app-bg); }
 .rail.sec-data .rail-section { background: var(--surface-color); border-color: color-mix(in srgb, var(--sec-data) 18%, var(--border-color)); }
 .rail.sec-data .rail-section h2 { color: color-mix(in srgb, var(--sec-data) 70%, var(--heading-color)); }
 
-.sec-tabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.sec-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
 .sec-tab { display: flex; align-items: center; gap: 10px; text-align: left; padding: 12px 14px; border-radius: var(--radius-lg); cursor: pointer;
   background: var(--surface-color); border: 1px solid var(--card-border); border-top: 4px solid var(--sec-color); color: var(--default-color); position: relative; }
 .sec-tab > span { display: flex; flex-direction: column; line-height: 1.25; }
@@ -611,6 +611,7 @@ body { background: var(--app-bg); }
 .sec-tab.active { background: var(--sec-tint); border-color: var(--sec-color); box-shadow: 0 0 0 1px var(--sec-color) inset; }
 .sec-tab.active strong { color: var(--sec-color); }
 .sec-count { position: absolute; top: 8px; right: 10px; font-size: 0.72rem; padding: 1px 8px; border-radius: 999px; background: var(--sec-color); color: #fff; }
+.sec-input { --sec-color: var(--sec-data); --sec-tint: var(--sec-data-tint); }
 .sec-enrich { --sec-color: var(--sec-enrich); --sec-tint: var(--sec-enrich-tint); }
 .sec-variants { --sec-color: var(--sec-variants); --sec-tint: var(--sec-variants-tint); }
 .sec-tools { --sec-color: var(--sec-tools); --sec-tint: var(--sec-tools-tint); }

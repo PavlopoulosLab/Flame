@@ -68,20 +68,55 @@ function(req, res, id) {
   }, flame_api_error = function(e) { res$status <- e$status; e$message })
 }
 
-#* Rename a list. Body: { name }
+#* Rename a list and/or replace its contents.
+#* Body: { name?, text? | ids? (+ scores? for a ranked list) }
+#* `text` is parsed like pasted input: one ID per line (or "ID score" pairs for a ranked list).
+#* Runs already made from the list keep their results.
 #* @patch /<id>
 #* @serializer flamejson
 function(req, res, id) {
   api_handle(res, {
     ws <- require_workspace(req)
     r <- get_list(ws, id)
-    name <- clean_name(body_of(req)$name, "list name")
+    b <- body_of(req)
+    if (is.null(b$name) && is.null(b$text) && is.null(b$ids)) api_abort(400, "Nothing to change: send a name, text or ids.")
+    # Validate everything before writing anything.
+    name <- if (!is.null(b$name)) clean_name(b$name, "list name") else r$name
     if (!identical(name, r$name) &&
         nrow(db_query("SELECT 1 FROM lists WHERE ws = ? AND name = ?", list(ws, name))) > 0)
       api_abort(409, sprintf("A list named \"%s\" already exists.", name))
-    db_exec("UPDATE lists SET name = ? WHERE id = ?", list(name, r$id))
-    db_exec("UPDATE runs SET list_name = ? WHERE ws = ? AND list_name = ?", list(name, ws, r$name))
-    db_exec("UPDATE runs SET bg_list_name = ? WHERE ws = ? AND bg_list_name = ?", list(name, ws, r$name))
+    newIds <- NULL; newScores <- NULL
+    if (!is.null(b$text) || !is.null(b$ids)) {
+      ranked <- !is.null(r$scores_json) && !is.na(r$scores_json) && nzchar(r$scores_json)
+      text <- if (!is.null(b$text)) as.character(b$text)[1] else NULL
+      if (!is.null(text)) check_text_size(text)
+      if (ranked) {
+        if (!is.null(text)) {
+          parsed <- parse_ranked_text(text)
+          newIds <- parsed$ids; newScores <- parsed$scores
+        } else {
+          newIds <- trimws(as.character(unlist(b$ids)))
+          newScores <- suppressWarnings(as.numeric(unlist(b$scores)))
+          if (length(newScores) != length(newIds)) api_abort(400, "A ranked list needs one score per ID.")
+          ok <- nzchar(newIds) & !is.na(newIds) & grepl("^[A-Za-z0-9_.:\\-]+$", newIds) & is.finite(newScores)
+          newIds <- newIds[ok]; newScores <- newScores[ok]
+          keep <- !duplicated(tolower(newIds))
+          newIds <- newIds[keep]; newScores <- newScores[keep]
+        }
+        if (length(newIds) < 15) api_abort(400, "A ranked list needs at least 15 IDs with numeric scores.")
+        if (length(newIds) > 30000) api_abort(400, "A ranked list can contain at most 30,000 IDs.")
+      } else {
+        newIds <- clean_ids(if (!is.null(text)) parse_id_text(text)$ids else b$ids)
+      }
+    }
+    if (!identical(name, r$name)) {
+      db_exec("UPDATE lists SET name = ? WHERE id = ?", list(name, r$id))
+      db_exec("UPDATE runs SET list_name = ? WHERE ws = ? AND list_name = ?", list(name, ws, r$name))
+      db_exec("UPDATE runs SET bg_list_name = ? WHERE ws = ? AND bg_list_name = ?", list(name, ws, r$name))
+    }
+    if (!is.null(newIds))
+      db_exec("UPDATE lists SET ids_json = ?, scores_json = ? WHERE id = ?",
+              list(to_json(newIds), if (is.null(newScores)) NA_character_ else to_json(newScores), r$id))
     list_row_to_obj(db_query("SELECT * FROM lists WHERE id = ?", list(r$id))[1, ])
   })
 }

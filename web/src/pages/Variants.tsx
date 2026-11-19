@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, getWorkspaceId, saveText } from '../api/client'
 import { useCreateList } from '../api/hooks'
+import { ListsPanel } from '../components/ListsPanel'
 import { Plot, type PlotHandle } from '../components/charts'
 import { BackToWorkspace, EmptyState, ErrorNote, Field, FileDrop, LinkMenu, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { geneLinks, variantLinks } from '../lib/links'
@@ -66,6 +67,7 @@ function VariantsPageBody() {
       </header>
       <div className="variants-layout">
         <aside className="stack">
+          <ListsPanel boxed />
           <NewAnalysis example={params.get('example')} onStarted={(id) => {
             setParams({}, { replace: true })
             qc.invalidateQueries({ queryKey: ['variants', ws] })

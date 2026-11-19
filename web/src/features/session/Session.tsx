@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { api, saveBlob, setWorkspaceId } from '../../api/client'
 import { useConfig, useInvalidateWorkspace } from '../../api/hooks'
 import type { Run, WorkspaceSummary } from '../../api/types'
-import { CopyButton, ErrorNote, Modal, Note, Segmented } from '../../components/ui'
+import { BusyBar, CopyButton, ErrorNote, Modal, Note, Segmented } from '../../components/ui'
 import { useUndoToast } from '../../components/Undo'
 import { IconLabel } from '../../components/Icons'
 import { setPaletteMode, type PaletteMode } from '../../lib/palette'
@@ -227,6 +227,7 @@ function SavePanel({ ws, runs, status }: { ws: string; runs: Run[]; status?: Ses
         <span className="muted small">{status ? `About ${mb(status.storageBytes)} of data before compression.` : ''} Shortcut: Ctrl/⌘+S saves everything.</span>
         <button className="btn btn-primary" disabled={busy || parts.size === 0} onClick={save}>{busy ? 'Preparing…' : 'Download session file'}</button>
       </div>
+      {busy && <BusyBar label="Collecting lists and results into a session file" expect={10} />}
       {done && <Note kind="success">{done}</Note>}
       <ErrorNote error={err} />
     </div>
@@ -324,6 +325,7 @@ function LoadPanel({ ws, onDone }: { ws: string; onDone: () => void }) {
             <span className="muted small">Lists over the list limit or with names already in use are renamed or skipped and reported.</span>
             <button className="btn btn-primary" disabled={busy || parts.size === 0} onClick={load}>{busy ? 'Loading…' : 'Load session'}</button>
           </div>
+          {busy && <BusyBar label="Restoring lists and results from the session file" expect={15} />}
         </>
       )}
       {done && <Note kind="success">{done}</Note>}

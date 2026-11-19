@@ -27,17 +27,23 @@ DISEASE_LIBRARIES <- list(
   GWAS = list(library = "GWAS_Catalog_2025", label = "GWAS Catalog 2025 (reported genes)")
 )
 
+#' Host name of an external service, for error messages (e.g. "rummageo.com")
+.service_host <- function(url) sub("^www\\.", "", sub("^[a-z]+://([^/:]+).*$", "\\1", url))
+
 .http_json <- function(url, query = NULL, body = NULL, timeout = 60) {
   # NCBI allows 3 requests per second without a key: wait and retry on HTTP 429.
   for (attempt in 1:4) {
     resp <- tryCatch(
       if (is.null(body)) httr::GET(url, query = query, httr::timeout(timeout))
       else httr::POST(url, body = jsonlite::toJSON(body, auto_unbox = TRUE), httr::content_type_json(), httr::timeout(timeout)),
-      error = function(e) stop("The service could not be reached: ", conditionMessage(e)))
+      error = function(e) stop(sprintf("%s could not be reached (%s). Check the internet connection, or try again later.", .service_host(url), conditionMessage(e))))
     if (httr::status_code(resp) != 429) break
     Sys.sleep(0.6 * attempt)
   }
-  if (httr::status_code(resp) >= 400) stop(sprintf("The service answered with HTTP %d.", httr::status_code(resp)))
+  code <- httr::status_code(resp)
+  # 5xx: the external service itself is failing; say which one, and that the input is not at fault.
+  if (code >= 500) stop(sprintf("%s is not available right now (it answered with HTTP %d). This is a problem at that external service, not with your input — please try again later.", .service_host(url), code))
+  if (code >= 400) stop(sprintf("%s rejected the request (HTTP %d).", .service_host(url), code))
   jsonlite::fromJSON(httr::content(resp, as = "text", encoding = "UTF-8"), simplifyVector = FALSE)
 }
 .gql <- function(url, query, variables = list()) {
@@ -227,6 +233,71 @@ geo_genes <- function(id) {
        citation = "RummaGEO (Marino et al. 2024, Patterns 5:101072): differential-expression signatures of GEO series computed from uniformly aligned ARCHS4 data (limma-voom).")
 }
 
+# ---- ClinVar -------------------------------------------------------------------
+
+CLINVAR_SIGNIFICANCE <- list(
+  any = "",
+  pathogenic = "clinsig_pathogenic[prop]",
+  pathogenic_likely = "(clinsig_pathogenic[prop] OR clinsig_likely_pathogenic[prop])")
+
+#' Variants of NCBI ClinVar and their genes.
+#' `query` is a gene symbol, a condition, rsIDs, ClinVar accessions (VCV…) or any
+#' ClinVar search expression; `significance` optionally keeps (likely) pathogenic variants.
+clinvar_lookup <- function(query, significance = "any", max = 300L) {
+  q <- trimws(as.character(query))
+  if (nchar(q) < 2) stop("Type a gene, a condition, rsIDs or ClinVar accessions.")
+  sig <- CLINVAR_SIGNIFICANCE[[as.character(significance %||% "any")]] %||% ""
+  toks <- unlist(strsplit(q, "[\\s,;]+", perl = TRUE))
+  toks <- toks[nzchar(toks)]
+  search <- function(term) {
+    term <- if (nzchar(sig)) paste0("(", term, ") AND ", sig) else term
+    s <- .eutils("esearch", db = "clinvar", term = term, retmax = as.integer(min(max, 1000)))$esearchresult
+    list(ids = as.character(unlist(s$idlist)), count = as.integer(s$count %||% 0), term = term)
+  }
+  s <- if (length(toks) > 1 && all(grepl("^(rs[0-9]+|VCV[0-9]+(\\.[0-9]+)?|RCV[0-9]+(\\.[0-9]+)?)$", toks, ignore.case = TRUE))) {
+    search(paste(toks, collapse = " OR "))              # a list of rsIDs / accessions
+  } else if (length(toks) == 1 && grepl("^[A-Za-z][A-Za-z0-9-]{1,14}$", q) && !grepl("^(rs|VCV|RCV)[0-9]", q, ignore.case = TRUE)) {
+    g <- search(paste0(q, "[gene]"))                    # one word: try it as a gene symbol first,
+    if (g$count > 0) g else { d <- search(sprintf("\"%s\"[dis]", q)); if (d$count > 0) d else search(q) }   # then as a condition
+  } else if (!grepl("[\\[\\]\"]", q) && !any(grepl("^(rs|VCV|RCV)[0-9]", toks, ignore.case = TRUE))) {
+    d <- search(sprintf("\"%s\"[dis]", q))            # plain words: a condition name, else anywhere in the record
+    if (d$count > 0) d else search(q)
+  } else search(q)
+  if (!length(s$ids)) stop("No ClinVar records match this search. Examples: APOE, cystic fibrosis, rs429358 rs7412, VCV000017864, or BRCA1[gene] AND \"breast cancer\"[dis].")
+  ids <- utils::head(s$ids, max)
+  vars <- list()
+  for (chunk in split(ids, ceiling(seq_along(ids) / 150))) {
+    sm <- .http_json(paste0(EUTILS, "/esummary.fcgi"), query = .ncbi_query(list(db = "clinvar", id = paste(chunk, collapse = ","))), timeout = 120)$result
+    for (k in chunk) {
+      x <- sm[[k]]
+      if (is.null(x) || !is.null(x$error)) next
+      vs <- (x$variation_set %||% list())
+      v1 <- if (length(vs)) vs[[1]] else list()
+      loc <- Filter(function(l) identical(l$assembly_name, "GRCh38"), v1$variation_loc %||% list())
+      rs <- unlist(lapply(v1$variation_xrefs %||% list(), function(r) if (identical(r$db_source, "dbSNP")) paste0("rs", r$db_id)))
+      cls <- x$germline_classification %||% list()
+      traits <- unique(vapply(cls$trait_set %||% list(), function(t) t$trait_name %||% "", ""))
+      traits <- traits[nzchar(traits) & !tolower(traits) %in% c("not provided", "not specified")]
+      genes <- unique(vapply(x$genes %||% list(), function(g) g$symbol %||% "", ""))
+      vars[[length(vars) + 1]] <- list(
+        uid = as.character(k), accession = x$accession %||% "", title = x$title %||% "", type = x$obj_type %||% "",
+        genes = as.list(genes[nzchar(genes)]),
+        chrpos = if (length(loc)) paste0(loc[[1]]$chr, ":", loc[[1]]$start) else "",
+        consequence = paste(unlist(x$molecular_consequence_list %||% list()), collapse = ", "),
+        clinical = cls$description %||% "", review = cls$review_status %||% "",
+        conditions = as.list(utils::head(traits, 4)), conditionCount = length(traits),
+        rsid = if (length(rs)) rs[[1]] else "")
+    }
+  }
+  # Large deletions and duplications span many genes and would flood the gene list: count genes of variants with at most 5.
+  focused <- Filter(function(v) length(v$genes) >= 1 && length(v$genes) <= 5, vars)
+  gcount <- sort(table(unlist(lapply(focused, function(v) unlist(v$genes)))), decreasing = TRUE)
+  list(searched = list(query = q, term = s$term, count = s$count), variants = vars, organismTaxId = 9606L, ranked = TRUE,
+       source = "ClinVar", multiGeneVariants = length(vars) - length(focused),
+       genes = lapply(names(gcount), function(g) list(gene = g, variants = as.integer(gcount[[g]]))),
+       citation = "NCBI ClinVar (Landrum et al. 2018, Nucleic Acids Res 46:D1062): submitted interpretations of the clinical significance of human variants, with their genes, conditions and review status.")
+}
+
 # ---- dbSNP ---------------------------------------------------------------------
 
 #' rsIDs (or a dbSNP search) to variants and their genes, from NCBI dbSNP
@@ -252,7 +323,7 @@ dbsnp_lookup <- function(query, max = 300L) {
       study <- vapply(mafs, function(m) m$study %||% "", "")
       pick <- c(which(study == "GnomAD_genomes"), seq_along(mafs))[1]
       gn <- if (length(mafs) && !is.na(pick)) paste0(mafs[[pick]]$freq %||% "", " (", study[pick], ")") else ""
-      vars[[length(vars) + 1]] <- list(rsid = paste0("rs", k), chrpos = x$chrpos %||% "", genes = vapply(x$genes %||% list(), function(g) g$name %||% "", ""),
+      vars[[length(vars) + 1]] <- list(rsid = paste0("rs", k), chrpos = x$chrpos %||% "", genes = as.list(vapply(x$genes %||% list(), function(g) g$name %||% "", "")),
                                        consequence = gsub(",", ", ", x$fxn_class %||% ""), clinical = gsub(",", ", ", x$clinical_significance %||% ""),
                                        frequency = gn)
     }

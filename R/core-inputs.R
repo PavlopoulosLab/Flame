@@ -267,15 +267,28 @@ EXAMPLE_SOURCES <- list(
   utils::read.delim(f, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
+# The gene-list example is a random draw of EXAMPLE_GENES_N from this pool.
+EXAMPLE_POOL_N <- 500L
+EXAMPLE_GENES_N <- 200L
+
+#' The 500 human genes most significantly changed by dexamethasone (airway
+#' dataset, BH-adjusted p <= 0.05, |log2FC| >= 1), most significant first.
+example_gene_pool <- function() {
+  de <- .example_file("airway_dex_de.tsv")
+  utils::head(de$gene[de$padj <= 0.05 & abs(de$log2FC) >= 1], EXAMPLE_POOL_N)
+}
+
 example_input <- function(kind = EXAMPLE_KINDS) {
   kind <- match.arg(kind)
   airway <- function() .example_file("airway_dex_de.tsv")
   switch(kind,
-    # Gene list: the 200 genes most affected by dexamethasone (both directions).
+    # Gene list: a fresh random draw of 200 from the 500 genes most affected by
+    # dexamethasone (both directions), so each "Load example" gives a different list.
     upload = {
-      de <- airway()
-      list(text = paste(utils::head(de$gene[de$padj <= 0.05 & abs(de$log2FC) >= 1], 200), collapse = "\n"),
-           source = paste("The 200 genes most significantly changed by dexamethasone.", EXAMPLE_SOURCES$airway))
+      pool <- example_gene_pool()
+      list(text = paste(sample(pool, min(EXAMPLE_GENES_N, length(pool))), collapse = "\n"),
+           source = paste(sprintf("%d genes drawn at random from the %d most significantly changed by dexamethasone.",
+                                  min(EXAMPLE_GENES_N, length(pool)), length(pool)), EXAMPLE_SOURCES$airway))
     },
     # Every expressed gene, scored by sign(log2FC) x -log10 p: input for GSEA.
     ranked = {

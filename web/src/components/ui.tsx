@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
+import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { api } from '../api/client'
 import { useConfig, useOrganismSearch } from '../api/hooks'
 import type { OrganismOption } from '../api/types'
@@ -7,7 +7,36 @@ import { geneCardsUrl } from '../lib/links'
 import { saveXlsx, type Sheet } from '../lib/xlsx'
 import { Link } from 'react-router-dom'
 
-export function Spinner({ label = 'Loading' }: { label?: string }) {
+/**
+ * Progress bar for a request that takes a while. The server does not report how
+ * far along it is, so the bar fills steadily towards (never reaching) the end
+ * and the elapsed time is shown instead of a percentage.
+ */
+export function BusyBar({ label, hint, expect = 15 }: { label: string; hint?: ReactNode; expect?: number }) {
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    const start = Date.now()
+    const id = window.setInterval(() => setElapsed((Date.now() - start) / 1000), 250)
+    return () => window.clearInterval(id)
+  }, [])
+  const shown = 0.04 + 0.92 * (1 - Math.exp(-elapsed / expect))
+  const secs = Math.floor(elapsed)
+  return (
+    <div className="job-progress busy-bar" role="status" aria-live="polite">
+      <div className="job-progress-bar" aria-hidden="true"><span style={{ width: `${Math.round(shown * 100)}%` }} /></div>
+      <div className="job-progress-text">
+        <span className="job-progress-msg">{label}…</span>
+        <span className="job-progress-meta">{secs < 60 ? `${secs} s` : `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')} min`}</span>
+      </div>
+      {hint && elapsed > 4 && <span className="muted small">{hint}</span>}
+    </div>
+  )
+}
+
+/** A named wait shows a progress bar with the elapsed time; an unnamed one a small spinner. */
+export function Spinner({ label }: { label?: string }) {
+  if (label) return <BusyBar label={label.replace(/[….]+$/, '')} />
+  label = 'Loading'
   return (
     <span className="spinner" role="status" aria-live="polite">
       <span className="spinner-dot" aria-hidden="true" />
@@ -30,6 +59,9 @@ export function Note({ kind = 'info', children }: { kind?: 'info' | 'success' | 
   return <div className={`note note-${kind}`}>{children}</div>
 }
 
+/** Dialogs show the colour-palette selector in their header unless a parent turns it off (the input dialogs do). */
+export const ModalPaletteContext = createContext(true)
+
 export function Modal({
   title,
   subtitle,
@@ -47,6 +79,7 @@ export function Modal({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
+  const showPalette = useContext(ModalPaletteContext)
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
     ref.current?.focus()
@@ -72,7 +105,7 @@ export function Modal({
             {subtitle && <p className="muted">{subtitle}</p>}
           </div>
           <span className="row modal-actions">
-            <PaletteSelect />
+            {showPalette && <PaletteSelect />}
             <button className="icon-btn" onClick={onClose} aria-label="Close">
               ×
             </button>

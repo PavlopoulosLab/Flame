@@ -1,0 +1,190 @@
+/* =============================================================================
+   Home page (loaded last). The landing page is the one place with a richer,
+   more decorative look: soft glows, a gradient headline, glass cards. Everything
+   is scoped to .home-modern so the rest of the app keeps the flat classic style.
+   ============================================================================= */
+
+.home-modern {
+  --hm-violet: #7c3aed; --hm-orange: #f97316; --hm-crimson: #e11d48;
+  --hm-teal: #0d9488; --hm-indigo: #4f46e5; --hm-amber: #d97706;
+  --hm-ink: #14141f;
+  --hm-text: #4b5063;
+  --hm-card: rgba(255, 255, 255, 0.72);
+  --hm-card-border: rgba(20, 20, 40, 0.09);
+  --hm-card-shadow: 0 1px 2px rgba(20, 20, 40, 0.04), 0 12px 32px -18px rgba(76, 29, 149, 0.28);
+  --hm-grad: linear-gradient(95deg, #7c3aed 0%, #c026d3 30%, #f97316 68%, #e11d48 100%);
+  --hm-glow-a: rgba(124, 58, 237, 0.16); --hm-glow-b: rgba(249, 115, 22, 0.13); --hm-glow-c: rgba(225, 29, 72, 0.10);
+  position: relative; isolation: isolate; gap: 72px; padding: 8px 0 24px;
+  font-family: "Inter", var(--default-font);
+}
+[data-theme="dark"] .home-modern {
+  --hm-violet: #a78bfa; --hm-orange: #fb923c; --hm-crimson: #fb7185;
+  --hm-teal: #2dd4bf; --hm-indigo: #818cf8; --hm-amber: #fbbf24;
+  --hm-ink: #f4f4f8;
+  --hm-text: #a5a8b8;
+  --hm-card: rgba(255, 255, 255, 0.035);
+  --hm-card-border: rgba(255, 255, 255, 0.09);
+  --hm-card-shadow: 0 16px 40px -24px rgba(0, 0, 0, 0.8);
+  --hm-grad: linear-gradient(95deg, #a78bfa 0%, #e879f9 30%, #fb923c 68%, #fb7185 100%);
+  --hm-glow-a: rgba(139, 92, 246, 0.22); --hm-glow-b: rgba(249, 115, 22, 0.14); --hm-glow-c: rgba(225, 29, 72, 0.14);
+}
+
+/* Soft colour wash behind the hero (clipped by html/body overflow-x: clip). */
+.home-modern::before { content: ""; position: absolute; z-index: -1; pointer-events: none; inset: -80px -10vw auto; height: 820px;
+  background: radial-gradient(38% 52% at 80% 34%, var(--hm-glow-a), transparent 70%),
+              radial-gradient(34% 46% at 94% 70%, var(--hm-glow-c), transparent 70%),
+              radial-gradient(42% 56% at 6% 8%, var(--hm-glow-b), transparent 70%); }
+
+/* ---- Hero ---- */
+.hm-hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr); gap: 48px; align-items: center; padding-top: 28px; }
+.hm-lockup { display: flex; align-items: center; gap: 10px; font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; color: var(--hm-ink); }
+.hm-version { font-weight: 300; color: var(--hm-orange); }
+.hm-title { margin: 22px 0 0; font-size: clamp(2.3rem, 5.2vw, 4.1rem); font-weight: 800; line-height: 1.04; letter-spacing: -0.035em; color: var(--hm-ink); text-wrap: balance; }
+.hm-title-grad { display: block; padding-bottom: 0.08em; background: var(--hm-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hm-lead { margin: 22px 0 28px; max-width: 54ch; font-size: 1.1rem; line-height: 1.6; color: var(--hm-text); }
+.hm-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.hm-btn { display: inline-flex; align-items: center; justify-content: center; padding: 13px 24px; border-radius: 999px; font-size: 1rem; font-weight: 600;
+  text-decoration: none; border: 1px solid transparent; transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease; }
+.hm-btn-primary, .hm-btn-primary:hover { color: #fff; }
+.hm-btn-primary { background: linear-gradient(95deg, #7c3aed, #db2777 55%, #f97316); box-shadow: 0 10px 28px -10px rgba(192, 38, 211, 0.65); }
+.hm-btn-primary:hover { transform: translateY(-1px); box-shadow: 0 14px 34px -10px rgba(192, 38, 211, 0.8); }
+.hm-btn-ghost, .hm-btn-ghost:hover { color: var(--hm-ink); }
+.hm-btn-ghost { background: var(--hm-card); border-color: var(--hm-card-border); backdrop-filter: blur(8px); }
+.hm-btn-ghost:hover { border-color: var(--hm-violet); transform: translateY(-1px); }
+.hm-btn:focus-visible, .hm-example:focus-visible { outline: none; box-shadow: var(--focus); }
+.hm-link { font-weight: 600; text-decoration: none; padding: 8px 4px; }
+.hm-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 30px; font-size: 0.82rem; color: var(--hm-text); }
+.hm-tool { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: #fff; border: 1px solid var(--hm-card-border); box-shadow: 0 1px 2px rgba(20, 20, 40, 0.05); }
+
+.hm-hero-art { position: relative; display: grid; place-items: center; }
+/* The logo floats and flickers like a flame; a glow breathes behind it and sparks rise around it. */
+.hm-flame { position: relative; width: min(100%, 440px); aspect-ratio: 1 / 1.08; display: grid; place-items: center; }
+.hm-flame-glow { position: absolute; inset: 4% 0 0; border-radius: 50%; filter: blur(34px); animation: hm-breathe 3.6s ease-in-out infinite;
+  background: radial-gradient(closest-side at 50% 62%, rgba(249, 115, 22, 0.50), rgba(225, 29, 72, 0.26) 52%, transparent 78%),
+              radial-gradient(closest-side at 50% 30%, rgba(251, 191, 36, 0.30), transparent 70%); }
+.hm-flame-ring { position: absolute; left: 50%; bottom: 3%; width: 78%; aspect-ratio: 3.4 / 1; border-radius: 50%; translate: -50% 0;
+  border: 1.5px solid color-mix(in srgb, var(--hm-orange) 55%, transparent); opacity: 0; animation: hm-ring 4.2s ease-out infinite; }
+.hm-flame-ring-2 { animation-delay: 2.1s; }
+.hm-fire-defs { position: absolute; }
+.hm-flame-logo { position: relative; display: block; height: 88%; animation: hm-float 7s ease-in-out infinite; }
+.hm-fire-body, .hm-fire-aura { display: block; height: 100%; }
+.hm-flame-logo .logo { height: 100%; width: auto; }
+/* The logo itself wavers as the noise rises through it. */
+.hm-fire-body { position: relative; filter: url(#hm-fire) drop-shadow(0 16px 24px rgba(225, 29, 72, 0.28)); transform-origin: 50% 100%; animation: hm-flicker 3.2s ease-in-out infinite; }
+/* A blurred, heavily bent copy behind it reads as flame tongues licking upward; stronger towards the tip. */
+.hm-fire-aura { position: absolute; inset: 0; filter: url(#hm-fire-aura) saturate(1.5) brightness(1.15); opacity: 0.5; transform-origin: 50% 100%;
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.35), #000 55%); mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.35), #000 55%);
+  animation: hm-lick 2.6s ease-in-out infinite; }
+.hm-ember { position: absolute; bottom: 12%; border-radius: 50%; opacity: 0; pointer-events: none;
+  background: radial-gradient(circle, #fde68a 0%, #f97316 55%, rgba(225, 29, 72, 0) 75%);
+  animation-name: hm-ember; animation-timing-function: ease-out; animation-iteration-count: infinite; }
+@keyframes hm-float { 0%, 100% { transform: translateY(6px); } 50% { transform: translateY(-10px); } }
+@keyframes hm-flicker {
+  0%, 100% { transform: scale(1, 1); }
+  18% { transform: scale(0.997, 1.008); }
+  39% { transform: scale(1.006, 0.992); }
+  58% { transform: scale(0.995, 1.012); }
+  81% { transform: scale(1.004, 1.004); }
+}
+@keyframes hm-lick {
+  0%, 100% { transform: scale(1.01, 1.03); opacity: 0.4; }
+  27% { transform: scale(1.03, 1.07); opacity: 0.55; }
+  53% { transform: scale(1.0, 1.04); opacity: 0.35; }
+  76% { transform: scale(1.02, 1.08); opacity: 0.5; }
+}
+@keyframes hm-breathe {
+  0%, 100% { opacity: 0.75; transform: scale(0.98); }
+  14% { opacity: 0.95; transform: scale(1.03); }
+  31% { opacity: 0.7; transform: scale(0.99); }
+  49% { opacity: 0.92; transform: scale(1.04); }
+  66% { opacity: 0.72; transform: scale(1.0); }
+  83% { opacity: 1; transform: scale(1.04); }
+}
+@keyframes hm-ring { 0% { opacity: 0.55; transform: scale(0.35); } 100% { opacity: 0; transform: scale(1.25); } }
+@keyframes hm-ember {
+  0% { opacity: 0; transform: translate(0, 0) scale(0.6); }
+  12% { opacity: 0.95; }
+  100% { opacity: 0; transform: translate(var(--drift, 0), -340px) scale(0.2); }
+}
+
+/* ---- Numbers strip ---- */
+.hm-stats { display: grid; grid-template-columns: repeat(5, 1fr); margin: -24px 0 0; border: 1px solid var(--hm-card-border); border-radius: 18px;
+  background: var(--hm-card); box-shadow: var(--hm-card-shadow); backdrop-filter: blur(10px); overflow: hidden; }
+.hm-stats > div { padding: 20px 14px; text-align: center; border-left: 1px solid var(--hm-card-border); }
+.hm-stats > div:first-child { border-left: 0; }
+.hm-stats dt { font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1.1; font-variant-numeric: tabular-nums;
+  background: var(--hm-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hm-stats dd { margin: 4px 0 0; font-size: 0.84rem; color: var(--hm-text); }
+
+/* ---- Sections ---- */
+.hm-section h2 { margin: 0; font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 800; letter-spacing: -0.025em; color: var(--hm-ink); }
+.hm-sub { margin: 6px 0 0; font-size: 1rem; color: var(--hm-text); }
+.hm-features, .hm-examples { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 24px; }
+
+.hm-tone-violet { --tone: var(--hm-violet); } .hm-tone-orange { --tone: var(--hm-orange); } .hm-tone-crimson { --tone: var(--hm-crimson); }
+.hm-tone-teal { --tone: var(--hm-teal); } .hm-tone-indigo { --tone: var(--hm-indigo); } .hm-tone-amber { --tone: var(--hm-amber); }
+
+.hm-card, .hm-example { position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 8px; padding: 22px; border-radius: 16px;
+  background: var(--hm-card); border: 1px solid var(--hm-card-border); box-shadow: var(--hm-card-shadow); backdrop-filter: blur(10px);
+  transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease; }
+.hm-card:hover, .hm-example:hover { transform: translateY(-3px); border-color: color-mix(in srgb, var(--tone) 55%, transparent); }
+.hm-card h3, .hm-steps h3 { margin: 6px 0 0; font-size: 1.06rem; font-weight: 700; letter-spacing: -0.01em; color: var(--hm-ink); }
+.hm-card p, .hm-steps p { margin: 0; font-size: 0.93rem; line-height: 1.55; color: var(--hm-text); }
+.hm-icon { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 12px;
+  background: color-mix(in srgb, var(--tone) 14%, transparent); border: 1px solid color-mix(in srgb, var(--tone) 28%, transparent); }
+.hm-icon .concept-icon { color: var(--hm-ink); }
+
+/* ---- Steps ---- */
+.hm-steps { list-style: none; margin: 24px 0 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; counter-reset: none; }
+.hm-steps li { position: relative; display: flex; gap: 14px; align-items: flex-start; }
+.hm-steps li:not(:last-child)::after { content: ""; position: absolute; top: 19px; left: 52px; right: -4px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--hm-card-border), transparent); z-index: -1; }
+.hm-steps li > div { background: var(--app-bg, var(--background-color)); padding-right: 12px; }
+.hm-steps h3 { margin-top: 8px; }
+.hm-step-num { flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: #fff; font-weight: 800;
+  background: linear-gradient(135deg, #7c3aed, #f97316); box-shadow: 0 8px 20px -8px rgba(124, 58, 237, 0.7); }
+
+/* ---- Example cards ---- */
+.hm-example, .hm-example:hover { color: var(--hm-text); text-decoration: none; }
+.hm-example::after { content: ""; position: absolute; right: -50px; bottom: -60px; width: 190px; height: 190px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--tone) 30%, transparent), transparent); transition: transform 300ms ease; }
+.hm-example:hover::after { transform: scale(1.25); }
+.hm-example strong { margin-top: 6px; font-size: 1.06rem; font-weight: 700; color: var(--hm-ink); }
+.hm-example-text { font-size: 0.92rem; line-height: 1.5; }
+.hm-open { margin-top: auto; padding-top: 8px; font-size: 0.9rem; font-weight: 600; color: var(--tone); }
+.home-modern .all-examples { margin-top: 22px; }
+.home-modern .all-examples > summary { display: inline-block; list-style: none; padding: 9px 18px; border-radius: 999px; border: 1px solid var(--hm-card-border);
+  background: var(--hm-card); color: var(--hm-ink); font-weight: 600; }
+.home-modern .all-examples > summary::-webkit-details-marker { display: none; }
+.home-modern .all-examples > summary::after { content: " ↓"; color: var(--hm-violet); }
+.home-modern .all-examples[open] > summary::after { content: " ↑"; }
+.home-modern .all-examples > summary:hover { border-color: var(--hm-violet); }
+
+/* ---- Footer ---- */
+.hm-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px 24px; padding-top: 22px;
+  border-top: 1px solid var(--hm-card-border); font-size: 0.88rem; color: var(--hm-text); }
+.hm-footer p { margin: 0; }
+.hm-footer nav { display: flex; flex-wrap: wrap; gap: 8px 22px; }
+.hm-footer a { text-decoration: none; font-weight: 600; }
+
+@media (max-width: 980px) {
+  .home-modern { gap: 52px; }
+  .hm-hero { grid-template-columns: 1fr; gap: 28px; padding-top: 8px; }
+  .hm-hero-art { order: -1; }
+  .hm-flame { width: min(64%, 300px); }
+  .hm-features, .hm-examples { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hm-stats { margin-top: 0; grid-template-columns: repeat(3, 1fr); }
+  .hm-stats > div { border-top: 1px solid var(--hm-card-border); margin-top: -1px; }
+}
+@media (max-width: 620px) {
+  .hm-features, .hm-examples, .hm-steps { grid-template-columns: 1fr; }
+  .hm-steps li::after { display: none; }
+  .hm-stats { grid-template-columns: repeat(2, 1fr); }
+  .hm-btn { flex: 1 1 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hm-flame-glow, .hm-flame-logo, .hm-fire-body { animation: none; }
+  .hm-fire-body { filter: drop-shadow(0 16px 24px rgba(225, 29, 72, 0.28)); }
+  .hm-flame-ring, .hm-ember, .hm-fire-aura { display: none; }
+  .hm-btn, .hm-card, .hm-example { transition: none; }
+}

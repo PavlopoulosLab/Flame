@@ -1,12 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, downloadFromApi, getWorkspaceId } from '../api/client'
-import { useConfig, useDeleteList, useDeleteRun, useInvalidateWorkspace, useRenameList, useWorkspace } from '../api/hooks'
+import { useConfig, useDeleteList, useDeleteRun, useInvalidateWorkspace, useRenameList, useUpdateListContents, useWorkspace } from '../api/hooks'
 import type { AnalyteList, Run } from '../api/types'
-import { CopyButton, EmptyState, ErrorNote, Modal, Note, Spinner } from '../components/ui'
+import { BusyBar, CopyButton, EmptyState, ErrorNote, Modal, Note, Spinner } from '../components/ui'
 import { useUndoToast } from '../components/Undo'
-import { MethodPicker, type InputKind } from '../features/inputs/MethodPicker'
+import { MethodGrid, type InputKind } from '../features/inputs/MethodPicker'
 import { InputModal } from '../features/inputs/InputModal'
 import { NewRunPanel } from '../features/NewRunPanel'
 import { QuickActionModal, type QuickAction } from '../features/utilities/QuickActions'
@@ -20,10 +21,9 @@ import { saveXlsx } from '../lib/xlsx'
 import { SessionModal, SessionStatusPill, useSaveShortcut, useSessionStatus, type Tab as SessionTab } from '../features/session/Session'
 
 type Dialog =
-  | { type: 'picker' }
-  | { type: 'input'; kind: InputKind; example?: boolean; text?: string; fileName?: string; view?: string }
+  | { type: 'input'; kind: InputKind; example?: boolean; text?: string; fileName?: string; view?: string; listIds?: string[] }
   | { type: 'quick'; action: QuickAction; listId?: string }
-  | { type: 'newRun'; listId?: string; preset?: 'celltypes' | 'literature' }
+  | { type: 'newRun'; listId?: string; listIds?: string[]; preset?: 'celltypes' | 'literature' }
   | { type: 'gmt' }
   | { type: 'session'; tab?: SessionTab }
   | null
@@ -33,6 +33,8 @@ export default function WorkspacePage() {
   const { data, error, isLoading } = useWorkspace(ws)
   const { data: config } = useConfig()
   const [dialog, setDialog] = useState<Dialog>(null)
+  // The list saved last from an input dialog: confirmed on the Input tab, where the user lands again.
+  const [savedList, setSavedList] = useState<AnalyteList | null>(null)
   const sessionStatus = useSessionStatus(ws, data)
   useSaveShortcut(ws, useCallback(() => { sessionStatus.refetch() }, [sessionStatus]))
   const [params, setParams] = useSearchParams()
@@ -89,10 +91,10 @@ export default function WorkspacePage() {
         break
       }
       case 'upset': {
-        // Up- and down-regulated genes and the 200 most significant ones (dexamethasone, airway):
-        // the UpSet plot shows how the top-200 list splits into up and down.
+        // Up- and down-regulated genes and 200 drawn at random from the 500 most significant (dexamethasone, airway):
+        // the UpSet plot shows how that list splits into up and down.
         await deLists()
-        await exampleList('Example top 200 dexamethasone genes')
+        await exampleList('Example 200 dexamethasone genes')
         invalidate()
         setDialog({ type: 'input', kind: 'upset' })
         return
@@ -210,7 +212,8 @@ export default function WorkspacePage() {
         navigate(`/w/${ws}/variants?example=${kind}`)
         return
       default:
-        if (['upload', 'snps', 'textmining', 'volcano', 'reduction', 'expression', 'mirna', 'disease', 'pubmed', 'geo', 'dbsnp'].includes(kind)) setDialog({ type: 'input', kind: kind as InputKind, example: true })
+        if (['upload', 'snps', 'textmining', 'volcano', 'reduction', 'expression', 'mirna', 'disease', 'pubmed', 'geo', 'clinvar'].includes(kind)) setDialog({ type: 'input', kind: kind as InputKind, example: true })
+        else if (kind === 'dbsnp') setDialog({ type: 'input', kind: 'clinvar', example: true }) // old example links
         return
     }
     invalidate()
@@ -244,8 +247,11 @@ export default function WorkspacePage() {
     )
   }
 
-  const section = (params.get('tab') as WorkspaceSection) || 'enrich'
+  // A workspace with no lists yet opens on the Input tab; otherwise on Enrichment.
+  const section = (params.get('tab') as WorkspaceSection) || (data && lists.length === 0 ? 'input' : 'enrich')
   const setSection = (t: WorkspaceSection) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', t); return n }, { replace: true })
+  const maxLists = config?.limits.maxLists ?? 10
+  const listsFull = maxLists > 0 && lists.length >= maxLists
   const loadExample = (k: string) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))
 
   return (
@@ -260,7 +266,7 @@ export default function WorkspacePage() {
       <div className="workspace">
         <aside className="rail sec-data" aria-label="Your data">
           <div className="sec-label"><ConceptIcon name="upload" size={18} /> Your data</div>
-          <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={() => setDialog({ type: 'picker' })}
+          <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={() => setSection('input')} onCompare={(ids) => setDialog({ type: 'input', kind: 'upset', listIds: ids })} onRunMany={(ids) => { setSection('enrich'); setDialog({ type: 'newRun', listIds: ids }) }}
             onRun={(id) => setDialog({ type: 'newRun', listId: id })} onQuick={(action, id) => setDialog({ type: 'quick', action, listId: id })} />
           <section className="rail-section">
             <div className="rail-head">
@@ -294,6 +300,23 @@ export default function WorkspacePage() {
             ))}
           </nav>
 
+          {section === 'input' && (
+            <section className="sec-panel sec-input" aria-label="Input">
+              <div className="page-header"><div><h1>Add a list</h1><p className="muted">How would you like to provide your genes? Every option has a <em>Load example</em> button.</p></div></div>
+              {savedList && lists.some((l) => l.id === savedList.id) && (
+                <div className="note note-success saved-note" role="status">
+                  <span>Saved <strong>{savedList.name}</strong> ({plural(savedList.size, 'ID')}). It is in your lists on the left — add another list below, or analyse this one.</span>
+                  <span className="row">
+                    <button className="btn btn-primary btn-sm" onClick={() => { setSection('enrich'); setDialog({ type: 'newRun', listId: savedList.id }) }}>Run enrichment</button>
+                    <button className="icon-btn" aria-label="Dismiss" onClick={() => setSavedList(null)}>×</button>
+                  </span>
+                </div>
+              )}
+              {listsFull && <p className="note note-warning">This workspace already has the maximum of {maxLists} lists. Delete one to add another.</p>}
+              <MethodGrid lists={lists} disabledAll={listsFull} onPick={(kind) => setDialog({ type: 'input', kind })} />
+            </section>
+          )}
+
           {section === 'enrich' && (
             <section className="sec-panel sec-enrich" aria-label="Functional enrichment">
               {runs.length === 0 && <ol className="progress-steps" aria-label="Progress">
@@ -323,7 +346,7 @@ export default function WorkspacePage() {
                 <EmptyState title="Start by adding a gene list">
                   <p>Paste IDs, upload a file, or pick genes from a plot. Not sure? Load an example and see how it works.</p>
                   <div className="row center">
-                    <button className="btn btn-primary" onClick={() => setDialog({ type: 'picker' })}>Add a list</button>
+                    <button className="btn btn-primary" onClick={() => setSection('input')}>Add a list</button>
                     <button className="btn btn-secondary" onClick={() => setDialog({ type: 'input', kind: 'upload', example: true })}>Use example genes</button>
                   </div>
                 </EmptyState>
@@ -365,7 +388,7 @@ export default function WorkspacePage() {
           {section === 'variants' && <VariantsPanel ws={ws} onExample={loadExample} />}
 
           {section === 'regulators' && (
-            <AnalysesPanel lists={lists} onAddList={() => setDialog({ type: 'picker' })} open={openTask} setOpen={setOpenTask}
+            <AnalysesPanel lists={lists} onAddList={() => setSection('input')} open={openTask} setOpen={setOpenTask}
               onExample={(k) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))}
               onCellTypes={() => setDialog({ type: 'newRun', preset: 'celltypes' })} onLiterature={() => setDialog({ type: 'newRun', preset: 'literature' })} />
           )}
@@ -388,20 +411,17 @@ export default function WorkspacePage() {
         </div>
       </div>
 
-      {dialog?.type === 'picker' && (
-        <MethodPicker lists={lists} onClose={() => setDialog(null)} onPick={(kind) => setDialog({ type: 'input', kind })} />
-      )}
       {dialog?.type === 'input' && (
         <InputModal key={`${dialog.kind}-${dialog.fileName ?? ''}`} kind={dialog.kind} example={dialog.example} lists={lists} onClose={() => setDialog(null)}
-          initialText={dialog.text} initialFileName={dialog.fileName} initialView={dialog.view}
+          initialText={dialog.text} initialFileName={dialog.fileName} initialView={dialog.view} initialListIds={dialog.listIds}
           onOpenVolcano={(text, fileName) => setDialog({ type: 'input', kind: 'volcano', text, fileName })}
-          onCreated={(list) => setDialog({ type: 'newRun', listId: list.id })} />
+          onCreated={(list) => { setDialog(null); setSection('input'); setSavedList(list) }} />
       )}
       {dialog?.type === 'quick' && (
         <QuickActionModal action={dialog.action} lists={lists} initialListId={dialog.listId} onClose={() => setDialog(null)} />
       )}
       {dialog?.type === 'newRun' && (
-        <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} preset={dialog.preset} onClose={() => setDialog(null)} />
+        <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} initialListIds={dialog.listIds} preset={dialog.preset} onClose={() => setDialog(null)} />
       )}
       {dialog?.type === 'gmt' && <GmtModal onClose={() => setDialog(null)} />}
       <JobsWindow runs={runs} ws={ws} />
@@ -424,8 +444,8 @@ function ShareBanner({ ws, expires }: { ws: string; expires?: number }) {
   )
 }
 
-function ListsSection({ lists, max, onAdd, onRun, onQuick }: {
-  lists: AnalyteList[]; max: number; onAdd: () => void; onRun: (id: string) => void; onQuick: (a: QuickAction, id: string) => void
+function ListsSection({ lists, max, onAdd, onCompare, onRunMany, onRun, onQuick }: {
+  lists: AnalyteList[]; max: number; onAdd: () => void; onCompare: (ids: string[]) => void; onRunMany: (ids: string[]) => void; onRun: (id: string) => void; onQuick: (a: QuickAction, id: string) => void
 }) {
   const rename = useRenameList()
   const del = useDeleteList()
@@ -441,8 +461,15 @@ function ListsSection({ lists, max, onAdd, onRun, onQuick }: {
   const [editing, setEditing] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [menu, setMenu] = useState<string | null>(null)
+  const [viewing, setViewing] = useState<{ id: string; edit: boolean } | null>(null)
+  // Lists ticked for comparison (ids of lists that no longer exist are ignored).
+  const [ticked, setTicked] = useState<string[]>([])
+  const tickedNow = ticked.filter((id) => lists.some((l) => l.id === id))
+  const viewed = viewing ? lists.find((l) => l.id === viewing.id) : undefined
   return (
     <section className="rail-section">
+      {/* Rendered on <body>: inside the sticky rail it would sit under the rest of the page. */}
+      {viewing && viewed && createPortal(<ListContentsModal key={`${viewed.id}-${viewing.edit}`} list={viewed} startEditing={viewing.edit} onRun={() => { setViewing(null); onRun(viewed.id) }} onClose={() => setViewing(null)} />, document.body)}
       <div className="rail-head">
         <h2>Lists <span className="count">{lists.length}/{max}</span></h2>
       </div>
@@ -467,14 +494,18 @@ function ListsSection({ lists, max, onAdd, onRun, onQuick }: {
               </form>
             ) : (
               <>
+                <input type="checkbox" className="list-tick" checked={tickedNow.includes(l.id)} aria-label={`Select ${l.name} for comparison`} title="Select for comparison"
+                  onChange={() => setTicked(tickedNow.includes(l.id) ? tickedNow.filter((x) => x !== l.id) : [...tickedNow, l.id])} />
                 <div className="list-text">
-                  <span className="list-name" title={l.name}>{l.name}</span>
+                  <button type="button" className="list-name list-open" title={`${l.name} — click to see its contents`} onClick={() => setViewing({ id: l.id, edit: false })}>{l.name}</button>
                   <span className="muted small">{formatNum(l.size)} IDs · {l.organismName.replace(/ \[NCBI.*$/, '')}{l.ranked && <> · <span className="tag-ranked" title="IDs with scores: can be used for GSEA">ranked</span></>}</span>
                 </div>
                 <div className="menu-wrap">
                   <button className="icon-btn" aria-label={`Actions for ${l.name}`} aria-expanded={menu === l.id} onClick={() => setMenu(menu === l.id ? null : l.id)}>⋯</button>
                   {menu === l.id && (
                     <div className="menu" onMouseLeave={() => setMenu(null)}>
+                      <button onClick={() => { setMenu(null); setViewing({ id: l.id, edit: false }) }}>View contents</button>
+                      <button onClick={() => { setMenu(null); setViewing({ id: l.id, edit: true }) }}>Edit contents</button>
                       <button onClick={() => { setMenu(null); onRun(l.id) }}>Run enrichment</button>
                       <button onClick={() => { setMenu(null); setEditing(l.id); setName(l.name) }}>Rename</button>
                       <button onClick={() => { setMenu(null); api<{ ids: string[]; scores?: number[] }>(`/lists/${l.id}`).then((d) => saveXlsx([{ name: l.name,
@@ -492,7 +523,115 @@ function ListsSection({ lists, max, onAdd, onRun, onQuick }: {
           </li>
         ))}
       </ul>
+      {lists.length >= 2 && (
+        <>
+          <span className="row">
+            <button type="button" className="btn btn-ghost btn-sm" disabled={tickedNow.length === lists.length} onClick={() => setTicked(lists.map((l) => l.id))}>Select all</button>
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!tickedNow.length} onClick={() => setTicked([])}>None</button>
+          </span>
+          <button className="btn btn-secondary btn-block" disabled={tickedNow.length < 1} onClick={() => onRunMany(tickedNow)}
+            title="Run the same enrichment analysis on every ticked list">
+            Run enrichment on selected{tickedNow.length ? ` (${tickedNow.length})` : ''}
+          </button>
+          <button className="btn btn-secondary btn-block" disabled={tickedNow.length < 2} onClick={() => onCompare(tickedNow.slice(0, 6))}
+            title="Compare the ticked lists with an UpSet plot: intersections, unions, XOR — and save any part as a new list">
+            Compare selected{tickedNow.length ? ` (${tickedNow.length})` : ''}
+          </button>
+          <p className="muted small">{tickedNow.length === 0 ? 'Tick lists to analyse them together, or two or more to compare them.' : tickedNow.length > 6 ? 'At most six lists can be compared; the first six are used.' : tickedNow.length === 1 ? 'Tick one more list to compare.' : 'Compare opens an UpSet plot of the ticked lists.'}</p>
+        </>
+      )}
     </section>
+  )
+}
+
+/** A list's contents: view (with search and copy) or edit them. */
+function ListContentsModal({ list, startEditing, onRun, onClose }: { list: AnalyteList; startEditing: boolean; onRun: () => void; onClose: () => void }) {
+  const q = useQuery({ queryKey: ['list-contents', getWorkspaceId(), list.id], queryFn: () => api<AnalyteList & { ids: string[]; scores?: number[] }>(`/lists/${list.id}`), gcTime: 0 })
+  const update = useUpdateListContents()
+  const undoToast = useUndoToast()
+  const [editing, setEditing] = useState(startEditing)
+  // Annotations (gene symbol, Ensembl ID, description) from g:Convert, when the organism and ID type support it.
+  const ann = useQuery({
+    queryKey: ['list-annotations', getWorkspaceId(), list.id, list.size],
+    queryFn: () => api<{ rows: { original: string; converted?: string; symbol?: string; description?: string }[] }>('/utilities/convert', { body: { listId: list.id, targetFormat: 'ENSG', mappingMode: 'best' } }),
+    enabled: !editing, retry: false, staleTime: 5 * 60_000,
+  })
+  const annById = useMemo(() => new Map((ann.data?.rows ?? []).filter((r) => r.converted || r.symbol || r.description).map((r) => [r.original.toLowerCase(), r])), [ann.data])
+  const hasAnn = annById.size > 0
+  const [filter, setFilter] = useState('')
+  const [text, setText] = useState<string | null>(null)
+  const ids = q.data?.ids ?? []
+  const scores = q.data?.scores
+  const asText = (d: { ids: string[]; scores?: number[] }) => d.ids.map((id, i) => (d.scores ? `${id}\t${d.scores[i]}` : id)).join('\n')
+  const original = q.data ? asText(q.data) : ''
+  const draft = text ?? original
+  const draftCount = draft.split(/\r?\n/).filter((x) => x.trim()).length
+  const shown = useMemo(() => {
+    const f = filter.trim().toLowerCase()
+    return ids.map((id, i) => ({ id, score: scores?.[i], ann: annById.get(id.toLowerCase()) }))
+      .filter((r) => !f || r.id.toLowerCase().includes(f) || `${r.ann?.symbol ?? ''} ${r.ann?.converted ?? ''} ${r.ann?.description ?? ''}`.toLowerCase().includes(f))
+  }, [ids, scores, filter, annById])
+  const MAX_ROWS = 500
+  const save = () => update.mutate({ id: list.id, text: draft }, { onSuccess: (nl) => {
+    q.refetch(); setEditing(false); setText(null)
+    undoToast(`Updated "${nl.name}": ${formatNum(nl.size)} IDs.`, () => update.mutateAsync({ id: list.id, text: original }).then(() => { q.refetch() }))
+  } })
+  return (
+    <Modal title={list.name} size="xl" onClose={onClose}
+      subtitle={<>{formatNum(list.size)} IDs · {list.organismName.replace(/ \[NCBI.*$/, '')} · {list.idFormat === 'USERINPUT' ? 'IDs as provided' : list.idFormat}{list.ranked ? ' · ranked (with scores)' : ''}</>}
+      footer={editing ? (
+        <>
+          <span className="muted small">{plural(draftCount, 'line')} · duplicates and invalid IDs are dropped on save</span>
+          <button className="btn btn-ghost" onClick={() => { setEditing(false); setText(null); update.reset() }}>Cancel</button>
+          <button className="btn btn-primary" disabled={update.isPending || !draft.trim() || draft === original} onClick={save}>{update.isPending ? 'Saving…' : 'Save changes'}</button>
+        </>
+      ) : (
+        <>
+          <button className="btn btn-ghost" onClick={onClose}>Close</button>
+          <button className="btn btn-secondary" disabled={!q.data} onClick={() => setEditing(true)}>Edit contents</button>
+          <button className="btn btn-primary" onClick={onRun}>Run enrichment</button>
+        </>
+      )}>
+      {q.isLoading && <BusyBar label="Loading the list" expect={4} />}
+      <ErrorNote error={q.error ?? update.error} />
+      {update.isPending && <BusyBar label="Saving the list" expect={6} />}
+      {q.data && !editing && (
+        <>
+          <div className="row between wrap">
+            <input className="input list-filter" type="search" value={filter} placeholder={hasAnn ? 'Find an ID, name or description' : 'Find an ID in this list'} aria-label="Find in this list" onChange={(e) => setFilter(e.target.value)} />
+            <span className="row">
+              <span className="muted small">{filter.trim() ? `${formatNum(shown.length)} of ${formatNum(ids.length)}` : `${formatNum(ids.length)} IDs`}</span>
+              <CopyButton text={shown.map((r) => r.id).join('\n')} label="Copy IDs" />
+            </span>
+          </div>
+          {ann.isFetching && <BusyBar label="Fetching gene annotations from g:Profiler" expect={8} />}
+          {!ann.isFetching && ann.data && hasAnn && <p className="muted small">Annotations from g:Profiler (g:Convert): {formatNum(ids.filter((id) => annById.has(id.toLowerCase())).length)} of {formatNum(ids.length)} IDs recognised.</p>}
+          {!ann.isFetching && !hasAnn && <p className="muted small">No annotations are available for this list{ann.error instanceof Error ? ` (${ann.error.message})` : ''}.</p>}
+          <div className="list-contents">
+            <table className="table">
+              <thead><tr><th className="num">#</th><th>ID</th>{scores && <th className="num">Score</th>}{hasAnn && <><th>Symbol</th><th>Ensembl ID</th><th>Description</th></>}</tr></thead>
+              <tbody>
+                {shown.slice(0, MAX_ROWS).map((r, i) => (
+                  <tr key={r.id}><td className="num muted">{i + 1}</td><td className="mono">{r.id}</td>{scores && <td className="num">{r.score}</td>}
+                    {hasAnn && (r.ann
+                      ? <><td>{r.ann.symbol}</td><td className="mono">{r.ann.converted}</td><td className="ann-desc">{r.ann.description?.replace(/ \[Source:.*\]$/, '')}</td></>
+                      : <td colSpan={3} className="muted">No annotation found</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {shown.length === 0 && <p className="muted small">No ID matches.</p>}
+            {shown.length > MAX_ROWS && <p className="muted small">Showing the first {MAX_ROWS} of {formatNum(shown.length)}. Use the search box, or Copy IDs for all of them.</p>}
+          </div>
+        </>
+      )}
+      {q.data && editing && (
+        <>
+          <p className="muted small">{list.ranked ? 'One "ID score" pair per line (tab, comma or space between them).' : 'One ID per line, or separated by commas, tabs or semicolons.'} Runs already made from this list keep their results; start a new run to analyse the edited list.</p>
+          <textarea className="input mono list-edit" rows={16} value={draft} aria-label="List contents" spellCheck={false} onChange={(e) => setText(e.target.value)} />
+        </>
+      )}
+    </Modal>
   )
 }
 
@@ -576,7 +715,7 @@ export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[]
   { kind: 'disease', title: 'Disease genes', text: 'Asthma: Open Targets, DisGeNET, OMIM, GWAS' },
   { kind: 'pubmed', title: 'PubMed genes', text: 'Genes of articles on glucocorticoids in airway muscle' },
   { kind: 'geo', title: 'GEO signature', text: 'GSE52778: dexamethasone vs untreated airway cells' },
-  { kind: 'dbsnp', title: 'dbSNP variants', text: 'Pathogenic APOE variants and their genes' },
+  { kind: 'clinvar', title: 'ClinVar variants', text: 'Pathogenic cystic fibrosis variants and their genes' },
   { kind: 'variants', title: 'Variants', text: 'rsIDs and VCF lines → genes and traits' },
   { kind: 'gwas', title: 'GWAS results', text: 'Summary statistics → loci, genes, traits' },
 ]
@@ -602,8 +741,9 @@ function ExamplesMenu({ onPick }: { onPick: (kind: string) => Promise<void> | vo
   )
 }
 
-type WorkspaceSection = 'enrich' | 'regulators' | 'variants' | 'tools'
+type WorkspaceSection = 'input' | 'enrich' | 'regulators' | 'variants' | 'tools'
 const SECTIONS: { id: WorkspaceSection; label: string; hint: string; icon: string }[] = [
+  { id: 'input', label: 'Input', hint: 'Add gene lists: paste, plots, databases', icon: 'upload' },
   { id: 'enrich', label: 'Enrichment', hint: 'ORA and GSEA of your lists, comparisons', icon: 'run' },
   { id: 'regulators', label: 'Regulators & drugs', hint: 'TFs, kinases, drugs, cell types, robustness', icon: 'regulators' },
   { id: 'variants', label: 'Variants & GWAS', hint: 'From variants to genes and traits', icon: 'variants' },
