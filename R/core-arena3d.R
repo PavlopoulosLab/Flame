@@ -63,7 +63,7 @@ arena3d_open <- function(body) {
   }
   out <- jsonlite::fromJSON(txt)
   if (!is.character(out$url) || !grepl("^https://(www\\.)?arena3d\\.org/", out$url)) stop("Arena3D returned an unexpected answer.")
-  list(url = out$url, layers = out$layers, nodes = out$nodes, edges = out$edges, warnings = as.list(out$warnings %||% list()))
+  list(url = out$url, layers = if (is.character(out$layers)) as.list(out$layers) else out$layers, nodes = out$nodes, edges = out$edges, warnings = as.list(out$warnings %||% list()))
 }
 
 .term_label <- function(t) substr(paste0(t$name, " (", t$id, ")"), 1, 200)

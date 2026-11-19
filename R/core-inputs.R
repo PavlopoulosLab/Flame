@@ -303,7 +303,7 @@ example_input <- function(kind = EXAMPLE_KINDS) {
     de_lists = {
       de <- airway()
       sig <- de$padj <= 0.05
-      list(up = de$gene[sig & de$log2FC >= 1], down = de$gene[sig & de$log2FC <= -1],
+      list(up = as.list(de$gene[sig & de$log2FC >= 1]), down = as.list(de$gene[sig & de$log2FC <= -1]),
            thresholds = list(log2FC = 1, padj = 0.05), source = EXAMPLE_SOURCES$airway)
     },
     volcano = {

@@ -290,7 +290,8 @@ variant_report <- function(mode, taxid, species, inputCount, skipped, ann, ph) {
     g <- do.call(rbind, agg)
     g[order(match(g$worstImpact, IMPACT_ORDER), -g$variants, g$bestP), , drop = FALSE]
   }
-  genes$score <- if (nrow(genes) && mode == "gwas") -log10(pmax(genes$bestP, 1e-300)) else NA_real_
+  # No variant in any gene leaves a 0-row table: adding a length-1 column to it would be an error.
+  if (nrow(genes)) genes$score <- if (mode == "gwas") -log10(pmax(genes$bestP, 1e-300)) else NA_real_
 
   traitSummary <- if (nrow(ph)) {
     agg <- lapply(split(ph, tolower(ph$trait)), function(d) list(

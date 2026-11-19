@@ -1,8 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, isWorkspaceId, setWorkspaceId } from './api/client'
 import { AppShell } from './components/Shell'
 import { ExportImageHost } from './components/ExportImage'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { ErrorNote, Spinner } from './components/ui'
 import HomePage from './pages/Home'
 
@@ -97,8 +98,10 @@ function LegacyImport() {
 }
 
 export default function App() {
+  const location = useLocation()
   return (
     <AppShell>
+      <ErrorBoundary resetKey={location.pathname}>
       <Suspense
         fallback={
           <div className="page-center">
@@ -149,6 +152,7 @@ export default function App() {
           <Route path="*" element={<ErrorNote error="Page not found." />} />
         </Routes>
       </Suspense>
+      </ErrorBoundary>
       <ExportImageHost />
     </AppShell>
   )

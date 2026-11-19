@@ -252,7 +252,7 @@ export function FileDrop({ accept, onText, maxBytes = 1024 * 1024 }: { accept: s
   const read = (file: File | undefined) => {
     if (!file) return
     if (file.size > maxBytes) {
-      setError(`The file is larger than ${Math.round(maxBytes / 1024)} KB.`)
+      setError(`This file is ${(file.size / 1024 / 1024).toFixed(1)} MB; the limit is ${Math.round(maxBytes / 1024)} KB. Upload a smaller file: for a gene list, only the column of IDs is needed.`)
       return
     }
     setError(null)

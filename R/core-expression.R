@@ -62,12 +62,12 @@ expression_overview <- function(x, topN = 1000L, k = 6L) {
   sampleOrder <- if (ncol(z) > 2) stats::hclust(stats::as.dist(1 - stats::cor(z)), method = "average")$order else seq_len(ncol(z))
   genes <- rownames(z)
   list(
-    samples = colnames(z)[sampleOrder], logged = x$logged, totalGenes = nrow(m), shownGenes = nrow(z), dropped = x$dropped,
+    samples = as.list(colnames(z)[sampleOrder]), logged = x$logged, totalGenes = nrow(m), shownGenes = nrow(z), dropped = x$dropped,
     genes = lapply(seq_along(genes), function(i) list(id = genes[i], cluster = cl[i], x = round(pc$x[i, 1], 3), y = round(pc$x[i, min(2, ncol(pc$x))], 3),
                                                       sd = round(stats::sd(sel[i, ]), 3))),
-    heatmap = list(genes = genes[ord], clusters = cl[ord], z = unname(lapply(ord, function(i) round(z[i, sampleOrder], 2)))),
+    heatmap = list(genes = as.list(genes[ord]), clusters = as.list(cl[ord]), z = unname(lapply(ord, function(i) as.list(unname(round(z[i, sampleOrder], 2)))))),
     clusterSizes = as.list(table(factor(cl, levels = seq_len(max(cl))))),
-    variance = var[seq_len(min(2, length(var)))]
+    variance = as.list(var[seq_len(min(2, length(var)))])
   )
 }
 

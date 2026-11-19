@@ -60,7 +60,7 @@ function(req, res) {
         src <- intersect(as.character(unlist(b$sources %||% c("GO:BP", "KEGG", "REAC"))), names(TOOLS[[ToolId$CLUSTERPROFILER]]$datasourceCodes))
         if (!length(src)) src <- c("GO:BP", "KEGG", "REAC")
         label <- paste0("Robustness of ", g$name, " (", paste(src, collapse = ", "), ")")
-        submit_task(ws, type, "enrichment_robustness", list(ids = g$ids, taxid = g$taxid, sources = src), label, b$listId, list(sources = src))
+        submit_task(ws, type, "enrichment_robustness", list(ids = g$ids, taxid = g$taxid, sources = src), label, b$listId, list(sources = as.list(src)))
       },
       metabolites = {
         text <- paste(as.character(unlist(b$text %||% "")), collapse = "\n")

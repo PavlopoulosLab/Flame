@@ -53,8 +53,9 @@ drug_connectivity <- function(up, down = character(0), kind = c("chemical", "cri
     list(agent = a, mimic = round(score(uu) + score(dd), 2), reverse = round(score(ud) + score(du), 2),
          upInUp = if (!is.null(uu)) uu$padj else NULL, downInDown = if (!is.null(dd)) dd$padj else NULL,
          upInDown = if (!is.null(ud)) ud$padj else NULL, downInUp = if (!is.null(du)) du$padj else NULL,
-         genesMimic = unique(c(strsplit(uu$genes %||% "", ",")[[1]], strsplit(dd$genes %||% "", ",")[[1]])),
-         genesReverse = unique(c(strsplit(ud$genes %||% "", ",")[[1]], strsplit(du$genes %||% "", ",")[[1]])))
+         # as.list: a signature overlapping the list in exactly one gene must stay a one-element array in JSON.
+         genesMimic = as.list(unique(c(strsplit(uu$genes %||% "", ",")[[1]], strsplit(dd$genes %||% "", ",")[[1]]))),
+         genesReverse = as.list(unique(c(strsplit(ud$genes %||% "", ",")[[1]], strsplit(du$genes %||% "", ",")[[1]]))))
   })
   ord <- function(key) utils::head(rows[order(-vapply(rows, `[[`, 0, key))], top)
   list(kind = kind, library = lib, upCount = length(up), downCount = length(down),
@@ -190,7 +191,7 @@ pathway_activity <- function(x, method = c("ssgsea", "zscore", "progeny"), sourc
   s <- scores[keep, , drop = FALSE]
   ord <- if (nrow(s) > 2) stats::hclust(stats::dist(s))$order else seq_len(nrow(s))
   list(method = method, citation = cite, samples = as.list(colnames(s)), pathways = as.list(rownames(s)[ord]),
-       scores = unname(lapply(ord, function(i) round(s[i, ], 3))), totalPathways = nrow(scores))
+       scores = unname(lapply(ord, function(i) as.list(unname(round(s[i, ], 3))))), totalPathways = nrow(scores))
 }
 
 # ---- Metabolites: KEGG pathway enrichment -----------------------------------

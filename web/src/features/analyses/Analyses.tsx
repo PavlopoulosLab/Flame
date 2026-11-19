@@ -281,7 +281,9 @@ function DrugsView({ r }: { r: DrugResult }) {
   const selV = usePlainSelection(sel, null) // none while an image is exported without highlighting
   const rows = (dir === 'reverse' ? r.reverse : r.mimic).slice(0, 30)
   const picked = rows.find((x) => x.agent === sel)
-  const genesOf = (x: DrugRow) => (dir === 'reverse' ? x.genesReverse : x.genesMimic)
+  // Results saved before the server fix can hold a single gene as a bare string: always work with an array.
+  const genesIn = (x: DrugRow, d: 'mimic' | 'reverse') => { const g: unknown = d === 'reverse' ? x.genesReverse : x.genesMimic; return Array.isArray(g) ? (g as string[]) : g ? [String(g)] : [] }
+  const genesOf = (x: DrugRow) => genesIn(x, dir === 'reverse' ? 'reverse' : 'mimic')
   const exp = rows.map((x) => ({ agent: x.agent, score: x[dir], up_genes_p: dir === 'reverse' ? x.upInDown : x.upInUp, down_genes_p: dir === 'reverse' ? x.downInUp : x.downInDown, genes: genesOf(x).join(', ') }))
   return (
     <div className="stack">
@@ -294,7 +296,7 @@ function DrugsView({ r }: { r: DrugResult }) {
           (['reverse', 'mimic'] as const).map((d) => ({ name: d === 'reverse' ? 'Reverse' : 'Mimic', rows: r[d].map((x) => ({
             [r.kind === 'crispr' ? 'Knock-out' : 'Compound']: x.agent, Score: x[d],
             'Up genes, adj. p': d === 'reverse' ? x.upInDown ?? '' : x.upInUp ?? '', 'Down genes, adj. p': d === 'reverse' ? x.downInUp ?? '' : x.downInDown ?? '',
-            Genes: (d === 'reverse' ? x.genesReverse : x.genesMimic).join(', ') })) })), 'flame_lincs_signatures.xlsx')}>Excel</button>
+            Genes: genesIn(x, d === 'reverse' ? 'reverse' : 'mimic').join(', ') })) })), 'flame_lincs_signatures.xlsx')}>Excel</button>
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(exp, Object.keys(exp[0] ?? {}).map((k) => ({ key: k, label: k }))), `flame_lincs_${dir}.csv`, 'text/csv')}>CSV</button>
       </div>
       {rows.length === 0 ? <Note kind="info">No signature {dir === 'reverse' ? 'reverses' : 'mimics'} this response significantly.</Note> : (

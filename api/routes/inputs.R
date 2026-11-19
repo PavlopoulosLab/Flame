@@ -47,6 +47,7 @@ function(req, res) {
            else parse_id_text(.text_arg(b), isTRUE(b$skipFirstRow))
     out$ids <- as.list(out$ids)
     if (!is.null(out$scores)) out$scores <- as.list(out$scores)
+    out$invalidExamples <- as.list(out$invalidExamples)   # a single example must stay a list, not become a bare string
     out
   })
 }

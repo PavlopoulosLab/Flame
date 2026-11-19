@@ -152,6 +152,8 @@ export function SaveList({
 
 // ---- Paste / upload ---------------------------------------------------------
 
+const MAX_PASTE_CHARS = 1024 * 1024
+
 function UploadPaste({ example, onClose, onCreated, title }: P) {
   const [text, setText] = useState('')
   const [skip, setSkip] = useState(false)
@@ -166,8 +168,15 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
       setParsed(null)
       return
     }
+    // Larger than the server accepts: say so here, with what to do, instead of sending it.
+    if (text.length > MAX_PASTE_CHARS) {
+      setParsed(null)
+      setErr(new Error(`This is ${(text.length / 1024 / 1024).toFixed(1)} MB of text; the limit is 1 MB. A list holds up to 3,000 IDs (30,000 with scores), so paste only the column of gene IDs. For a full expression table use “From expression data”, and for differential-expression results “From a volcano plot”.`))
+      return
+    }
+    setErr(null)
     const h = setTimeout(() => {
-      api<typeof parsed>('/inputs/upload/parse', { body: { text, skipFirstRow: skip, ranked } }).then(setParsed).catch(setErr)
+      api<typeof parsed>('/inputs/upload/parse', { body: { text, skipFirstRow: skip, ranked } }).then(setParsed).catch((e) => { setParsed(null); setErr(e) })
     }, 300)
     return () => clearTimeout(h)
   }, [text, skip, ranked])
@@ -189,7 +198,7 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
         <Note kind={parsed.invalid ? 'warning' : 'success'}>
           {plural(parsed.unique, 'unique ID')}
           {parsed.duplicates ? ` · ${parsed.duplicates} duplicates removed` : ''}
-          {parsed.invalid ? ` · ${parsed.invalid} skipped (e.g. ${parsed.invalidExamples.slice(0, 3).join(', ')})` : ''}
+          {parsed.invalid ? ` · ${parsed.invalid} skipped (e.g. ${[parsed.invalidExamples ?? []].flat().slice(0, 3).join(', ')})` : ''}
         </Note>
       )}
       <ExampleSource text={ex.source} loading={ex.loading} />

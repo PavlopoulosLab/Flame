@@ -305,7 +305,7 @@ norma_payload_for_view <- function(results, view, filters = list(), top = 20L,
   for (t in terms) expression[[label(t$id)]] <- round(t$log10p, 3)
   list(name = substr(name, 1, 80), edges = edges, groups = groups,
        expression = if (view == "network-gg") NULL else expression,
-       settings = list(layout = "fr", showGroupHulls = TRUE))
+       settings = list(layout = "fr", showGroupHulls = TRUE, nodeFillSelect = "groups"))
 }
 
 #' A comparison as a NORMA network: the terms are the nodes, linked when they share genes, and
@@ -342,9 +342,13 @@ norma_payload_for_comparison <- function(cs, filters = list(), top = 30L, sortBy
   for (i in seq_len(n)) if (lab[i] %in% inNet) expression[[lab[i]]] <- round(-log10(max(terms[[i]]$combPvalue %||% 1, 1e-300)), 3)
   list(name = substr(paste0(name, if (length(sources)) paste0(" - ", paste(sources, collapse = ", ")) else ""), 1, 80),
        edges = edges, groups = groups, expression = expression,
-       settings = list(layout = "fr", showGroupHulls = TRUE),
+       settings = list(layout = "fr", showGroupHulls = TRUE, nodeFillSelect = "groups"),
        .info = list(terms = length(inNet), dropped = n - length(inNet), groups = length(groups)))
 }
+
+# Both payloads above set nodeFillSelect = "groups": when `expression` values are sent, NORMA would otherwise
+# colour nodes by those values, and a node in several groups would not be drawn as a pie chart. The values stay
+# available in NORMA (Colors > Node fill > numeric values).
 
 #' Send a payload to NORMA; returns the link that opens it (valid 24 h).
 norma_export <- function(payload) {

@@ -301,7 +301,7 @@ function GeoPicker({ data, onResult, call }: {
         <thead><tr><th>Series</th><th>Comparison</th><th>Direction</th><th>Genes</th><th>Species</th><th /></tr></thead>
         <tbody>{data.sets.map((s) => (
           <tr key={s.id} className={pick === s.id ? 'selected' : ''}>
-            <td><a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${s.gse.split(',')[0]}`} target="_blank" rel="noopener noreferrer">{s.gse}</a><div className="muted small">{s.title}</div></td>
+            <td><a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${String(s.gse ?? '').split(',')[0]}`} target="_blank" rel="noopener noreferrer">{s.gse}</a><div className="muted small">{s.title}</div></td>
             <td className="small">{s.contrast ? <><strong>{s.contrast.b}</strong> vs {s.contrast.a}</> : s.term}</td>
             <td><span className={`dir-chip ${s.direction}`}>{s.direction === 'up' ? '▲ up' : s.direction === 'down' ? '▼ down' : '—'}</span></td>
             <td>{s.size}</td><td>{s.species}</td>

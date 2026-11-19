@@ -138,7 +138,7 @@ disease_gwas_variants <- function(id, max = 500L, pmax = 5e-8) {
       p <- suppressWarnings(as.numeric(x$p_value))
       if (!is.finite(p) || p > pmax) next
       rs <- vapply(x$snp_allele %||% list(), function(s) s$rs_id %||% "", "")
-      for (r in rs[grepl("^rs[0-9]+$", rs)]) out[[length(out) + 1]] <- list(rsid = r, p = p, genes = unlist(x$mapped_genes), study = x$accession_id, pmid = x$pubmed_id, trait = paste(unlist(x$reported_trait), collapse = "; "))
+      for (r in rs[grepl("^rs[0-9]+$", rs)]) out[[length(out) + 1]] <- list(rsid = r, p = p, genes = as.list(as.character(unlist(x$mapped_genes))), study = x$accession_id, pmid = x$pubmed_id, trait = paste(unlist(x$reported_trait), collapse = "; "))
     }
     page <- page + 1L
     if (length(out) >= max || page >= (d$page$totalPages %||% 1L) || page >= 10) break
@@ -146,7 +146,7 @@ disease_gwas_variants <- function(id, max = 500L, pmax = 5e-8) {
   if (!length(out)) return(list(variants = list(), genes = list(), total = 0L))
   best <- out[!duplicated(vapply(out, `[[`, "", "rsid"))]
   best <- utils::head(best, max)
-  gcount <- table(unlist(lapply(best, function(v) unique(unlist(strsplit(v$genes %||% character(0), ",\\s*"))))))
+  gcount <- table(unlist(lapply(best, function(v) unique(unlist(strsplit(as.character(unlist(v$genes)), ",\\s*"))))))
   gcount <- sort(gcount[nzchar(names(gcount))], decreasing = TRUE)
   list(variants = best, total = length(best),
        genes = lapply(names(gcount), function(g) list(gene = g, variants = as.integer(gcount[[g]]))),
@@ -218,7 +218,7 @@ geo_search <- function(query, size = 40L) {
     m <- regmatches(x$term, regexec("-([0-9]+)-vs-([0-9]+)-", x$term))[[1]]
     ttl <- function(k) { t <- groups$titles[[k]] %||% paste("group", k); n <- length(groups$samples[[k]] %||% list()); if (n) sprintf("%s (n = %d)", t, n) else t }
     contrast <- if (length(m) == 3) list(a = ttl(m[2]), b = ttl(m[3])) else NULL
-    list(id = x$id, term = x$term, gse = x$gse, title = x$title, size = x$geneSetById$nGeneIds, species = x$geneSetById$species,
+    list(id = x$id, term = x$term, gse = as.character(x$gse %||% ""), title = x$title %||% "", size = x$geneSetById$nGeneIds, species = x$geneSetById$species,
          direction = if (grepl(" up$", x$term)) "up" else if (grepl(" dn$", x$term)) "down" else "",
          contrast = contrast)
   }))

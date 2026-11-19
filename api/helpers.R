@@ -270,6 +270,14 @@ create_list <- function(ws, name, ids, taxid = 9606L, analyte = "GENE",
 
 # ---- Runs -------------------------------------------------------------------
 
+#' Stored run parameters, with `datasources` always a list: read back from JSON, a run with one
+#' annotation source (every custom-GMT run, for instance) would otherwise send it as a bare string.
+.run_params <- function(json) {
+  p <- from_json(json)
+  if (is.list(p) && !is.null(p$datasources)) p$datasources <- as.list(as.character(unlist(p$datasources)))
+  p
+}
+
 run_row_to_obj <- function(r) {
   org <- ORGANISMS[ORGANISMS$taxid == r$taxid, , drop = FALSE]
   list(
@@ -279,7 +287,7 @@ run_row_to_obj <- function(r) {
     listName = r$list_name, backgroundList = if (is.na(r$bg_list_name)) NULL else r$bg_list_name,
     organismTaxId = r$taxid,
     organismName = if (nrow(org) > 0) as.character(org$print_name[1]) else as.character(r$taxid),
-    params = from_json(r$params_json),
+    params = .run_params(r$params_json),
     status = r$status, error = if (is.na(r$error)) NULL else r$error,
     resultCount = if (is.na(r$result_count)) NULL else r$result_count,
     messages = as.list(from_json(r$messages_json) %||% character(0)),
