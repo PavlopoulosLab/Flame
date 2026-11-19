@@ -107,6 +107,7 @@ apply_top_sort <- function(data, top = 20L, sortBy = "-log10Pvalue") {
     nes = .num(df$NES %||% NA),
     stringsAsFactors = FALSE
   )
+  if ("Represents" %in% names(df)) { out$represents <- as.integer(df$Represents); out$merged <- as.character(df$Merged) }
   .records(out)
 }
 
@@ -192,9 +193,16 @@ build_view <- function(results, view, filters = list(), top = 20L,
   total <- if (is.null(results)) 0L else nrow(results)
   filtered <- apply_result_filters(results, filters)
   filteredCount <- if (is.null(filtered)) 0L else nrow(filtered)
+  # Optional: one representative term per group of overlapping terms (before ranking, so "top N" are N distinct groups).
+  reduction <- NULL
+  if (isTRUE(filters$reduce) && filteredCount > 1) {
+    cutoff <- .num(filters$reduceCutoff %||% 0.5); if (!is.finite(cutoff)) cutoff <- 0.5
+    filtered <- reduce_redundancy(filtered, cutoff)
+    reduction <- list(before = filteredCount, after = nrow(filtered), cutoff = cutoff)
+  }
   data <- apply_top_sort(filtered, top, sortBy)
 
-  meta <- list(view = view, totalCount = total, filteredCount = filteredCount,
+  meta <- list(view = view, totalCount = total, filteredCount = filteredCount, reduction = reduction,
                shownCount = if (is.null(data)) 0L else nrow(data),
                availableSources = if (total > 0) as.list(sort(unique(as.character(results$Source)))) else list(),
                sortBy = sortBy, top = top)

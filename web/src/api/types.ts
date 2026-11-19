@@ -138,6 +138,9 @@ export interface Term {
   genes: string
   link: string | null
   nes?: number | null
+  /** With redundancy reduction: how many terms this one stands for (itself included) and the merged ones as "name (ID) | …". */
+  represents?: number
+  merged?: string
 }
 
 export interface NetworkNode {
@@ -166,6 +169,8 @@ export interface ViewData {
   filteredCount: number
   shownCount: number
   availableSources: string[]
+  /** Set when redundancy reduction is on: terms before and after, and the overlap cut-off used. */
+  reduction?: { before: number; after: number; cutoff: number } | null
   terms: Term[]
   cells?: Record<string, string | number>[]
   network?: { nodes: NetworkNode[]; edges: NetworkEdge[]; layout: string }
@@ -173,6 +178,10 @@ export interface ViewData {
 
 export interface ResultFilters {
   sources?: string[]
+  /** Keep one representative term per group of overlapping terms. */
+  reduce?: boolean
+  /** Jaccard overlap of the genes found (0.2–0.9) above which two terms are merged. */
+  reduceCutoff?: number
   search?: string
   pvalueMax?: number | null
   termSizeMin?: number | null

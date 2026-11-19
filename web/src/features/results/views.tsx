@@ -64,7 +64,7 @@ function bySource(terms: Term[]) {
 }
 
 const hover = (t: Term) =>
-  `<b>${escapeForPlotly(t.name)}</b><br>${escapeForPlotly(t.id)} · ${escapeForPlotly(t.source)}<br>p = ${formatP(t.pvalue)}<br>Genes: ${t.intersection} of ${t.termSize}${t.nes != null ? `<br>NES = ${t.nes.toFixed(2)}` : ''}`
+  `<b>${escapeForPlotly(t.name)}</b><br>${escapeForPlotly(t.id)} · ${escapeForPlotly(t.source)}<br>p = ${formatP(t.pvalue)}<br>Genes: ${t.intersection} of ${t.termSize}${t.nes != null ? `<br>NES = ${t.nes.toFixed(2)}` : ''}${(t.represents ?? 1) > 1 ? `<br>Represents ${t.represents! - 1} similar term${t.represents === 2 ? '' : 's'}` : ''}`
 
 // Plotly hovertext accepts a small HTML subset; escape data so names render as text.
 function escapeForPlotly(s: string) {
@@ -275,6 +275,20 @@ function GenesCell({ genes }: { genes: string }) {
 
 const truncate = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s)
 
+/** A representative term with the similar terms it stands for (redundancy reduction), listed on demand. */
+function MergedTerms({ term }: { term: Term }) {
+  const [open, setOpen] = useState(false)
+  const merged = (term.merged ?? '').split(' | ').filter(Boolean)
+  return (
+    <>
+      {term.name}{' '}
+      <button type="button" className="gene-list-toggle merged-toggle" aria-expanded={open} title={`This term represents ${merged.length} similar, less significant term${merged.length === 1 ? '' : 's'} — click to ${open ? 'hide' : 'list'} them`}
+        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o) }}>+{merged.length} similar {open ? '▴' : '▾'}</button>
+      {open && <ul className="merged-terms">{merged.map((m) => <li key={m}>{m}</li>)}</ul>}
+    </>
+  )
+}
+
 export const TABLE_COLUMNS: { key: keyof Term | 'genesCount'; label: string; numeric?: boolean }[] = [
   { key: 'source', label: 'Source' }, { key: 'id', label: 'Term ID' }, { key: 'name', label: 'Term' },
   { key: 'pvalue', label: 'P-value', numeric: true }, { key: 'log10p', label: '−log10 p', numeric: true },
@@ -318,6 +332,7 @@ export function TableView({ data, config, selected, onSelect, columns, runId }: 
                   {c.key === 'source' ? <span className="source-tag" style={{ borderColor: colorOf(t.source) }}>{t.source}</span>
                     : c.key === 'id' && runId && isKeggTerm(t) ? <KeggMapLink runId={runId} term={t} />
                     : c.key === 'id' && isHttpUrl(t.link) ? <a href={t.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{t.id}</a>
+                    : c.key === 'name' && (t.represents ?? 1) > 1 ? <MergedTerms term={t} />
                     : c.key === 'genes' ? <GenesCell genes={t.genes} />
                     : c.key === 'pvalue' ? formatP(t.pvalue)
                     : c.numeric ? formatNum(t[c.key as keyof Term] as number)

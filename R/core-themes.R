@@ -78,6 +78,57 @@ term_themes <- function(terms, cutoff = 0.35, maxTerms = 800L) {
        method = "Terms linked when they share genes (Jaccard >= cutoff), grouped by Louvain community detection.")
 }
 
+#' Reduce redundancy: keep one representative term per group of overlapping terms.
+#'
+#' Terms are taken from the most to the least significant. Each term not yet covered
+#' becomes a representative and absorbs every less significant term of the same
+#' annotation source whose genes overlap its own by at least `cutoff` (Jaccard index of
+#' the genes of the list found in each term). This is the greedy scheme of
+#' clusterProfiler::simplify() and REVIGO, with gene overlap instead of semantic
+#' similarity, so it works for every source (GO, KEGG, Reactome, custom sets...).
+#' Jaccard (not containment) is used on purpose: a small specific term is not swallowed
+#' by a broad one that merely contains it.
+#'
+#' Returns the representative rows of `df` with two extra columns: `Represents`
+#' (how many terms the row stands for, itself included) and `Merged` (the absorbed
+#' terms as "name (ID)", separated by " | ").
+reduce_redundancy <- function(df, cutoff = 0.5, maxTerms = 3000L) {
+  if (is.null(df) || nrow(df) == 0) return(df)
+  cutoff <- suppressWarnings(as.numeric(cutoff)[1]); if (!is.finite(cutoff)) cutoff <- 0.5
+  cutoff <- min(max(cutoff, 0.1), 1)
+  df$Represents <- 1L; df$Merged <- ""
+  n <- nrow(df)
+  if (n < 2) return(df)
+  ord <- order(.num(df$`P-value`), na.last = TRUE)
+  work <- utils::head(ord, maxTerms)                      # the rest (least significant) stay as they are
+  m <- length(work)
+  gl <- lapply(as.character(df$`Positive Hits`[work]), function(g) unique(.split_hits(g)))
+  allGenes <- unique(unlist(gl))
+  if (!length(allGenes)) return(df)
+  inc <- Matrix::sparseMatrix(i = rep(seq_len(m), lengths(gl)), j = match(unlist(gl), allGenes), x = 1, dims = c(m, length(allGenes)))
+  inter <- as.matrix(Matrix::tcrossprod(inc))
+  sz <- lengths(gl)
+  jac <- inter / (outer(sz, sz, "+") - inter)
+  jac[!is.finite(jac)] <- 0
+  src <- as.character(df$Source[work])
+  ids <- as.character(df$Term_ID_noLinks %||% df$Term_ID)[work]
+  nms <- as.character(df$Function[work])
+  rep <- integer(m)
+  for (i in seq_len(m)) {
+    if (rep[i] != 0L) next
+    rep[i] <- i
+    absorbed <- which(rep == 0L & jac[i, ] >= cutoff & src == src[i])
+    if (length(absorbed)) {
+      rep[absorbed] <- i
+      df$Represents[work[i]] <- 1L + length(absorbed)
+      df$Merged[work[i]] <- paste(sprintf("%s (%s)", nms[absorbed], ids[absorbed]), collapse = " | ")
+    }
+  }
+  keep <- rep(TRUE, n)
+  keep[work[rep != seq_len(m)]] <- FALSE
+  df[keep, , drop = FALSE]
+}
+
 #' Themes for one run (filtered results)
 run_themes <- function(results, filters = list(), cutoff = 0.35) {
   df <- apply_result_filters(results, filters)

@@ -284,6 +284,22 @@ function ResultsPageBody() {
                 <input className="input" type="number" step="any" min="0" value={filters.pvalueMax ?? ''} placeholder="any"
                   onChange={(e) => setFilters({ ...filters, pvalueMax: e.target.value ? Number(e.target.value) : null })} />
               </Field>
+              <div className="field reduce-box">
+                <label className="check"><input type="checkbox" checked={!!filters.reduce} onChange={(e) => setFilters({ ...filters, reduce: e.target.checked || undefined })} /> <strong>Reduce redundancy</strong></label>
+                <span className="muted small">Keep one representative term for each group of terms that share most of their genes.</span>
+                {filters.reduce && (
+                  <>
+                    <label className="small" htmlFor="reduce-cutoff">Merge terms sharing at least <strong>{Math.round((filters.reduceCutoff ?? 0.5) * 100)}%</strong> of their genes</label>
+                    <input id="reduce-cutoff" type="range" min={0.2} max={0.9} step={0.05} value={filters.reduceCutoff ?? 0.5} onChange={(e) => setFilters({ ...filters, reduceCutoff: Number(e.target.value) })} />
+                    <span className="muted small">Lower = fewer, broader groups. Only terms of the same source are merged; the most significant term represents each group.</span>
+                    {q.data?.reduction && <span className="small"><strong>{q.data.reduction.before.toLocaleString()}</strong> terms → <strong>{q.data.reduction.after.toLocaleString()}</strong> representative terms</span>}
+                  </>
+                )}
+              </div>
+              <div className="field">
+                <span className="field-label">Very broad terms</span>
+                <label className="check small"><input type="checkbox" checked={filters.termSizeMax === 1000} onChange={(e) => setFilters({ ...filters, termSizeMax: e.target.checked ? 1000 : null })} /> Hide terms with more than 1,000 genes</label>
+              </div>
               <details>
                 <summary className="small">More filters</summary>
                 {([['termSize', 'Term size'], ['intersection', 'Genes found'], ['termCoverage', 'Coverage %']] as const).map(([k, lab]) => (
@@ -296,7 +312,7 @@ function ResultsPageBody() {
                   </div>
                 ))}
               </details>
-              <p className="muted small">{q.data ? `${q.data.filteredCount} of ${q.data.totalCount} terms match` : ''}</p>
+              <p className="muted small">{q.data ? `${q.data.filteredCount} of ${q.data.totalCount} terms match${q.data.reduction ? `, shown as ${q.data.reduction.after} representative terms` : ''}` : ''}</p>
               <button className="btn btn-ghost btn-sm" onClick={() => setFilters({})}>Reset filters</button>
             </aside>
 

@@ -354,3 +354,9 @@ h1 { letter-spacing: -0.01em; }
 
 /* List actions menu: fixed to the viewport so the lists panel cannot clip it. */
 .list-menu { position: fixed; right: auto; width: 200px; min-width: 0; overflow-y: auto; z-index: 60; display: flex; flex-direction: column; }
+
+/* Results: redundancy reduction. */
+.reduce-box { display: flex; flex-direction: column; gap: 4px; padding: 8px; border: 1px solid var(--border-color); border-radius: var(--radius-md); }
+.reduce-box input[type="range"] { width: 100%; }
+.merged-toggle { white-space: nowrap; }
+.merged-terms { margin: 4px 0 2px; padding-left: 16px; font-size: 0.75rem; color: var(--muted-color); }
