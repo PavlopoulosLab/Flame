@@ -237,22 +237,6 @@ function ResultsPageBody() {
         <Note kind="warning">No significant terms were found. Try more annotation sources, a looser threshold, or another tool.</Note>
       ) : (
         <>
-          {sources.length > 1 && (
-            <nav className="source-tabs" role="tablist" aria-label="Annotation source">
-              <button type="button" role="tab" aria-selected={sourceTab === 'all'} className={`source-tab${sourceTab === 'all' ? ' active' : ''}`}
-                onClick={() => setFilters({ ...filters, sources: undefined })}>
-                All sources <span className="count">{(all.data?.terms ?? []).length.toLocaleString()}</span>
-              </button>
-              {sources.map((src) => (
-                <button key={src} type="button" role="tab" aria-selected={sourceTab === src} className={`source-tab${sourceTab === src ? ' active' : ''}`}
-                  style={{ '--src-color': sourceColor(src) } as CSSProperties} title={`Show only ${src} in every view`}
-                  onClick={() => setFilters({ ...filters, sources: [src] })}>
-                  {src} <span className="count">{(sourceCounts.get(src) ?? 0).toLocaleString()}</span>
-                </button>
-              ))}
-              {sourceTab === null && <span className="muted small">{filters.sources?.length} sources shown (set in Filters)</span>}
-            </nav>
-          )}
           <nav className="view-tabs" aria-label="Result views">
             {tabOrder.map((id) => {
               const t = tabs.find((x) => x.tabId === id)
@@ -282,6 +266,22 @@ function ResultsPageBody() {
               )}
             </div>
           </nav>
+          {view === 'table' && sources.length > 1 && (
+            <nav className="source-tabs sub-tabs" role="tablist" aria-label="Annotation source">
+              <button type="button" role="tab" aria-selected={sourceTab === 'all'} className={`source-tab${sourceTab === 'all' ? ' active' : ''}`}
+                onClick={() => setFilters({ ...filters, sources: undefined })}>
+                All sources <span className="count">{(all.data?.terms ?? []).length.toLocaleString()}</span>
+              </button>
+              {sources.map((src) => (
+                <button key={src} type="button" role="tab" aria-selected={sourceTab === src} className={`source-tab${sourceTab === src ? ' active' : ''}`}
+                  style={{ '--src-color': sourceColor(src) } as CSSProperties} title={`Show only ${src} terms`}
+                  onClick={() => setFilters({ ...filters, sources: [src] })}>
+                  {src} <span className="count">{(sourceCounts.get(src) ?? 0).toLocaleString()}</span>
+                </button>
+              ))}
+              {sourceTab === null && <span className="muted small">{filters.sources?.length} sources shown (set in Filters)</span>}
+            </nav>
+          )}
 
           <div className="results-body">
             <aside className="filters" aria-label="Your lists and filters">

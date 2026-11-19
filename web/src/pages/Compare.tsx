@@ -201,15 +201,21 @@ function ComparePageBody() {
           sources={allSources} counts={sourceCounts} shown={filters.sources?.length ? filters.sources : allSources}
           runLabels={runs.filter((r) => activeRuns.includes(r.id)).map((r) => r.label)} />
       )}
-      {allSources.length > 1 && (
-        <nav className="source-tabs" role="tablist" aria-label="Annotation source">
+      <nav className="view-tabs" aria-label="Comparison views">
+        {(['table', 'ranks', 'themes', 'overview', 'stats', 'upset', 'network', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
+          <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
+            { table: 'Table', ranks: 'Ranks', themes: 'Themes', overview: 'Overview', stats: 'Statistics', upset: 'Overlap (UpSet)', network: 'Network (runs–terms)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
+        ))}
+      </nav>
+      {view === 'table' && allSources.length > 1 && (
+        <nav className="source-tabs sub-tabs" role="tablist" aria-label="Annotation source">
           <button type="button" role="tab" aria-selected={sourceTab === 'all'} className={`source-tab${sourceTab === 'all' ? ' active' : ''}`}
             onClick={() => setFilters({ ...filters, sources: undefined })}>
             All sources <span className="count">{(all.data?.terms ?? []).length.toLocaleString()}</span>
           </button>
           {allSources.map((src) => (
             <button key={src} type="button" role="tab" aria-selected={sourceTab === src} className={`source-tab${sourceTab === src ? ' active' : ''}`}
-              style={{ '--src-color': config.datasourceColors[src] ?? '#a1a1aa' } as CSSProperties} title={`Compare the runs on ${src} only, in every view`}
+              style={{ '--src-color': config.datasourceColors[src] ?? '#a1a1aa' } as CSSProperties} title={`Show only ${src} terms`}
               onClick={() => setFilters({ ...filters, sources: [src] })}>
               {src} <span className="count">{(sourceCounts.get(src) ?? 0).toLocaleString()}</span>
             </button>
@@ -217,12 +223,6 @@ function ComparePageBody() {
           {sourceTab === null && <span className="muted small">{filters.sources?.length} sources shown (set in Filters)</span>}
         </nav>
       )}
-      <nav className="view-tabs" aria-label="Comparison views">
-        {(['table', 'ranks', 'themes', 'overview', 'stats', 'upset', 'network', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
-          <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
-            { table: 'Table', ranks: 'Ranks', themes: 'Themes', overview: 'Overview', stats: 'Statistics', upset: 'Overlap (UpSet)', network: 'Network (runs–terms)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
-        ))}
-      </nav>
 
       <div className="results-body">
         <aside className="filters" aria-label="Your lists and filters">
