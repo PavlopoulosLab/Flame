@@ -308,6 +308,44 @@ norma_payload_for_view <- function(results, view, filters = list(), top = 20L,
        settings = list(layout = "fr", showGroupHulls = TRUE))
 }
 
+#' A comparison as a NORMA network: the terms are the nodes, linked when they share genes, and
+#' each compared run (tool or list) is an annotation group holding the terms it found - so NORMA
+#' draws one hull per run and terms found by several runs sit in several hulls.
+#' `sources` optionally restricts the export to some annotation sources (e.g. "GO:BP").
+norma_payload_for_comparison <- function(cs, filters = list(), top = 30L, sortBy = "-log10Pvalue", sources = NULL,
+                                         name = "Flame comparison") {
+  # The top `top` terms of each chosen category.
+  x <- comparison_terms_by_source(cs, filters, sources, top, sortBy)
+  terms <- x$terms
+  runs <- x$runs
+  sources <- if (length(unlist(sources))) x$sources else character(0)
+  lab <- vapply(terms, .term_label, "")
+  genes <- lapply(terms, function(t) unique(.split_hits(t$unionHits)))
+  # Term-term links: Jaccard index of the genes found for each term (by any run).
+  edges <- list()
+  n <- length(terms)
+  if (n > 1) for (i in seq_len(n - 1)) for (j in (i + 1):n) {
+    shared <- length(intersect(genes[[i]], genes[[j]]))
+    if (shared < 1) next
+    w <- shared / length(union(genes[[i]], genes[[j]]))
+    if (w >= 0.1) edges[[length(edges) + 1]] <- list(source = lab[i], target = lab[j], weight = round(w, 3))
+  }
+  if (!length(edges)) stop("The terms shown do not share genes, so there is no network to send. Show more terms or another category.")
+  inNet <- unique(c(vapply(edges, function(e) e$source, ""), vapply(edges, function(e) e$target, "")))
+  groups <- list()
+  for (r in runs) {
+    members <- lab[vapply(terms, function(t) r$id %in% unlist(t$runIds), TRUE)]
+    members <- intersect(members, inNet)
+    if (length(members)) groups[[substr(gsub("[^A-Za-z0-9 ()_.-]", "", r$label), 1, 60)]] <- as.list(members)
+  }
+  expression <- list()
+  for (i in seq_len(n)) if (lab[i] %in% inNet) expression[[lab[i]]] <- round(-log10(max(terms[[i]]$combPvalue %||% 1, 1e-300)), 3)
+  list(name = substr(paste0(name, if (length(sources)) paste0(" - ", paste(sources, collapse = ", ")) else ""), 1, 80),
+       edges = edges, groups = groups, expression = expression,
+       settings = list(layout = "fr", showGroupHulls = TRUE),
+       .info = list(terms = length(inNet), dropped = n - length(inNet), groups = length(groups)))
+}
+
 #' Send a payload to NORMA; returns the link that opens it (valid 24 h).
 norma_export <- function(payload) {
   resp <- httr::POST(NORMA_API_URL, body = jsonlite::toJSON(payload, auto_unbox = TRUE, null = "null"),

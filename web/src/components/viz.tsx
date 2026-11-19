@@ -163,63 +163,150 @@ export function HivePlot({ axes, nodes, links, onSelect, selected, size = 640, s
 // ---------------------------------------------------------------------------
 // UpSet plot of items shared between sets (exclusive intersections).
 // ---------------------------------------------------------------------------
+type UpsetBarMode = 'distinct' | 'intersection' | 'union'
+const UPSET_BAR_MODES: { value: UpsetBarMode; label: string; help: string }[] = [
+  { value: 'distinct', label: 'Only in', help: 'found by exactly these sets and no other (the bars never overlap, so any set operation is a choice of bars)' },
+  { value: 'intersection', label: 'Shared by', help: 'found by all of these sets, whether or not others found them too' },
+  { value: 'union', label: 'Union of', help: 'found by at least one of these sets' },
+]
+
 export function SetOverlapUpSet({ sets, membership, colors, onSelect, describe, itemNoun = 'terms', exportName = 'flame_upset' }: {
   sets: { id: string; label: string }[]; membership: { item: string; sets: string[] }[]; colors: string[]
   onSelect?: (items: string[]) => void
   /** Readable name for an item (e.g. term name), used when copying. */
   describe?: (item: string) => string; itemNoun?: string; exportName?: string
 }) {
-  const [active, setActive] = useState<{ key: string; items: string[] } | null>(null)
-  const comboName = (key: string) => sets.filter((_, i) => key[i] === '1').map((s) => s.label).join(' + ')
-  const combos = useMemo(() => {
+  const [mode, setMode] = useState<UpsetBarMode>('distinct')
+  const [picked, setPicked] = useState<string[]>([])   // keys ("1010") of the selected bars
+  const n = sets.length
+  const MAX_BARS = 48
+  const comboName = (key: string, m: UpsetBarMode = mode) => {
+    const names = sets.filter((_, i) => key[i] === '1').map((s) => s.label)
+    return m === 'distinct' ? `Only ${names.join(' + ')}` : m === 'intersection' ? names.join(' ∩ ') : names.join(' ∪ ')
+  }
+  // Each item's membership as a bit string, e.g. "101" = found by the first and third set.
+  const keyed = useMemo(() => membership.map(({ item, sets: s }) => ({ item, key: sets.map((x) => (s.includes(x.id) ? '1' : '0')).join('') })).filter((x) => x.key.includes('1')), [sets, membership])
+  const exclusive = useMemo(() => {
     const m = new Map<string, string[]>()
-    membership.forEach(({ item, sets: s }) => {
-      const key = sets.map((x) => (s.includes(x.id) ? '1' : '0')).join('')
-      if (key.includes('1')) m.set(key, [...(m.get(key) ?? []), item])
-    })
-    return [...m.entries()].map(([key, items]) => ({ key, items })).sort((a, b) => b.items.length - a.items.length)
-  }, [sets, membership])
-  const sizes = sets.map((s) => membership.filter((m) => m.sets.includes(s.id)).length)
+    keyed.forEach(({ item, key }) => m.set(key, [...(m.get(key) ?? []), item]))
+    return m
+  }, [keyed])
+  const { combos, hidden } = useMemo(() => {
+    let out: { key: string; items: string[] }[]
+    if (mode === 'distinct') out = [...exclusive.entries()].map(([key, items]) => ({ key, items }))
+    else {
+      // Every non-empty choice of sets (2 or more for unions: a union of one set is the set itself).
+      out = []
+      const total = n <= 12 ? (1 << n) : 0
+      for (let mask = 1; mask < total; mask++) {
+        const key = sets.map((_, i) => ((mask >> i) & 1 ? '1' : '0')).join('')
+        const size = key.split('1').length - 1
+        if (mode === 'union' && size < 2) continue
+        const items = keyed.filter((x) => (mode === 'intersection'
+          ? [...key].every((b, i) => b === '0' || x.key[i] === '1')
+          : [...key].some((b, i) => b === '1' && x.key[i] === '1'))).map((x) => x.item)
+        if (items.length) out.push({ key, items })
+      }
+    }
+    out.sort((x, y) => y.items.length - x.items.length || x.key.localeCompare(y.key))
+    return { combos: out.slice(0, MAX_BARS), hidden: Math.max(0, out.length - MAX_BARS) }
+  }, [mode, exclusive, keyed, sets, n])
+  const sizes = sets.map((_, i) => keyed.filter((x) => x.key[i] === '1').length)
   const max = Math.max(1, ...combos.map((c) => c.items.length))
   const maxSize = Math.max(1, ...sizes)
   const ref = useRef<HTMLDivElement>(null)
+
+  const chosen = combos.filter((c) => picked.includes(c.key))
+  const items = useMemo(() => [...new Set(chosen.flatMap((c) => c.items))], [chosen])
+  const apply = (keys: string[], m: UpsetBarMode = mode) => {
+    setPicked(keys)
+    // Report the selected items to the page (computed here: state updates are not visible yet).
+    const src = m === mode ? combos : [...exclusive.entries()].map(([key, its]) => ({ key, items: its }))
+    onSelect?.([...new Set(src.filter((c) => keys.includes(c.key)).flatMap((c) => c.items))])
+  }
+  const toggle = (key: string) => apply(picked.includes(key) ? picked.filter((k) => k !== key) : [...picked, key])
+  // Set operations across all sets = a choice of exclusive bars, by how many sets found the item.
+  const quick = (test: (degree: number) => boolean) => {
+    const keys = [...exclusive.keys()].filter((k) => test(k.split('1').length - 1))
+    setMode('distinct'); apply(keys, 'distinct')
+  }
+  const changeMode = (m: UpsetBarMode) => { setMode(m); setPicked([]); onSelect?.([]) }
+
   return (
-    <div className="upset-plot" ref={ref}>
-      <div className="upset-sets">
-        {sets.map((s, i) => (
-          <div key={s.id} className="upset-set-row">
-            <span className="upset-set-bar"><span style={{ width: `${(sizes[i] / maxSize) * 100}%`, background: colors[i % colors.length] }} /></span>
-            <span className="upset-set-label" title={s.label}>{s.label}</span>
-            <span className="upset-count">{sizes[i]}</span>
+    <div className="upset-wrap">
+      <div className="upset-controls" data-no-export="">
+        <label className="small">Each bar shows{' '}
+          <span className="segmented" role="radiogroup" aria-label="What each bar shows">
+            {UPSET_BAR_MODES.map((m) => <button key={m.value} type="button" role="radio" aria-checked={mode === m.value} className={mode === m.value ? 'active' : ''} title={`The ${itemNoun} ${m.help}`} onClick={() => changeMode(m.value)}>{m.label}</button>)}
+          </span>
+        </label>
+        <span className="row wrap">
+          <span className="small muted">Across all {n} sets:</span>
+          <button type="button" className="btn btn-secondary btn-sm" title={`The ${itemNoun} found by every set`} onClick={() => quick((d) => d === n)}>Intersection</button>
+          <button type="button" className="btn btn-secondary btn-sm" title={`The ${itemNoun} found by at least one set`} onClick={() => quick(() => true)}>Union</button>
+          <button type="button" className="btn btn-secondary btn-sm" title={`Exclusive or: the ${itemNoun} found by exactly one set`} onClick={() => quick((d) => d === 1)}>XOR (one set only)</button>
+          {n > 2 && <button type="button" className="btn btn-secondary btn-sm" title={`The ${itemNoun} found by two or more sets`} onClick={() => quick((d) => d >= 2)}>In 2 or more</button>}
+          {n > 2 && <button type="button" className="btn btn-secondary btn-sm" title={`The ${itemNoun} found by some sets but not by all`} onClick={() => quick((d) => d < n)}>Not in all</button>}
+          {picked.length > 0 && <button type="button" className="btn btn-ghost btn-sm" onClick={() => apply([])}>Clear</button>}
+        </span>
+      </div>
+      <div className="upset-plot upset-pick" ref={ref}>
+        <div className="upset-sets">
+          {sets.map((s, i) => (
+            <div key={s.id} className="upset-set-row">
+              <span className="upset-set-bar"><span style={{ width: `${(sizes[i] / maxSize) * 100}%`, background: colors[i % colors.length] }} /></span>
+              <span className="upset-set-label" title={s.label}>{s.label}</span>
+              <span className="upset-count">{sizes[i]}</span>
+            </div>
+          ))}
+        </div>
+        <div className="upset-combos" role="group" aria-label="Combinations — click to select, click again to remove">
+          {combos.map((c) => {
+            const on = picked.includes(c.key)
+            return (
+              <button key={c.key} type="button" aria-pressed={on} className={`upset-col${on ? ' active' : ''}`} onClick={() => toggle(c.key)}
+                title={`${comboName(c.key)}: ${c.items.length} ${itemNoun} — click to ${on ? 'remove from' : 'add to'} the selection`}>
+                <span className="upset-col-count">{c.items.length}</span>
+                <span className="upset-col-bar"><span style={{ height: `${(c.items.length / max) * 100}%` }} /></span>
+                <span className="upset-col-dots">{[...c.key].map((b, i) => <i key={i} className={b === '1' ? 'on' : ''} style={b === '1' ? { background: colors[i % colors.length] } : undefined} />)}</span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+      {hidden > 0 && <p className="muted small">Showing the {MAX_BARS} largest of {MAX_BARS + hidden} combinations.</p>}
+      <div className="upset-copy stack-sm" data-no-export="">
+        <div className="row wrap">
+          <ExportImageButton source={() => htmlSource(ref.current, exportName)} />
+          {chosen.length ? (
+            <>
+              <span className="small"><strong>{items.length} {itemNoun}</strong> selected from {chosen.length} bar{chosen.length === 1 ? '' : 's'}{chosen.length > 1 ? ' (each counted once)' : ''}:</span>
+              <CopyText label="Copy IDs" text={items.join('\n')} />
+              {describe && <CopyText label="Copy names" text={items.map(describe).join('\n')} />}
+              {describe && <CopyText label="Copy table" text={['id\tname', ...items.map((i) => `${i}\t${describe(i)}`)].join('\n')} />}
+            </>
+          ) : <span className="muted small">Click one or more bars, or a set operation above, to select their {itemNoun}.</span>}
+        </div>
+        {chosen.length > 0 && (
+          <div className="upset-parts">
+            {chosen.map((c) => (
+              <details key={c.key} className="upset-part">
+                <summary><strong>{comboName(c.key)}</strong> <span className="muted small">{c.items.length} {itemNoun}</span>
+                  <button type="button" className="icon-btn" title="Remove this bar from the selection" aria-label={`Remove ${comboName(c.key)} from the selection`} onClick={(e) => { e.preventDefault(); toggle(c.key) }}>×</button></summary>
+                <p className="small">{c.items.map((i) => (describe ? `${describe(i)} (${i})` : i)).join('; ')}</p>
+              </details>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="upset-combos" role="list">
-        {combos.map((c) => (
-          <button key={c.key} role="listitem" className={`upset-col${active?.key === c.key ? ' active' : ''}`} onClick={() => { setActive(c); onSelect?.(c.items) }}
-            title={`${c.items.length} terms found only by: ${sets.filter((_, i) => c.key[i] === '1').map((s) => s.label).join(' + ')} — click to select`}>
-            <span className="upset-col-count">{c.items.length}</span>
-            <span className="upset-col-bar"><span style={{ height: `${(c.items.length / max) * 100}%` }} /></span>
-            <span className="upset-col-dots">{[...c.key].map((b, i) => <i key={i} className={b === '1' ? 'on' : ''} style={b === '1' ? { background: colors[i % colors.length] } : undefined} />)}</span>
-          </button>
-        ))}
-      </div>
-      <div className="upset-copy row wrap" data-no-export="">
-        <ExportImageButton source={() => htmlSource(ref.current, exportName)} />
-        {active ? (
-          <>
-            <span className="small"><strong>{active.items.length} {itemNoun}</strong> found only by {comboName(active.key)}:</span>
-            <CopyText label="Copy IDs" text={active.items.join('\n')} />
-            {describe && <CopyText label="Copy names" text={active.items.map(describe).join('\n')} />}
-            {describe && <CopyText label="Copy table" text={['id\tname', ...active.items.map((i) => `${i}\t${describe(i)}`)].join('\n')} />}
-          </>
-        ) : <span className="muted small">Click a column to select its {itemNoun} and copy them.</span>}
-        <CopyText label="Copy all combinations" text={['combination\tcount\tids', ...combos.map((c) => `${comboName(c.key)}\t${c.items.length}\t${c.items.join(',')}`)].join('\n')} />
-        <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary of the combinations and one sheet per combination" onClick={() => saveXlsx([
-          { name: 'Combinations', rows: combos.map((c) => ({ Combination: comboName(c.key), Count: c.items.length, Items: c.items.map((i) => (describe ? describe(i) : i)).join(', ') })) },
-          ...combos.slice(0, 60).map((c) => ({ name: comboName(c.key), rows: c.items.map((i) => ({ ID: i, Name: describe ? describe(i) : '' })) })),
-        ], 'flame_upset_combinations.xlsx')}>Excel</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveBlob(new Blob([['combination\tcount\tid\tname', ...combos.flatMap((c) => c.items.map((i) => `${comboName(c.key)}\t${c.items.length}\t${i}\t${describe ? describe(i) : ''}`))].join('\n')], { type: 'text/tab-separated-values' }), 'flame_upset_combinations.tsv')}>Download (TSV)</button>
+        )}
+        <div className="row wrap">
+          <span className="muted small">All combinations:</span>
+          <CopyText label="Copy" text={['combination\tcount\tids', ...combos.map((c) => `${comboName(c.key)}\t${c.items.length}\t${c.items.join(',')}`)].join('\n')} />
+          <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary of the combinations and one sheet per combination" onClick={() => saveXlsx([
+            { name: 'Combinations', rows: combos.map((c) => ({ Combination: comboName(c.key), Count: c.items.length, Items: c.items.map((i) => (describe ? describe(i) : i)).join(', ') })) },
+            ...combos.slice(0, 60).map((c) => ({ name: comboName(c.key), rows: c.items.map((i) => ({ ID: i, Name: describe ? describe(i) : '' })) })),
+          ], `flame_upset_${mode}.xlsx`)}>Excel</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveBlob(new Blob([['combination\tcount\tid\tname', ...combos.flatMap((c) => c.items.map((i) => `${comboName(c.key)}\t${c.items.length}\t${i}\t${describe ? describe(i) : ''}`))].join('\n')], { type: 'text/tab-separated-values' }), `flame_upset_${mode}.tsv`)}>TSV</button>
+        </div>
       </div>
     </div>
   )

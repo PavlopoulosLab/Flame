@@ -6,7 +6,7 @@
 # network out and returns a link that opens it (valid for one hour).
 #   arena3d_open(edges, nodes)                    low-level call
 #   arena3d_payload_for_view(results, view, ...)  result networks
-#   arena3d_payload_for_comparison(cs, ...)       one layer per run
+#   arena3d_payload_for_comparison(cs, ...)       a Tools layer + one layer per term category
 #   arena3d_payload_for_variants(result, ...)     variants → genes → traits
 #   arena3d_payload_for_ppi(net, ...)             STRING evidence as channels
 # =============================================================================
@@ -113,35 +113,63 @@ arena3d_payload_for_view <- function(results, view, filters = list(), top = 20L,
 
 #' Comparison: one layer per run (its terms) + a Genes layer; copies of the same
 #' term in different runs are linked across layers ("same term" channel).
-arena3d_payload_for_comparison <- function(cs, filters = list(), top = 30L, sortBy = "-log10Pvalue") {
-  v <- comparison_view(cs, "bubble", filters, top, sortBy)
-  terms <- v$terms
+#' Terms of a comparison, the top `perSource` of each chosen annotation source.
+#' Returns list(terms, runs (active only), sources).
+comparison_terms_by_source <- function(cs, filters = list(), sources = NULL, perSource = 30L, sortBy = "-log10Pvalue") {
+  filters <- filters %||% list()
+  base <- comparison_view(cs, "bubble", filters, 1L, sortBy)
+  available <- unlist(base$availableSources)
+  shown <- unlist(filters$sources); if (!length(shown)) shown <- available
+  sources <- as.character(unlist(sources)); sources <- sources[nzchar(sources)]
+  sources <- if (length(sources)) intersect(sources, available) else intersect(shown, available)
+  if (!length(sources)) stop("Choose at least one term category.")
+  perSource <- max(1L, min(as.integer(perSource), 200L))
+  terms <- list()
+  for (src in sources) {
+    f <- filters; f$sources <- list(src)
+    terms <- c(terms, comparison_view(cs, "bubble", f, perSource, sortBy)$terms)
+  }
   if (!length(terms)) stop("No terms match the current filters.")
-  runs <- v$runs
-  label <- function(r) substr(gsub("[^A-Za-z0-9 ()_.-]", "", r$label), 1, 60)
-  runLabel <- stats::setNames(vapply(runs, label, ""), vapply(runs, `[[`, "", "id"))
-  perRun <- cs$getPerRunData()
+  active <- unlist(base$activeRunIds)
+  list(terms = terms, runs = Filter(function(r) r$id %in% active, base$runs), sources = sources)
+}
+
+#' A comparison as Arena3D layers: a "Tools" layer with the compared runs, one layer per
+#' term category (GO:BP, KEGG...) with its terms, and optionally a "Genes" layer.
+#' Links: run - term (the run found the term) and term - gene.
+#' `layers`: list(tools = TRUE/FALSE, genes = TRUE/FALSE, sources = c("GO:BP", ...)).
+arena3d_payload_for_comparison <- function(cs, filters = list(), top = 30L, sortBy = "-log10Pvalue", layers = list()) {
+  withTools <- !identical(layers$tools, FALSE)
+  withGenes <- isTRUE(layers$genes)
+  if (!withTools && !withGenes) stop("Include the Tools layer or the Genes layer: the term layers need something to link to.")
+  x <- comparison_terms_by_source(cs, filters, layers$sources, top, sortBy)
+  runLabel <- function(r) substr(gsub("[^A-Za-z0-9 ()_.-]", "", r$label), 1, 60)
+  runIds <- vapply(x$runs, `[[`, "", "id")
+  labels <- stats::setNames(vapply(x$runs, runLabel, ""), runIds)
   edges <- list(); nodes <- list()
-  for (t in terms) {
-    rs <- intersect(unlist(t$runIds), unlist(v$activeRunIds))
-    for (rid in rs) {
-      nodes[[length(nodes) + 1]] <- data.frame(name = .term_label(t), layer = runLabel[[rid]], color = unname(DATASOURCE_COLORS[t$source] %||% NA),
-                                               size = 1, url = NA, description = sprintf("%s · combined p = %s · found by %d runs", t$source, signif(t$combPvalue, 3), length(rs)),
-                                               stringsAsFactors = FALSE)
-      genes <- unique(.split_hits(paste(unlist(perRun[[t$id]][[rid]]$genes %||% ""), collapse = ",")))
-      if (length(genes)) edges[[length(edges) + 1]] <- data.frame(source = .term_label(t), target = genes, source_layer = runLabel[[rid]],
+  if (withTools) nodes[[1]] <- data.frame(name = unname(labels), layer = "Tools", color = "#f97316", size = 2, url = NA,
+                                          description = vapply(x$runs, function(r) paste(r$tool, "-", r$listName), ""), stringsAsFactors = FALSE)
+  for (t in x$terms) {
+    rs <- intersect(unlist(t$runIds), runIds)
+    nodes[[length(nodes) + 1]] <- data.frame(name = .term_label(t), layer = t$source, color = unname(DATASOURCE_COLORS[t$source] %||% NA),
+                                             size = 0.8 + 0.4 * length(rs), url = NA,
+                                             description = sprintf("%s - combined p = %s - found by %d of %d runs: %s", t$source, signif(t$combPvalue, 3), length(rs), length(runIds), paste(labels[rs], collapse = ", ")),
+                                             stringsAsFactors = FALSE)
+    if (withTools && length(rs)) edges[[length(edges) + 1]] <- data.frame(source = unname(labels[rs]), target = .term_label(t), source_layer = "Tools",
+                                                                          target_layer = t$source, channel = "found by", stringsAsFactors = FALSE)
+    if (withGenes) {
+      genes <- unique(.split_hits(t$unionHits))
+      if (length(genes)) edges[[length(edges) + 1]] <- data.frame(source = .term_label(t), target = genes, source_layer = t$source,
                                                                   target_layer = "Genes", channel = "term-gene", stringsAsFactors = FALSE)
     }
-    if (length(rs) > 1) {
-      cmb <- utils::combn(rs, 2)
-      edges[[length(edges) + 1]] <- data.frame(source = .term_label(t), target = .term_label(t), source_layer = runLabel[cmb[1, ]],
-                                               target_layer = runLabel[cmb[2, ]], channel = "same term", stringsAsFactors = FALSE)
-    }
   }
+  if (!length(edges)) stop("There are no links to send to Arena3D for this choice of layers.")
   edges <- do.call(rbind, edges)
   nodes <- do.call(rbind, nodes)
-  genes <- unique(edges$target[edges$target_layer == "Genes"])
-  nodes <- rbind(nodes, data.frame(name = genes, layer = "Genes", color = GENE_NODE_COLOR, size = 0.8, url = NA, description = NA, stringsAsFactors = FALSE))
+  if (withGenes) {
+    genes <- unique(edges$target[edges$target_layer == "Genes"])
+    nodes <- rbind(nodes, data.frame(name = genes, layer = "Genes", color = GENE_NODE_COLOR, size = 0.8, url = NA, description = NA, stringsAsFactors = FALSE))
+  }
   arena3d_body(edges, nodes)
 }
 

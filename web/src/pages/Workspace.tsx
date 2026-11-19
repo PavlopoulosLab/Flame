@@ -218,6 +218,8 @@ export default function WorkspacePage() {
   const runs = (data?.runs ?? []).filter((r) => !hiddenRuns.has(r.id))
   const lists = data?.lists ?? []
   const shownRuns = runs.filter((r) => (toolFilter === 'all' || r.toolKey === toolFilter) && (listFilter === 'all' || r.listName === listFilter))
+  // Runs that can be ticked for comparison: finished, with results (and matching the filters above).
+  const selectable = shownRuns.filter((r) => r.status === 'complete' && !!r.resultCount)
   const selectableRuns = selected.filter((id) => runs.find((r) => r.id === id && r.status === 'complete' && (r.resultCount ?? 0) > 0))
   const pending = runs.filter((r) => r.status === 'queued' || r.status === 'running').length
 
@@ -302,8 +304,8 @@ export default function WorkspacePage() {
                   </p>
                 </div>
                 <div className="row">
-                  <button className="btn btn-secondary" disabled={selectableRuns.length < 2}
-                    title={selectableRuns.length < 2 ? 'Select two or more finished runs to compare them' : ''}
+                  <button className="btn btn-secondary" disabled={selectableRuns.length < 2 || selectableRuns.length > 10}
+                    title={selectableRuns.length < 2 ? 'Select two or more finished runs to compare them' : selectableRuns.length > 10 ? 'At most ten runs can be compared at a time: untick some, or narrow them with the Tool and List filters' : ''}
                     onClick={() => navigate(`/w/${ws}/compare?runs=${selectableRuns.join(',')}`)}>
                     <IconLabel icon="compare">Compare{selectableRuns.length ? ` (${selectableRuns.length})` : ''}</IconLabel>
                   </button>
@@ -340,8 +342,11 @@ export default function WorkspacePage() {
                         {[...new Set(runs.map((r) => r.listName))].map((n) => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </label>
+                    <button className="btn btn-ghost btn-sm" disabled={selectable.length === 0 || selectable.every((r) => selected.includes(r.id))}
+                      title={toolFilter === 'all' && listFilter === 'all' ? 'Select every finished run that has results' : 'Select every finished run with results that matches the Tool and List filters'}
+                      onClick={() => setSelected((cur) => [...new Set([...cur, ...selectable.map((r) => r.id)])])}>Select all{selectable.length ? ` (${selectable.length})` : ''}</button>
                     {selected.length > 0 && <button className="btn btn-ghost btn-sm" onClick={() => setSelected([])}>Clear selection</button>}
-                    <span className="muted small">Tick two or more runs to compare them.</span>
+                    <span className="muted small">{selected.length > 0 ? `${plural(selected.length, 'run')} selected. ` : ''}{selected.length > 10 ? 'At most ten runs can be compared at a time — untick some. ' : ''}Tick two or more runs to compare them{selectable.length < shownRuns.length ? '; runs that are still in progress, failed or found nothing cannot be selected' : ''}.</span>
                   </div>
                   <div className="run-grid">
                     {shownRuns.map((r) => (

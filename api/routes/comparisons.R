@@ -57,9 +57,9 @@ function(req, res) {
   })
 }
 
-#* Open the comparison in Arena3D: one layer per run (its terms), a Genes layer,
-#* and links between copies of the same term in different runs.
-#* Body: { runIds, filters, top, sortBy }
+#* Open the comparison in Arena3D: a Tools layer with the compared runs, one layer per term
+#* category with its terms, and optionally a Genes layer.
+#* Body: { runIds, filters, top (terms per category), sortBy, layers?: { tools, genes, sources:[source] } }
 #* @post /arena3d
 #* @serializer flamejson
 function(req, res) {
@@ -69,9 +69,29 @@ function(req, res) {
     cs <- .comparison_for(ws, b$runIds)
     top <- b$top %||% 30L
     if (identical(top, "all")) top <- 200L
-    body <- tryCatch(arena3d_payload_for_comparison(cs, b$filters %||% list(), min(as.integer(top), 200L), b$sortBy %||% "-log10Pvalue"),
+    body <- tryCatch(arena3d_payload_for_comparison(cs, b$filters %||% list(), min(as.integer(top), 200L), b$sortBy %||% "-log10Pvalue", b$layers %||% list()),
                      error = function(e) api_abort(422, conditionMessage(e)))
     tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+  })
+}
+
+#* Open the comparison in NORMA: terms as nodes (linked when they share genes) and each run
+#* (tool or list) as an annotation group. Body: { runIds, filters, top (terms per category), sortBy, sources?: [source] }
+#* `sources` restricts the export to those annotation sources (e.g. ["GO:BP"]).
+#* @post /norma
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    b <- body_of(req)
+    cs <- .comparison_for(ws, b$runIds)
+    top <- b$top %||% 30L
+    if (identical(top, "all")) top <- 100L
+    payload <- tryCatch(norma_payload_for_comparison(cs, b$filters %||% list(), min(as.integer(top), 100L), b$sortBy %||% "-log10Pvalue", b$sources),
+                        error = function(e) api_abort(422, conditionMessage(e)))
+    info <- payload$.info; payload$.info <- NULL
+    url <- tryCatch(norma_export(payload), error = function(e) api_abort(502, conditionMessage(e)))
+    c(list(url = url), info)
   })
 }
 

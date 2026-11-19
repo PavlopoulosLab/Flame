@@ -360,3 +360,23 @@ h1 { letter-spacing: -0.01em; }
 .reduce-box input[type="range"] { width: 100%; }
 .merged-toggle { white-space: nowrap; }
 .merged-terms { margin: 4px 0 2px; padding-left: 16px; font-size: 0.75rem; color: var(--muted-color); }
+
+/* Comparison network legend. */
+.net-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.legend-item { display: inline-flex; align-items: center; gap: 4px; }
+.legend-item i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.norma-export { display: inline-flex; align-items: center; gap: 4px; }
+.norma-export select { max-width: 170px; }
+
+/* Comparison UpSet: controls above the plot. */
+.upset-wrap { display: flex; flex-direction: column; gap: 10px; }
+.upset-controls { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; }
+.upset-controls .segmented { display: inline-flex; border: 1px solid var(--border-color); border-radius: var(--radius-md); overflow: hidden; vertical-align: middle; }
+.upset-controls .segmented button { padding: 4px 10px; border: 0; background: var(--surface-color); cursor: pointer; font-size: 0.82rem; }
+.upset-controls .segmented button + button { border-left: 1px solid var(--border-color); }
+.upset-controls .segmented button.active { background: var(--select-bg); color: var(--link-color); font-weight: 600; }
+/* Keep each run's row level with its row of dots under the bars (12px dots, 6px apart). */
+.upset-pick .upset-sets { gap: 6px; padding-bottom: 5px; }
+.upset-pick .upset-set-row { height: 12px; line-height: 12px; font-size: 0.74rem; }
+.upset-pick .upset-set-bar { height: 8px; }
+.export-sources { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 4px 12px; }
