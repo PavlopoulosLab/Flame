@@ -426,7 +426,7 @@ const TOPICS: Topic[] = [
     body: (
       <>
         <h3>Chart palettes</h3>
-        <p>Every visualization has its own palette menu (◐) in its toolbar — on each results tab, each comparison view, the variant report and the analysis dialogs with plots (the dialogs for adding a list do not show it). The choice applies only to that visualization and is remembered for it in this browser, so one figure can be colour-blind safe or grayscale while the others keep their colours:</p>
+        <p>Every visualization has its own palette menu (◐) in its toolbar — wherever there is a chart or network to colour: the plot views of results and comparisons (not their tables), the variant report, the protein network and the analysis results. Dialogs and pages without a visualization do not show it. The choice applies only to that visualization and is remembered for it in this browser, so one figure can be colour-blind safe or grayscale while the others keep their colours:</p>
         <ul>
           <li><strong>Flame</strong> — the default colours, matching the logo; annotation sources keep their usual colours.</li>
           <li><strong>Colour-blind safe</strong> — Okabe–Ito categories and the Cividis scale, distinguishable with all common colour-vision deficiencies.</li>

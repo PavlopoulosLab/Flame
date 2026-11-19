@@ -567,7 +567,7 @@ function ListContentsModal({ list, startEditing, onRun, onClose }: { list: Analy
     undoToast(`Updated "${nl.name}": ${formatNum(nl.size)} IDs.`, () => update.mutateAsync({ id: list.id, text: original }).then(() => { q.refetch() }))
   } })
   return (
-    <Modal title={list.name} size="xl" onClose={onClose}
+    <Modal title={list.name} size="xl" onClose={onClose} palette={false}
       subtitle={<>{formatNum(list.size)} IDs · {list.organismName.replace(/ \[NCBI.*$/, '')} · {list.idFormat === 'USERINPUT' ? 'IDs as provided' : list.idFormat}{list.ranked ? ' · ranked (with scores)' : ''}</>}
       footer={editing ? (
         <>

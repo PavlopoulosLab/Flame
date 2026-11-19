@@ -106,7 +106,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const setTool = (key: string, patch: ToolSettings) => setPerTool((p) => ({ ...p, [key]: { ...p[key], ...patch } }))
 
   return (
-    <Modal title="New enrichment run" size="xl" onClose={onClose}
+    <Modal title="New enrichment run" size="xl" onClose={onClose} palette={false}
       subtitle="Each selected tool runs separately; you can compare them afterwards."
       footer={<>
         <span className="muted small">{picked.length > 1 ? `${picked.length} lists × ` : ''}{tools.length + customIds.length} run{tools.length + customIds.length === 1 ? '' : 's'}{picked.length > 1 ? ` = ${picked.length * (tools.length + customIds.length)} runs` : ''} · {chosenSources.length} sources</span>
@@ -310,7 +310,7 @@ function GmtModal({ onClose }: { onClose: () => void }) {
   const invalidate = useInvalidateWorkspace()
   const sets = useMemo(() => text.split(/\r?\n/).filter((l) => l.split('\t').length >= 3).length, [text])
   return (
-    <Modal title="Upload your own pathway sets (GMT)" onClose={onClose}
+    <Modal title="Upload your own pathway sets (GMT)" onClose={onClose} palette={false}
       subtitle="A GMT file holds many named gene sets, one per line. Enrichment tests your list against each of them, as it does for GO terms or KEGG pathways."
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>

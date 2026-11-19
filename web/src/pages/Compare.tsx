@@ -106,7 +106,7 @@ function ComparePageBody() {
 
       <nav className="view-tabs" aria-label="Comparison views">
         <span className="tabs-undo">
-          <PaletteSelect />
+          {view !== 'table' && <PaletteSelect />}
           <UndoRedoButtons h={history} />
           <OpenExternalButton path="/comparisons/arena3d" label="Arena3D" caption="runs as 3D layers" icon={<Arena3DIcon />} body={{ runIds, filters: f, top: top === 'all' ? 'all' : Math.max(Number(top), 30), sortBy }}
             title="Open in Arena3D: one 3D layer per run with the terms it found, a layer of genes, and links between the same term in different runs" />

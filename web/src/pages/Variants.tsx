@@ -63,7 +63,7 @@ function VariantsPageBody() {
           <h1>Variant analysis</h1>
           <p className="muted small">Start from SNPs, small variants or GWAS results: see their consequences, affected genes, population frequencies, clinical significance and known trait associations — then take the genes into enrichment.</p>
         </div>
-        <PaletteSelect />
+        {analysisId && <PaletteSelect />}
       </header>
       <div className="variants-layout">
         <aside className="stack">

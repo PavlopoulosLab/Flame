@@ -35,7 +35,7 @@ function QuickActionBody({ action, lists, initialListId, onClose }: { action: Qu
   const list = lists.find((l) => l.id === listId)
   const [title, subtitle] = TITLES[action]
   return (
-    <Modal title={title} subtitle={subtitle} onClose={onClose} size={action === 'ppi' || action === 'annotate' ? 'xl' : 'lg'}>
+    <Modal title={title} subtitle={subtitle} onClose={onClose} size={action === 'ppi' || action === 'annotate' ? 'xl' : 'lg'} palette={action === 'ppi'}>
       <Field label="List">
         <select className="input" value={listId} onChange={(e) => setListId(e.target.value)}>
           {lists.map((l) => (

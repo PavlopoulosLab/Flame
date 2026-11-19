@@ -137,7 +137,7 @@ export function StartAnalysisDialog({ type, lists, initialListId, onClose, onSta
   }
   const ready = type === 'drugs' ? !!(up || down) && up !== down : type === 'metabolites' ? text.trim().split(/\n/).filter(Boolean).length >= 3 : !!listId
   return (
-    <Modal title={info.title} subtitle={info.text} onClose={onClose} size="lg"
+    <Modal title={info.title} subtitle={info.text} onClose={onClose} size="lg" palette={false}
       footer={<><button className="btn btn-ghost" onClick={onClose}>Cancel</button><button className="btn btn-primary" disabled={!ready || busy || !!warn} onClick={go}>{busy ? 'Starting…' : `Run ${info.tool}`}</button></>}>
       <div className="stack">
         {type === 'drugs' ? (
@@ -202,7 +202,7 @@ export function TaskResultModal({ id, lists, onClose }: { id: string; lists: Ana
   const info = st ? TASK_INFO[st.type] : null
   const taxid = (st?.type === 'modules' || st?.type === 'robustness') ? lists.find((l) => l.id === summary?.listId)?.organismTaxId : 9606
   return (
-    <Modal title={info?.title ?? 'Analysis'} subtitle={info ? `${info.tool} · ${info.text}` : undefined} size="xl" onClose={onClose}>
+    <Modal title={info?.title ?? 'Analysis'} subtitle={info ? `${info.tool} · ${info.text}` : undefined} size="xl" onClose={onClose} palette={st?.status === 'complete'}>
       {!st || st.status === 'running' ? (
         <div className="stack"><ProgressBar progress={st?.progress} status="running" /><p className="muted small">You can close this window; the analysis keeps running and appears under “Your analyses”.</p></div>
       ) : st.status === 'error' ? (

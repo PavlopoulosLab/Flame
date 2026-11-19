@@ -127,7 +127,7 @@ export function SessionModal({ ws, summary, status, initialTab = 'status', onClo
 }) {
   const [tab, setTab] = useState<Tab>(initialTab)
   return (
-    <Modal title="Session" size="lg" onClose={onClose}
+    <Modal title="Session" size="lg" onClose={onClose} palette={false}
       subtitle="Your workspace lives on this server for a while. Save it as a file to keep it, share it or move it to another Flame server.">
       <div className="stack">
         <Segmented label="Session section" value={tab} onChange={setTab}

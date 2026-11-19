@@ -69,6 +69,7 @@ export function Modal({
   children,
   footer,
   size = 'md',
+  palette,
 }: {
   title: string
   subtitle?: ReactNode
@@ -76,10 +77,13 @@ export function Modal({
   children: ReactNode
   footer?: ReactNode
   size?: 'md' | 'lg' | 'xl'
+  /** Show the colour-palette selector in the header. Set it only for dialogs that draw a chart or network; unset follows the surrounding context. */
+  palette?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const titleId = useId()
-  const showPalette = useContext(ModalPaletteContext)
+  const inherited = useContext(ModalPaletteContext)
+  const showPalette = palette ?? inherited
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null
     ref.current?.focus()

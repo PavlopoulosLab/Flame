@@ -347,7 +347,7 @@ function ResultsPageBody() {
                 )}
                 {view === 'table' && <ColumnPicker columns={columns} setColumns={setColumns} />}
                 <span className="toolbar-spacer" />
-                <PaletteSelect />
+                {view !== 'table' && <PaletteSelect />}
                 <UndoRedoButtons h={history} />
                 <ExportMenu items={[
                   ...(view !== 'table' && view !== 'themes' ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
@@ -628,7 +628,7 @@ function RunDetailsModal({ runId, onClose }: { runId: string; onClose: () => voi
     `Sources: ${[d.params.datasources].flat().join(', ')}`, `Significant terms: ${d.significantTerms}`,
   ].join('\n') : ''
   return (
-    <Modal title="Run details" onClose={onClose} subtitle="Everything needed to report or reproduce this analysis.">
+    <Modal title="Run details" onClose={onClose} palette={false} subtitle="Everything needed to report or reproduce this analysis.">
       {q.isLoading && <Spinner />}
       <ErrorNote error={q.error} />
       {d && (
