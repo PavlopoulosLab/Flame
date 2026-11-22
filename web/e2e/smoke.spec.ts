@@ -51,16 +51,20 @@ test('workspace sections switch and keep their colours', async ({ page }) => {
   expect(errors).toEqual([])
 })
 
-test('volcano example: plot, live threshold and its own palette', async ({ page }) => {
+test('volcano example: plot and live threshold', async ({ page }) => {
   const errors = watchErrors(page)
   await newWorkspace(page, '&example=volcano')
   const dialog = page.getByRole('dialog')
   await dialog.getByRole('button', { name: 'Draw plot' }).click({ timeout: 30_000 })
   await expect(dialog.locator('.js-plotly-plot').first()).toBeVisible({ timeout: 30_000 })
-  const palette = dialog.getByLabel('Colours of this visualization')
-  await expect(palette).toBeVisible()
-  await palette.selectOption('cb')
-  await expect(palette).toHaveValue('cb')
+  // input dialogs have no colour-palette selector (only result views and charts do)
+  await expect(dialog.getByLabel('Colours of this visualization')).toHaveCount(0)
+  // a stricter p-value cut-off lowers the number of significant genes at once
+  const allSig = dialog.getByRole('button', { name: /^All significant \(\d+\)/ })
+  const count = async () => Number((await allSig.innerText()).match(/\((\d+)\)/)![1])
+  const before = await count()
+  await dialog.getByLabel('p-value cut-off', { exact: true }).fill('0.001')
+  await expect.poll(count).toBeLessThan(before)
   expect(errors).toEqual([])
 })
 
