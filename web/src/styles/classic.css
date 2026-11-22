@@ -396,3 +396,10 @@ h1 { letter-spacing: -0.01em; }
 
 /* Scrolling to the end of the list menu must not scroll (and so close) the page behind it. */
 .list-menu { overscroll-behavior: contain; }
+
+/* Text mining: marks for proteins found under several names, and for ambiguous names */
+.tm-notes { white-space: nowrap; }
+.tm-flag { display: inline-block; margin-right: 4px; padding: 1px 7px; border-radius: var(--radius-full); font-size: 0.72rem; font-weight: 600; border: 1px solid; }
+.tm-dup { color: #9A3412; background: #FFEDD5; border-color: #FDBA74; }
+.tm-amb { color: var(--muted-color); background: transparent; border-color: var(--card-border); font-weight: 500; }
+:root[data-theme="dark"] .tm-dup { color: #FDBA74; background: rgba(249, 115, 22, 0.15); border-color: rgba(249, 115, 22, 0.5); }

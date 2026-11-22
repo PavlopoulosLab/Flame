@@ -253,12 +253,34 @@ function Snps({ example, onClose, onCreated, title }: P) {
 // ---- Text mining ------------------------------------------------------------
 
 interface ExtractRow { rowId?: string; name: string; type?: string; species?: string; id: string; idUrl?: string; ambiguous?: boolean; selected?: boolean }
+/** One protein found in the text, with every name that pointed to it (two names can map to the same protein). */
+interface ExtractHit { id: string; idUrl?: string; names: { name: string; ambiguous: boolean }[]; ambiguous: boolean; preselect: boolean; order: number }
+type HitSortKey = 'order' | 'name' | 'id' | 'note'
+/** Sort weight of the Note column: duplicates first, then ambiguous, then clear matches. */
+const noteRank = (h: ExtractHit) => (h.names.length > 1 ? 0 : h.ambiguous ? 1 : 2)
+
+/** Group the tagger's name–ID matches by ID, so each protein is listed, counted and saved once. */
+function groupById(rows: ExtractRow[]): ExtractHit[] {
+  const byId = new Map<string, ExtractHit>()
+  for (const r of rows) {
+    if (!r.id) continue
+    const h = byId.get(r.id) ?? { id: r.id, idUrl: r.idUrl, names: [], ambiguous: true, preselect: false, order: byId.size }
+    if (!h.names.some((n) => n.name === r.name)) h.names.push({ name: r.name, ambiguous: !!r.ambiguous })
+    // a protein is ambiguous only if every name that found it is ambiguous
+    if (!r.ambiguous) h.ambiguous = false
+    if (r.selected !== false && !r.ambiguous) h.preselect = true
+    byId.set(r.id, h)
+  }
+  return [...byId.values()]
+}
 
 function TextMining({ example, onClose, onCreated, title }: P) {
   const [text, setText] = useState('')
   const [organism, setOrganism] = useState(9606)
   const [rows, setRows] = useState<ExtractRow[] | null>(null)
-  const [chosen, setChosen] = useState<Set<number>>(new Set())
+  const [hits, setHits] = useState<ExtractHit[]>([])
+  const [chosen, setChosen] = useState<Set<string>>(new Set())
+  const [sort, setSort] = useState<{ key: HitSortKey; dir: 1 | -1 }>({ key: 'order', dir: 1 })
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
   const ex = useExample('textmining', example, (t) => setText(t))
@@ -267,13 +289,27 @@ function TextMining({ example, onClose, onCreated, title }: P) {
     setErr(null)
     api<{ rows: ExtractRow[] }>('/inputs/textmining/extract', { body: { text, organismTaxId: organism } })
       .then((r) => {
+        const g = groupById(r.rows)
         setRows(r.rows)
-        setChosen(new Set(r.rows.map((x, i) => (x.selected !== false && !x.ambiguous ? i : -1)).filter((i) => i >= 0)))
+        setHits(g)
+        setChosen(new Set(g.filter((h) => h.preselect).map((h) => h.id)))
       })
       .catch(setErr)
       .finally(() => setBusy(false))
   }
-  const ids = rows ? [...new Set([...chosen].map((i) => rows[i].id).filter(Boolean))] : []
+  const ids = hits.filter((h) => chosen.has(h.id)).map((h) => h.id)
+  const sorted = [...hits].sort((a, b) => {
+    const v = (h: ExtractHit): number | string => sort.key === 'name' ? h.names[0].name.toLowerCase() : sort.key === 'id' ? h.id : sort.key === 'note' ? noteRank(h) : h.order
+    const x = v(a), y = v(b)
+    return (x < y ? -1 : x > y ? 1 : a.order - b.order) * sort.dir
+  })
+  const sortBy = (key: HitSortKey) => setSort((s) => (s.key === key ? { key, dir: (s.dir * -1) as 1 | -1 } : { key, dir: 1 }))
+  const th = (key: HitSortKey, label: string) => (
+    <th aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+      <button className="th-btn" onClick={() => sortBy(key)}>{label}{sort.key === key ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</button>
+    </th>
+  )
+  const duplicates = hits.filter((h) => h.names.length > 1).length
   const names = rows ? [...new Set(rows.map((r) => r.name).filter(Boolean))] : []
   return (
     <Modal title={title} onClose={onClose} size="xl" subtitle="Gene and protein names are recognised with the EXTRACT tagger (JensenLab).">
@@ -297,22 +333,27 @@ function TextMining({ example, onClose, onCreated, title }: P) {
           </div>
           <div>
             <div className="row between">
-              <h3>{plural(rows.length, 'mention')}</h3>
+              <h3>{plural(hits.length, 'protein')}{rows.length !== hits.length && <span className="muted small"> from {plural(rows.length, 'name match', 'name matches')}</span>}</h3>
               <span className="row">
-                <button className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set(rows.map((_, i) => i)))}>Select all</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set(hits.map((h) => h.id)))}>Select all</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setChosen(new Set())}>Clear</button>
               </span>
             </div>
+            {duplicates > 0 && <p className="muted small">{plural(duplicates, 'protein')} found under more than one name {duplicates === 1 ? 'is' : 'are'} marked <span className="tm-flag tm-dup">duplicate</span> and saved once.</p>}
             <div className="table-scroll small-table">
               <table className="table">
-                <thead><tr><th /><th>Name</th><th>ID</th></tr></thead>
+                <thead><tr><th aria-label="Use" />{th('name', 'Name in the text')}{th('id', 'ID')}{th('note', 'Note')}</tr></thead>
                 <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={i} className={r.ambiguous ? 'muted' : ''}>
-                      <td><input type="checkbox" checked={chosen.has(i)} aria-label={`Use ${r.name}`}
-                        onChange={() => setChosen((s) => { const n = new Set(s); if (n.has(i)) n.delete(i); else n.add(i); return n })} /></td>
-                      <td>{r.name}{r.ambiguous ? ' (ambiguous)' : ''}</td>
-                      <td>{r.idUrl && /^https?:\/\//.test(r.idUrl) ? <a href={r.idUrl} target="_blank" rel="noopener noreferrer">{r.id}</a> : r.id}</td>
+                  {sorted.map((h) => (
+                    <tr key={h.id} className={h.ambiguous ? 'muted' : ''}>
+                      <td><input type="checkbox" checked={chosen.has(h.id)} aria-label={`Use ${h.names.map((n) => n.name).join(', ')}`}
+                        onChange={() => setChosen((s) => { const n = new Set(s); if (n.has(h.id)) n.delete(h.id); else n.add(h.id); return n })} /></td>
+                      <td>{h.names.map((n) => n.name).join(', ')}</td>
+                      <td>{h.idUrl && /^https?:\/\//.test(h.idUrl) ? <a href={h.idUrl} target="_blank" rel="noopener noreferrer">{h.id}</a> : h.id}</td>
+                      <td className="tm-notes">
+                        {h.names.length > 1 && <span className="tm-flag tm-dup" title={`${h.names.map((n) => n.name).join(' and ')} are the same protein: listed and saved once`}>duplicate ×{h.names.length}</span>}
+                        {h.ambiguous && <span className="tm-flag tm-amb" title="The name matches several proteins: check before saving">ambiguous</span>}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
