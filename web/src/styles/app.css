@@ -194,6 +194,7 @@ body.modal-open { overflow: hidden; }
 .source-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 2px 16px; margin-top: 8px; }
 .dots { display: inline-flex; gap: 3px; margin-left: auto; }
 .dots i, .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
+.swatch { display: inline-block; flex: none; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; }
 .dot { margin-right: 6px; vertical-align: middle; }
 .per-tool { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--spacing-md); margin-top: var(--spacing-md); }
 .tool-settings { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: var(--spacing-md); display: flex; flex-direction: column; gap: 10px; }

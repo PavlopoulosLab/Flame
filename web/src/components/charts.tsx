@@ -86,6 +86,7 @@ export function Plot({
   data,
   layout,
   onSelect,
+  onPointClick,
   height = 480,
   handleRef,
   dragmode,
@@ -96,6 +97,8 @@ export function Plot({
   data: PlotData
   layout?: Partial<Plotly.Layout>
   onSelect?: (ids: string[], additive: boolean) => void
+  /** When set, a plain click on a point calls this instead of onSelect (Shift/Ctrl-click still adds to the selection). */
+  onPointClick?: (id: string) => void
   height?: number
   handleRef?: { current: PlotHandle | null }
   dragmode?: 'zoom' | 'select' | 'lasso' | 'pan'
@@ -109,6 +112,8 @@ export function Plot({
   const ref = useRef<HTMLDivElement>(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
+  const clickRef = useRef(onPointClick)
+  clickRef.current = onPointClick
   const shapesRef = useRef(onShapesMoved)
   shapesRef.current = onShapesMoved
   const nameRef = useRef(exportName)
@@ -159,7 +164,10 @@ export function Plot({
     })
     gd.on('plotly_click', (ev: Plotly.PlotMouseEvent) => {
       const native = (ev as unknown as { event?: MouseEvent }).event
-      selectRef.current?.(pick(ev), !!(native && (native.shiftKey || native.metaKey || native.ctrlKey)))
+      const additive = !!(native && (native.shiftKey || native.metaKey || native.ctrlKey))
+      const ids = pick(ev)
+      if (clickRef.current && !additive) { if (ids[0]) clickRef.current(ids[0]); return }
+      selectRef.current?.(ids, additive)
     })
     gd.on('plotly_selected', (ev: Plotly.PlotSelectionEvent) => {
       const ids = pick(ev)

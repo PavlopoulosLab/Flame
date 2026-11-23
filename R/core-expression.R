@@ -7,8 +7,10 @@
 #     variable genes, shown as a heatmap of z-scores),
 #   * a gene map (PCA of the genes' z-scored profiles) for lasso selection,
 #   * a two-group comparison (Welch t-test, log2 fold change, BH) that opens
-#     in the volcano selector.
-# Base R only (stats::prcomp, hclust, t.test).
+#     in the volcano selector,
+#   * a gene of interest: its correlation with every other gene (Pearson,
+#     Spearman, Kendall) and boxplots of genes by the two groups.
+# Base R only (stats::prcomp, hclust, t.test, cor).
 # =============================================================================
 
 EXPRESSION_MAX_BYTES <- 2 * 1024^2
@@ -90,4 +92,144 @@ expression_de <- function(x, groupA, groupB) {
   list(text = .table_text(df), fileName = "flame_expression_de.tsv", n = nrow(df),
        significant = sum(df$padj <= 0.05), groupA = as.list(a), groupB = as.list(b),
        note = if (x$logged) "Values were log2(x + 1) transformed, so log2FC is a difference of means on the log scale." else "Values were used as given (assumed already on a log scale).")
+}
+
+# ---- Gene of interest: correlation and group boxplots ---------------------------
+
+CORRELATION_METHODS <- c("pearson", "spearman", "kendall")
+
+.find_gene <- function(m, gene) {
+  g <- trimws(as.character(gene %||% ""))
+  if (!nzchar(g)) stop("Type the gene of interest.")
+  hit <- match(toupper(g), toupper(rownames(m)))
+  if (is.na(hit)) {
+    near <- utils::head(rownames(m)[startsWith(toupper(rownames(m)), toupper(g))], 5)
+    stop(sprintf("'%s' is not in the table.%s", g, if (length(near)) paste0(" Did you mean: ", paste(near, collapse = ", "), "?") else ""))
+  }
+  hit
+}
+
+#' Two-sided p-values of Kendall's tau for n samples: exact null distribution of
+#' the number of discordant pairs (Mahonian numbers) when n < 50, else normal.
+.kendall_p <- function(tau, n) {
+  if (n >= 50) return(2 * stats::pnorm(-abs(3 * tau * sqrt(n * (n - 1)) / sqrt(2 * (2 * n + 5)))))
+  d <- 1
+  for (k in 2:n) { cs <- cumsum(c(d, rep(0, k - 1))); d <- (cs - c(rep(0, k), utils::head(cs, -k))) / k }
+  lower <- cumsum(d); upper <- rev(cumsum(rev(d)))
+  pairs <- n * (n - 1) / 2
+  disc <- pmin(pairs, pmax(0, round((1 - tau) * pairs / 2)))
+  pmin(1, 2 * pmin(lower[disc + 1], upper[disc + 1]))
+}
+
+.row_sd <- function(m) sqrt(pmax(0, (rowSums(m^2) - rowSums(m)^2 / ncol(m)) / (ncol(m) - 1)))
+
+#' Correlate one gene with every other gene of the matrix.
+#' Pearson and Spearman p-values use the t distribution (n - 2 df); Kendall's
+#' is exact for fewer than 50 samples (as in stats::cor.test, ignoring ties) and
+#' a normal approximation above. BH adjustment per method.
+#' `samples` optionally restricts the samples used (at least 4).
+expression_correlate <- function(x, gene, methods = CORRELATION_METHODS, samples = NULL) {
+  m <- x$matrix
+  methods <- intersect(tolower(as.character(unlist(methods))), CORRELATION_METHODS)
+  if (!length(methods)) stop("Choose at least one correlation method.")
+  s <- intersect(as.character(unlist(samples)), colnames(m))
+  if (length(s)) m <- m[, s, drop = FALSE]
+  n <- ncol(m)
+  if (n < 4) stop("Correlation needs at least 4 samples.")
+  hit <- .find_gene(m, gene)
+  goi <- rownames(m)[hit]
+  g <- m[hit, ]
+  if (stats::sd(g) == 0) stop(sprintf("%s has the same value in every sample, so it cannot be correlated.", goi))
+  keep <- .row_sd(m) > 1e-12
+  keep[hit] <- FALSE
+  M <- m[keep, , drop = FALSE]
+  if (nrow(M) < 2) stop("No other genes vary across these samples.")
+  tp <- function(r) { r <- pmin(pmax(r, -1), 1); t <- r * sqrt((n - 2) / pmax(1e-300, 1 - r^2)); 2 * stats::pt(-abs(t), n - 2) }
+  out <- list()
+  for (meth in methods) {
+    r <- switch(meth,
+      pearson = as.numeric(stats::cor(t(M), g)),
+      spearman = as.numeric(stats::cor(apply(M, 1, rank), rank(g))),
+      kendall = as.numeric(stats::cor(t(M), g, method = "kendall")))
+    r[!is.finite(r)] <- 0
+    p <- switch(meth,
+      pearson = tp(r),
+      spearman = pmax(tp(r), 2 / factorial(min(n, 170))),   # never below the exact minimum for n samples
+      kendall = .kendall_p(r, n))
+    out[[meth]] <- list(r = round(r, 4), p = signif(p, 4), padj = signif(stats::p.adjust(p, "BH"), 4))
+  }
+  list(gene = goi, n = n, samples = as.list(colnames(m)), methods = as.list(methods), genes = as.list(rownames(M)),
+       tested = nrow(M), constant = sum(!keep) - 1L, logged = x$logged, values = as.list(unname(round(g, 4))),
+       results = out,
+       note = paste0(if (n < 8) sprintf("Only %d samples: correlations are unstable, and with thousands of genes few can reach a low FDR. ", n) else "",
+                     "Pearson measures linear association; Spearman and Kendall use ranks and resist outliers. P-values are Benjamini-Hochberg adjusted per method."))
+}
+
+#' Correlation of two genes across the samples, by each method (stats::cor.test:
+#' exact p-values for Spearman and Kendall in small samples without ties), with
+#' their values per sample for a scatter plot.
+expression_pair <- function(x, geneA, geneB, methods = CORRELATION_METHODS) {
+  m <- x$matrix
+  methods <- intersect(tolower(as.character(unlist(methods))), CORRELATION_METHODS)
+  if (!length(methods)) methods <- CORRELATION_METHODS
+  ia <- .find_gene(m, geneA); ib <- .find_gene(m, geneB)
+  if (ia == ib) stop("Choose two different genes.")
+  if (ncol(m) < 3) stop("Correlation needs at least 3 samples.")
+  va <- m[ia, ]; vb <- m[ib, ]
+  for (k in c(ia, ib)) if (stats::sd(m[k, ]) == 0) stop(sprintf("%s has the same value in every sample, so it cannot be correlated.", rownames(m)[k]))
+  stats <- lapply(methods, function(meth) {
+    ct <- suppressWarnings(stats::cor.test(va, vb, method = meth))
+    ci <- if (!is.null(ct$conf.int)) round(as.numeric(ct$conf.int), 4) else c(NA_real_, NA_real_)
+    list(method = meth, r = round(unname(ct$estimate), 4), p = signif(ct$p.value, 4), ciLow = ci[1], ciHigh = ci[2])
+  })
+  list(geneA = rownames(m)[ia], geneB = rownames(m)[ib], n = ncol(m), samples = as.list(colnames(m)), logged = x$logged,
+       a = as.list(unname(round(va, 4))), b = as.list(unname(round(vb, 4))), stats = stats,
+       note = if (ncol(m) < 8) sprintf("Only %d samples: one sample can change the correlation a lot; check the plot for outliers.", ncol(m)) else "")
+}
+
+#' Values of a few genes per sample, split into 2 or 3 sample groups, with tests.
+#' `groups`: named list of sample vectors (2-3 groups, at least 2 samples each).
+#' `test`: "parametric" (Welch t-test; Welch one-way ANOVA for 3 groups) or
+#' "rank" (Wilcoxon rank-sum; Kruskal-Wallis for 3 groups). Pairwise tests
+#' between groups are Holm-adjusted within each gene.
+expression_gene_values <- function(x, genes, groups = NULL, test = "parametric") {
+  m <- x$matrix
+  genes <- unique(trimws(as.character(unlist(genes))))
+  genes <- genes[nzchar(genes)]
+  if (!length(genes)) stop("Choose at least one gene.")
+  if (length(genes) > 24) genes <- genes[1:24]
+  test <- if (identical(test, "rank")) "rank" else "parametric"
+  grp <- list(); used <- character(0)
+  for (nm in names(groups %||% list())) {
+    ss <- setdiff(intersect(as.character(unlist(groups[[nm]])), colnames(m)), used)
+    used <- c(used, ss)
+    if (length(ss)) grp[[substr(nm, 1, 40)]] <- ss
+  }
+  if (length(grp) > 3) stop("Use at most 3 groups.")
+  testable <- length(grp) >= 2 && all(lengths(grp) >= 2)
+  idx <- vapply(genes, function(g) match(toupper(g), toupper(rownames(m))), integer(1))
+  missing <- genes[is.na(idx)]
+  idx <- idx[!is.na(idx)]
+  if (!length(idx)) stop(sprintf("None of these genes is in the table: %s.", paste(genes, collapse = ", ")))
+  sp <- function(p) if (is.finite(p)) signif(p, 4) else NA_real_
+  two <- function(a, b) suppressWarnings(tryCatch(
+    if (test == "rank") stats::wilcox.test(a, b, exact = length(a) + length(b) < 50 && !anyDuplicated(c(a, b)))$p.value else stats::t.test(a, b)$p.value,
+    error = function(e) NA_real_))
+  pairs <- if (length(grp) >= 2) utils::combn(names(grp), 2, simplify = FALSE) else list()
+  list(samples = as.list(colnames(m)), groups = lapply(grp, as.list), logged = x$logged, missing = as.list(missing), test = test,
+       testName = if (!testable) "" else if (length(grp) == 2) (if (test == "rank") "Wilcoxon rank-sum test" else "Welch t-test")
+                  else if (test == "rank") "Kruskal-Wallis test; pairwise Wilcoxon rank-sum tests (Holm-adjusted)" else "Welch one-way ANOVA; pairwise Welch t-tests (Holm-adjusted)",
+       genes = lapply(unname(idx), function(i) {
+         v <- m[i, ]
+         pw <- if (testable) vapply(pairs, function(pr) two(v[grp[[pr[1]]]], v[grp[[pr[2]]]]), numeric(1)) else numeric(0)
+         overall <- if (!testable) NA_real_ else if (length(grp) == 2) pw[1] else suppressWarnings(tryCatch({
+           y <- unlist(lapply(grp, function(ss) v[ss])); f <- factor(rep(names(grp), lengths(grp)), levels = names(grp))
+           if (test == "rank") stats::kruskal.test(y, f)$p.value else stats::oneway.test(y ~ f, var.equal = FALSE)$p.value
+         }, error = function(e) NA_real_))
+         adj <- if (length(pw) > 1) stats::p.adjust(pw, "holm") else pw
+         list(gene = rownames(m)[i], values = as.list(unname(round(v, 4))), pvalue = sp(overall),
+              means = lapply(grp, function(ss) round(mean(v[ss]), 4)),
+              pairwise = lapply(seq_along(pairs), function(k) list(a = pairs[[k]][1], b = pairs[[k]][2], log2FC = round(mean(v[grp[[pairs[[k]][1]]]]) - mean(v[grp[[pairs[[k]][2]]]]), 4),
+                                                                   pvalue = sp(pw[k]), padj = sp(adj[k]))))
+       }))
 }

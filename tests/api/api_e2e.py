@@ -189,6 +189,19 @@ s, de, _ = call("POST", "/inputs/expression/de", {"text": exx["text"], "fileName
 check("expression two groups", s == 200 and de["significant"] > 20, f"significant={de.get('significant')}")
 s, e, _ = call("POST", "/inputs/expression/de", {"text": exx["text"], "groupA": ["treated_1"], "groupB": ["control_1", "control_2"]})
 check("expression bad groups -> 400", s == 400, e.get("error", "")[:50])
+dex = [x for x in ov["samples"] if "dex" in x.lower() and "untr" not in x.lower()]; unt = [x for x in ov["samples"] if "untr" in x.lower()]
+s, co, _ = call("POST", "/inputs/expression/correlate", {"text": exx["text"], "fileName": exx["fileName"], "gene": "fkbp5"})
+check("expression correlation (3 methods)", s == 200 and co["gene"] == "FKBP5" and sorted(co["results"]) == ["kendall", "pearson", "spearman"]
+      and len(co["results"]["pearson"]["r"]) == co["tested"], f"tested={co.get('tested')}")
+s, e, _ = call("POST", "/inputs/expression/correlate", {"text": exx["text"], "gene": "FKB"})
+check("expression correlation unknown gene -> 400 with suggestions", s == 400 and "FKBP5" in e.get("error", ""), e.get("error", "")[:60])
+s, pr, _ = call("POST", "/inputs/expression/pair", {"text": exx["text"], "geneA": "FKBP5", "geneB": "PER1"})
+check("expression two-gene correlation", s == 200 and len(pr["stats"]) == 3 and pr["stats"][0]["r"] > 0.5, f"r={[x['r'] for x in pr.get('stats', [])]}")
+s, bx, _ = call("POST", "/inputs/expression/genes", {"text": exx["text"], "genes": ["FKBP5", "PER1"], "groups": {"Dex": dex, "Untreated": unt}})
+check("expression boxplots, 2 groups", s == 200 and bx["genes"][0]["pvalue"] < 0.05 and len(bx["genes"][0]["pairwise"]) == 1, bx.get("testName", ""))
+s, bx3, _ = call("POST", "/inputs/expression/genes", {"text": exx["text"], "genes": ["FKBP5"], "test": "rank",
+                                                      "groups": {"G1": ov["samples"][:3], "G2": ov["samples"][3:6], "G3": ov["samples"][6:]}})
+check("expression boxplots, 3 groups (Kruskal-Wallis + pairwise)", s == 200 and len(bx3["genes"][0]["pairwise"]) == 3 and "Kruskal" in bx3["testName"], bx3.get("testName", ""))
 s, mi, _ = call("POST", "/inputs/mirna/targets", {"text": "hsa-miR-21-5p\nmiR-155\nnot-a-mirna", "organismTaxId": 9606, "minMirnas": 2})
 check("microRNA targets", s == 200 and mi["unmatched"] == ["not-a-mirna"] and mi["totalTargets"] > 100, f"targets={mi.get('totalTargets')} both-arms={len(mi['mirnas'][1]['matched']) if s == 200 else '-'}")
 

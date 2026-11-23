@@ -19,6 +19,7 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
 
 * **Inputs**: paste/upload IDs (19 formats) or ranked lists with scores; select genes on a volcano plot (draggable
   thresholds), a 2D plot (UMAP/t-SNE/PCA) or an expression matrix (co-expression clusters, gene map, two-group test,
+  correlation with a gene of interest by Pearson, Spearman and Kendall, boxplots of 2–3 sample groups with tests,
   pathway activity per sample); map SNPs to genes; find genes in text; microRNAs → miRDB targets; UpSet set
   operations (intersection, union, XOR and more, with selectable bars); and **fetch gene lists** from a disease
   (choose among Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and GWAS Catalog; merge several

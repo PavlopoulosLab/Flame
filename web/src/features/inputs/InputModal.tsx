@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api, saveText } from '../../api/client'
 import { useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, ModalPaletteContext, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
 import { plural } from '../../lib/format'
-import { categorical, PaletteScope, roleColors, usePaletteMode } from '../../lib/palette'
+import { categorical, PaletteScope, roleColors, usePaletteKey, usePaletteMode } from '../../lib/palette'
+import { PaletteSelect } from '../../components/PaletteSelect'
 import { METHODS, type InputKind } from './MethodPicker'
 import { FetchInput } from './FetchInput'
 import { saveXlsx } from '../../lib/xlsx'
@@ -394,6 +395,7 @@ interface ReductionPoint { pointId: string; id: string; x: number; y: number; co
 function TableInput({ kind, example, onClose, onCreated, title, initialText, initialFileName }: P) {
   const isVolcano = kind === 'volcano'
   const [text, setText] = useState(initialText ?? '')
+  const [replacing, setReplacing] = useState(false)
   const [fileName, setFileName] = useState(initialFileName ?? '')
   const [prep, setPrep] = useState<Prepared | null>(null)
   const [mapping, setMapping] = useState<Record<string, string>>({})
@@ -511,16 +513,29 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
 
   return (
     <Modal title={title} onClose={onClose} size="xl"
-      subtitle={isVolcano ? 'A table with a gene column, a log2 fold change column and a p-value column (CSV or TSV).' : 'A table with a gene column and two coordinate columns (CSV or TSV).'}>
-      <div className="row between">
-        <span className="muted small">Step 1 · Provide the table</span>
-        <button className="btn btn-ghost btn-sm" onClick={ex.load}>Load example</button>
-      </div>
-      <FileDrop accept=".csv,.tsv,.txt" onText={(t, n) => { setText(t); setFileName(n) }} />
-      <details>
-        <summary className="small">…or paste the table</summary>
-        <textarea className="input mono" rows={6} value={text} onChange={(e) => { setText(e.target.value); setFileName('') }} aria-label="Table" />
-      </details>
+      subtitle={isVolcano && initialText ? 'Every gene of your expression table compared between group A and group B (Welch t-test, log2FC = A − B). Pick up- or down-regulated genes, or save all genes as a ranked list.' : isVolcano ? 'A table with a gene column, a log2 fold change column and a p-value column (CSV or TSV).' : 'A table with a gene column and two coordinate columns (CSV or TSV).'}>
+      {prep && !replacing ? (
+        // A table is loaded: Step 1 shrinks to one line, so the columns and the plot come first.
+        <div className="row between wrap">
+          <span className="small"><span className="muted">Table:</span> <strong>{initialText && text === initialText ? 'two-group comparison from your expression data' : fileName || 'pasted table'}</strong> · {plural(prep.rowCount, 'row')}</span>
+          <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace table</button>
+        </div>
+      ) : (
+        <>
+          <div className="row between">
+            <span className="muted small">Step 1 · Provide the table</span>
+            <span className="row">
+              <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); ex.load() }}>Load example</button>
+              {prep && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
+            </span>
+          </div>
+          <FileDrop accept=".csv,.tsv,.txt" onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
+          <details>
+            <summary className="small">…or paste the table</summary>
+            <textarea className="input mono" rows={6} value={text} onChange={(e) => { setText(e.target.value); setFileName('') }} aria-label="Table" />
+          </details>
+        </>
+      )}
       <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
       {prep && (
@@ -942,10 +957,13 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
   const [k, setK] = useState(6)
   const [logMode, setLogMode] = useState<'auto' | 'yes' | 'no'>('auto')
   const [ov, setOv] = useState<ExprOverview | null>(null)
-  const [view, setView] = useState<'clusters' | 'map' | 'groups' | 'activity'>(initialView === 'activity' ? 'activity' : 'clusters')
+  const [view, setView] = useState<'clusters' | 'map' | 'groups' | 'correlation' | 'boxplots' | 'activity'>(initialView === 'activity' ? 'activity' : 'clusters')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const selV = usePlainSelection(sel, NO_SET) // none while an image is exported without highlighting
   const [groups, setGroups] = useState<Record<string, 'A' | 'B' | ''>>({})
+  const [box, setBox] = useState<BoxSetup | null>(null)
+  const [replacing, setReplacing] = useState(false)
+  usePaletteKey(`expression-${view}`) // each tab keeps its own palette
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState<unknown>(null)
   const [note, setNote] = useState<string | null>(null)
@@ -961,6 +979,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
     api<ExprOverview>('/inputs/expression/overview', { body: { text, fileName, topN, k, log } })
       .then((r) => {
         setOv(r); setSel(new Set())
+        setBox((b) => (b && r.samples.every((s) => s in b.assign) ? b : null))
         // Guess two groups from sample names (e.g. control_1 / treated_1).
         const stem = (s: string) => s.replace(/[_.\- ]?(rep)?\d+$/i, '')
         const stems = [...new Set(r.samples.map(stem))]
@@ -1002,11 +1021,14 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
     <Modal title={title} size="xl" onClose={onClose}
       subtitle="One row per gene (first column: gene ID), one numeric column per sample. Counts or intensities are log2-transformed automatically.">
       <div className="stack">
-        <div className="row wrap">
-          <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={2 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n) }} />
-          <button className="btn btn-ghost btn-sm" onClick={ex.load} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
-          <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/expression/file`}>Example file</a>
-        </div>
+        {(!ov || replacing) && (
+          <div className="row wrap">
+            <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={2 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
+            <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); ex.load() }} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
+            <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/expression/file`}>Example file</a>
+            {ov && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
+          </div>
+        )}
         {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
         <ExampleSource text={ex.source} loading={ex.loading} />
         <ErrorNote error={err} />
@@ -1014,13 +1036,19 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
         {ov && (
           <>
             <div className="row wrap small">
-              <span><strong>{ov.totalGenes.toLocaleString()}</strong> genes × <strong>{ov.samples.length}</strong> samples{ov.dropped ? ` (${ov.dropped} rows skipped)` : ''} · {ov.logged ? 'log2(x + 1) transformed' : 'used as given'}</span>
+              <span><span className="muted">Table:</span> <strong>{fileName || (ex.source ? 'example' : 'pasted table')}</strong> · <strong>{ov.totalGenes.toLocaleString()}</strong> genes × <strong>{ov.samples.length}</strong> samples{ov.dropped ? ` (${ov.dropped} rows skipped)` : ''} · {ov.logged ? 'log2(x + 1) transformed' : 'used as given'}</span>
               <label>Log2 <select className="input input-sm" value={logMode} onChange={(e) => setLogMode(e.target.value as 'auto' | 'yes' | 'no')}><option value="auto">auto</option><option value="yes">yes</option><option value="no">no</option></select></label>
-              <label>Most variable <select className="input input-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))}>{[200, 500, 1000, 2000, 3000].map((n) => <option key={n} value={n}>{n} genes</option>)}</select></label>
-              <label>Clusters <input className="input input-sm input-narrow" type="number" min={2} max={20} value={k} onChange={(e) => setK(Number(e.target.value))} /></label>
+              <span className="toolbar-spacer" />
+              {!replacing && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace table</button>}
             </div>
             <Segmented label="View" value={view} onChange={setView}
-              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }, { value: 'activity', label: 'Pathway activity' }]} />
+              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }, { value: 'correlation', label: 'Correlation' }, { value: 'boxplots', label: 'Boxplots' }, { value: 'activity', label: 'Pathway activity' }]} />
+            {(view === 'clusters' || view === 'map') && (
+              <div className="row wrap small">
+                <label>Most variable <select className="input input-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))}>{[200, 500, 1000, 2000, 3000].map((n) => <option key={n} value={n}>{n} genes</option>)}</select></label>
+                <label>Clusters <input className="input input-sm input-narrow" type="number" min={2} max={20} value={k} onChange={(e) => setK(Number(e.target.value))} /></label>
+              </div>
+            )}
             {view === 'clusters' && (
               <div className="expr-clusters">
                 <Plot height={Math.min(560, 120 + ov.heatmap.genes.length * 0.5)} data={[{
@@ -1061,17 +1089,10 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
             )}
             {view === 'groups' && (
               <div className="stack-sm">
-                <p className="muted small">Put samples into group A and group B (at least two each). Flame tests every gene (Welch t-test, Benjamini–Hochberg) and opens the result in the volcano selector, where you pick up- and down-regulated genes or save all genes as a ranked list for GSEA.</p>
-                <table className="table compact">
-                  <thead><tr><th>Sample</th><th>Group A</th><th>Group B</th><th>Not used</th></tr></thead>
-                  <tbody>{ov.samples.map((s) => (
-                    <tr key={s}><td>{s}</td>
-                      {(['A', 'B', ''] as const).map((g) => (
-                        <td key={g || 'none'}><input type="radio" name={`grp-${s}`} aria-label={`${s} in ${g ? `group ${g}` : 'no group'}`} checked={(groups[s] ?? '') === g} onChange={() => setGroups({ ...groups, [s]: g })} /></td>
-                      ))}
-                    </tr>
-                  ))}</tbody>
-                </table>
+                <p className="muted small">Put samples into group A and group B (at least two each). Flame tests every gene (Welch t-test, Benjamini–Hochberg) and opens the result in the volcano selector, where you pick up- and down-regulated genes or save all genes as a ranked list for GSEA. The <em>Boxplots</em> tab starts from these groups.</p>
+                <SampleGroupPicker samples={ov.samples} names={['Group A', 'Group B']} colors={roleColors(pm).series}
+                  groupOf={(s) => (groups[s] === 'A' ? 0 : groups[s] === 'B' ? 1 : -1)}
+                  onAssign={(ss, g) => setGroups((cur) => ({ ...cur, ...Object.fromEntries(ss.map((x) => [x, g === 0 ? 'A' : g === 1 ? 'B' : ''])) }))} />
                 <div className="row between wrap">
                   <span className="small">A = {Object.values(groups).filter((g) => g === 'A').length} samples, B = {Object.values(groups).filter((g) => g === 'B').length} samples · log2FC = A − B</span>
                   <button className="btn btn-primary" disabled={busy || Object.values(groups).filter((g) => g === 'A').length < 2 || Object.values(groups).filter((g) => g === 'B').length < 2} onClick={runDe}>Compare and open volcano</button>
@@ -1079,6 +1100,11 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
                 {note && <Note kind="info">{note}</Note>}
               </div>
             )}
+            {view === 'correlation' && <CorrelationView text={text} fileName={fileName} log={log} groups={groups}
+              organism={organism} setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat} onCreated={onCreated}
+              onBoxplots={(g) => { setBox((b) => ({ ...(b ?? initialBoxSetup(ov.samples, groups)), genes: g })); setView('boxplots') }} />}
+            {view === 'boxplots' && <BoxplotsView text={text} fileName={fileName} log={log} samples={ov.samples}
+              setup={box ?? initialBoxSetup(ov.samples, groups)} setSetup={(f) => setBox((b) => f(b ?? initialBoxSetup(ov.samples, groups)))} />}
             {view === 'activity' && <PathwayActivity text={text} fileName={fileName} log={log} organism={organism} />}
             {(view === 'clusters' || view === 'map') && (
               <>
@@ -1099,6 +1125,554 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
         )}
       </div>
     </Modal>
+  )
+}
+
+// ---- Correlation with a gene of interest (Pearson, Spearman, Kendall) ----
+type CorrMethod = 'pearson' | 'spearman' | 'kendall'
+const CORR_METHODS: CorrMethod[] = ['pearson', 'spearman', 'kendall']
+const CORR_LABEL: Record<CorrMethod, string> = { pearson: 'Pearson r', spearman: 'Spearman ρ', kendall: 'Kendall τ' }
+interface CorrResult {
+  gene: string; n: number; samples: string[]; methods: CorrMethod[]; genes: string[]; tested: number; constant: number; logged: boolean
+  values: number[]; results: Partial<Record<CorrMethod, { r: number[]; p: number[]; padj: number[] }>>; note: string
+}
+interface GeneValues {
+  samples: string[]; groups: Record<string, string[]>; logged: boolean; missing: string[]; test: string; testName: string
+  genes: { gene: string; values: number[]; pvalue: number | null; means: Record<string, number>; pairwise: { a: string; b: string; log2FC: number; pvalue: number | null; padj: number | null }[] }[]
+}
+type Consensus = 'pos' | 'neg' | 'ns'
+const fmtP = (p: number | null | undefined) => (p == null || !Number.isFinite(p) ? '–' : p < 1e-3 ? p.toExponential(1) : p.toFixed(3))
+const MAX_PLOTTED_OTHER = 6000
+
+/** Gene IDs of an expression table (its first column), for suggestions. */
+function useTableGeneIds(text: string) {
+  return useMemo(() => text.split(/\r?\n/).slice(1).map((l) => l.split(/[\t,;]/)[0]?.trim().replace(/^"|"$/g, '')).filter((x): x is string => !!x), [text])
+}
+function GeneSuggest({ id, ids, value }: { id: string; ids: string[]; value: string }) {
+  const q = value.trim().toUpperCase()
+  const opts = q ? ids.filter((g) => g.toUpperCase().startsWith(q)).slice(0, 30) : []
+  return <datalist id={id}>{opts.map((g) => <option key={g} value={g} />)}</datalist>
+}
+
+interface PairResult {
+  geneA: string; geneB: string; n: number; samples: string[]; logged: boolean; a: number[]; b: number[]; note: string
+  stats: { method: CorrMethod; r: number; p: number; ciLow: number | null; ciHigh: number | null }[]
+}
+
+/** The “diagonal”: expression of two genes across the samples, with each method's correlation (cor.test). */
+function PairPlot({ text, fileName, log, geneA, geneB, methods, groups, fdr }: {
+  text: string; fileName: string; log: boolean | null; geneA: string; geneB: string; methods: CorrMethod[]
+  groups: Record<string, 'A' | 'B' | ''>; fdr?: Partial<Record<CorrMethod, number>>
+}) {
+  const [res, setRes] = useState<PairResult | null>(null)
+  const [err, setErr] = useState<unknown>(null)
+  const [labels, setLabels] = useState(true)
+  const pm = usePaletteMode()
+  const rc = roleColors(pm)
+  useEffect(() => {
+    setErr(null)
+    api<PairResult>('/inputs/expression/pair', { body: { text, fileName, log, geneA, geneB, methods } })
+      .then(setRes).catch((e) => { setRes(null); setErr(e) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, fileName, log, geneA, geneB, methods.join(',')])
+
+  const unit = res?.logged ? 'log2(x + 1)' : 'expression'
+  const traces = useMemo(() => {
+    if (!res) return []
+    const hasGroups = res.samples.some((s) => groups[s] === 'A') && res.samples.some((s) => groups[s] === 'B')
+    const cats: [string, string, string][] = hasGroups ? [['A', 'Group A', rc.series[0]], ['B', 'Group B', rc.series[1]], ['', 'Not grouped', '#9CA3AF']] : [['*', 'Samples', rc.accent]]
+    const out: Record<string, unknown>[] = cats.map(([k, name, color]) => {
+      const idx = res.samples.map((s, i) => [s, i] as const).filter(([s]) => k === '*' || (groups[s] ?? '') === k)
+      return { type: 'scatter', mode: labels ? 'markers+text' : 'markers', name, x: idx.map(([, i]) => res.a[i]), y: idx.map(([, i]) => res.b[i]), text: idx.map(([s]) => s),
+        textposition: 'top center', textfont: { size: 9 }, marker: { size: 10, color, line: { width: 1, color: '#fff' } },
+        hovertemplate: `%{text}<br>${res.geneA}: %{x:.2f}<br>${res.geneB}: %{y:.2f}<extra></extra>` }
+    }).filter((t) => (t.x as number[]).length)
+    const n = res.a.length; const mx = res.a.reduce((u, v) => u + v, 0) / n; const my = res.b.reduce((u, v) => u + v, 0) / n
+    const sxx = res.a.reduce((u, v) => u + (v - mx) ** 2, 0); const sxy = res.a.reduce((u, v, i) => u + (v - mx) * (res.b[i] - my), 0)
+    const slope = sxx ? sxy / sxx : 0; const lo = Math.min(...res.a); const hi = Math.max(...res.a)
+    out.push({ type: 'scatter', mode: 'lines', name: 'Linear fit', x: [lo, hi], y: [my + slope * (lo - mx), my + slope * (hi - mx)], hoverinfo: 'skip', line: { dash: 'dash', color: '#6B7280', width: 1.5 } })
+    return out
+  }, [res, groups, labels, rc])
+
+  return (
+    <div className="stack-sm">
+      <ErrorNote error={err} />
+      {!res && !err && <Spinner label={`Loading ${geneA} and ${geneB}`} />}
+      {res && (
+        <>
+          <div className="row wrap small">
+            <strong>{res.geneA} vs {res.geneB}</strong><span className="muted">{res.n} samples</span>
+            <span className="toolbar-spacer" />
+            <PaletteSelect />
+            <label className="row"><input type="checkbox" checked={labels} onChange={(e) => setLabels(e.target.checked)} /> Sample labels</label>
+          </div>
+          <table className="table compact">
+            <thead><tr><th>Method</th><th className="num">Coefficient</th><th className="num">95% CI</th><th className="num">p-value</th>{fdr && <th className="num">FDR (vs all genes)</th>}</tr></thead>
+            <tbody>{res.stats.map((s) => (
+              <tr key={s.method}><td>{CORR_LABEL[s.method]}</td><td className="num"><strong>{s.r.toFixed(3)}</strong></td>
+                <td className="num">{s.ciLow != null && Number.isFinite(s.ciLow) ? `${s.ciLow.toFixed(2)} to ${s.ciHigh!.toFixed(2)}` : '–'}</td>
+                <td className="num">{fmtP(s.p)}</td>{fdr && <td className="num">{fmtP(fdr[s.method])}</td>}</tr>
+            ))}</tbody>
+          </table>
+          <Plot height={420} exportName={`flame_correlation_${res.geneA}_${res.geneB}`} data={traces as never}
+            layout={{ xaxis: { title: { text: `${res.geneA} (${unit})` } }, yaxis: { title: { text: `${res.geneB} (${unit})` } }, legend: { orientation: 'h', y: -0.2 } }} />
+          <p className="muted small">Each point is a sample. p-values from <code>cor.test</code> for this pair (exact for Spearman and Kendall in small samples without ties); 95% CI for Pearson only.{fdr ? ' The FDR column comes from testing this gene against every gene.' : ''} {res.note}</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+function CorrelationView({ text, fileName, log, groups, organism, setOrganism, idFormat, setIdFormat, onCreated, onBoxplots }: {
+  text: string; fileName: string; log: boolean | null; groups: Record<string, 'A' | 'B' | ''>
+  organism: number; setOrganism: (t: number) => void; idFormat: string; setIdFormat: (f: string) => void; onCreated: (l: AnalyteList) => void
+  onBoxplots: (genes: string[]) => void
+}) {
+  const [mode, setMode] = useState<'all' | 'pair'>('all')
+  const [gene, setGene] = useState('')
+  const [gene2, setGene2] = useState('')
+  const [pairAsked, setPairAsked] = useState<[string, string] | null>(null)
+  const [methods, setMethods] = useState<CorrMethod[]>(CORR_METHODS)
+  const [res, setRes] = useState<CorrResult | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<unknown>(null)
+  const [minR, setMinR] = useState(0.7)
+  const [maxQ, setMaxQ] = useState(0.05)
+  const [plotMethod, setPlotMethod] = useState<CorrMethod>('spearman')
+  const [sel, setSel] = useState<Set<string>>(new Set())
+  const selV = usePlainSelection(sel, NO_SET)
+  const [partner, setPartner] = useState('')
+  const pm = usePaletteMode()
+  const rc = roleColors(pm)
+  const create = useCreateList()
+  const ids = useTableGeneIds(text)
+  const pairRef = useRef<HTMLDivElement>(null)
+
+  const run = () => {
+    setBusy(true); setErr(null)
+    api<CorrResult>('/inputs/expression/correlate', { body: { text, fileName, log, gene, methods } })
+      .then((r) => { setRes(r); setPartner(''); if (!r.methods.includes(plotMethod)) setPlotMethod(r.methods[0]) })
+      .catch(setErr).finally(() => setBusy(false))
+  }
+  const showPartner = (g: string) => {
+    setPartner(g)
+    setTimeout(() => pairRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 50)
+  }
+
+  // Per gene: consensus = every chosen method passes |r| and FDR cut-offs with the same sign.
+  const rows = useMemo(() => {
+    if (!res) return []
+    return res.genes.map((g, i) => {
+      const per = res.methods.map((m) => ({ m, r: res.results[m]!.r[i], padj: res.results[m]!.padj[i] }))
+      const pass = per.map((x) => Math.abs(x.r) >= minR && x.padj <= maxQ)
+      const all = pass.every(Boolean)
+      const consensus: Consensus = all && per.every((x) => x.r > 0) ? 'pos' : all && per.every((x) => x.r < 0) ? 'neg' : 'ns'
+      return { gene: g, i, per, consensus, meanR: per.reduce((a, x) => a + x.r, 0) / per.length, passCount: pass.filter(Boolean).length }
+    })
+  }, [res, minR, maxQ])
+  const byGene = useMemo(() => new Map(rows.map((r) => [r.gene, r])), [rows])
+  const counts = useMemo(() => ({ pos: rows.filter((r) => r.consensus === 'pos').length, neg: rows.filter((r) => r.consensus === 'neg').length }), [rows])
+  // A new result or new cut-offs select the consensus genes.
+  useEffect(() => { setSel(new Set(rows.filter((r) => r.consensus !== 'ns').map((r) => r.gene))) }, [rows])
+  const pick = (which: Consensus | 'both') => setSel(new Set(rows.filter((r) => (which === 'both' ? r.consensus !== 'ns' : r.consensus === which)).map((r) => r.gene)))
+
+  // r against −log10 FDR (plain SVG, no WebGL); the non-consensus cloud is thinned when it is very large.
+  const { plotData, thinned } = useMemo(() => {
+    const pr = res?.results[plotMethod]
+    if (!res || !pr) return { plotData: [], thinned: 0 }
+    const y = (i: number) => Math.min(50, -Math.log10(Math.max(pr.padj[i], 1e-300)))
+    let thinned = 0
+    const traces = ([['ns', 'Other', rc.ns], ['pos', 'Consensus positive', rc.up], ['neg', 'Consensus negative', rc.down]] as const).map(([k, name, color]) => {
+      let rs = rows.filter((r) => r.consensus === k)
+      const total = rs.length
+      if (k === 'ns' && rs.length > MAX_PLOTTED_OTHER) { const step = Math.ceil(rs.length / MAX_PLOTTED_OTHER); rs = rs.filter((_, j) => j % step === 0 || selV.has(rs[j].gene) || rs[j].gene === partner); thinned = total - rs.length }
+      return { type: 'scatter', mode: 'markers', name: `${name} (${total.toLocaleString()})`, x: rs.map((r) => pr.r[r.i]), y: rs.map((r) => y(r.i)),
+        customdata: rs.map((r) => r.gene), text: rs.map((r) => r.gene), hovertemplate: '%{text}<br>r = %{x:.3f}<br>−log10 FDR = %{y:.2f}<br><i>click: scatter with ' + res.gene + '</i><extra></extra>',
+        marker: { size: rs.map((r) => (r.gene === partner ? 13 : selV.has(r.gene) ? 9 : k === 'ns' ? 4 : 6)), color, opacity: k === 'ns' ? 0.45 : 0.85,
+          line: { width: rs.map((r) => (r.gene === partner ? 2.5 : selV.has(r.gene) ? 1.5 : 0)), color: '#111827' } } }
+    })
+    return { plotData: traces, thinned }
+  }, [res, rows, plotMethod, selV, rc, partner])
+  const cut = { dash: 'dot', color: rc.up, width: 1 }
+
+  const tableRows = useMemo(() => {
+    const src = sel.size ? rows.filter((r) => sel.has(r.gene)) : rows
+    return [...src].sort((a, b) => Math.abs(b.meanR) - Math.abs(a.meanR)).slice(0, 200)
+  }, [rows, sel])
+  const fullTable = () => rows.map((r) => ({ gene: r.gene, ...Object.fromEntries(r.per.flatMap((x) => [[`${x.m}_r`, x.r], [`${x.m}_p`, res!.results[x.m]!.p[r.i]], [`${x.m}_padj`, x.padj]])), consensus: r.consensus === 'pos' ? 'positive' : r.consensus === 'neg' ? 'negative' : '' }))
+  const tsv = () => {
+    const t = fullTable()
+    const cols = Object.keys(t[0] ?? { gene: '' })
+    return [cols.join('\t'), ...t.map((r) => cols.map((c) => String((r as Record<string, unknown>)[c] ?? '')).join('\t'))].join('\n')
+  }
+  const methodBoxes = (
+    <Field label="Methods">
+      <div className="row">
+        {CORR_METHODS.map((m) => (
+          <label key={m} className="row"><input type="checkbox" checked={methods.includes(m)}
+            onChange={(e) => setMethods((cur) => (e.target.checked ? CORR_METHODS.filter((x) => x === m || cur.includes(x)) : cur.filter((x) => x !== m)))} /> {CORR_LABEL[m].split(' ')[0]}</label>
+        ))}
+      </div>
+    </Field>
+  )
+  const partnerRow = partner ? byGene.get(partner) : undefined
+
+  return (
+    <div className="stack-sm">
+      <Segmented label="Correlate" value={mode} onChange={setMode}
+        options={[{ value: 'all', label: 'One gene vs all genes' }, { value: 'pair', label: 'Two genes' }]} />
+      {mode === 'pair' && (
+        <>
+          <p className="muted small">Correlation of two genes across the samples, by each method, with a scatter plot of their expression.</p>
+          <div className="row wrap">
+            <Field label="Gene 1 (x)">
+              <input className="input" list="pair-genes-1" value={gene} placeholder="e.g. FKBP5" onChange={(e) => setGene(e.target.value)} />
+              <GeneSuggest id="pair-genes-1" ids={ids} value={gene} />
+            </Field>
+            <Field label="Gene 2 (y)">
+              <input className="input" list="pair-genes-2" value={gene2} placeholder="e.g. PER1" onChange={(e) => setGene2(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && gene.trim() && gene2.trim()) setPairAsked([gene.trim(), gene2.trim()]) }} />
+              <GeneSuggest id="pair-genes-2" ids={ids} value={gene2} />
+            </Field>
+            {methodBoxes}
+            <button className="btn btn-primary align-end" disabled={!gene.trim() || !gene2.trim() || !methods.length} onClick={() => setPairAsked([gene.trim(), gene2.trim()])}>Correlate</button>
+          </div>
+          {pairAsked && <PairPlot text={text} fileName={fileName} log={log} geneA={pairAsked[0]} geneB={pairAsked[1]} methods={methods} groups={groups} />}
+        </>
+      )}
+      {mode === 'all' && (
+        <>
+          <p className="muted small">Correlate one gene with every other gene across the samples, with up to three methods. Genes that pass the cut-offs with all chosen methods, in the same direction, are the <strong>consensus</strong> co-expressed genes. <strong>Click a gene</strong> on the plot or in the table to see the two genes' expression across the samples.</p>
+          <div className="row wrap">
+            <Field label="Gene of interest">
+              <input className="input" list="corr-genes" value={gene} placeholder="e.g. FKBP5" onChange={(e) => setGene(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && gene.trim() && methods.length) run() }} />
+              <GeneSuggest id="corr-genes" ids={ids} value={gene} />
+            </Field>
+            {methodBoxes}
+            <button className="btn btn-primary align-end" disabled={busy || !gene.trim() || !methods.length} onClick={run}>{busy ? 'Correlating…' : 'Correlate'}</button>
+          </div>
+          <ErrorNote error={err} />
+          {busy && <Spinner label={`Correlating ${gene} with every gene`} />}
+          {res && (
+            <>
+              <div className="row wrap small">
+                <span><strong>{res.gene}</strong> vs {res.tested.toLocaleString()} genes · {res.n} samples{res.constant ? ` · ${res.constant} constant genes skipped` : ''}</span>
+                <label>|r| ≥ <input className="input input-sm input-narrow" type="number" min={0} max={1} step={0.05} value={minR} onChange={(e) => setMinR(Math.min(1, Math.max(0, Number(e.target.value))))} /></label>
+                <label>FDR ≤ <select className="input input-sm" value={maxQ} onChange={(e) => setMaxQ(Number(e.target.value))}>{[0.01, 0.05, 0.1, 0.25, 1].map((q) => <option key={q} value={q}>{q}</option>)}</select></label>
+                <span className="toolbar-spacer" />
+                <PaletteSelect />
+                {res.methods.length > 1 && (
+                  <label>Plot <select className="input input-sm" value={plotMethod} onChange={(e) => setPlotMethod(e.target.value as CorrMethod)}>{res.methods.map((m) => <option key={m} value={m}>{CORR_LABEL[m]}</option>)}</select></label>
+                )}
+              </div>
+              <Note kind="info">{res.note}</Note>
+              <div className="row wrap">
+                <span className="small"><strong>Consensus</strong> ({res.methods.map((m) => CORR_LABEL[m].split(' ')[0]).join(' + ')}): <span style={{ color: rc.up }}>{counts.pos.toLocaleString()} positive</span>, <span style={{ color: rc.down }}>{counts.neg.toLocaleString()} negative</span></span>
+                <span className="toolbar-spacer" />
+                <button className="btn btn-ghost btn-sm" onClick={() => pick('pos')}>Positive</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => pick('neg')}>Negative</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => pick('both')}>Both</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear</button>
+              </div>
+              <Plot height={420} dragmode="select" exportName={`flame_correlation_${res.gene}`} data={plotData as never}
+                onSelect={(sid, add) => setSel((cur) => (add ? new Set([...cur, ...sid]) : new Set(sid)))}
+                onPointClick={showPartner}
+                layout={{ xaxis: { title: { text: `${CORR_LABEL[plotMethod]} with ${res.gene}` }, range: [-1.05, 1.05] }, yaxis: { title: { text: '−log10 FDR' } }, legend: { orientation: 'h', y: -0.2 },
+                  shapes: [...[-minR, minR].map((x) => ({ type: 'line', x0: x, x1: x, yref: 'paper', y0: 0, y1: 1, line: cut })),
+                    ...(maxQ < 1 ? [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: -Math.log10(maxQ), y1: -Math.log10(maxQ), line: cut }] : [])] } as never} />
+              <p className="muted small">Click a point to see that gene against {res.gene}; drag a box or lasso (or Shift-click) to select genes.{thinned > 0 ? ` ${thinned.toLocaleString()} non-consensus genes are not drawn, to keep the plot fast; all are in the table and downloads.` : ''}</p>
+              <div ref={pairRef}>
+                {partner && (
+                  <div className="card stack-sm">
+                    <div className="row"><h3 className="save-heading">{res.gene} vs {partner}</h3><span className="toolbar-spacer" />
+                      <button className="btn btn-ghost btn-sm" onClick={() => onBoxplots([res.gene, partner])}>Boxplots →</button>
+                      <button className="btn btn-ghost btn-sm" aria-label="Close" onClick={() => setPartner('')}>×</button></div>
+                    <PairPlot text={text} fileName={fileName} log={log} geneA={res.gene} geneB={partner} methods={res.methods} groups={groups}
+                      fdr={partnerRow ? Object.fromEntries(partnerRow.per.map((x) => [x.m, x.padj])) : undefined} />
+                  </div>
+                )}
+              </div>
+              <div className="toolbar">
+                <span className="small"><strong>{sel.size ? `${sel.size.toLocaleString()} selected` : 'All genes'}</strong>, strongest first{tableRows.length === 200 ? ' (top 200 shown)' : ''}</span>
+                <span className="toolbar-spacer" />
+                <button className="btn btn-secondary btn-sm" disabled={!sel.size} title="Open these genes, with the gene of interest, in the Boxplots tab"
+                  onClick={() => onBoxplots([res.gene, ...tableRows.filter((r) => sel.has(r.gene)).slice(0, 11).map((r) => r.gene)])}>Boxplots of top selected →</button>
+                <CopyButton label="Copy genes" text={(sel.size ? [...sel] : rows.map((r) => r.gene)).join('\n')} />
+                <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: `Correlation ${res.gene}`.slice(0, 31), rows: fullTable() }], `flame_correlation_${res.gene}.xlsx`)}>Excel</button>
+                <button className="btn btn-ghost btn-sm" onClick={() => saveText(tsv(), `flame_correlation_${res.gene}.tsv`, 'text/tab-separated-values')}>TSV</button>
+              </div>
+              <div className="table-scroll" style={{ maxHeight: 320, overflow: 'auto' }}>
+                <table className="table compact">
+                  <thead><tr><th>Gene</th>{res.methods.map((m) => <th key={m} className="num" colSpan={2}>{CORR_LABEL[m]} · FDR</th>)}<th>Consensus</th></tr></thead>
+                  <tbody>{tableRows.map((r) => (
+                    <tr key={r.gene} className={partner === r.gene ? 'selected' : undefined}>
+                      <td><button type="button" className="link-btn" onClick={() => showPartner(r.gene)}>{r.gene}</button></td>
+                      {r.per.map((x) => <Fragment key={x.m}><td className="num">{x.r.toFixed(3)}</td><td className="num muted">{fmtP(x.padj)}</td></Fragment>)}
+                      <td style={{ color: r.consensus === 'pos' ? rc.up : r.consensus === 'neg' ? rc.down : undefined }}>{r.consensus === 'pos' ? 'Positive' : r.consensus === 'neg' ? 'Negative' : `${r.passCount}/${r.per.length} methods`}</td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+              <h3 className="save-heading">Save the selected genes as a list</h3>
+              <SaveList ids={[...sel].slice(0, 3000)} defaultName={`Co-expressed with ${res.gene}`} organism={organism} setOrganism={setOrganism}
+                idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'expression-correlation', gene: res.gene, methods: res.methods, minR, maxQ }} onCreated={onCreated} />
+              <div className="note note-info">
+                <strong>Use every gene instead of a selection?</strong> Save all genes ranked by their {CORR_LABEL[plotMethod]} with {res.gene} and run GSEA on it — no cut-offs needed.
+                <div className="row end">
+                  <button className="btn btn-secondary btn-sm" disabled={create.isPending} onClick={() =>
+                    create.mutate({ name: `Correlation with ${res.gene} (${plotMethod})`, ids: res.genes, scores: res.results[plotMethod]!.r, organismTaxId: organism, idFormat, uniqueName: true,
+                      meta: { method: 'expression-correlation-ranked', gene: res.gene, correlation: plotMethod } }, { onSuccess: onCreated })}>
+                    Save as ranked list ({res.genes.length.toLocaleString()} genes)
+                  </button>
+                </div>
+                <ErrorNote error={create.error} />
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Assign samples to groups: tick rows (Shift-click for a range) or select by name, then send the
+ * ticked samples to a group in one go; each row also has its own group menu.
+ */
+function SampleGroupPicker({ samples, names, colors, groupOf, onAssign, children }: {
+  samples: string[]; names: string[]; colors: string[]
+  /** Group index of a sample (-1 = not used). */
+  groupOf: (s: string) => number
+  onAssign: (samples: string[], group: number) => void
+  /** Extra controls shown above the list (e.g. group names). */
+  children?: React.ReactNode
+}) {
+  const [show, setShow] = useState(true)
+  const [checked, setChecked] = useState<Set<string>>(new Set())
+  const [match, setMatch] = useState('')
+  const lastTick = useRef<number | null>(null)
+  const counts = names.map((_, i) => samples.filter((s) => groupOf(s) === i).length)
+  const unused = samples.length - counts.reduce((a, b) => a + b, 0)
+  // Tick one sample, or with Shift every sample between it and the last one ticked.
+  const tick = (idx: number, range: boolean) => {
+    setChecked((cur) => {
+      const next = new Set(cur)
+      if (range && lastTick.current != null) {
+        const [lo, hi] = [Math.min(lastTick.current, idx), Math.max(lastTick.current, idx)]
+        for (let k = lo; k <= hi; k++) next.add(samples[k])
+      } else if (cur.has(samples[idx])) next.delete(samples[idx])
+      else next.add(samples[idx])
+      return next
+    })
+    lastTick.current = idx
+  }
+  const assign = (g: number) => { onAssign([...checked], g); setChecked(new Set()); setMatch('') }
+  return (
+    <div className="card stack-sm">
+      <div className="row wrap small">
+        <strong>Samples in groups</strong>
+        {names.map((n, i) => <span key={i}><i className="swatch" style={{ background: colors[i % colors.length] }} /> {n}: {counts[i]}</span>)}
+        <span className="muted">Not used: {unused}</span>
+        <span className="toolbar-spacer" />
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShow((v) => !v)}>{show ? 'Hide samples' : 'Show samples'}</button>
+      </div>
+      {show && (
+        <>
+          {children}
+          <div className="row wrap">
+            <input className="input input-sm" style={{ minWidth: 200 }} value={match} placeholder="Select samples containing… (e.g. dex)" aria-label="Select samples whose name contains this text"
+              onChange={(e) => { const q = e.target.value; setMatch(q); setChecked(q.trim() ? new Set(samples.filter((s) => s.toLowerCase().includes(q.trim().toLowerCase()))) : new Set()) }} />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChecked(new Set(samples))}>All</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setChecked(new Set()); setMatch('') }}>None</button>
+            <span className="small muted">{checked.size} ticked → put in</span>
+            {names.map((n, i) => (
+              <button key={i} type="button" className="btn btn-secondary btn-sm" disabled={!checked.size} style={{ borderColor: colors[i % colors.length] }} onClick={() => assign(i)}>{n}</button>
+            ))}
+            <button type="button" className="btn btn-ghost btn-sm" disabled={!checked.size} onClick={() => assign(-1)}>Not used</button>
+          </div>
+          <div className="table-scroll" style={{ maxHeight: 300, overflow: 'auto' }}>
+            <table className="table compact">
+              <thead><tr>
+                <th><input type="checkbox" aria-label="Tick all samples" checked={checked.size === samples.length && samples.length > 0}
+                  ref={(el) => { if (el) el.indeterminate = checked.size > 0 && checked.size < samples.length }}
+                  onChange={(e) => setChecked(e.target.checked ? new Set(samples) : new Set())} /></th>
+                <th>Sample</th><th>Group</th>
+              </tr></thead>
+              <tbody>{samples.map((s, idx) => {
+                const g = groupOf(s)
+                return (
+                  <tr key={s} className={checked.has(s) ? 'selected' : undefined} style={{ cursor: 'pointer' }} onClick={(e) => tick(idx, e.shiftKey)}>
+                    <td><input type="checkbox" aria-label={`Tick ${s}`} checked={checked.has(s)} onClick={(e) => e.stopPropagation()} onChange={(e) => tick(idx, (e.nativeEvent as MouseEvent).shiftKey)} /></td>
+                    <td>{s}</td>
+                    <td onClick={(e) => e.stopPropagation()}>
+                      <i className="swatch" style={{ background: g >= 0 ? colors[g % colors.length] : 'transparent', border: g >= 0 ? undefined : '1px dashed #9CA3AF' }} />{' '}
+                      <select className="input input-sm" aria-label={`Group of ${s}`} value={g} onChange={(e) => onAssign([s], Number(e.target.value))}>
+                        {names.map((n, i) => <option key={i} value={i}>{n}</option>)}<option value={-1}>Not used</option>
+                      </select>
+                    </td>
+                  </tr>
+                )
+              })}</tbody>
+            </table>
+          </div>
+          <p className="muted small">Tick samples (click a row; Shift-click ticks a range) or type part of their names, then press a group button. Each sample's menu changes it alone.</p>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ---- Boxplots of genes by 2-3 sample groups, with tests ----
+interface BoxSetup { genes: string[]; nGroups: 2 | 3; names: string[]; assign: Record<string, number>; test: 'parametric' | 'rank'
+  /** Colours chosen per group; empty = from the palette. */
+  colors?: string[] }
+
+/** Initial boxplot groups: the A/B groups of “Compare two groups”, else guessed from sample-name stems. */
+function initialBoxSetup(samples: string[], groups: Record<string, 'A' | 'B' | ''>): BoxSetup {
+  const fromVolcano = samples.some((s) => groups[s] === 'A') && samples.some((s) => groups[s] === 'B')
+  if (fromVolcano) return { genes: [], nGroups: 2, names: ['Group A', 'Group B', 'Group C'], test: 'parametric', assign: Object.fromEntries(samples.map((s) => [s, groups[s] === 'A' ? 0 : groups[s] === 'B' ? 1 : -1])) }
+  const stem = (s: string) => s.replace(/[_.\- ]?(rep)?\d+$/i, '')
+  const stems = [...new Set(samples.map(stem))]
+  const ok = stems.length >= 2 && stems.length <= 3
+  return { genes: [], nGroups: stems.length === 3 ? 3 : 2, test: 'parametric', names: ok ? [...stems, 'Group C'].slice(0, 3) : ['Group A', 'Group B', 'Group C'],
+    assign: Object.fromEntries(samples.map((s) => [s, ok ? stems.indexOf(stem(s)) : -1])) }
+}
+
+function BoxplotsView({ text, fileName, log, samples, setup, setSetup }: {
+  text: string; fileName: string; log: boolean | null; samples: string[]; setup: BoxSetup; setSetup: (f: (s: BoxSetup) => BoxSetup) => void
+}) {
+  const [draft, setDraft] = useState('')
+  const [vals, setVals] = useState<GeneValues | null>(null)
+  const [err, setErr] = useState<unknown>(null)
+  const [busy, setBusy] = useState(false)
+  const pm = usePaletteMode()
+  const palette = useMemo(() => roleColors(pm).series, [pm])
+  const ids = useTableGeneIds(text)
+  const { genes, nGroups, names, assign, test } = setup
+  const series = useMemo(() => palette.map((c, i) => setup.colors?.[i] || c), [palette, setup.colors])
+  const custom = (setup.colors ?? []).some(Boolean)
+  const groupNames = names.slice(0, nGroups).map((n, i) => n.trim() || `Group ${'ABC'[i]}`)
+  const members = groupNames.map((_, i) => samples.filter((s) => assign[s] === i))
+  const sizesOk = members.every((m) => m.length >= 2)
+  const dupNames = new Set(groupNames.map((n) => n.toLowerCase())).size < groupNames.length
+
+  const addGenes = (raw: string) => {
+    const add = raw.split(/[\s,;]+/).map((g) => g.trim()).filter(Boolean)
+    if (add.length) setSetup((s) => ({ ...s, genes: [...new Set([...s.genes, ...add])].slice(0, 24) }))
+    setDraft('')
+  }
+  const key = JSON.stringify([genes, groupNames, members, test, log])
+  useEffect(() => {
+    if (!genes.length || dupNames) { setVals(null); return }
+    setBusy(true); setErr(null)
+    const body = { text, fileName, log, genes, test, groups: Object.fromEntries(groupNames.map((n, i) => [n, members[i]]).filter(([, m]) => (m as string[]).length)) }
+    api<GeneValues>('/inputs/expression/genes', { body }).then(setVals).catch((e) => { setVals(null); setErr(e) }).finally(() => setBusy(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key, text, fileName])
+
+  const shownGroups = vals ? Object.keys(vals.groups) : []
+  const boxData = useMemo(() => {
+    if (!vals) return []
+    const sets: [string, string[]][] = shownGroups.length ? shownGroups.map((g) => [g, vals.groups[g]]) : [['All samples', vals.samples]]
+    return sets.map(([g, ss], j) => {
+      const xs: string[] = []; const ys: number[] = []; const tx: string[] = []
+      vals.genes.forEach((gn) => vals.samples.forEach((s, si) => { if (ss.includes(s)) { xs.push(gn.gene); ys.push(gn.values[si]); tx.push(s) } }))
+      return { type: 'box', name: `${g} (n = ${ss.length})`, x: xs, y: ys, text: tx, boxpoints: 'all', jitter: 0.4, pointpos: 0,
+        marker: { color: series[j % series.length], size: 6 }, line: { width: 1.5 }, hovertemplate: `%{text}<br>%{x}: %{y:.2f}<extra>${g}</extra>` }
+    })
+  }, [vals, shownGroups.join('|'), series]) // eslint-disable-line react-hooks/exhaustive-deps
+  const annotations = useMemo(() => (!vals || !vals.testName ? [] : vals.genes.map((g) => ({
+    x: g.gene, y: 1, yref: 'paper', yanchor: 'bottom', showarrow: false, font: { size: 11 }, text: `p = ${fmtP(g.pvalue)}` }))), [vals])
+  const pairs = vals?.genes[0]?.pairwise ?? []
+  const tableRows = (vals?.genes ?? []).map((g) => ({
+    Gene: g.gene, ...Object.fromEntries(shownGroups.map((n) => [`Mean ${n}`, g.means[n]])),
+    [shownGroups.length > 2 ? 'Overall p' : 'p-value']: g.pvalue,
+    ...(shownGroups.length > 2 ? Object.fromEntries(g.pairwise.flatMap((p) => [[`${p.a} vs ${p.b} log2FC`, p.log2FC], [`${p.a} vs ${p.b} p (Holm)`, p.padj]])) : { log2FC: g.pairwise[0]?.log2FC }),
+  }))
+  const unit = vals?.logged ? 'log2(x + 1)' : 'expression'
+
+  return (
+    <div className="stack-sm">
+      <p className="muted small">Compare genes between two or three groups of samples. Each box is one group; points are samples. Two groups: Welch t-test (or Wilcoxon). Three groups: an overall test (Welch ANOVA or Kruskal–Wallis) plus every pair of groups, Holm-adjusted.</p>
+      <div className="row wrap">
+        <Field label="Genes (up to 24)">
+          <input className="input" list="box-genes" value={draft} placeholder="Type a gene and press Enter, or paste several" onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') addGenes(draft) }} onPaste={(e) => { const t = e.clipboardData.getData('text'); if (/[\s,;]/.test(t.trim())) { e.preventDefault(); addGenes(t) } }} />
+          <GeneSuggest id="box-genes" ids={ids} value={draft} />
+        </Field>
+        <button className="btn btn-secondary align-end" disabled={!draft.trim()} onClick={() => addGenes(draft)}>Add</button>
+        <Field label="Groups">
+          <Segmented label="Number of groups" value={String(nGroups)} onChange={(v) => setSetup((s) => ({ ...s, nGroups: Number(v) as 2 | 3, assign: Number(v) === 2 ? Object.fromEntries(Object.entries(s.assign).map(([k, g]) => [k, g === 2 ? -1 : g])) : s.assign }))}
+            options={[{ value: '2', label: '2 groups' }, { value: '3', label: '3 groups' }]} />
+        </Field>
+        <Field label="Test">
+          <select className="input" value={test} onChange={(e) => setSetup((s) => ({ ...s, test: e.target.value as BoxSetup['test'] }))}>
+            <option value="parametric">{nGroups === 3 ? 'Welch ANOVA + Welch t-tests' : 'Welch t-test'}</option>
+            <option value="rank">{nGroups === 3 ? 'Kruskal–Wallis + Wilcoxon' : 'Wilcoxon rank-sum'}</option>
+          </select>
+        </Field>
+      </div>
+      {genes.length > 0 && (
+        <div className="row wrap small">{genes.map((g) => (
+          <span key={g} className="chip">{g} <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${g}`} onClick={() => setSetup((s) => ({ ...s, genes: s.genes.filter((x) => x !== g) }))}>×</button></span>
+        ))}<button type="button" className="btn btn-ghost btn-sm" onClick={() => setSetup((s) => ({ ...s, genes: [] }))}>Clear genes</button></div>
+      )}
+      <SampleGroupPicker samples={samples} names={groupNames} colors={series}
+        groupOf={(s) => { const g = assign[s] ?? -1; return g < nGroups ? g : -1 }}
+        onAssign={(ss, g) => setSetup((st) => ({ ...st, assign: { ...st.assign, ...Object.fromEntries(ss.map((x) => [x, g])) } }))}>
+        <div className="row wrap">
+          {groupNames.map((_, i) => (
+            <Field key={i} label={`Group ${i + 1}: name and colour`}>
+              <span className="row">
+                <input className="input input-sm" value={names[i]} maxLength={40} onChange={(e) => setSetup((st) => ({ ...st, names: st.names.map((x, j) => (j === i ? e.target.value : x)) }))} />
+                <input type="color" aria-label={`Colour of ${groupNames[i]}`} value={series[i]} style={{ width: 32, height: 28, padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                  onChange={(e) => { const c = e.target.value; setSetup((st) => { const cs = [...(st.colors ?? [])]; cs[i] = c; return { ...st, colors: cs } }) }} />
+              </span>
+            </Field>
+          ))}
+        </div>
+      </SampleGroupPicker>
+      {dupNames && <Note kind="warning">Give each group a different name.</Note>}
+      {!sizesOk && <Note kind="info">Put at least two samples in each group to get p-values.</Note>}
+      <ErrorNote error={err} />
+      {!genes.length && <p className="muted small">Add genes above, or send them from the <em>Correlation</em> tab.</p>}
+      {busy && !vals && <Spinner label="Loading expression values" />}
+      {vals && (
+        <>
+          {vals.missing.length > 0 && <Note kind="warning">Not in the table: {vals.missing.join(', ')}</Note>}
+          <div className="toolbar">
+            <span className="small muted">Colours</span>
+            <PaletteSelect />
+            {custom && <button type="button" className="btn btn-ghost btn-sm" title="Drop the colours picked per group and use the palette again" onClick={() => setSetup((st) => ({ ...st, colors: [] }))}>Reset to palette</button>}
+            <span className="muted small">or pick a colour per group under <em>Samples in groups</em></span>
+          </div>
+          <Plot height={400} exportName={`flame_boxplots_${vals.genes.map((g) => g.gene).slice(0, 3).join('_')}`} data={boxData as never}
+            layout={{ boxmode: 'group', yaxis: { title: { text: unit } }, legend: { orientation: 'h', y: -0.15 }, margin: { l: 60, r: 20, t: vals.testName ? 30 : 10, b: 60 }, annotations: annotations as never }} />
+          {vals.testName && <p className="muted small">p above each gene: {shownGroups.length > 2 ? (vals.test === 'rank' ? 'Kruskal–Wallis test' : 'Welch one-way ANOVA') : vals.testName} ({shownGroups.join(' vs ')}), not adjusted across genes.{members.some((m) => m.length < 4) && vals.test === 'rank' ? ' With so few samples per group, rank tests cannot reach small p-values (3 vs 3: p ≥ 0.1).' : ''}</p>}
+          {vals.testName && (
+            <>
+              <div className="toolbar">
+                <span className="small"><strong>Tests</strong> · {vals.testName}</span>
+                <span className="toolbar-spacer" />
+                <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: 'Boxplot tests', rows: tableRows }], 'flame_boxplot_tests.xlsx')}>Excel</button>
+              </div>
+              <div className="table-scroll">
+                <table className="table compact">
+                  <thead><tr><th>Gene</th>{shownGroups.map((n) => <th key={n} className="num">Mean {n}</th>)}<th className="num">{shownGroups.length > 2 ? 'Overall p' : 'p-value'}</th>
+                    {shownGroups.length > 2 ? pairs.map((p) => <th key={`${p.a}|${p.b}`} className="num">{p.a} vs {p.b}<div className="muted small">log2FC · p (Holm)</div></th>) : <th className="num">log2FC ({shownGroups[0]} − {shownGroups[1]})</th>}</tr></thead>
+                  <tbody>{vals.genes.map((g) => (
+                    <tr key={g.gene}><td>{g.gene}</td>{shownGroups.map((n) => <td key={n} className="num">{g.means[n]?.toFixed(2)}</td>)}
+                      <td className="num"><strong>{fmtP(g.pvalue)}</strong></td>
+                      {shownGroups.length > 2 ? g.pairwise.map((p) => <td key={`${p.a}|${p.b}`} className="num">{p.log2FC.toFixed(2)} · {fmtP(p.padj)}</td>) : <td className="num">{g.pairwise[0]?.log2FC.toFixed(2)}</td>}
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
   )
 }
 

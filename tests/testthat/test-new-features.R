@@ -273,6 +273,63 @@ test_that("expression matrices: parsing, log transform, clusters and two-group t
   expect_error(parse_expression_matrix("gene\tA\nX\t1"), "two")
 })
 
+test_that("expression matrices: gene-of-interest correlation and group values", {
+  ex <- example_input("expression")
+  x <- parse_expression_matrix(ex$text, ex$fileName)
+  goi <- rownames(x$matrix)[which.max(apply(x$matrix, 1, stats::var))]
+  r <- expression_correlate(x, tolower(goi))
+  expect_equal(r$gene, goi)
+  expect_equal(unlist(r$methods), CORRELATION_METHODS)
+  expect_false(goi %in% unlist(r$genes))
+  for (m in CORRELATION_METHODS) {
+    expect_length(r$results[[m]]$r, r$tested)
+    expect_true(all(abs(r$results[[m]]$r) <= 1 & r$results[[m]]$padj >= r$results[[m]]$p - 1e-12))
+  }
+  # Matches stats::cor.test for one partner gene.
+  j <- 5L; other <- r$genes[[j]]
+  expect_equal(r$results$pearson$r[j], unname(stats::cor(x$matrix[goi, ], x$matrix[other, ])), tolerance = 1e-3)
+  expect_equal(r$results$pearson$p[j], stats::cor.test(x$matrix[goi, ], x$matrix[other, ])$p.value, tolerance = 1e-3)
+  expect_equal(r$results$spearman$r[j], unname(stats::cor(x$matrix[goi, ], x$matrix[other, ], method = "spearman")), tolerance = 1e-3)
+  expect_equal(r$results$kendall$r[j], unname(stats::cor(x$matrix[goi, ], x$matrix[other, ], method = "kendall")), tolerance = 1e-3)
+  # Exact Kendall p-values match cor.test for small samples without ties.
+  for (k in c(5L, 8L, 12L)) {
+    set.seed(k); a <- rnorm(k); b <- a + rnorm(k)
+    tau <- unname(stats::cor(a, b, method = "kendall"))
+    expect_equal(.kendall_p(tau, k), stats::cor.test(a, b, method = "kendall")$p.value, tolerance = 1e-6)
+  }
+  expect_equal(.kendall_p(c(1, -1, 0), 6), c(2 / factorial(6), 2 / factorial(6), 1), tolerance = 1e-9)
+  s <- expression_correlate(x, goi, "spearman", x$samples[1:5])
+  expect_equal(s$n, 5); expect_named(s$results, "spearman")
+  expect_error(expression_correlate(x, goi, samples = x$samples[1:3]), "at least 4")
+  expect_error(expression_correlate(x, "NOT_A_GENE_XYZ"), "not in the table")
+  pr <- expression_pair(x, goi, other)
+  for (st in pr$stats) {
+    ct <- suppressWarnings(stats::cor.test(x$matrix[goi, ], x$matrix[other, ], method = st$method))
+    expect_equal(st$r, unname(ct$estimate), tolerance = 1e-3); expect_equal(st$p, ct$p.value, tolerance = 1e-3)
+  }
+  expect_false(is.na(pr$stats[[1]]$ciLow))
+  expect_length(pr$a, length(x$samples))
+  expect_error(expression_pair(x, goi, tolower(goi)), "two different")
+  dex <- grep("^dexamethasone_", x$samples, value = TRUE); unt <- grep("^untreated_", x$samples, value = TRUE)
+  v <- expression_gene_values(x, c(goi, "NOT_A_GENE_XYZ"), list(Dex = dex, Untreated = unt))
+  expect_equal(unlist(v$missing), "NOT_A_GENE_XYZ")
+  expect_length(v$genes[[1]]$values, length(x$samples))
+  expect_equal(v$genes[[1]]$pvalue, stats::t.test(x$matrix[goi, dex], x$matrix[goi, unt])$p.value, tolerance = 1e-3)
+  expect_length(v$genes[[1]]$pairwise, 1)
+  w <- expression_gene_values(x, goi, list(Dex = dex, Untreated = unt), test = "rank")
+  expect_equal(w$genes[[1]]$pvalue, stats::wilcox.test(x$matrix[goi, dex], x$matrix[goi, unt])$p.value, tolerance = 1e-3)
+  # Three groups: overall Welch ANOVA and three Holm-adjusted pairwise tests.
+  g3 <- list(G1 = x$samples[1:3], G2 = x$samples[4:6], G3 = x$samples[7:8])
+  t3 <- expression_gene_values(x, goi, g3)
+  f <- factor(rep(names(g3), lengths(g3)))
+  expect_equal(t3$genes[[1]]$pvalue, stats::oneway.test(x$matrix[goi, unlist(g3)] ~ f)$p.value, tolerance = 1e-3)
+  expect_length(t3$genes[[1]]$pairwise, 3)
+  expect_true(all(vapply(t3$genes[[1]]$pairwise, function(p) p$padj >= p$pvalue, logical(1))))
+  k3 <- expression_gene_values(x, goi, g3, test = "rank")
+  expect_equal(k3$genes[[1]]$pvalue, stats::kruskal.test(x$matrix[goi, unlist(g3)], f)$p.value, tolerance = 1e-3)
+  expect_true(is.na(expression_gene_values(x, goi, list(A = dex))$genes[[1]]$pvalue))
+})
+
 test_that("examples come from the published datasets", {
   up <- strsplit(example_input("upload")$text, "\n")[[1]]
   pool <- example_gene_pool()

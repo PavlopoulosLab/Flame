@@ -176,6 +176,46 @@ function(req, res) {
   })
 }
 
+#* Gene expression matrix: correlate a gene of interest with every other gene.
+#* Body: { text, fileName?, gene, methods?: [pearson|spearman|kendall], samples?: [names], log? }
+#* @post /expression/correlate
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    tryCatch(expression_correlate(x, b$gene, b$methods %||% CORRELATION_METHODS, b$samples),
+             error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* Gene expression matrix: correlation of two genes (Pearson, Spearman, Kendall via cor.test) and their values.
+#* Body: { text, fileName?, geneA, geneB, methods?, log? }
+#* @post /expression/pair
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    tryCatch(expression_pair(x, b$geneA, b$geneB, b$methods %||% CORRELATION_METHODS), error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* Gene expression matrix: values of up to 24 genes per sample, compared between 2-3 sample groups.
+#* Body: { text, fileName?, genes:[ids], groups?: { name: [samples] }, test?: parametric|rank, log? }
+#* @post /expression/genes
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    tryCatch(expression_gene_values(x, b$genes, b$groups, b$test %||% "parametric"), error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
 #* microRNAs to target genes (miRDB via MSigDB). Body: { text, organismTaxId?, minMirnas? }
 #* @post /mirna/targets
 #* @serializer flamejson
