@@ -10,7 +10,7 @@ interface NResult extends GeneResult { genes: NGene[]; matched?: string | null; 
 interface Trait { id: string; name: string; description: string }
 
 const SOURCES: { id: Source; label: string; what: string }[] = [
-  { id: 'ctd', label: 'CTD', what: 'curated interactions: genes whose expression, activity or binding the compound or food changes' },
+  { id: 'ctd', label: 'CTD', what: 'curated interactions: genes whose expression, activity or binding the compound or food changes (CTD now asks for a human check, so it may not answer automated searches)' },
   { id: 'chembl', label: 'ChEMBL', what: 'human protein targets with measured activity of the compound' },
   { id: 'uniprot', label: 'UniProt', what: 'enzymes, transporters and binding proteins annotated with the compound (via ChEBI)' },
   { id: 'gwas', label: 'GWAS traits', what: 'diet and nutrient traits (intake, blood levels) and their GWAS Catalog genes' },
@@ -24,13 +24,13 @@ const EXAMPLES = ['curcumin', 'vitamin D', 'folic acid', 'quercetin', 'green tea
  */
 export function NutritionInput({ title, example, onClose, onCreated }: { title: string; example?: boolean; onClose: () => void; onCreated: (l: AnalyteList) => void }) {
   const [term, setTerm] = useState(example ? 'curcumin' : '')
-  const [sources, setSources] = useState<Set<Source>>(new Set(['ctd', 'chembl', 'uniprot', 'gwas']))
+  const [sources, setSources] = useState<Set<Source>>(new Set(['chembl', 'uniprot', 'gwas']))   // CTD off by default: it now blocks automated requests
   const [organisms, setOrganisms] = useState<'human' | 'all'>('human')
   const [minP, setMinP] = useState(5)
   const [results, setResults] = useState<Partial<Record<Source, NResult | { error: string }>>>({})
   const [traits, setTraits] = useState<Trait[] | null>(null)
   const [trait, setTrait] = useState<{ t: Trait; r: NResult } | null>(null)
-  const [tab, setTab] = useState<Source | 'all'>('ctd')
+  const [tab, setTab] = useState<Source | 'all'>('all')
   const [busy, setBusy] = useState<string | null>(null)
   const [err, setErr] = useState<unknown>(null)
   const [dir, setDir] = useState<'any' | 'up' | 'down'>('any')
@@ -85,7 +85,8 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
     }
     const genes = [...m.values()].sort((a, b) => b.from.length - a.from.length || a.gene.localeCompare(b.gene))
       .map((g) => ({ gene: g.gene, name: g.name, sources: g.from.length, from: g.from }))
-    return { genes, organismTaxId: 9606, ranked: true, valueLabel: 'sources', term: `${searched}: all sources`, source: 'CTD, ChEMBL, UniProt and GWAS Catalog',
+    return { genes, organismTaxId: 9606, ranked: true, valueLabel: 'sources', term: `${searched}: all sources`,
+      source: parts.map(([s]) => (s === 'gwas' ? 'GWAS Catalog' : SOURCES.find((x) => x.id === s)!.label)).join(', ').replace(/, ([^,]*)$/, ' and $1'),   // only the sources that answered
       citation: 'Genes ranked by how many sources link them to the query.' } as NResult
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results, trait, searched])
@@ -108,7 +109,7 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
 
   return (
     <Modal title={title} size="xl" onClose={onClose}
-      subtitle="Genes linked to a nutrient, food compound or food, from live databases: CTD, ChEMBL, UniProt and the GWAS Catalog.">
+      subtitle="Genes linked to a nutrient, food compound or food, from live databases: ChEMBL, UniProt, the GWAS Catalog and CTD.">
       <div className="stack">
         <div className="row">
           <input className="input" value={term} placeholder="A nutrient, food compound or food — e.g. curcumin, vitamin D, green tea" aria-label="Nutrient, compound or food"

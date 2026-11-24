@@ -1209,7 +1209,12 @@ function PairPlot({ text, fileName, log, geneA, geneB, methods, groups, fdr }: {
   const traces = useMemo(() => {
     if (!res) return []
     const hasGroups = res.samples.some((s) => groups[s] === 'A') && res.samples.some((s) => groups[s] === 'B')
-    const cats: [string, string, string][] = hasGroups ? [['A', 'Group A', rc.series[0]], ['B', 'Group B', rc.series[1]], ['', 'Not grouped', '#9CA3AF']] : [['*', 'Samples', rc.accent]]
+    // Name each group after its samples when they share a name stem (untreated_1, untreated_2 -> "untreated").
+    const groupName = (k: 'A' | 'B') => {
+      const st = [...new Set(res.samples.filter((s) => groups[s] === k).map((s) => s.replace(/[_.\- ]?(rep)?\d+$/i, '').replace(/[_.\- ]+[A-Za-z]?$/, '')))]
+      return st.length === 1 && st[0] ? st[0] : `Group ${k}`
+    }
+    const cats: [string, string, string][] = hasGroups ? [['A', groupName('A'), rc.series[0]], ['B', groupName('B'), rc.series[1]], ['', 'Not grouped', '#9CA3AF']] : [['*', 'Samples', rc.accent]]
     const out: Record<string, unknown>[] = cats.map(([k, name, color]) => {
       const idx = res.samples.map((s, i) => [s, i] as const).filter(([s]) => k === '*' || (groups[s] ?? '') === k)
       return { type: 'scatter', mode: labels ? 'markers+text' : 'markers', name, x: idx.map(([, i]) => res.a[i]), y: idx.map(([, i]) => res.b[i]), text: idx.map(([s]) => s),

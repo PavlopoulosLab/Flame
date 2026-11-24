@@ -54,6 +54,10 @@ NUTRITION_SOURCES <- c("ctd", "chembl", "uniprot")
 .ctd_interactions <- function(term) {
   .nutri_cached(paste("ctd", tolower(term)), {
     txt <- .http_text(CTD_BATCH_URL, list(inputType = "chem", inputTerms = term, report = "cgixns", format = "tsv", actionTypes = "ANY"))
+    # Since late 2026 CTD answers automated requests with a human-verification page (a CAPTCHA),
+    # which Flame does not try to get around: say so and point to CTD itself.
+    if (grepl("verify you are a human|altcha", txt, ignore.case = TRUE))
+      stop(sprintf("CTD now asks every visitor to confirm they are human, so Flame cannot query it automatically. Search '%s' at ctdbase.org in your browser, or use ChEMBL, UniProt and the GWAS traits here.", term))
     lines <- strsplit(txt, "\n", fixed = TRUE)[[1]]
     if (length(lines) < 2 || grepl("Object not found", lines[2], fixed = TRUE)) NULL
     else {
