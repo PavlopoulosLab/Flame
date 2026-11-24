@@ -69,7 +69,7 @@ const FEATURES: { icon: string; tone: string; title: string; text: string }[] = 
   { icon: 'regulators', tone: 'indigo', title: 'Beyond enrichment',
     text: 'Transcription factors, kinases, drug signatures, cell types, literature, network modules, variants and GWAS.' },
   { icon: 'save', tone: 'amber', title: 'Share and reproduce',
-    text: 'Private workspace links, figure export, a REST API and a Python client. No login, no tracking cookies.' },
+    text: 'Private workspace links, figure export, a REST API and a Python client.' },
 ]
 
 /** One accent per featured example card. */
@@ -138,7 +138,7 @@ export default function HomePage() {
     [String(config?.idFormats.length ?? 19), 'gene and protein ID formats'],
     [String(EXAMPLES.length), 'ready-made examples'],
     ['12,000+', 'organisms'],
-    ['0', 'logins or tracking cookies'],
+    ['16', 'ways to start a gene list'],
   ]
 
   return (
@@ -274,7 +274,7 @@ export default function HomePage() {
 
       <footer className="hm-footer">
         <p>
-          Private workspace links, deleted after {config?.limits.retentionDays ?? 30} days of inactivity · no tracking cookies
+          Private workspace links, deleted after {config?.limits.retentionDays ?? 30} days of inactivity
         </p>
         <nav aria-label="More">
           <Link to="/help">Help and tutorial →</Link>
