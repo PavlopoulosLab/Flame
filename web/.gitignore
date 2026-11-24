@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# PDF.js runtime data, copied from node_modules at build time
+public/pdfjs/

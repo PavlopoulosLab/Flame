@@ -204,3 +204,26 @@ task_state <- function(ws, id, withResult = TRUE) {
 }
 
 active_task_count <- function(ws) sum(vapply(ls(.flame_tasks), function(k) identical(.flame_tasks[[k]]$ws, ws), logical(1)))
+
+#' Ask REVIGO from a background worker; the view request is answered when it arrives
+#' (plumber waits on the promise without blocking other requests).
+revigo_async <- function(pending, build, res) {
+  m <- mirai::mirai(
+    tryCatch(revigo_fetch(ids, pvalues, taxid, cutoff, measure),
+             error = function(e) structure(list(message = conditionMessage(e)), class = "revigo_failure")),
+    ids = pending$ids, pvalues = pending$pvalues, taxid = pending$taxid,
+    cutoff = pending$cutoff, measure = pending$measure)
+  promises::then(promises::as.promise(m),
+    onFulfilled = function(tab) {
+      if (inherits(tab, "revigo_failure") || !is.data.frame(tab)) {
+        res$status <- 502L
+        return(list(error = if (inherits(tab, "revigo_failure")) tab$message else "REVIGO did not respond. Try again later, or use another method."))
+      }
+      revigo_cache_set(pending$key, tab)
+      api_handle(res, build())
+    },
+    onRejected = function(e) {
+      res$status <- 502L
+      list(error = "REVIGO did not respond. Try again later, or use another method.")
+    })
+}

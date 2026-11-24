@@ -10,8 +10,10 @@ import { saveXlsx } from '../../lib/xlsx'
 
 export type FetchMode = 'disease' | 'pubmed' | 'geo' | 'clinvar'
 
-interface FGene { gene: string; name?: string; score?: number; articles?: number; variants?: number; sources?: number; from?: string[]; bestScore?: number; pmids?: string[]; evidence?: Record<string, number> }
-interface GeneResult { genes: FGene[]; organismTaxId: number; ranked?: boolean; citation?: string; source?: string; disease?: string; term?: string; link?: string; total?: number }
+export interface FGene { gene: string; name?: string; /** Generic value (its label is the result's valueLabel). */ value?: number; /** Short detail shown in its own column. */ note?: string; score?: number; articles?: number; variants?: number; sources?: number; from?: string[]; bestScore?: number; pmids?: string[]; evidence?: Record<string, number> }
+export interface GeneResult { genes: FGene[]; organismTaxId: number; ranked?: boolean; citation?: string; source?: string; disease?: string; term?: string; link?: string; total?: number
+  /** Label of FGene.value; how many genes to keep at first (default 200–500); keep them all (e.g. a ranked list for GSEA). */
+  valueLabel?: string; defaultTop?: number; keepAll?: boolean; note?: string }
 
 const EXAMPLES: Record<FetchMode, string> = {
   disease: 'asthma',
@@ -366,24 +368,30 @@ function ClinvarVariants({ data }: { data: { searched?: { query: string; term: s
 }
 
 /** Ranked genes of the fetched source; choose how many and save them as a list. */
-function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode; onCreated: (l: AnalyteList) => void }) {
-  const value = (g: FGene) => g.sources ?? g.score ?? g.articles ?? g.variants ?? null
-  const valueLabel = r.genes.some((g) => g.sources != null) ? 'selected results listing the gene' : r.genes.some((g) => g.score != null) ? 'association score' : r.genes.some((g) => g.articles != null) ? 'articles' : r.genes.some((g) => g.variants != null) ? 'variants' : null
-  const [top, setTop] = useState(Math.min(r.genes.length, valueLabel === 'association score' ? 200 : 500))
-  const [withScores, setWithScores] = useState(false)
+export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode | 'tcga' | 'maf' | 'survival' | 'nutrition'; onCreated: (l: AnalyteList) => void }) {
+  const value = (g: FGene) => g.value ?? g.sources ?? g.score ?? g.articles ?? g.variants ?? null
+  const valueLabel = r.valueLabel ? r.valueLabel : r.genes.some((g) => g.sources != null) ? 'selected results listing the gene' : r.genes.some((g) => g.score != null) ? 'association score' : r.genes.some((g) => g.articles != null) ? 'articles' : r.genes.some((g) => g.variants != null) ? 'variants' : null
+  const firstTop = () => (r.keepAll ? r.genes.length : Math.min(r.genes.length, r.defaultTop ?? (valueLabel === 'association score' ? 200 : 500)))
+  const [top, setTop] = useState(firstTop)
+  const [withScores, setWithScores] = useState(!!r.keepAll)
   const [organism, setOrganism] = useState(r.organismTaxId)
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const [sel, setSel] = useState<string[]>([])
-  useEffect(() => { setTop(Math.min(r.genes.length, valueLabel === 'association score' ? 200 : 500)); setOrganism(r.organismTaxId); setSel([]) }, [r, valueLabel])
+  useEffect(() => { setTop(firstTop()); setOrganism(r.organismTaxId); setSel([]); setWithScores(!!r.keepAll) // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [r, valueLabel])
   // Two ways to choose: the top N genes (slider), or hand-picked bars. Hand-picked genes win while there are any.
-  const chosen = useMemo(() => (sel.length ? r.genes.filter((g) => sel.includes(g.gene)) : r.genes.slice(0, top)), [r, top, sel])
+  const selSet = useMemo(() => new Set(sel), [sel])
+  const chosen = useMemo(() => (sel.length ? r.genes.filter((g) => selSet.has(g.gene)) : r.genes.slice(0, top)), [r, top, sel, selSet])
+  const allPicked = r.genes.length > 0 && sel.length === r.genes.length
+  const pickAll = () => setSel(r.genes.map((g) => g.gene))
   const chosenSet = useMemo(() => new Set(chosen.map((g) => g.gene)), [chosen])
   const shown = r.genes.slice(0, 40)
   const TABLE_ROWS = 500
   const hasFrom = r.genes.some((g) => g.from?.length)
   const toggleGene = (gene: string) => setSel((c) => (c.includes(gene) ? c.filter((x) => x !== gene) : [...c, gene]))
   const minTop = Math.min(5, r.genes.length)
-  const name = { disease: r.disease ?? r.term ?? 'Disease genes', pubmed: 'PubMed genes', geo: r.term ?? 'GEO signature', clinvar: 'ClinVar variant genes' }[mode]
+  const name = { disease: r.disease ?? r.term ?? 'Disease genes', pubmed: 'PubMed genes', geo: r.term ?? 'GEO signature', clinvar: 'ClinVar variant genes', tcga: r.term ?? 'TCGA genes', maf: r.term ?? 'Mutated genes (MAF)', survival: r.term ?? 'Survival genes', nutrition: r.term ?? 'Nutrition genes' }[mode]
+  const hasNote = r.genes.some((g) => g.note)
   return (
     <div className="stack-sm fetch-genes">
       <div className="row between wrap">
@@ -404,14 +412,21 @@ function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode; on
           {sel.length > 0 && <span className="small"><strong>{plural(sel.length, 'hand-picked gene')}</strong> used instead <button className="btn btn-ghost btn-sm" onClick={() => setSel([])}>Back to top {top}</button></span>}
         </div>
       )}
+      {r.genes.length > 1 && (
+        <div className="row">
+          <button className="btn btn-ghost btn-sm" onClick={pickAll} disabled={allPicked}>Select all ({r.genes.length.toLocaleString()})</button>
+          <button className="btn btn-ghost btn-sm" onClick={() => setSel([])} disabled={!sel.length}>None</button>
+        </div>
+      )}
       <div className="table-scroll fetch-table gene-table"><table className="table compact">
-        <thead><tr><th aria-label="Hand-pick" /><th className="num">#</th><th>Gene</th><th>Name</th>{valueLabel && <th className="num">{valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1)}</th>}{hasFrom && <th>Listed by</th>}</tr></thead>
+        <thead><tr><th><input type="checkbox" checked={allPicked} aria-label="Select all genes" title={allPicked ? 'Clear the selection' : 'Select all genes'} onChange={() => (allPicked ? setSel([]) : pickAll())} /></th><th className="num">#</th><th>Gene</th><th>Name</th>{valueLabel && <th className="num">{valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1)}</th>}{hasFrom && <th>Listed by</th>}{hasNote && <th>Details</th>}</tr></thead>
         <tbody>{r.genes.slice(0, TABLE_ROWS).map((g, i) => (
           <tr key={g.gene} className={chosenSet.has(g.gene) ? 'selected' : ''}>
-            <td><input type="checkbox" checked={sel.includes(g.gene)} aria-label={`Hand-pick ${g.gene}`} onChange={() => toggleGene(g.gene)} /></td>
+            <td><input type="checkbox" checked={selSet.has(g.gene)} aria-label={`Hand-pick ${g.gene}`} onChange={() => toggleGene(g.gene)} /></td>
             <td className="num muted">{i + 1}</td><td><GeneCardsLink gene={g.gene} /></td><td className="small">{g.name}</td>
             {valueLabel && <td className="num">{typeof value(g) === 'number' && !Number.isInteger(value(g)) ? (value(g) as number).toFixed(3) : value(g)}</td>}
             {hasFrom && <td className="small muted">{(g.from ?? []).join('; ')}</td>}
+            {hasNote && <td className="small muted">{g.note}</td>}
           </tr>
         ))}</tbody>
       </table></div>

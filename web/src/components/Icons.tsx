@@ -209,6 +209,21 @@ const ICONS: Record<string, ReactNode> = {
     {[0, 1, 2].map((r) => [0, 1, 2, 3].map((c) => <rect key={`${r}${c}`} x={4 + c * 4} y={5 + r * 4} width="3.4" height="3.4" rx="0.6" fill={(r + c) % 3 === 0 ? C : (r + c) % 3 === 1 ? B : 'currentColor'} fillOpacity={(r + c) % 3 === 2 ? 0.2 : 0.7} />))}
     <path d="M4 19.5h16" stroke={G} strokeWidth="1.6" strokeLinecap="round" />
   </>),
+  bench: (<>
+    <path d="M4 20h16" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    <rect x="5.5" y="11" width="3.4" height="9" rx="0.8" fill={C} opacity=".35" /><rect x="10.3" y="6" width="3.4" height="14" rx="0.8" fill={O} opacity=".35" /><rect x="15.1" y="9" width="3.4" height="11" rx="0.8" fill={C} opacity=".35" />
+    <circle cx="7.2" cy="12.5" r="1" fill={C} /><circle cx="12" cy="7.2" r="1" fill={O} /><circle cx="12" cy="9.4" r="1" fill={O} /><circle cx="16.8" cy="10.6" r="1" fill={C} />
+    <path d="M10.6 3.4h5.6M13.4 3.4v1.6" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+  </>),
+  nutrition: (<>
+    <path d="M12 7.5c-1.6-2.6-6.5-2.4-7.2 1.6-.7 4 1.7 9.4 4.6 10.6 1.2.5 1.8-.3 2.6-.3s1.4.8 2.6.3c2.9-1.2 5.3-6.6 4.6-10.6-.7-4-5.6-4.2-7.2-1.6z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    <path d="M12 7.5c0-2 .6-3.6 2.4-4.6" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+    <path d="M12.6 4.6c1.6-1.4 3.6-1.3 4.6-.6-1 1.4-2.9 1.9-4.6.6z" fill={C} /><circle cx="9.6" cy="12.6" r="1.4" fill={O} /><circle cx="14.2" cy="14.6" r="1.1" fill={C} />
+  </>),
+  tcga: (<>
+    <path d="M12 3.2c3.2 0 4.4 2.3 6.6 3.6 2.2 1.3 2.6 4 1.3 6.4-1.3 2.4-1.2 5.3-4 6.6-2.8 1.3-5.6 1-7.8-.5-2.2-1.5-4.6-3.3-4.3-6.3.3-3 1.6-5.2 3.6-7 1.3-1.2 2.9-2.8 4.6-2.8z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    <circle cx="12" cy="12" r="3.4" fill={C} opacity=".85" /><circle cx="16.4" cy="7.6" r="1.4" fill={O} /><circle cx="7.6" cy="15.8" r="1.1" fill={O} />
+  </>),
   clinvar: (<>
     <path d="M6 3c0 5 12 5 12 9s-12 4-12 9M18 3c0 5-12 5-12 9s12 4 12 9" fill="none" stroke="currentColor" strokeWidth="1.3" />
     <circle cx="12" cy="7.6" r="1.8" fill={C} /><circle cx="12" cy="16.4" r="1.8" fill={O} />

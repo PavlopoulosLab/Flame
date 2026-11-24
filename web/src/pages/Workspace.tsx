@@ -195,12 +195,15 @@ export default function WorkspacePage() {
       case 'activity':
         setDialog({ type: 'input', kind: 'expression', example: true, view: 'activity' })
         return
+      case 'survival':
+        setDialog({ type: 'input', kind: 'expression', view: 'survival' })
+        return
       case 'variants':
       case 'gwas':
         navigate(`/w/${ws}/variants?example=${kind}`)
         return
       default:
-        if (['upload', 'snps', 'textmining', 'volcano', 'reduction', 'expression', 'mirna', 'disease', 'pubmed', 'geo', 'clinvar'].includes(kind)) setDialog({ type: 'input', kind: kind as InputKind, example: true })
+        if (['upload', 'snps', 'textmining', 'volcano', 'reduction', 'expression', 'mirna', 'disease', 'pubmed', 'geo', 'clinvar', 'tcga', 'nutrition', 'bench'].includes(kind)) setDialog({ type: 'input', kind: kind as InputKind, example: true })
         else if (kind === 'dbsnp') setDialog({ type: 'input', kind: 'clinvar', example: true }) // old example links
         return
     }
@@ -688,6 +691,10 @@ export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[]
   { kind: 'pubmed', title: 'PubMed genes', text: 'Genes of articles on glucocorticoids in airway muscle' },
   { kind: 'geo', title: 'GEO signature', text: 'GSE52778: dexamethasone vs untreated airway cells' },
   { kind: 'clinvar', title: 'ClinVar variants', text: 'Pathogenic cystic fibrosis variants and their genes' },
+  { kind: 'bench', title: 'Bench data (qPCR)', text: 'Ct values → ΔΔCt, test and figure' },
+  { kind: 'nutrition', title: 'Nutrient genes', text: 'Curcumin: CTD interactions, ChEMBL targets, UniProt' },
+  { kind: 'tcga', title: 'TCGA tumour groups', text: 'Breast cancer: basal-like vs luminal A tumours' },
+  { kind: 'survival', title: 'Survival genes', text: 'Liver cancer (TCGA): genes linked to overall survival' },
   { kind: 'variants', title: 'Variants', text: 'rsIDs and VCF lines → genes and traits' },
   { kind: 'gwas', title: 'GWAS results', text: 'Summary statistics → loci, genes, traits' },
 ]

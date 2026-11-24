@@ -70,8 +70,8 @@ arena3d_open <- function(body) {
 
 #' Result network views as layers: annotation sources (+ a Genes layer)
 arena3d_payload_for_view <- function(results, view, filters = list(), top = 20L,
-                                     sortBy = "-log10Pvalue", settings = list()) {
-  v <- build_view(results, view, filters, top, sortBy, settings)
+                                     sortBy = "-log10Pvalue", settings = list(), taxid = 9606L) {
+  v <- build_view(results, view, filters, top, sortBy, settings, taxid = taxid)
   terms <- v$terms
   if (!length(terms)) stop("The current view has no terms.")
   byId <- stats::setNames(terms, vapply(terms, `[[`, "", "id"))

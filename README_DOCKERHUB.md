@@ -5,7 +5,7 @@
 
 <p align="center"><img src="https://raw.githubusercontent.com/PavlopoulosLab/Flame/main/docs/flame-logo.png" alt="Flame logo" width="160"></p>
 
-# Flame 3.0: Functional Analysis and Integration made easy
+# Flame 3.0: The bioscientist’s everyday toolkit
 
 Flame runs functional and literature enrichment on one or many gene lists with eight established tools
 (g:Profiler, STRING, Enrichr, WebGestalt, PANTHER, GeneCodis, Reactome, clusterProfiler) plus your own GMT gene sets,

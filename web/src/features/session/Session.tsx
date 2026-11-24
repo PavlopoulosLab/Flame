@@ -7,7 +7,7 @@ import type { Run, WorkspaceSummary } from '../../api/types'
 import { BusyBar, CopyButton, ErrorNote, Modal, Note, Segmented } from '../../components/ui'
 import { useUndoToast } from '../../components/Undo'
 import { IconLabel } from '../../components/Icons'
-import { setPaletteMode, type PaletteMode } from '../../lib/palette'
+import { getCustomPalette, hasSavedCustomPalette, setCustomPalette, setPaletteMode, type CustomPalette, type PaletteMode } from '../../lib/palette'
 import { formatNum, plural } from '../../lib/format'
 
 export interface SessionStatus {
@@ -98,6 +98,7 @@ function collectPrefs(): Record<string, string> {
       if (k && k.startsWith('flame-') && !PREF_SKIP.has(k)) out[k] = sessionStorage.getItem(k) ?? ''
     }
   } catch { /* storage unavailable */ }
+  if (hasSavedCustomPalette()) out['flame-custom-palette'] = JSON.stringify(getCustomPalette())   // "My colours"
   return out
 }
 function applyPrefs(prefs: Record<string, string>) {
@@ -107,6 +108,9 @@ function applyPrefs(prefs: Record<string, string>) {
     })
   } catch { /* storage unavailable */ }
   if (prefs['flame-palette']) setPaletteMode(prefs['flame-palette'] as PaletteMode)
+  if (prefs['flame-custom-palette']) {
+    try { setCustomPalette(JSON.parse(prefs['flame-custom-palette']) as CustomPalette) } catch { /* not a palette */ }
+  }
   if (prefs['flame-theme'] === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
   else if (prefs['flame-theme'] === 'light') document.documentElement.removeAttribute('data-theme')
 }

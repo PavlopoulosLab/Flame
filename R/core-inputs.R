@@ -55,10 +55,10 @@ clean_column_names <- function(namesIn) {
 }
 
 #' Parse a CSV / TSV / whitespace table (delimiter from extension or first line)
-parse_delimited_table <- function(text, fileName = "") {
+parse_delimited_table <- function(text, fileName = "", maxBytes = MAX_INPUT_BYTES) {
   text <- paste(as.character(text %||% ""), collapse = "\n")
   if (!nzchar(trimws(text))) stop("Paste a table or upload a .txt, .csv or .tsv file.")
-  if (nchar(text, type = "bytes") > MAX_INPUT_BYTES) stop("The input is larger than the 1 MB limit.")
+  if (nchar(text, type = "bytes") > maxBytes) stop(sprintf("The input is larger than the %s MB limit.", format(round(maxBytes / 1024^2, 1))))
   ext <- tolower(tools::file_ext(fileName %||% ""))
   firstLine <- strsplit(text, "\r\n|\n|\r", perl = TRUE)[[1]][1]
   mode <- if (ext %in% c("csv", "tsv")) ext
@@ -240,7 +240,7 @@ flameComputeUpsetCombinations <- function(namedSets, mode = UpsetMode$INTERSECTI
 # ---- Example data -----------------------------------------------------------
 
 #' Example inputs used by every "Load example" button and the guided demo
-EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna", "metabolites")
+EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna", "metabolites", "survival", "bench_qpcr", "bench_western", "bench_facs", "bench_column")
 
 #' TRUE for recognisable gene names; FALSE for uncharacterised ORFs and
 #' placeholder symbols (C11orf24, LOC647225, KIAA0100, FAM100A, FLJ..., LINC...,
@@ -259,7 +259,8 @@ EXAMPLE_SOURCES <- list(
   gwas = "Lead associations for Alzheimer's disease from Bellenguez et al. 2022, Nat Genet 54:412-436 (GWAS Catalog GCST90027158; GRCh38).",
   metabolites = "Metabolites raised in metastatic prostate cancer and validated in the study (Sreekumar et al. 2009, Nature 457:910-914): sarcosine, uracil, kynurenine, glycerol 3-phosphate, leucine and proline.",
   mirna = "microRNAs up-regulated in at least 3 of 6 solid cancers vs normal tissue (Volinia et al. 2006, PNAS 103:2257-2261, Table 2), with 2006 names mapped to current miRBase names.",
-  hallmark = "The MSigDB Hallmark collection (Liberzon et al. 2015, Cell Systems 1:417-425).")
+  hallmark = "The MSigDB Hallmark collection (Liberzon et al. 2015, Cell Systems 1:417-425).",
+  lihc = "TCGA liver hepatocellular carcinoma (PanCancer Atlas; Cancer Genome Atlas Research Network 2017, Cell 169:1327) via cBioPortal: RNA-seq (log2 RSEM + 1) of 365 tumours for the genes of ten MSigDB Hallmark sets, with overall and progression-free survival and stage (built by data-raw/build_survival_example.R).")
 
 .example_file <- function(name) {
   f <- getExamplesPath(name)
@@ -305,6 +306,22 @@ example_input <- function(kind = EXAMPLE_KINDS) {
       sig <- de$padj <= 0.05
       list(up = as.list(de$gene[sig & de$log2FC >= 1]), down = as.list(de$gene[sig & de$log2FC <= -1]),
            thresholds = list(log2FC = 1, padj = 0.05), source = EXAMPLE_SOURCES$airway)
+    },
+    # Bench data: small illustrative tables (made-up numbers in realistic ranges, not measured data).
+    bench_qpcr = , bench_western = , bench_facs = , bench_column = {
+      f <- c(bench_qpcr = "bench_qpcr.tsv", bench_western = "bench_western.tsv", bench_facs = "bench_facs.tsv", bench_column = "bench_column.tsv")[[kind]]
+      list(text = paste(readLines(getExamplesPath(f), warn = FALSE), collapse = "\n"), fileName = paste0("flame_example_", f),
+           source = c(bench_qpcr = "Illustrative qPCR Ct values (made-up numbers): airway cells, control vs dexamethasone vs dexamethasone + RU486, 3 experiments; GAPDH and ACTB as reference genes.",
+                      bench_western = "Illustrative western blot band intensities (made-up numbers, as from ImageJ): 3 blots; ACTB as loading control.",
+                      bench_facs = "Illustrative cell-cycle percentages (made-up numbers): control vs nocodazole, 3 experiments.",
+                      bench_column = "Illustrative cell viability (% of control, made-up numbers): 4 replicates per group.")[[kind]])
+    },
+    # Expression of 365 liver tumours with their survival (and stage), for the survival analysis.
+    survival = {
+      rd <- function(f) paste(readLines(getExamplesPath(f), warn = FALSE), collapse = "\n")
+      list(text = rd("tcga_lihc_expression.tsv"), fileName = "flame_example_survival_expression.tsv",
+           clinical = rd("tcga_lihc_clinical.tsv"), clinicalFileName = "flame_example_survival_clinical.tsv",
+           source = EXAMPLE_SOURCES$lihc)
     },
     volcano = {
       de <- airway()

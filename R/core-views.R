@@ -178,16 +178,37 @@ gene_cooccurrence_edges <- function(data) {
   list(nodes = .records(nodes), edges = .records(edges), layout = layout)
 }
 
+#' Redundancy-reduction method chosen in the filters ("genes", "semantic" or "revigo").
+reduction_method <- function(filters) {
+  m <- as.character(filters$reduceMethod %||% "genes")[1]
+  if (m %in% REDUNDANCY_METHODS) m else "genes"
+}
+
+#' REVIGO request a view needs and does not have cached yet (NULL otherwise): lets the
+#' API fetch it in a background worker instead of blocking.
+revigo_pending <- function(results, filters = list(), taxid = 9606L) {
+  filters <- filters %||% list()
+  if (!isTRUE(filters$reduce) || reduction_method(filters) != "revigo") return(NULL)
+  inp <- revigo_input(apply_result_filters(results, filters))
+  if (length(inp$ids) < 2) return(NULL)
+  cutoff <- .num(filters$reduceCutoff %||% 0.7)
+  measure <- filters$reduceMeasure %||% "SIMREL"
+  if (!is.null(revigo_table(inp$ids, inp$pvalues, taxid, cutoff, measure, fetch = FALSE))) return(NULL)
+  list(ids = inp$ids, pvalues = inp$pvalues, taxid = taxid, cutoff = cutoff, measure = measure,
+       key = revigo_cache_key(inp$ids, inp$pvalues, taxid, cutoff, measure))
+}
+
 #' Build the data for one result view
 #'
 #' @param results Full results data frame for the run (from execute_ora_run)
 #' @param view One of VIEW_IDS
-#' @param filters Sidebar filters (list)
+#' @param filters Sidebar filters (list; reduce, reduceMethod, reduceCutoff, reduceMeasure)
 #' @param top Top N
 #' @param sortBy Sort key ("-log10Pvalue", "Term Coverage", "Gene Ratio", "Fold Enrichment")
 #' @param settings View settings (labels, layout, similarityCutoff, minShared, orientation)
+#' @param taxid Organism of the run (used by REVIGO)
 build_view <- function(results, view, filters = list(), top = 20L,
-                       sortBy = "-log10Pvalue", settings = list()) {
+                       sortBy = "-log10Pvalue", settings = list(), taxid = 9606L) {
   if (!view %in% VIEW_IDS) stop("Unknown view: ", view)
   settings <- settings %||% list()
   total <- if (is.null(results)) 0L else nrow(results)
@@ -196,9 +217,15 @@ build_view <- function(results, view, filters = list(), top = 20L,
   # Optional: one representative term per group of overlapping terms (before ranking, so "top N" are N distinct groups).
   reduction <- NULL
   if (isTRUE(filters$reduce) && filteredCount > 1) {
-    cutoff <- .num(filters$reduceCutoff %||% 0.5); if (!is.finite(cutoff)) cutoff <- 0.5
-    filtered <- reduce_redundancy(filtered, cutoff)
-    reduction <- list(before = filteredCount, after = nrow(filtered), cutoff = cutoff)
+    method <- reduction_method(filters)
+    cutoff <- .num(filters$reduceCutoff %||% NA); if (!length(cutoff) || !is.finite(cutoff)) cutoff <- if (method == "genes") 0.5 else 0.7
+    measure <- toupper(as.character(filters$reduceMeasure %||% "SIMREL"))[1]
+    goTerms <- sum(.is_go_source(as.character(filtered$Source)))
+    filtered <- reduce_redundancy(filtered, cutoff, method = method, taxid = taxid, measure = measure)
+    if (method == "revigo") cutoff <- .revigo_params(taxid, cutoff, measure)$cutoff
+    reduction <- list(before = filteredCount, after = nrow(filtered), cutoff = cutoff, method = method,
+                      measure = if (method == "revigo") measure else if (method == "semantic") "Wang" else "Jaccard",
+                      untouched = if (method == "genes") 0L else filteredCount - goTerms)
   }
   data <- apply_top_sort(filtered, top, sortBy)
 
@@ -281,8 +308,8 @@ NORMA_API_URL <- "https://normaviz.org/api/external"
 #' Groups: term–gene network -> each term with its genes; gene–gene -> genes
 #' grouped by the shown terms; term–term -> terms grouped by annotation source.
 norma_payload_for_view <- function(results, view, filters = list(), top = 20L,
-                                   sortBy = "-log10Pvalue", settings = list(), name = "Flame network") {
-  v <- build_view(results, view, filters, top, sortBy, settings)
+                                   sortBy = "-log10Pvalue", settings = list(), name = "Flame network", taxid = 9606L) {
+  v <- build_view(results, view, filters, top, sortBy, settings, taxid = taxid)
   net <- v$network
   if (is.null(net) || length(net$edges) == 0) stop("The current view has no edges to send.")
   terms <- v$terms

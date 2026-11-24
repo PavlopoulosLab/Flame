@@ -162,7 +162,9 @@ function(req, res, id) {
 
 #* Data for a result view.
 #* Body: { view, filters:{sources, search, pvalueMax, termSizeMin/Max, intersectionMin/Max,
-#*        termCoverageMin/Max}, top, sortBy, settings:{layout, similarityCutoff, minShared} }
+#*        termCoverageMin/Max, reduce, reduceMethod ("genes" | "semantic" | "revigo"),
+#*        reduceCutoff, reduceMeasure (REVIGO: SIMREL | LIN | RESNIK | JIANG)},
+#*        top, sortBy, settings:{layout, similarityCutoff, minShared} }
 #* @post /<id>/view
 #* @serializer flamejson
 function(req, res, id) {
@@ -170,11 +172,17 @@ function(req, res, id) {
     ws <- require_workspace(req)
     b <- body_of(req)
     out <- run_output(ws, id)
+    taxid <- get_run_row(ws, id)$taxid
     view <- as.character(b$view %||% "table")
     if (!view %in% VIEW_IDS) api_abort(400, "Unknown view.")
     top <- b$top %||% 20L
     if (identical(top, "all")) top <- .Machine$integer.max
-    build_view(out$results, view, b$filters %||% list(), top, b$sortBy %||% "-log10Pvalue", b$settings %||% list())
+    filters <- b$filters %||% list()
+    build <- function() build_view(out$results, view, filters, top, b$sortBy %||% "-log10Pvalue", b$settings %||% list(), taxid = taxid)
+    # REVIGO is a web service: ask it from a background worker so the server keeps answering others.
+    pending <- revigo_pending(out$results, filters, taxid)
+    if (is.null(pending)) return(build())
+    revigo_async(pending, build, res)
   })
 }
 
@@ -190,7 +198,8 @@ function(req, res, id) {
     if (!view %in% c("network-tg", "network-tt", "network-gg", "heatmap-tg")) api_abort(400, "Arena3D export is available for network views.")
     out <- run_output(ws, id)
     body <- tryCatch(arena3d_payload_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
-                                              b$sortBy %||% "-log10Pvalue", b$settings %||% list()),
+                                              b$sortBy %||% "-log10Pvalue", b$settings %||% list(),
+                                              taxid = get_run_row(ws, id)$taxid),
                      error = function(e) api_abort(422, conditionMessage(e)))
     tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
   })
@@ -209,7 +218,7 @@ function(req, res, id) {
     out <- run_output(ws, id)
     payload <- tryCatch(norma_payload_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
                                                b$sortBy %||% "-log10Pvalue", b$settings %||% list(),
-                                               name = paste(r$tool, r$list_name)),
+                                               name = paste(r$tool, r$list_name), taxid = r$taxid),
                         error = function(e) api_abort(422, conditionMessage(e)))
     url <- tryCatch(norma_export(payload), error = function(e) api_abort(502, conditionMessage(e)))
     list(url = url)

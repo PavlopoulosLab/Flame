@@ -5,7 +5,7 @@ import { createContext, createElement, useContext, useEffect, useState, useSyncE
  * chosen with PaletteSelect in its toolbar and remembered per view), so one
  * figure can be colour-blind safe or grayscale while the others keep theirs.
  */
-export type PaletteMode = 'flame' | 'cb' | 'vivid' | 'pastel' | 'gray'
+export type PaletteMode = 'flame' | 'cb' | 'vivid' | 'pastel' | 'gray' | 'custom'
 
 export const PALETTES: { value: PaletteMode; label: string; hint: string }[] = [
   { value: 'flame', label: 'Flame', hint: 'Default colours, matching the logo' },
@@ -13,6 +13,7 @@ export const PALETTES: { value: PaletteMode; label: string; hint: string }[] = [
   { value: 'vivid', label: 'Vivid', hint: 'Tableau 10 and Plasma: high contrast for slides' },
   { value: 'pastel', label: 'Pastel', hint: 'Soft colours for posters and backgrounds' },
   { value: 'gray', label: 'Grayscale (print)', hint: 'Shades of grey for black-and-white printing' },
+  { value: 'custom', label: 'My colours', hint: 'Your own colours, set with Edit colours' },
 ]
 
 const KEY = 'flame-palette'
@@ -68,7 +69,55 @@ export function usePaletteKey(key: string) {
 export function usePaletteMode(): PaletteMode {
   const scope = useContext(ScopeContext)
   const global = useSyncExternalStore((l) => { listeners.add(l); return () => listeners.delete(l) }, () => mode)
+  useCustomPalette() // re-draw when the user's own colours change
   return scope ? scope.mode : global
+}
+
+// ---- The user's own palette ("My colours"): kept in this browser, shared by every chart set to it ----
+
+export interface CustomPalette {
+  /** Colours of categories (sources, runs, groups…), in order. */
+  colors: string[]
+  /** Continuous scales (heatmaps, p-value colours) run from `low` to `high`. */
+  low: string
+  high: string
+}
+export const DEFAULT_CUSTOM_PALETTE: CustomPalette = {
+  colors: ['#1b9e77', '#d95f02', '#7570b3', '#e7298a', '#66a61e', '#e6ab02', '#a6761d', '#666666'],
+  low: '#f7fbff', high: '#08306b',
+}
+export const MAX_CUSTOM_COLOURS = 12
+const CUSTOM_KEY = 'flame-custom-palette'
+const HEX = /^#[0-9a-f]{6}$/i
+export const isHexColour = (c: string) => HEX.test(c)
+const customListeners = new Set<() => void>()
+let custom: CustomPalette = (() => {
+  try {
+    const v = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? 'null') as Partial<CustomPalette> | null
+    const colors = (v?.colors ?? []).filter((c) => typeof c === 'string' && HEX.test(c)).slice(0, MAX_CUSTOM_COLOURS)
+    if (!colors.length) return DEFAULT_CUSTOM_PALETTE
+    return { colors, low: v?.low && HEX.test(v.low) ? v.low : DEFAULT_CUSTOM_PALETTE.low, high: v?.high && HEX.test(v.high) ? v.high : DEFAULT_CUSTOM_PALETTE.high }
+  } catch {
+    return DEFAULT_CUSTOM_PALETTE
+  }
+})()
+
+export function getCustomPalette(): CustomPalette { return custom }
+export function hasSavedCustomPalette(): boolean {
+  try { return localStorage.getItem(CUSTOM_KEY) !== null } catch { return false }
+}
+export function setCustomPalette(p: CustomPalette) {
+  const colors = p.colors.filter((c) => HEX.test(c)).slice(0, MAX_CUSTOM_COLOURS)
+  custom = { colors: colors.length ? colors : DEFAULT_CUSTOM_PALETTE.colors, low: HEX.test(p.low) ? p.low : custom.low, high: HEX.test(p.high) ? p.high : custom.high }
+  try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom)) } catch { /* storage unavailable */ }
+  customListeners.forEach((l) => l())
+}
+/** Hex codes found in pasted text ("#1b9e77, d95f02 …"). */
+export function parseHexColours(text: string): string[] {
+  return (text.match(/#?\b[0-9a-f]{6}\b/gi) ?? []).map((c) => (c.startsWith('#') ? c : `#${c}`).toLowerCase())
+}
+export function useCustomPalette(): CustomPalette {
+  return useSyncExternalStore((l) => { customListeners.add(l); return () => customListeners.delete(l) }, () => custom)
 }
 
 /** Setter of the nearest scope (null outside any scope); used by PaletteSelect. */
@@ -86,6 +135,7 @@ const GRAYS = ['#252525', '#636363', '#969696', '#bdbdbd', '#525252', '#737373',
 const FLAME = ['#f97316', '#8b5cf6', '#e11d48', '#6366f1', '#16a34a', '#0891b2', '#eab308', '#db2777', '#64748b', '#84cc16']
 
 export function categorical(m: PaletteMode): string[] {
+  if (m === 'custom') return custom.colors.length ? custom.colors : FLAME
   return { flame: FLAME, cb: OKABE_ITO, vivid: TABLEAU10, pastel: PASTEL, gray: GRAYS }[m]
 }
 
@@ -104,21 +154,31 @@ export function categoricalColor(m: PaletteMode | boolean, key: string, keys: st
   return pal[(i < 0 ? hash(key) : i) % pal.length]
 }
 
-/** Continuous colour scale (Plotly name) for the palette; `flameDefault` is used in the Flame palette. */
-export function sequentialScale(m: PaletteMode | boolean, flameDefault: string): string {
+export type ColourScale = string | [number, string][]
+
+/** Continuous colour scale for the palette: a Plotly scale name, or low → high stops for "My colours".
+ *  `flameDefault` is used in the Flame palette. */
+export function sequentialScale(m: PaletteMode | boolean, flameDefault: string): ColourScale {
   const pm: PaletteMode = typeof m === 'boolean' ? (m ? 'cb' : 'flame') : m
+  if (pm === 'custom') return [[0, custom.low], [1, custom.high]]
   return { flame: flameDefault, cb: 'Cividis', vivid: 'Plasma', pastel: 'Blues', gray: 'Greys' }[pm]
 }
 
-/** Whether a Plotly scale needs reversing so that larger = darker/stronger. */
-export function reverseScale(name: string): boolean {
-  return ['YlOrRd', 'Blues', 'Greys', 'Reds', 'Greens', 'YlGnBu', 'OrRd'].includes(name)
+/** Whether a Plotly scale needs reversing so that larger = darker/stronger (never for explicit stops). */
+export function reverseScale(name: ColourScale | undefined): boolean {
+  return typeof name === 'string' && ['YlOrRd', 'Blues', 'Greys', 'Reds', 'Greens', 'YlGnBu', 'OrRd'].includes(name)
 }
 
 /** Fixed role colours (volcano, impact, Sankey layers, single-series charts). */
 export function roleColors(m: PaletteMode | boolean) {
   const pm: PaletteMode = typeof m === 'boolean' ? (m ? 'cb' : 'flame') : m
   switch (pm) {
+    case 'custom': {
+      const c = custom.colors.length ? custom.colors : FLAME
+      const at = (i: number) => c[i % c.length]
+      return { up: at(0), down: at(1), ns: '#BBBBBB', high: at(0), moderate: at(1), low: at(2), modifier: '#BBBBBB',
+        variant: at(3), gene: at(1), trait: at(0), accent: at(0), series: [at(0), at(1), at(2), at(3)] }
+    }
     case 'cb':
       return { up: '#D55E00', down: '#0072B2', ns: '#BBBBBB', high: '#D55E00', moderate: '#E69F00', low: '#F0E442', modifier: '#999999',
         variant: '#CC79A7', gene: '#E69F00', trait: '#0072B2', accent: '#0072B2', series: ['#0072B2', '#E69F00', '#009E73', '#CC79A7'] }

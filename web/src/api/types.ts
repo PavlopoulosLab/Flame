@@ -169,19 +169,28 @@ export interface ViewData {
   filteredCount: number
   shownCount: number
   availableSources: string[]
-  /** Set when redundancy reduction is on: terms before and after, and the overlap cut-off used. */
-  reduction?: { before: number; after: number; cutoff: number } | null
+  /** Set when redundancy reduction is on: terms before and after, the method and cut-off used, and how many
+   *  terms the method leaves as they are (non-GO terms for the semantic methods). */
+  reduction?: { before: number; after: number; cutoff: number; method?: ReduceMethod; measure?: string; untouched?: number } | null
   terms: Term[]
   cells?: Record<string, string | number>[]
   network?: { nodes: NetworkNode[]; edges: NetworkEdge[]; layout: string }
 }
 
+export type ReduceMethod = 'genes' | 'semantic' | 'revigo'
+
 export interface ResultFilters {
   sources?: string[]
   /** Keep one representative term per group of overlapping terms. */
   reduce?: boolean
-  /** Jaccard overlap of the genes found (0.2–0.9) above which two terms are merged. */
+  /** How similarity is judged: shared genes (every source), GO semantic similarity (Wang, as clusterProfiler's
+   *  simplify) or the REVIGO web service. */
+  reduceMethod?: ReduceMethod
+  /** Similarity at or above which two terms are merged: share of genes (0.2–0.9), Wang similarity (0.4–0.95),
+   *  or REVIGO's allowed similarity (0.4, 0.5, 0.7 or 0.9). */
   reduceCutoff?: number
+  /** REVIGO's semantic measure. */
+  reduceMeasure?: 'SIMREL' | 'LIN' | 'RESNIK' | 'JIANG'
   search?: string
   pvalueMax?: number | null
   termSizeMin?: number | null

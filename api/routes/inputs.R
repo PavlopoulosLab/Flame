@@ -28,9 +28,12 @@ function(res, kind) {
 function(res, kind) {
   files <- c(upload = "flame_example_genes.txt", snps = "flame_example_snps.txt",
              textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
-             reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt", metabolites = "flame_example_metabolites.txt")
+             reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt", metabolites = "flame_example_metabolites.txt",
+             survival = "flame_example_survival_expression.tsv", survival_clinical = "flame_example_survival_clinical.tsv",
+             bench_qpcr = "flame_example_bench_qpcr.tsv", bench_western = "flame_example_bench_western.tsv", bench_facs = "flame_example_bench_facs.tsv", bench_column = "flame_example_bench_column.tsv")
   if (!kind %in% names(files)) { res$status <- 404; return("Unknown example") }
   res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", files[[kind]]))
+  if (kind == "survival_clinical") return(example_input("survival")$clinical)
   ex <- example_input(kind)
   if (kind == "upload") ex$text <- paste(sort(strsplit(ex$text, "\n")[[1]]), collapse = "\n")
   ex$text
@@ -88,6 +91,27 @@ function(req, res) {
     # third-party HTML is never sent to the browser.
     list(rows = .as_records(rows), stats = summarize_extract_entity_rows(rows, validation, rawResult = extracted),
          organismTaxId = taxid, organismLabel = .organism_label(taxid))
+  })
+}
+
+#* Named entities of a document's text, for annotating it (EXTRACT / JensenLab tagger):
+#* genes and proteins of the organism, chemicals, organisms, GO terms, tissues, diseases,
+#* environments and phenotypes. Body: { text, organismTaxId, kinds?: [genes, chemicals, organisms,
+#* process, component, function, tissues, diseases, environments, phenotypes] }
+#* @post /textmining/annotate
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    text <- as.character(b$text %||% "")[1]
+    validation <- validate_extract_text(text)
+    if (!isTRUE(validation$ok)) api_abort(400, validation$message)
+    taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L))
+    if (is.na(taxid) || !taxid %in% ORGANISMS$taxid) api_abort(400, "Unknown organism.")
+    kinds <- as.character(unlist(b$kinds %||% names(EXTRACT_KINDS)))
+    ents <- tryCatch(extract_document_entities(text, taxid, kinds), error = function(e) api_abort(400, conditionMessage(e)))
+    list(entities = .as_records(ents), kinds = lapply(names(EXTRACT_KINDS), function(k) list(id = k, label = EXTRACT_KINDS[[k]]$label)),
+         organismTaxId = taxid, organismLabel = .organism_label(taxid), characters = nchar(text))
   })
 }
 
@@ -173,6 +197,35 @@ function(req, res) {
     x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
                   error = function(e) api_abort(400, conditionMessage(e)))
     tryCatch(expression_de(x, b$groupA, b$groupB), error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* Clinical table for survival analysis: its columns and the guessed time / event columns.
+#* Body: { clinical, clinicalFileName? }
+#* @post /expression/survival-columns
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    tryCatch(survival_table_columns(paste(as.character(unlist(b$clinical %||% "")), collapse = "\n"), as.character(b$clinicalFileName %||% "")),
+             error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
+#* Gene expression matrix + clinical table: genes linked to survival (univariate Cox model per
+#* gene, hazard ratio per standard deviation, optionally stratified by a clinical column).
+#* Body: { text, fileName?, log?, clinical, clinicalFileName?, timeColumn?, eventColumn?, strataColumn? }
+#* @post /expression/survival
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    clin <- tryCatch(parse_survival_table(paste(as.character(unlist(b$clinical %||% "")), collapse = "\n"), as.character(b$clinicalFileName %||% ""),
+                                          b$timeColumn, b$eventColumn, b$strataColumn),
+                     error = function(e) api_abort(400, conditionMessage(e)))
+    tryCatch(expression_survival(x, clin), error = function(e) api_abort(400, conditionMessage(e)))
   })
 }
 
@@ -336,4 +389,70 @@ function(req, res) {
     mx <- suppressWarnings(as.integer(b$max %||% 300L)); if (is.na(mx)) mx <- 300L
     dbsnp_lookup(as.character(b$query %||% ""), min(max(mx, 1L), 1000L))
   })
+}
+
+#* TCGA cancer types: the TCGA PanCancer Atlas studies on cBioPortal.
+#* @get /tcga/studies
+#* @serializer flamejson
+function(req, res) {
+  .fetch(res, list(studies = tcga_studies()))
+}
+
+#* Clinical attributes of a TCGA cancer type (subtype, stage, sex, ...) and their values,
+#* to split the tumours into two groups. Body: { study }
+#* @post /tcga/groups
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, tcga_groups(as.character(b$study %||% "")))
+}
+
+#* Genes from TCGA (via cBioPortal). Body: { study, query, ... } where query is
+#*   mutated                                   most often mutated genes
+#*   cna          direction: amp | del         most often amplified / deleted genes
+#*   coexpression gene, direction: positive | negative | both, minCorrelation
+#*   de           groupA, groupB, direction: up | down | both, minLog2FC, maxQ, all
+#* A group is { type: "clinical", attribute, values: [...] } or { type: "mutation", gene, status: mutant | wildtype }.
+#* @post /tcga/genes
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, tcga_genes(as.character(b$study %||% ""), as.character(b$query %||% ""),
+                         direction = b$direction, gene = b$gene, minCorrelation = b$minCorrelation,
+                         groupA = b$groupA, groupB = b$groupB, minLog2FC = b$minLog2FC, maxQ = b$maxQ, all = isTRUE(b$all)))
+}
+
+#* Genes linked to a nutrient, food compound or food, from live APIs: CTD (curated
+#* chemical-gene interactions, also foods such as tea or olive oil), ChEMBL (human targets
+#* with measured activity) or UniProt (enzymes, transporters and binding proteins, via ChEBI).
+#* Body: { term, source: ctd | chembl | uniprot, organisms?: human | all (CTD), minPchembl? (ChEMBL), taxid? (UniProt) }
+#* @post /nutrition/genes
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, nutrition_genes(as.character(b$term %||% ""), as.character(b$source %||% ""),
+                              organisms = if (identical(b$organisms, "all")) "all" else "human",
+                              minPchembl = b$minPchembl, taxid = b$taxid))
+}
+
+#* Diet and nutrient traits (intake, blood levels...) for a term, from Open Targets; their
+#* GWAS Catalog genes come from /disease/genes with source "gwas". Body: { term }
+#* @post /nutrition/traits
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, list(traits = nutrition_traits(as.character(b$term %||% ""))))
+}
+
+#* Bench data: a small pasted table (column or grouped layout) analysed with a sensible default test,
+#* optional helpers for qPCR (delta-delta Ct), westerns (band / loading control) and FACS phases.
+#* Body: { text, fileName?, layout?: auto|column|grouped, helper?: none|qpcr|western|facs, refs?: [genes] (qPCR),
+#*        loading? (western), control?, paired?, nonparametric?, allPairs?, log? }
+#* @post /bench/analyse
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch(res, bench_analyse(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
+                            as.character(b$helper %||% "none"), b$refs, b$loading, b$control,
+                            isTRUE(b$paired), isTRUE(b$nonparametric), isTRUE(b$allPairs), isTRUE(b$log)))
 }

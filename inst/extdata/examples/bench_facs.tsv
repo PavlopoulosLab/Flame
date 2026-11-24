@@ -1,0 +1,4 @@
+Phase	Control 1	Control 2	Control 3	Nocodazole 1	Nocodazole 2	Nocodazole 3
+G0/G1	58.2	60.1	56.9	21.4	24.0	19.8
+S	24.6	23.1	25.8	15.2	13.9	16.7
+G2/M	17.2	16.8	17.3	63.4	62.1	63.5

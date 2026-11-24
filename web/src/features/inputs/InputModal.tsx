@@ -13,6 +13,11 @@ import { saveXlsx } from '../../lib/xlsx'
 import { usePlainSelection } from '../../lib/imageExport'
 import { ExportImageButton } from '../../components/ExportImage'
 import { htmlSource } from '../../components/viz'
+import { TcgaInput } from './TcgaInput'
+import { SurvivalPanel, type ClinicalTable } from './SurvivalPanel'
+import { PdfAnnotate } from './PdfAnnotate'
+import { NutritionInput } from './NutritionInput'
+import { BenchInput } from './BenchInput'
 const NO_SET = new Set<string>()
 const NO_BARS: string[] = []
 
@@ -60,6 +65,12 @@ function InputModalBody(props: Props) {
     case 'geo':
     case 'clinvar':
       return <FetchInput mode={props.kind} title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
+    case 'bench':
+      return <BenchInput title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
+    case 'nutrition':
+      return <NutritionInput title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
+    case 'tcga':
+      return <TcgaInput title={title} example={props.example} onClose={props.onClose} onCreated={props.onCreated} />
     case 'variants':
       return null // opens the Variants page instead of a dialog (see Workspace)
   }
@@ -312,8 +323,12 @@ function TextMining({ example, onClose, onCreated, title }: P) {
   )
   const duplicates = hits.filter((h) => h.names.length > 1).length
   const names = rows ? [...new Set(rows.map((r) => r.name).filter(Boolean))] : []
+  const [mode, setMode] = useState<'text' | 'pdf'>('text')
   return (
-    <Modal title={title} onClose={onClose} size="xl" subtitle="Gene and protein names are recognised with the EXTRACT tagger (JensenLab).">
+    <Modal title={title} onClose={onClose} size="xl" subtitle="Names are recognised with the EXTRACT tagger (JensenLab).">
+      <Segmented label="Source" value={mode} onChange={setMode} options={[{ value: 'text', label: 'Paste text' }, { value: 'pdf', label: 'PDF document' }]} />
+      {mode === 'pdf' && <PdfAnnotate onCreated={onCreated} />}
+      {mode === 'text' && (<>
       <div className="row between">
         <OrganismPicker value={organism} onChange={(t) => setOrganism(t)} label="Organism of the text" />
         <button className="btn btn-ghost btn-sm" onClick={ex.load}>Load example</button>
@@ -365,6 +380,7 @@ function TextMining({ example, onClose, onCreated, title }: P) {
       )}
       {rows && <SaveList ids={ids} defaultName="Genes from text" organism={organism} idFormat="USERINPUT" showOrganism={false}
         showFormat={false} meta={{ method: 'textmining' }} onCreated={onCreated} />}
+      </>)}
     </Modal>
   )
 }
@@ -957,7 +973,8 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
   const [k, setK] = useState(6)
   const [logMode, setLogMode] = useState<'auto' | 'yes' | 'no'>('auto')
   const [ov, setOv] = useState<ExprOverview | null>(null)
-  const [view, setView] = useState<'clusters' | 'map' | 'groups' | 'correlation' | 'boxplots' | 'activity'>(initialView === 'activity' ? 'activity' : 'clusters')
+  const [view, setView] = useState<'clusters' | 'map' | 'groups' | 'correlation' | 'boxplots' | 'activity' | 'survival'>(initialView === 'activity' ? 'activity' : initialView === 'survival' ? 'survival' : 'clusters')
+  const [clinical, setClinical] = useState<ClinicalTable | null>(null)
   const [sel, setSel] = useState<Set<string>>(new Set())
   const selV = usePlainSelection(sel, NO_SET) // none while an image is exported without highlighting
   const [groups, setGroups] = useState<Record<string, 'A' | 'B' | ''>>({})
@@ -970,7 +987,17 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
   const [organism, setOrganism] = useState(9606)
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const pm = usePaletteMode()
-  const ex = useExample('expression', example, (t, f) => { setText(t); setFileName(f ?? '') })
+  const ex = useExample('expression', example, (t, f) => { setText(t); setFileName(f ?? ''); setClinical(null) })
+  // Survival example: 365 liver tumours (TCGA LIHC) with their expression and follow-up.
+  const [survEx, setSurvEx] = useState<{ loading: boolean; source: string | null }>({ loading: false, source: null })
+  const loadSurvivalExample = () => {
+    setSurvEx({ loading: true, source: null }); setErr(null)
+    api<{ text: string; fileName: string; clinical: string; clinicalFileName: string; source: string }>('/inputs/examples/survival')
+      .then((r) => { setText(r.text); setFileName(r.fileName); setClinical({ text: r.clinical, fileName: r.clinicalFileName }); setView('survival'); setReplacing(false); setSurvEx({ loading: false, source: r.source }) })
+      .catch((e) => { setErr(e); setSurvEx({ loading: false, source: null }) })
+  }
+  useEffect(() => { if (initialView === 'survival') loadSurvivalExample() // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   const log = logMode === 'auto' ? null : logMode === 'yes'
 
   useEffect(() => {
@@ -1023,14 +1050,15 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
       <div className="stack">
         {(!ov || replacing) && (
           <div className="row wrap">
-            <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={2 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
+            <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={20 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
             <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); ex.load() }} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
+            <button className="btn btn-ghost btn-sm" onClick={loadSurvivalExample} disabled={survEx.loading}>{survEx.loading ? 'Loading…' : 'Survival example'}</button>
             <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/expression/file`}>Example file</a>
             {ov && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
           </div>
         )}
         {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
-        <ExampleSource text={ex.source} loading={ex.loading} />
+        <ExampleSource text={survEx.source ?? ex.source} loading={ex.loading || survEx.loading} />
         <ErrorNote error={err} />
         {busy && <BusyBar label="Analysing the matrix: clustering genes and computing the gene map" expect={12} />}
         {ov && (
@@ -1042,7 +1070,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
               {!replacing && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace table</button>}
             </div>
             <Segmented label="View" value={view} onChange={setView}
-              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }, { value: 'correlation', label: 'Correlation' }, { value: 'boxplots', label: 'Boxplots' }, { value: 'activity', label: 'Pathway activity' }]} />
+              options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }, { value: 'correlation', label: 'Correlation' }, { value: 'boxplots', label: 'Boxplots' }, { value: 'activity', label: 'Pathway activity' }, { value: 'survival', label: 'Survival' }]} />
             {(view === 'clusters' || view === 'map') && (
               <div className="row wrap small">
                 <label>Most variable <select className="input input-sm" value={topN} onChange={(e) => setTopN(Number(e.target.value))}>{[200, 500, 1000, 2000, 3000].map((n) => <option key={n} value={n}>{n} genes</option>)}</select></label>
@@ -1106,6 +1134,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
             {view === 'boxplots' && <BoxplotsView text={text} fileName={fileName} log={log} samples={ov.samples}
               setup={box ?? initialBoxSetup(ov.samples, groups)} setSetup={(f) => setBox((b) => f(b ?? initialBoxSetup(ov.samples, groups)))} />}
             {view === 'activity' && <PathwayActivity text={text} fileName={fileName} log={log} organism={organism} />}
+            {view === 'survival' && <SurvivalPanel text={text} fileName={fileName} log={log} clinical={clinical} setClinical={setClinical} onCreated={onCreated} />}
             {(view === 'clusters' || view === 'map') && (
               <>
                 <SelectedGenes isVolcano={false} colorLabel="Cluster"

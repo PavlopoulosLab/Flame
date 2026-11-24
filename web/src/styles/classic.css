@@ -403,3 +403,7 @@ h1 { letter-spacing: -0.01em; }
 .tm-dup { color: #9A3412; background: #FFEDD5; border-color: #FDBA74; }
 .tm-amb { color: var(--muted-color); background: transparent; border-color: var(--card-border); font-weight: 500; }
 :root[data-theme="dark"] .tm-dup { color: #FDBA74; background: rgba(249, 115, 22, 0.15); border-color: rgba(249, 115, 22, 0.5); }
+/* fetch dialogs: the tick-box column is only as wide as the box, so the tables below each other line up */
+.fetch-table th[aria-label="Select"], .fetch-table th:has(> input[type=checkbox]), .fetch-table td:first-child:has(> input[type=checkbox]) { width: 1%; white-space: nowrap; }
+.fetch-table td > .btn-ghost.btn-sm { padding: 0; }
+.gene-table .table tr > :nth-child(2) { width: 1%; white-space: nowrap; text-align: right; }

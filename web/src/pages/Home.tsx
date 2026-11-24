@@ -148,13 +148,14 @@ export default function HomePage() {
       <section className="hm-hero">
         <div className="hm-hero-text">
           <div className="hm-lockup"><Logo size={44} /><span>Flame <span className="hm-version">3.0</span></span></div>
-          <h1 className="hm-title" aria-label="Flame 3.0: Functional analysis, made easy">
-            Functional analysis,
-            <span className="hm-title-grad">made easy.</span>
+          <h1 className="hm-title" aria-label="Flame 3.0: The bioscientist’s everyday toolkit">
+            The bioscientist’s
+            <span className="hm-title-grad">everyday toolkit.</span>
           </h1>
           <p className="hm-lead">
-            Flame analyses one or many gene lists with {nTools} established enrichment tools, then combines the
-            results in interactive views — so you can see what your genes do, compare runs and share what you find.
+            Bring a gene list, a volcano plot, a PDF, GWAS hits or a TCGA cohort. Flame runs {nTools} enrichment tools
+            side by side, uncovers the pathways, regulators and drugs behind your genes, and turns it all into
+            interactive figures ready to explore, compare and publish. No coding needed.
           </p>
           <div className="hm-actions">
             <Link className="hm-btn hm-btn-primary" to="/start?new=1&example=demo">

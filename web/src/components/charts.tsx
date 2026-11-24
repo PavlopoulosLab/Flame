@@ -199,7 +199,8 @@ export function Plot({
         )}
         <ExportImageButton source={() => (ref.current ? plotSource(ref.current, exportName, !!onSelect) : null)} />
       </div>
-      <div ref={ref} className="plot" />
+      {/* reserve the plot height so following content never slides under the chart */}
+      <div ref={ref} className="plot" style={{ minHeight: height }} />
     </>
   )
 }

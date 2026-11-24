@@ -31,9 +31,9 @@ EXTRACT_TEXT_MAX_CHARS <- 500000L
 #' \dontrun{
 #' result <- extract_entities("TP53 and BRCA1 are tumor suppressors", 9606)
 #' }
-extract_entities <- function(text, species) {
+extract_entities <- function(text, species, types = NULL) {
   tryCatch({
-    encoded <- encode_for_extract_api(text, species)
+    encoded <- encode_for_extract_api(text, species, types)
     url <- paste0(EXTRACT_API_URL, "/GetEntities")
     params <- sprintf("document=%s&entity_types=%s&auto_detect=0&format=tsv",
                       encoded$text, encoded$entityTypes)
@@ -99,7 +99,7 @@ extract_annotated_html <- function(text, species) {
 #' @param text Character. Raw text input.
 #' @param species Integer. NCBI taxonomy ID.
 #' @return List with 'text' (URL-encoded) and 'entityTypes' (formatted string).
-encode_for_extract_api <- function(text, species) {
+encode_for_extract_api <- function(text, species, types = NULL) {
   # Clean up text (remove newlines/carriage returns)
   text <- gsub("\n", " ", text)
   text <- gsub("\r", "", text)
@@ -109,9 +109,7 @@ encode_for_extract_api <- function(text, species) {
 
   # Build entity types string
   # -3 is the type code for genes/proteins
-  entityTypes <- c(-3)
-  entityTypesStr <- paste(entityTypes, sep = "+", collapse = "+")
-  entityTypesStr <- sprintf("%s+%s", entityTypesStr, species)
+  entityTypesStr <- if (length(types)) paste(as.integer(types), collapse = "+") else sprintf("-3+%s", species)
 
   return(list(
     text = textEncoded,
@@ -258,4 +256,54 @@ extract_textmining_selected_ids <- function(rows, selectedRowIds) {
   ids <- selected$id
   ids <- ids[!is.na(ids) & nzchar(trimws(ids))]
   unique(ids)
+}
+
+
+# ---- Documents: every entity type the tagger knows (as in OnTheFly) -------------------------
+
+#' Entity kinds and their JensenLab tagger type codes (genes/proteins use the organism's taxid).
+EXTRACT_KINDS <- list(
+  genes        = list(code = NA_integer_, label = "Gene / protein"),
+  chemicals    = list(code = -1L,  label = "Chemical"),
+  organisms    = list(code = -2L,  label = "Organism"),
+  process      = list(code = -21L, label = "Biological process"),
+  component    = list(code = -22L, label = "Cellular component"),
+  `function`   = list(code = -23L, label = "Molecular function"),
+  tissues      = list(code = -25L, label = "Tissue"),
+  diseases     = list(code = -26L, label = "Disease"),
+  environments = list(code = -27L, label = "Environment"),
+  phenotypes   = list(code = -36L, label = "Phenotype")
+)
+
+#' Database link for an entity (by kind and ID).
+extract_entity_link <- function(kind, id) {
+  id <- as.character(id); enc <- function(x) utils::URLencode(x, reserved = FALSE)
+  switch(kind,
+    genes = if (grepl("^ENS", id)) sprintf("https://www.ensembl.org/id/%s", enc(id))
+            else if (grepl("-miR-|-let-", id, ignore.case = TRUE)) sprintf("https://www.mirbase.org/results/?query=%s", enc(id))
+            else sprintf("https://string-db.org/network/%s", enc(id)),
+    chemicals = { cid <- suppressWarnings(as.integer(sub("^CID[ms]?0*", "", id)))
+                  if (is.na(cid)) "" else sprintf("https://pubchem.ncbi.nlm.nih.gov/compound/%d", cid) },
+    organisms = sprintf("https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=%s", enc(id)),
+    process = , component = , `function` = sprintf("https://www.ebi.ac.uk/QuickGO/term/%s", enc(id)),
+    diseases = sprintf("https://disease-ontology.org/?id=%s", enc(id)),
+    phenotypes = sprintf("https://www.informatics.jax.org/vocab/mp_ontology/%s", enc(id)),
+    tissues = , environments = sprintf("https://www.ebi.ac.uk/ols4/search?q=%s", enc(id)),
+    "")
+}
+
+#' Named entities of a document's text: one row per (name, kind, id), with a link.
+#' `kinds`: any of names(EXTRACT_KINDS); genes/proteins are those of `species`.
+extract_document_entities <- function(text, species, kinds = names(EXTRACT_KINDS)) {
+  kinds <- intersect(as.character(unlist(kinds)), names(EXTRACT_KINDS))
+  if (!length(kinds)) stop("Choose at least one kind of entity.")
+  codes <- vapply(kinds, function(k) if (k == "genes") as.integer(species) else EXTRACT_KINDS[[k]]$code, integer(1))
+  res <- extract_entities(text, species, codes)
+  if (is.null(res) || !nrow(res)) return(data.frame(name = character(0), kind = character(0), id = character(0), url = character(0)))
+  kindOf <- stats::setNames(kinds, as.character(codes))[as.character(res$Type)]
+  df <- data.frame(name = trimws(as.character(res$Name)), kind = unname(kindOf), id = trimws(as.character(res$ID)), stringsAsFactors = FALSE)
+  df <- unique(df[!is.na(df$kind) & nzchar(df$name) & nzchar(df$id), , drop = FALSE])
+  df$url <- mapply(extract_entity_link, df$kind, df$id, USE.NAMES = FALSE)
+  rownames(df) <- NULL
+  df
 }

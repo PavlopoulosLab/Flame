@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig, useWorkspace } from '../api/hooks'
-import type { ResultFilters, RunDetails, Term, ViewData } from '../api/types'
+import type { ReduceMethod, ResultFilters, RunDetails, Term, ViewData } from '../api/types'
 import type { NetworkHandle, PlotHandle } from '../components/charts'
 import { CopyButton, ErrorNote, Field, LinkMenu, Modal, Note, OpenExternalButton, Spinner } from '../components/ui'
 import { geneLinks } from '../lib/links'
@@ -313,15 +313,63 @@ function ResultsPageBody() {
               </Field>
               <div className="field reduce-box">
                 <label className="check"><input type="checkbox" checked={!!filters.reduce} onChange={(e) => setFilters({ ...filters, reduce: e.target.checked || undefined })} /> <strong>Reduce redundancy</strong></label>
-                <span className="muted small">Keep one representative term for each group of terms that share most of their genes.</span>
-                {filters.reduce && (
-                  <>
-                    <label className="small" htmlFor="reduce-cutoff">Merge terms sharing at least <strong>{Math.round((filters.reduceCutoff ?? 0.5) * 100)}%</strong> of their genes</label>
-                    <input id="reduce-cutoff" type="range" min={0.2} max={0.9} step={0.05} value={filters.reduceCutoff ?? 0.5} onChange={(e) => setFilters({ ...filters, reduceCutoff: Number(e.target.value) })} />
-                    <span className="muted small">Lower = fewer, broader groups. Only terms of the same source are merged; the most significant term represents each group.</span>
-                    {q.data?.reduction && <span className="small"><strong>{q.data.reduction.before.toLocaleString()}</strong> terms → <strong>{q.data.reduction.after.toLocaleString()}</strong> representative terms</span>}
-                  </>
-                )}
+                <span className="muted small">Keep one representative term for each group of terms that say the same thing.</span>
+                {filters.reduce && (() => {
+                  const method = filters.reduceMethod ?? 'genes'
+                  const cutoff = filters.reduceCutoff ?? (method === 'genes' ? 0.5 : 0.7)
+                  const red = q.data?.reduction
+                  return (
+                    <>
+                      <label className="small" htmlFor="reduce-method">Similar means</label>
+                      <select id="reduce-method" className="input input-sm" value={method}
+                        onChange={(e) => { const m = e.target.value as ReduceMethod; setFilters({ ...filters, reduceMethod: m === 'genes' ? undefined : m, reduceCutoff: undefined }) }}>
+                        <option value="genes">Shared genes (all sources)</option>
+                        <option value="semantic">GO semantic similarity (Wang, as clusterProfiler)</option>
+                        <option value="revigo">REVIGO (GO semantic similarity, web service)</option>
+                      </select>
+                      {method === 'genes' && (
+                        <>
+                          <label className="small" htmlFor="reduce-cutoff">Merge terms sharing at least <strong>{Math.round(cutoff * 100)}%</strong> of their genes</label>
+                          <input id="reduce-cutoff" type="range" min={0.2} max={0.9} step={0.05} value={cutoff} onChange={(e) => setFilters({ ...filters, reduceCutoff: Number(e.target.value) })} />
+                          <span className="muted small">Jaccard index of the genes of your list found in each term. Lower = fewer, broader groups. Works for every source; only terms of the same source are merged.</span>
+                        </>
+                      )}
+                      {method === 'semantic' && (
+                        <>
+                          <label className="small" htmlFor="reduce-cutoff">Merge GO terms with similarity at least <strong>{cutoff.toFixed(2)}</strong></label>
+                          <input id="reduce-cutoff" type="range" min={0.4} max={0.95} step={0.05} value={cutoff} onChange={(e) => setFilters({ ...filters, reduceCutoff: Number(e.target.value) })} />
+                          <span className="muted small">Closeness in the GO graph (Wang measure, GOSemSim), the measure and default cut-off (0.7) of clusterProfiler's <em>simplify()</em>. Independent of your genes. Lower = fewer, broader groups. GO terms only: other sources are left as they are.</span>
+                        </>
+                      )}
+                      {method === 'revigo' && (
+                        <>
+                          <label className="small" htmlFor="reduce-revigo-size">Resulting list</label>
+                          <select id="reduce-revigo-size" className="input input-sm" value={String([0.4, 0.5, 0.7, 0.9].reduce((a, b) => (Math.abs(b - cutoff) < Math.abs(a - cutoff) ? b : a)))}
+                            onChange={(e) => setFilters({ ...filters, reduceCutoff: Number(e.target.value) })}>
+                            <option value="0.9">Large (similarity 0.9)</option>
+                            <option value="0.7">Medium (0.7, default)</option>
+                            <option value="0.5">Small (0.5)</option>
+                            <option value="0.4">Tiny (0.4)</option>
+                          </select>
+                          <label className="small" htmlFor="reduce-revigo-measure">Semantic measure</label>
+                          <select id="reduce-revigo-measure" className="input input-sm" value={filters.reduceMeasure ?? 'SIMREL'}
+                            onChange={(e) => setFilters({ ...filters, reduceMeasure: e.target.value === 'SIMREL' ? undefined : (e.target.value as ResultFilters['reduceMeasure']) })}>
+                            <option value="SIMREL">SimRel (default)</option>
+                            <option value="LIN">Lin</option>
+                            <option value="RESNIK">Resnik (normalized)</option>
+                            <option value="JIANG">Jiang</option>
+                          </select>
+                          <span className="muted small">REVIGO (Supek et al. 2011) groups GO terms by semantic similarity, using how often each term annotates genes of your organism, and picks a representative for each group. The GO IDs and p-values (no genes) are sent to revigo.irb.hr. GO terms only: other sources are left as they are.</span>
+                          {q.isFetching && <span className="small"><Spinner /> Asking REVIGO…</span>}
+                        </>
+                      )}
+                      {red && !q.isFetching && (
+                        <span className="small"><strong>{red.before.toLocaleString()}</strong> terms → <strong>{red.after.toLocaleString()}</strong> representative terms
+                          {red.untouched ? <span className="muted"> ({red.untouched.toLocaleString()} non-GO {red.untouched === 1 ? 'term' : 'terms'} left as they are)</span> : null}</span>
+                      )}
+                    </>
+                  )
+                })()}
               </div>
               <div className="field">
                 <span className="field-label">Very broad terms</span>

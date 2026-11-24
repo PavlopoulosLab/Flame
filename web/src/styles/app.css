@@ -764,3 +764,48 @@ html, body { overflow-x: clip; }
 .plot-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
 @media (max-width: 560px) { .export-grid { grid-template-columns: 1fr; } }
 .figure { display: flex; flex-direction: column; gap: 6px; }
+.palette-select-wrap { display: inline-flex; align-items: center; gap: 4px; }
+.custom-palette .swatch-row { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; }
+.swatch-edit { display: inline-flex; align-items: center; gap: 4px; }
+.swatch-edit input[type=color] { width: 32px; height: 26px; padding: 0; border: 1px solid var(--border-color); border-radius: 6px; background: none; cursor: pointer; }
+.custom-palette .scale-preview { flex: 1; min-width: 120px; height: 18px; border-radius: 6px; border: 1px solid var(--border-color); }
+.tcga-groups { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: start; }
+.tcga-vs { align-self: center; font-weight: 600; color: var(--muted-color); }
+.tcga-group { border: 1px solid var(--border-color); border-radius: var(--radius-md); padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.tcga-group legend { font-weight: 600; padding: 0 4px; }
+.tcga-values { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow: auto; }
+@media (max-width: 720px) { .tcga-groups { grid-template-columns: 1fr; } .tcga-vs { justify-self: center; } }
+/* PDF annotation (text mining of PDF documents) */
+.pdfdoc-pick { position: relative; overflow: hidden; cursor: pointer; }
+.pdfdoc-pick input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.pdfdoc-kinds, .pdfdoc-legend { gap: 4px 14px; }
+.pdfdoc-swatch { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: middle; }
+.pdfdoc-bar { align-items: center; gap: 8px; }
+.pdfdoc-pages { max-height: 70vh; overflow: auto; background: var(--surface-2, #e5e7eb); border-radius: var(--radius-md); padding: 12px 0; }
+.pdfdoc-page { position: relative; margin: 0 auto 14px; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+.pdfdoc-page canvas { display: block; }
+.pdfdoc-page .textLayer { position: absolute; inset: 0; overflow: clip; line-height: 1; text-align: initial; transform-origin: 0 0; z-index: 1;
+  --min-font-size: 1; --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size)); --min-font-size-inv: calc(1 / var(--min-font-size)); }
+.pdfdoc-page .textLayer :is(span, br) { color: transparent; position: absolute; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+.pdfdoc-page .textLayer > :not(.markedContent), .pdfdoc-page .textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0; font-size: calc(var(--text-scale-factor) * var(--font-height));
+  --scale-x: 1; --rotate: 0deg; transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv)); }
+.pdfdoc-page .textLayer .markedContent { display: contents; }
+.pdfdoc-page .textLayer ::selection { background: rgba(37, 99, 235, .3); }
+.pdfdoc-hls { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.pdfdoc-hl { position: absolute; opacity: .3; mix-blend-mode: multiply; border-radius: 2px; pointer-events: auto; cursor: pointer; }
+.pdfdoc-hl:hover { opacity: .5; }
+.pdfdoc-pop { position: absolute; z-index: 5; width: 290px; background: var(--surface-color, #fff); color: var(--text-color, #111); border: 1px solid var(--border-color); border-radius: var(--radius-md); box-shadow: 0 6px 20px rgba(0,0,0,.2); padding: 10px 12px; }
+.pdfdoc-pop ul { margin: 6px 0; padding-left: 18px; }
+.pdfdoc-pop-x { position: absolute; top: 4px; right: 6px; border: 0; background: none; font-size: 18px; cursor: pointer; color: var(--muted-color); }
+.pdfdoc-pageno { position: absolute; right: -28px; bottom: 2px; font-size: 11px; color: var(--muted-color); }
+.pdfdoc-tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border-color); }
+.pdfdoc-tab { display: inline-flex; align-items: center; border: 1px solid var(--border-color); border-bottom: none; border-radius: 6px 6px 0 0; background: var(--surface-2, #f3f4f6); }
+.pdfdoc-tab.active { background: var(--surface-color, #fff); margin-bottom: -1px; box-shadow: inset 0 2px 0 var(--link-color); }
+.pdfdoc-tab button { border: 0; background: none; padding: 6px 8px; cursor: pointer; color: inherit; font: inherit; }
+.pdfdoc-tab.active button[role=tab] { font-weight: 600; }
+.pdfdoc-tab-name { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.pdfdoc-tab .pdfdoc-tab-x { padding-left: 0; color: var(--muted-color); }
+.bench-options { align-items: flex-end; gap: 10px 18px; }
+.bench-sentence { margin: 0; }
+.bench-genes > summary { cursor: pointer; padding: 4px 0; }

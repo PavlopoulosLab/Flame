@@ -37,6 +37,7 @@ Imports:
     msigdbr,
     igraph,
     Matrix,
+    mvtnorm,
     htmltools,
     tools,
     stats,
@@ -55,7 +56,10 @@ Suggests:
     testthat (>= 3.0.0),
     httptest2,
     callr,
-    httr2
+    httr2,
+    GOSemSim,
+    GO.db,
+    promises
 Encoding: UTF-8
 LazyData: true
 RoxygenNote: 7.3.3

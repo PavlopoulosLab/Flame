@@ -42,3 +42,12 @@ test_that("text mining selected IDs are resolved against server row IDs", {
 
   expect_identical(selected, "ENSP00000269305")
 })
+
+test_that("document entities get the right tagger codes and database links", {
+  expect_equal(EXTRACT_KINDS$diseases$code, -26L)
+  expect_equal(extract_entity_link("chemicals", "CIDs00002767"), "https://pubchem.ncbi.nlm.nih.gov/compound/2767")
+  expect_equal(extract_entity_link("process", "GO:0006915"), "https://www.ebi.ac.uk/QuickGO/term/GO:0006915")
+  expect_equal(extract_entity_link("genes", "ENSP00000269305"), "https://www.ensembl.org/id/ENSP00000269305")
+  expect_equal(extract_entity_link("organisms", "10090"), "https://www.ncbi.nlm.nih.gov/Taxonomy/Browser/wwwtax.cgi?id=10090")
+  expect_error(extract_document_entities("TP53", 9606L, character(0)), "at least one kind")
+})

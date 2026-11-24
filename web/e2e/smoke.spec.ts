@@ -15,7 +15,7 @@ async function newWorkspace(page: Page, query = '') {
 test('home page shows the hero, examples and links', async ({ page }) => {
   const errors = watchErrors(page)
   await page.goto('/')
-  await expect(page.getByRole('heading', { level: 1 })).toContainText('Functional analysis')
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('everyday toolkit')
   await expect(page.locator('.hm-example').first()).toBeVisible()
   await page.getByText(/^All \d+ examples$/).click()
   await expect(page.locator('.example-row').first()).toBeVisible()
@@ -42,7 +42,7 @@ test('workspace sections switch and keep their colours', async ({ page }) => {
   await newWorkspace(page)
   // A new workspace has no lists, so it opens on the Input tab with the ways to add one.
   await expect(page.getByRole('tab', { name: /Input/ })).toHaveAttribute('aria-selected', 'true')
-  await expect(page.locator('.method-card')).toHaveCount(13)
+  await expect(page.locator('.method-card')).toHaveCount(16)
   await page.getByRole('tab', { name: /Regulators & drugs/ }).click()
   await expect(page.getByRole('heading', { name: 'Regulators, drugs and more' })).toBeVisible()
   await expect(page.locator('.tool-tile')).toHaveCount(5)

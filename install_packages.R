@@ -10,13 +10,15 @@ flame_all_packages <- c(
   # science core
   "R6", "httr", "curl", "jsonlite", "gprofiler2", "WebGestaltR", "enrichR",
   "tidyr", "dplyr", "data.table", "stringr", "plyr", "poolr", "igraph", "htmltools", "Matrix",
+  # bench statistics (Dunnett) and web clients (REVIGO)
+  "mvtnorm", "httr2",
   # API server
   "plumber", "httpuv", "mirai", "later", "DBI", "RSQLite", "sodium", "mime",
   # loading the package from source (api/run.R)
   "pkgload"
 )
 if (!identical(Sys.getenv("FLAME_RUNTIME_ONLY"), "1"))
-  flame_all_packages <- c(flame_all_packages, "testthat", "httptest2", "callr", "httr2")
+  flame_all_packages <- c(flame_all_packages, "testthat", "httptest2", "callr")
 
 # Bioconductor packages (clusterProfiler ORA/GSEA, PROGENy pathway activity; msigdbr itself is on CRAN)
 flame_bioc_packages <- c("clusterProfiler", "fgsea", "progeny")

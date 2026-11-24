@@ -13,7 +13,7 @@
 # Base R only (stats::prcomp, hclust, t.test, cor).
 # =============================================================================
 
-EXPRESSION_MAX_BYTES <- 2 * 1024^2
+EXPRESSION_MAX_BYTES <- as.numeric(Sys.getenv("FLAME_MAX_EXPRESSION_MB", "20")) * 1024^2   # survival cohorts need room
 EXPRESSION_MAX_GENES <- 30000L
 
 #' Parse an expression matrix. Values that look like counts or intensities
@@ -21,8 +21,22 @@ EXPRESSION_MAX_GENES <- 30000L
 parse_expression_matrix <- function(text, fileName = "", log = NA) {
   text <- paste(as.character(text %||% ""), collapse = "\n")
   if (!nzchar(trimws(text))) stop("Paste an expression table or upload a .txt, .csv or .tsv file.")
-  if (nchar(text, type = "bytes") > EXPRESSION_MAX_BYTES) stop("The expression table is larger than the 2 MB limit.")
-  df <- parse_delimited_table(text, fileName)
+  if (nchar(text, type = "bytes") > EXPRESSION_MAX_BYTES)
+    stop(sprintf("The expression table is larger than the %d MB limit.", round(EXPRESSION_MAX_BYTES / 1024^2)))
+  # Each view of the dialog sends the table again: reuse the parsed matrix.
+  key <- paste(if (requireNamespace("sodium", quietly = TRUE)) sodium::bin2hex(sodium::sha256(charToRaw(text))) else nchar(text),
+               fileName, log)
+  hit <- .expr_cache[[key]]
+  if (!is.null(hit)) return(hit)
+  out <- .parse_expression_matrix(text, fileName, log)
+  if (length(ls(.expr_cache)) >= 4) rm(list = ls(.expr_cache), envir = .expr_cache)
+  .expr_cache[[key]] <- out
+  out
+}
+.expr_cache <- new.env()
+
+.parse_expression_matrix <- function(text, fileName, log) {
+  df <- parse_delimited_table(text, fileName, maxBytes = EXPRESSION_MAX_BYTES)
   df <- as.data.frame(df, stringsAsFactors = FALSE, check.names = FALSE)
   if (ncol(df) < 3) stop("Expected a gene ID column and at least two sample columns.")
   ids <- trimws(as.character(df[[1]]))

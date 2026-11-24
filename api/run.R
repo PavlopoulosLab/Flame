@@ -51,7 +51,7 @@ pr <- plumber::pr_set_api_spec(pr, flame_openapi)
 # ---- Web app (production build) on the same origin --------------------------
 dist <- file.path(FLAME_ROOT, "web", "dist")
 CSP <- paste(
-  "default-src 'self'", "script-src 'self'", "style-src 'self' 'unsafe-inline'",
+  "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'",
   "worker-src 'self' blob:", "frame-ancestors 'none'", "base-uri 'self'",
   "form-action 'self'", "object-src 'none'", sep = "; ")

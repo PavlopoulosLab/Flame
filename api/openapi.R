@@ -160,7 +160,22 @@ BODIES <- list(
   "POST /api/v1/inputs/clinvar/lookup" = .obj(list(query = STR("A gene symbol, a condition, rsIDs, ClinVar accessions (VCV…) or a ClinVar search expression."), significance = STR("any (default) | pathogenic | pathogenic_likely"), max = INT()), "query",
       example = list(query = "APOE", significance = "pathogenic_likely")),
   "POST /api/v1/inputs/dbsnp/lookup" = .obj(list(query = STR("rsIDs or a dbSNP search."), max = INT()), "query",
-                                            example = list(query = "APOE[gene] AND pathogenic[clinical_significance]", max = 50))
+                                            example = list(query = "APOE[gene] AND pathogenic[clinical_significance]", max = 50)),
+  "POST /api/v1/inputs/nutrition/genes" = .obj(list(term = STR("A nutrient, food compound or food (e.g. curcumin, vitamin D, green tea)."),
+      source = STR("ctd | chembl | uniprot"), organisms = STR("CTD: human (default) | all (adds mouse and rat genes)."),
+      minPchembl = NUM("ChEMBL: minimum pChEMBL (default 5)."), taxid = INT("UniProt: organism (default 9606).")), c("term", "source"),
+    example = list(term = "curcumin", source = "ctd")),
+  "POST /api/v1/inputs/tcga/groups" = .obj(list(study = STR("TCGA study id from /inputs/tcga/studies, e.g. brca_tcga_pan_can_atlas_2018.")), "study",
+                                           example = list(study = "brca_tcga_pan_can_atlas_2018")),
+  "POST /api/v1/inputs/tcga/genes" = .obj(list(study = STR("TCGA study id from /inputs/tcga/studies."),
+      query = STR("mutated | cna | coexpression | de"), direction = STR("cna: amp | del; coexpression: positive | negative | both; de: up | down | both"),
+      gene = STR("coexpression: the gene of interest (symbol)."), minCorrelation = NUM("coexpression: minimum |Spearman| (default 0.4)."),
+      groupA = .s("object", "de: {type: clinical, attribute, values: [...]} or {type: mutation, gene, status: mutant | wildtype}"),
+      groupB = .s("object", "de: the second group, as groupA."), minLog2FC = NUM("de: minimum |log2 fold change| (default 1)."),
+      maxQ = NUM("de: maximum q-value (default 0.05)."), all = BOOL("de: every gene ranked by fold change (for GSEA).")), c("study", "query"),
+    example = list(study = "brca_tcga_pan_can_atlas_2018", query = "de", direction = "both",
+                   groupA = list(type = "clinical", attribute = "SUBTYPE", values = list("BRCA_Basal")),
+                   groupB = list(type = "clinical", attribute = "SUBTYPE", values = list("BRCA_LumA"))))
 )
 
 ERROR_SCHEMA <- .obj(list(error = STR("What went wrong, in plain words.")), "error", example = list(error = "Missing or invalid workspace link."))

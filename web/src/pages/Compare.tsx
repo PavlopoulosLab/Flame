@@ -458,7 +458,6 @@ function SelectionExports({ terms }: { terms: ComparisonTerm[] }) {
   const html = toHtmlTable('Selected terms (comparison)', rows, cols)
   return (
     <div className="row wrap">
-      <CopyButton text={terms.map((t) => `${t.id}\t${t.name}\t${t.tools}\t${formatP(t.combPvalue)}`).join('\n')} />
       <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(rows, cols), 'flame_comparison_selection.csv', 'text/csv')}>CSV</button>
       <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx(sheetsByCategory(terms.map((t) => ({ Source: t.source, 'Term ID': t.id, Term: t.name, 'Found by': t.tools,
         Runs: t.rank, 'Combined p': t.combPvalue, 'Term size': t.termSize, 'Genes (all runs)': t.intersectionHits, 'Genes (any run)': t.unionHits })), 'Source', 'Selected terms'),

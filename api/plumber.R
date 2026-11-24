@@ -30,10 +30,12 @@ function(req, res) {
 
   len <- suppressWarnings(as.numeric(req$CONTENT_LENGTH %||% "0"))
   isImport <- grepl("^/api(/v1)?/workspace/import/?$", req$PATH_INFO %||% "")
-  limit <- if (isImport) FLAME_LIMITS$maxSessionBytes else 2.5 * 1024^2
+  isExpression <- grepl("^/api(/v1)?/inputs/expression/", req$PATH_INFO %||% "")
+  limit <- if (isImport) FLAME_LIMITS$maxSessionBytes else if (isExpression) EXPRESSION_MAX_BYTES + 1024^2 else 2.5 * 1024^2
   if (!is.na(len) && len > limit) {
     res$status <- 413
     return(list(error = if (isImport) sprintf("The session file is larger than the %d MB limit.", round(limit / 1024^2))
+                        else if (isExpression) sprintf("The expression table is larger than the %d MB limit.", round(EXPRESSION_MAX_BYTES / 1024^2))
                         else "Request is larger than the 2 MB limit."))
   }
 
