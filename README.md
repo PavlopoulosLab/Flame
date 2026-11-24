@@ -7,10 +7,12 @@
 
 # Flame 3.0: The bioscientist’s everyday toolkit
 
-Flame runs functional and literature enrichment on one or many gene lists with eight established tools
-(g:Profiler, STRING, Enrichr, WebGestalt, PANTHER, GeneCodis, Reactome, clusterProfiler) plus your own GMT gene sets,
-combines their results, and lets you explore them with interactive plots and networks. It also starts from
-variants and GWAS results. It is free and open to everyone.
+Flame takes you from data to interpretation in one workspace. Start from expression data, TCGA tumours, survival
+tables, variants and GWAS results, microRNAs, nutrients and foods, PDF documents, bench measurements or public
+resources, and turn them into gene lists. Analyse the lists with eight established enrichment tools (g:Profiler,
+STRING, Enrichr, WebGestalt, PANTHER, GeneCodis, Reactome, clusterProfiler) plus your own GMT gene sets, ask what
+regulates them and which drugs mimic or reverse them, combine and compare the results, and export
+publication-ready figures. It is free and open to everyone, and everything is also available through a REST API.
 
 The workspace has four tabs: **Input** (every way to add a gene list), **Enrichment** (runs and comparisons),
 **Regulators & drugs** (what controls a list, protein network) and **Gene tools** (inspect and transform a list).
@@ -20,7 +22,15 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
 * **Inputs**: paste/upload IDs (19 formats) or ranked lists with scores; select genes on a volcano plot (draggable
   thresholds), a 2D plot (UMAP/t-SNE/PCA) or an expression matrix (co-expression clusters, gene map, two-group test,
   correlation with a gene of interest by Pearson, Spearman and Kendall, boxplots of 2–3 sample groups with tests,
-  pathway activity per sample); map SNPs to genes; find genes in text; microRNAs → miRDB targets; UpSet set
+  pathway activity per sample, survival analysis with a univariate Cox model per gene and optional strata); map SNPs
+  to genes; find genes, chemicals, diseases and seven other entity types in text or in **PDF documents** (EXTRACT;
+  the PDFs stay in the browser, several open in tabs, and an annotated PDF can be downloaded); microRNAs → miRDB
+  targets; **TCGA** tumours through cBioPortal (most mutated, amplified or deleted genes, genes co-expressed with a
+  gene, genes that differ between two groups of tumours, or your own MAF file); **nutrients and foods** (ChEMBL
+  targets, UniProt proteins through ChEBI, GWAS Catalog diet and nutrient traits; CTD when it accepts automated
+  queries); **bench data** (qPCR Ct, western blot band intensities, flow cytometry percentages or any values per
+  group, with an automatic test, Dunnett or Tukey post hoc tests, fold changes with confidence intervals and
+  publication-style figures in colour or black and white, with axis breaks); UpSet set
   operations (intersection, union, XOR and more, with selectable bars); and **fetch gene lists** from a disease
   (choose among Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and GWAS Catalog; merge several
   results), PubMed articles, GEO datasets (RummaGEO) or ClinVar (by gene, condition, rsID or accession); or start
@@ -38,6 +48,8 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
 * **Beyond term lists**: transcription factors (ChEA3) and kinases (KEA3), drug and CRISPR signatures that mimic or
   reverse a response (LINCS L1000), the STRING protein network with module detection and per-module enrichment,
   and robustness checks (bootstrap stability, random-list control, FDR thresholds).
+* **Redundancy reduction**: one representative term per group of similar terms, by shared genes (any source), by GO
+  semantic similarity (Wang measure, as in GOSemSim) or through the REVIGO web service.
 * **Results**: all annotation sources together or one tab per source (GO:BP, GO:CC, KEGG…); table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
   views; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
   browser links, and KEGG maps with the user's genes coloured; undo/redo; image export of every figure (PNG, SVG, PDF, JPEG, WebP) and CSV/HTML exports.
@@ -50,7 +62,7 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
 * **Networks**: STRING networks as multi-edge evidence networks; open networks, comparisons and variant reports in
   Arena3D (3D multilayer networks) or NORMA, or directly in STRING.
 * **Display**: light/dark themes; every visualization has its own palette (Flame, colour-blind safe, vivid, pastel,
-  grayscale), offered only where there is a chart or network; box and lasso selection on charts; progress bars on
+  grayscale, or your own colours), offered only where there is a chart or network; box and lasso selection on charts; progress bars on
   slow steps; works at phone width.
 * **Workspaces**: private bookmarkable links, session save/load (lists, runs, analyses), automatic expiry.
 * **Programmatic access**: versioned REST API (`/api/v1`) with an OpenAPI 3 document and Swagger UI, and a Python
@@ -70,7 +82,14 @@ R/                 Flame R package: enrichment strategies and science core (no U
   core-utilities.R     gene tools: annotation (MyGene.info), ID conversion, orthologs, STRING network, custom GMT
   core-regulators.R    transcription factors and kinases (ChEA3, KEA3)
   core-fetch.R         gene lists from Open Targets, NCBI (PubMed, ClinVar, dbSNP), RummaGEO, GWAS Catalog
-  core-inputs.R        input parsing (IDs, volcano/2D tables, expression, microRNAs, UpSet) and examples
+  core-inputs.R        input parsing (IDs, volcano/2D tables, microRNAs, UpSet) and examples
+  core-expression.R    expression matrices: clusters, gene map, two-group test, correlation, boxplots
+  core-survival.R      survival tables and a univariate Cox model per gene
+  core-tcga.R          TCGA through cBioPortal (mutations, copy number, co-expression, two-group comparison)
+  core-nutrition.R     nutrients and foods (ChEMBL, UniProt/ChEBI, GWAS traits, CTD)
+  core-bench.R         bench data (qPCR, western blot, flow cytometry): helpers and tests
+  core-redundancy.R    redundancy reduction (shared genes, Wang GO similarity, REVIGO)
+  func-extract.R       EXTRACT tagger for text and PDF documents
   core-variants.R      variant and GWAS annotation
 api/               REST API (plumber): routes/, openapi.R, SQLite workspace store, background workers (mirai)
 web/               Web app (React + TypeScript + Vite; Plotly, vis-network, D3)
@@ -113,6 +132,7 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_PORT`, `FLAME_HOST` | `8000`, `127.0.0.1` | Listening address (use `0.0.0.0` in containers) |
 | `FLAME_DB` | `api/data/flame.sqlite` | Workspace database |
 | `FLAME_WORKERS` | `4` | Background enrichment workers |
+| `FLAME_FETCH_WORKERS` | `2` | Workers for requests to external services (TCGA, nutrients, diseases, EXTRACT, REVIGO, Arena3D, NORMA); at most four times as many such requests wait at once |
 | `FLAME_MAX_ACTIVE_JOBS` | `20` | Enrichment runs and analyses a workspace may have queued or running at once; `FLAME_WORKERS` of them run at the same time, the rest wait their turn |
 | `FLAME_RETENTION_DAYS` | `30` | Delete workspaces after this many days without use |
 | `FLAME_MAX_LISTS` | `10` | Lists per workspace (0 = unlimited) |
@@ -120,6 +140,8 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_SMTP_URL`, `FLAME_SMTP_FROM` | – | Optional "results ready" emails |
 | `FLAME_WORKSPACE_LIMIT` | `30` | New workspaces per hour per client address (0 = no limit) |
 | `FLAME_RATE_LIMIT` | `600` | API requests per minute per client address (0 = no limit, e.g. for local testing) |
+| `FLAME_TRUST_PROXY` | – | `1` to take the client address from `X-Forwarded-For` when the reverse proxy runs on another machine |
+| `FLAME_MAX_EXPRESSION_MB`, `FLAME_MAX_SESSION_MB` | `20`, `25` | Largest expression table and session file accepted |
 | `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and ClinVar inputs (10 instead of 3 requests per second; recommended for public servers) |
 | `FLAME_HTTP_PORT` | `8000` | Compose only: host port mapped to `FLAME_PORT` inside the container |
 
