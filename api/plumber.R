@@ -14,6 +14,18 @@ library(plumber)
 
 .rate <- new.env()
 
+# The client address for the rate limit. X-Forwarded-For is set by whoever sends the
+# request, so it is only used when the request comes from the reverse proxy on this
+# machine (or FLAME_TRUST_PROXY=1), and then its last entry, the one the proxy added.
+client_address <- function(req) {
+  remote <- req$REMOTE_ADDR %||% "local"
+  xff <- req$HTTP_X_FORWARDED_FOR %||% ""
+  trusted <- remote %in% c("127.0.0.1", "::1", "::ffff:127.0.0.1") || identical(Sys.getenv("FLAME_TRUST_PROXY"), "1")
+  if (!trusted || !nzchar(xff)) return(paste0("ip:", remote))
+  hops <- trimws(strsplit(xff, ",")[[1]])
+  paste0("ip:", utils::tail(hops[nzchar(hops)], 1) %||% remote)
+}
+
 # ---- Security headers, body-size limit and a simple per-IP rate limit -------
 #* @filter guard
 function(req, res) {
@@ -44,13 +56,13 @@ function(req, res) {
   rateLimit <- suppressWarnings(as.numeric(Sys.getenv("FLAME_RATE_LIMIT", "600")))
   if (is.na(rateLimit)) rateLimit <- 600
   if (rateLimit > 0 && startsWith(req$PATH_INFO %||% "", "/api/")) {
-    ip <- req$HTTP_X_FORWARDED_FOR %||% req$REMOTE_ADDR %||% "local"
-    ip <- trimws(strsplit(ip, ",")[[1]][1])
+    ip <- client_address(req)
     minute <- floor(as.numeric(Sys.time()) / 60)
-    key <- paste(ip, minute)
-    n <- (.rate[[key]] %||% 0) + 1
-    .rate[[key]] <- n
-    if (length(ls(.rate)) > 5000) rm(list = ls(.rate), envir = .rate)
+    # Counters live for one minute: start afresh when the minute changes, so the table
+    # stays small without letting anyone reset the other clients' counters.
+    if (!identical(.rate$.minute, minute)) { rm(list = ls(.rate, all.names = TRUE), envir = .rate); .rate$.minute <- minute }
+    n <- (.rate[[ip]] %||% 0) + 1
+    .rate[[ip]] <- n
     if (n > rateLimit) {
       res$status <- 429
       return(list(error = "Too many requests. Please slow down and try again in a minute."))

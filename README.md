@@ -189,6 +189,15 @@ Run the server behind an HTTPS reverse proxy (nginx, Caddy, …) on port 443 and
 The server sets security headers and a strict Content-Security-Policy; the web app loads no third-party
 scripts, fonts or cookies.
 
+- Request bodies larger than the biggest allowed upload (session file or expression table, ~25 MB by
+  default), and bodies without a `Content-Length` (chunked), are refused before they are read. Set the
+  proxy's limit to match, e.g. `client_max_body_size 26m;` in nginx.
+- The per-client rate limit (`FLAME_RATE_LIMIT` requests per minute, default 600) uses the connection
+  address. `X-Forwarded-For` is used only when the request comes from a proxy on the same machine, or
+  when `FLAME_TRUST_PROXY=1`, and then only its last entry, the one the proxy added
+  (`proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`).
+- Add `Strict-Transport-Security` at the proxy.
+
 ### Tests
 
 ```bash

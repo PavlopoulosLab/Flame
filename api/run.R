@@ -57,6 +57,7 @@ CSP <- paste(
   "form-action 'self'", "object-src 'none'", sep = "; ")
 
 if (dir.exists(dist)) {
+  distRoot <- paste0(normalizePath(dist), "/")   # files must lie inside dist/ (not dist-old/ and the like)
   pr <- plumber::pr_static(pr, "/assets", file.path(dist, "assets"))
   # Static root files (favicon, logo, theme-init.js, examples) and SPA fallback.
   pr <- plumber::pr_filter(pr, "spa", function(req, res) {
@@ -68,7 +69,7 @@ if (dir.exists(dist)) {
       return(plumber::forward())
     }
     file <- normalizePath(file.path(dist, sub("^/", "", path)), mustWork = FALSE)
-    if (nzchar(path) && path != "/" && startsWith(file, dist) && file.exists(file) && !dir.exists(file)) {
+    if (nzchar(path) && path != "/" && startsWith(file, distRoot) && file.exists(file) && !dir.exists(file)) {
       res$setHeader("Content-Type", mime::guess_type(file))
       res$setHeader("Cache-Control", "public, max-age=3600")
       res$body <- readBin(file, "raw", file.info(file)$size)
@@ -82,6 +83,11 @@ if (dir.exists(dist)) {
     res
   })
 }
+
+# Refuse request bodies above the largest allowed upload, and bodies without a length
+# (chunked), before httpuv reads them into memory; the guard filter in plumber.R then
+# applies the per-route limits.
+options(plumber.maxRequestSize = max(FLAME_LIMITS$maxSessionBytes, EXPRESSION_MAX_BYTES + 1024^2))
 
 message("Flame listening on http://", host, ":", port)
 plumber::pr_run(pr, host = host, port = port, docs = TRUE, quiet = TRUE)

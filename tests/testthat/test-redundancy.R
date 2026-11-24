@@ -67,3 +67,11 @@ test_that("REVIGO web service answers (online)", {
   expect_setequal(tab$id, c("GO:0006955", "GO:0002376", "GO:0006954", "GO:0045087", "GO:0006952"))
   expect_true(any(!is.na(tab$representative)))
 })
+
+test_that("the REVIGO cache works for long term lists (keys under R's 10,000-byte limit)", {
+  ids <- sprintf("GO:%07d", 1:1500); p <- seq(1e-10, 0.05, length.out = 1500)
+  key <- revigo_cache_key(ids, p, 9606L, 0.7, "SIMREL")
+  expect_lt(nchar(key, type = "bytes"), 100)
+  revigo_cache_set(key, data.frame(id = ids, representative = NA_character_))
+  expect_equal(nrow(revigo_table(ids, p, 9606L, 0.7, "SIMREL", fetch = FALSE)), 1500L)
+})

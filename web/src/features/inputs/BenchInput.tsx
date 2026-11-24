@@ -304,7 +304,11 @@ function benchFigure(res: Result, o: FigOpts, colors: string[]) {
     const c = t.comparisons?.find((x) => (x.a === g && x.b === res.control) || (x.b === g && x.a === res.control))
     if (!c || g === res.control) return null
     const y0 = top(t, g)
-    return { x: pos(ti, gi), y: y0 + span(y0) * 0.04, yref: broken && y0 > broken[0] ? 'y2' : 'y', text: c.stars, showarrow: false, font: { size: c.stars === 'ns' ? 10 : 15, color: bw ? ink : undefined }, yanchor: 'bottom' }
+    let y = y0 + span(y0) * 0.04, yref = broken && y0 > broken[0] ? 'y2' : 'y'
+    // a bar ending just below the break, or inside it, would have its stars cut off: show them at the foot of the upper axis
+    if (broken && yref === 'y' && y > broken[0] * 0.97) { y = broken[1]; yref = 'y2' }
+    if (broken && yref === 'y2' && y < broken[1]) y = broken[1]
+    return { x: pos(ti, gi), y, yref, text: c.stars, showarrow: false, font: { size: c.stars === 'ns' ? 10 : 15, color: bw ? ink : undefined }, yanchor: 'bottom' }
   }).filter((a): a is NonNullable<typeof a> => !!a))
   const shapes: Record<string, unknown>[] = res.logScale ? [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 1, y1: 1, line: { color: bw ? '#7a7a7a' : '#9ca3af', width: 1, dash: 'dot' } }] : []
   const low = 0.6, high = 0.68                                         // paper heights where the lower axis ends and the upper one starts

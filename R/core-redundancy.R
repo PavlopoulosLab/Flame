@@ -214,7 +214,9 @@ revigo_input <- function(df, maxTerms = 3000L) {
 
 revigo_cache_key <- function(ids, pvalues, taxid, cutoff, measure) {
   p <- .revigo_params(taxid, cutoff, measure)
-  paste(p$taxid, p$cutoff, p$measure, paste(ids, signif(pvalues, 4), collapse = ";"), sep = "|")
+  key <- paste(p$taxid, p$cutoff, p$measure, paste(ids, signif(pvalues, 4), collapse = ";"), sep = "|")
+  # R environment names are limited to 10,000 bytes: long term lists are stored under a hash.
+  if (requireNamespace("sodium", quietly = TRUE)) sodium::bin2hex(sodium::sha256(charToRaw(key))) else digest_key(key)
 }
 
 #' REVIGO's verdict for each GO term: data frame (id, representative); representative is
