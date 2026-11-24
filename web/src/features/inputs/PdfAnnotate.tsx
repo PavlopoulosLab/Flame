@@ -4,7 +4,7 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { api, saveText } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { BusyBar, ErrorNote, Note, OrganismPicker } from '../../components/ui'
-import { toCsv } from '../../lib/format'
+import { isHttpUrl, toCsv } from '../../lib/format'
 import { annotatePdf, findMentions, locate, mergeBoxes, textLayerString, type PdfMark, type RGB } from '../../lib/pdfText'
 import { SaveList } from './InputModal'
 
@@ -197,7 +197,7 @@ function PdfDocument({ source, organism, kinds, active, rerun, onCreated, onStat
                   <button className="pdfdoc-pop-x" aria-label="Close" onClick={() => setPopup(null)}>×</button>
                   <strong>{pop[0]?.name}</strong> <span className="muted small">{pop[0] && KIND[pop[0].kind].label}</span>
                   {pop.length > 1 && <div className="small muted">Ambiguous: {pop.length} entries share this name</div>}
-                  <ul className="small">{pop.map((e) => <li key={e.id}>{e.url ? <a href={e.url} target="_blank" rel="noopener noreferrer">{e.id} ↗</a> : e.id}</li>)}</ul>
+                  <ul className="small">{pop.map((e) => <li key={e.id}>{isHttpUrl(e.url) ? <a href={e.url} target="_blank" rel="noopener noreferrer">{e.id} ↗</a> : e.id}</li>)}</ul>
                   <div className="small muted">{mentionCount.get(popup.key) ?? 0} mention{mentionCount.get(popup.key) === 1 ? '' : 's'} in the document</div>
                 </div>
               ) : null} />
@@ -215,7 +215,7 @@ function PdfDocument({ source, organism, kinds, active, rerun, onCreated, onStat
               <tr key={g.id} className={chosen.has(g.id) ? 'selected' : ''}>
                 <td><input type="checkbox" checked={chosen.has(g.id)} aria-label={`Use ${g.names.join(', ')}`} onChange={() => setChosen((s) => { const n = new Set(s); if (n.has(g.id)) n.delete(g.id); else n.add(g.id); return n })} /></td>
                 <td>{g.names.join(', ')}</td>
-                <td>{g.url ? <a href={g.url} target="_blank" rel="noopener noreferrer">{g.id}</a> : g.id}</td>
+                <td>{isHttpUrl(g.url) ? <a href={g.url} target="_blank" rel="noopener noreferrer">{g.id}</a> : g.id}</td>
                 <td className="num">{g.names.reduce((s, n) => s + (mentionCount.get(`genes\u0001${n}`) ?? 0), 0)}</td>
                 <td className="small">{g.ambiguous && <span className="tm-flag tm-amb">ambiguous</span>}</td>
               </tr>
@@ -325,36 +325,63 @@ function PdfPage({ pdf, pageNumber, width, entities, shown, onHits, onPick, popu
   const view = useRef<import('pdfjs-dist').PageViewport | null>(null)
   const onHitsRef = useRef(onHits); onHitsRef.current = onHits
 
-  // Draw the page and its text layer (again when the width changes).
+  // Is the page on screen or close to it? Only those pages keep a drawn canvas: a canvas at
+  // twice the pixel density takes ~25 MB, so 150 drawn pages could exhaust the tab.
+  const [near, setNear] = useState(false)
+  useEffect(() => {
+    const el = box.current
+    if (!el || typeof IntersectionObserver === 'undefined') { setNear(true); return }
+    // The pages scroll inside the dialog: measure against that scroller, so the margin pre-draws the next pages.
+    let root: HTMLElement | null = el.parentElement
+    while (root && !/(auto|scroll)/.test(getComputedStyle(root).overflowY)) root = root.parentElement
+    const io = new IntersectionObserver((es) => setNear(es.some((e) => e.isIntersecting)), { root, rootMargin: '1500px 0px' })
+    io.observe(el)
+    return () => io.disconnect()
+  }, [])
+
+  // The text layer (where names are found and highlighted) is built for every page.
   useEffect(() => {
     let cancelled = false
-    let task: { cancel: () => void } | null = null
     ;(async () => {
       const pdfjs = await import('pdfjs-dist')
       const page = await pdf.getPage(pageNumber)
       const base = page.getViewport({ scale: 1 })
       const viewport = page.getViewport({ scale: width / base.width })
-      if (cancelled || !canvas.current || !layer.current || !box.current) return
+      if (cancelled || !layer.current || !box.current) return
       view.current = viewport
       setSize({ w: viewport.width, h: viewport.height })
-      const dpr = Math.min(window.devicePixelRatio || 1, 2)
-      const c = canvas.current
-      c.width = Math.floor(viewport.width * dpr); c.height = Math.floor(viewport.height * dpr)
-      c.style.width = `${viewport.width}px`; c.style.height = `${viewport.height}px`
-      const r = page.render({ canvas: c, viewport, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined })
-      r.promise.catch(() => {}) // cancelled when the tab is hidden or the width changes
-      task = r
       box.current.style.setProperty('--scale-factor', String(viewport.scale))
       box.current.style.setProperty('--total-scale-factor', String(viewport.scale))
       layer.current.replaceChildren()
       const tl = new pdfjs.TextLayer({ textContentSource: await page.getTextContent(), container: layer.current, viewport })
       if (cancelled) return
       await tl.render().catch(() => {})
-      await r.promise.catch(() => {})
       if (!cancelled) setReady((x) => x + 1)
     })().catch(() => {})
-    return () => { cancelled = true; task?.cancel() }
+    return () => { cancelled = true }
   }, [pdf, pageNumber, width])
+
+  // The picture of the page, drawn while it is near the screen and released when it is not.
+  useEffect(() => {
+    const c = canvas.current
+    if (!c) return
+    if (!near) { c.width = 0; c.height = 0; return }
+    let cancelled = false
+    let task: { cancel: () => void } | null = null
+    ;(async () => {
+      const page = await pdf.getPage(pageNumber)
+      const base = page.getViewport({ scale: 1 })
+      const viewport = page.getViewport({ scale: width / base.width })
+      if (cancelled) return
+      const dpr = Math.min(window.devicePixelRatio || 1, 2)
+      c.width = Math.floor(viewport.width * dpr); c.height = Math.floor(viewport.height * dpr)
+      c.style.width = `${viewport.width}px`; c.style.height = `${viewport.height}px`
+      const r = page.render({ canvas: c, viewport, transform: dpr !== 1 ? [dpr, 0, 0, dpr, 0, 0] : undefined })
+      task = r
+      await r.promise.catch(() => {}) // cancelled when the page leaves the screen or the width changes
+    })().catch(() => {})
+    return () => { cancelled = true; task?.cancel() }
+  }, [pdf, pageNumber, width, near])
 
   // Find the entities in the text layer and measure where they are.
   useEffect(() => {

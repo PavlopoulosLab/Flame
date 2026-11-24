@@ -15,6 +15,8 @@
 
 EXPRESSION_MAX_BYTES <- as.numeric(Sys.getenv("FLAME_MAX_EXPRESSION_MB", "20")) * 1024^2   # survival cohorts need room
 EXPRESSION_MAX_GENES <- 30000L
+EXPRESSION_MAX_SAMPLES <- 5000L
+KENDALL_MAX_WORK <- 3e8        # genes x samples^2: Kendall's tau is quadratic in the samples (about a second at this size)
 
 #' Parse an expression matrix. Values that look like counts or intensities
 #' (max > 50) are log2(x + 1) transformed unless `log` is FALSE.
@@ -43,6 +45,7 @@ parse_expression_matrix <- function(text, fileName = "", log = NA) {
   num <- lapply(df[-1], function(x) suppressWarnings(as.numeric(as.character(x))))
   isNum <- vapply(num, function(x) mean(is.finite(x)) > 0.8, logical(1))
   if (sum(isNum) < 2) stop("Expected at least two numeric sample columns after the gene ID column.")
+  if (sum(isNum) > EXPRESSION_MAX_SAMPLES) stop(sprintf("At most %d samples are supported.", EXPRESSION_MAX_SAMPLES))
   m <- do.call(cbind, num[isNum])
   colnames(m) <- make.unique(substr(names(df)[-1][isNum], 1, 60))
   ok <- nzchar(ids) & !is.na(ids) & grepl("^[A-Za-z0-9_.:-]+$", ids) & rowSums(is.finite(m)) == ncol(m)
@@ -159,6 +162,13 @@ expression_correlate <- function(x, gene, methods = CORRELATION_METHODS, samples
   M <- m[keep, , drop = FALSE]
   if (nrow(M) < 2) stop("No other genes vary across these samples.")
   tp <- function(r) { r <- pmin(pmax(r, -1), 1); t <- r * sqrt((n - 2) / pmax(1e-300, 1 - r^2)); 2 * stats::pt(-abs(t), n - 2) }
+  skipped <- ""
+  if ("kendall" %in% methods && as.numeric(nrow(M)) * n^2 > KENDALL_MAX_WORK) {
+    methods <- setdiff(methods, "kendall")
+    if (!length(methods)) methods <- "spearman"
+    skipped <- sprintf("Kendall's tau was left out: with %d samples and %s genes it would take too long; Spearman's rho ranks in the same way. ",
+                       n, format(nrow(M), big.mark = ","))
+  }
   out <- list()
   for (meth in methods) {
     r <- switch(meth,
@@ -175,7 +185,7 @@ expression_correlate <- function(x, gene, methods = CORRELATION_METHODS, samples
   list(gene = goi, n = n, samples = as.list(colnames(m)), methods = as.list(methods), genes = as.list(rownames(M)),
        tested = nrow(M), constant = sum(!keep) - 1L, logged = x$logged, values = as.list(unname(round(g, 4))),
        results = out,
-       note = paste0(if (n < 8) sprintf("Only %d samples: correlations are unstable, and with thousands of genes few can reach a low FDR. ", n) else "",
+       note = paste0(skipped, if (n < 8) sprintf("Only %d samples: correlations are unstable, and with thousands of genes few can reach a low FDR. ", n) else "",
                      "Pearson measures linear association; Spearman and Kendall use ranks and resist outliers. P-values are Benjamini-Hochberg adjusted per method."))
 }
 

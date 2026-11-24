@@ -28,6 +28,7 @@ start_job_workers <- function(n = as.integer(Sys.getenv("FLAME_WORKERS", "4"))) 
       pkgload::load_all(root, export_all = TRUE, helpers = FALSE, quiet = TRUE)))
   }, root = FLAME_ROOT)
   message("[jobs] ", n, " enrichment workers ready")
+  start_fetch_workers()
   later::later(poll_jobs, 1)
   invisible(n)
 }
@@ -205,25 +206,102 @@ task_state <- function(ws, id, withResult = TRUE) {
 
 active_task_count <- function(ws) sum(vapply(ls(.flame_tasks), function(k) identical(.flame_tasks[[k]]$ws, ws), logical(1)))
 
-#' Ask REVIGO from a background worker; the view request is answered when it arrives
-#' (plumber waits on the promise without blocking other requests).
+# ---- Requests to external services (TCGA, nutrients, diseases, EXTRACT, REVIGO, ...) -----
+# They run on a small pool of their own, so a slow service neither blocks the API (plumber
+# answers on one R thread) nor waits behind enrichment runs; too many at once are refused.
+FETCH_WORKERS <- max(1L, as.integer(Sys.getenv("FLAME_FETCH_WORKERS", "2")))
+FETCH_MAX_PENDING <- FETCH_WORKERS * 4L
+FETCH_TIMEOUT_MS <- 10 * 60 * 1000
+.fetch_state <- new.env()
+.fetch_state$pending <- 0L
+.fetch_state$revigo <- list()        # REVIGO key -> promise, so identical requests share one job
+
+start_fetch_workers <- function(n = FETCH_WORKERS) {
+  mirai::daemons(n, .compute = "fetch")
+  mirai::everywhere({
+    suppressMessages(suppressWarnings(
+      pkgload::load_all(root, export_all = TRUE, helpers = FALSE, quiet = TRUE)))
+    api_abort <<- function(status, message)
+      stop(structure(class = c("flame_api_error", "error", "condition"), list(message = message, status = status, call = NULL)))
+  }, root = FLAME_ROOT, .compute = "fetch")
+  .fetch_state$ready <- TRUE
+  message("[jobs] ", n, " workers for external services ready")
+}
+
+# Messages of network failures name hosts and proxies: tell the user something useful instead.
+public_error_message <- function(e) {
+  msg <- conditionMessage(e)
+  if (inherits(e, c("curl_error", "httr2_failure", "httr2_http")) ||
+      grepl("^(Timeout was reached|Could not resolve|Failed to connect|SSL|OpenSSL|Recv failure|Send failure|HTTP [0-9]{3})", msg))
+    "The external service did not respond. Please try again later." else msg
+}
+
+#' Evaluate `expr` (a language object) with `args` on the external-service pool and answer
+#' with its value; errors become 4xx/5xx JSON as with api_handle. Without the pool (tests,
+#' FLAME_NO_WORKERS=1) it runs here.
+fetch_async <- function(res, expr, args = list()) {
+  wrapped <- bquote(tryCatch(list(ok = TRUE, value = .(expr)),
+    flame_api_error = function(e) list(ok = FALSE, status = e$status, error = conditionMessage(e)),
+    error = function(e) list(ok = FALSE, status = 422L, error = .(public_error_message)(e))))   # the function itself travels with the job
+  answer <- function(r) {
+    if (isTRUE(r$ok)) return(r$value)
+    res$status <- as.integer(r$status %||% 422L)
+    list(error = r$error)
+  }
+  if (!isTRUE(.fetch_state$ready)) return(answer(eval(wrapped, list2env(args, parent = environment()))))
+  if (.fetch_state$pending >= FETCH_MAX_PENDING) {
+    res$status <- 503L
+    return(list(error = "The server is busy with other requests to external services. Please try again in a minute."))
+  }
+  .fetch_state$pending <- .fetch_state$pending + 1L
+  m <- mirai::mirai(.expr = wrapped, .args = args, .timeout = FETCH_TIMEOUT_MS, .compute = "fetch")
+  p <- promises::then(promises::as.promise(m), onFulfilled = answer, onRejected = function(e) {
+    res$status <- 504L
+    list(error = "The external service took too long to answer. Please try again later.")
+  })
+  promises::finally(p, function() .fetch_state$pending <- .fetch_state$pending - 1L)
+}
+
+#' Ask REVIGO from the external-service pool; the view request is answered when it arrives
+#' (plumber waits on the promise without blocking other requests). Identical requests in
+#' flight share one REVIGO job.
 revigo_async <- function(pending, build, res) {
-  m <- mirai::mirai(
-    tryCatch(revigo_fetch(ids, pvalues, taxid, cutoff, measure),
-             error = function(e) structure(list(message = conditionMessage(e)), class = "revigo_failure")),
-    ids = pending$ids, pvalues = pending$pvalues, taxid = pending$taxid,
-    cutoff = pending$cutoff, measure = pending$measure)
-  promises::then(promises::as.promise(m),
-    onFulfilled = function(tab) {
-      if (inherits(tab, "revigo_failure") || !is.data.frame(tab)) {
-        res$status <- 502L
-        return(list(error = if (inherits(tab, "revigo_failure")) tab$message else "REVIGO did not respond. Try again later, or use another method."))
-      }
+  failed <- "REVIGO did not respond. Try again later, or use another method."
+  job <- .fetch_state$revigo[[pending$key]]
+  if (is.null(job)) {
+    if (!isTRUE(.fetch_state$ready)) {
+      tab <- tryCatch(revigo_fetch(pending$ids, pending$pvalues, pending$taxid, pending$cutoff, pending$measure), error = function(e) NULL)
+      if (!is.data.frame(tab)) { res$status <- 502L; return(list(error = failed)) }
       revigo_cache_set(pending$key, tab)
+      return(api_handle(res, build()))
+    }
+    if (.fetch_state$pending >= FETCH_MAX_PENDING) {
+      res$status <- 503L
+      return(list(error = "The server is busy with other REVIGO requests. Please try again in a minute, or use another method."))
+    }
+    .fetch_state$pending <- .fetch_state$pending + 1L
+    m <- mirai::mirai(
+      tryCatch(revigo_fetch(ids, pvalues, taxid, cutoff, measure),
+               error = function(e) structure(list(message = conditionMessage(e)), class = "revigo_failure")),
+      ids = pending$ids, pvalues = pending$pvalues, taxid = pending$taxid,
+      cutoff = pending$cutoff, measure = pending$measure, .timeout = FETCH_TIMEOUT_MS, .compute = "fetch")
+    job <- promises::then(promises::as.promise(m), onFulfilled = function(tab) {
+      if (is.data.frame(tab)) revigo_cache_set(pending$key, tab)
+      tab
+    })
+    job <- promises::finally(job, function() {
+      .fetch_state$pending <- .fetch_state$pending - 1L
+      .fetch_state$revigo[[pending$key]] <- NULL
+    })
+    .fetch_state$revigo[[pending$key]] <- job
+  }
+  promises::then(job,
+    onFulfilled = function(tab) {
+      if (!is.data.frame(tab)) {
+        res$status <- 502L
+        return(list(error = if (inherits(tab, "revigo_failure")) public_error_message(simpleError(tab$message)) else failed))
+      }
       api_handle(res, build())
     },
-    onRejected = function(e) {
-      res$status <- 502L
-      list(error = "REVIGO did not respond. Try again later, or use another method.")
-    })
+    onRejected = function(e) { res$status <- 502L; list(error = failed) })
 }

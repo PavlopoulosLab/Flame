@@ -359,7 +359,7 @@ function ResultsPageBody() {
                             <option value="RESNIK">Resnik (normalized)</option>
                             <option value="JIANG">Jiang</option>
                           </select>
-                          <span className="muted small">REVIGO (Supek et al. 2011) groups GO terms by semantic similarity, using how often each term annotates genes of your organism, and picks a representative for each group. The GO IDs and p-values (no genes) are sent to revigo.irb.hr. GO terms only: other sources are left as they are.</span>
+                          <span className="muted small">REVIGO (Supek et al. 2011) groups GO terms by semantic similarity, using how often each term annotates genes of your organism, and picks a representative for each group. The GO IDs and p-values (no genes) are sent to revigo.irb.hr, over plain HTTP (REVIGO has no HTTPS). GO terms only: other sources are left as they are.</span>
                           {q.isFetching && <span className="small"><Spinner /> Asking REVIGO…</span>}
                         </>
                       )}

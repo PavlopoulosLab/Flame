@@ -9,13 +9,22 @@ const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
  * ("breast cancer" over "cancer"); matches do not overlap; whitespace inside a name may be any run
  * of spaces or line breaks; a name must not be glued to letters or digits on either side.
  */
+const patterns = new Map<string, RegExp>()   // compiled once per name, reused on every page
+
 export function findMentions(text: string, names: string[]): Mention[] {
   const uniq = [...new Set(names.filter((n) => n && n.trim().length > 1))].sort((a, b) => b.length - a.length)
   const taken = new Uint8Array(text.length)
   const out: Mention[] = []
   for (const name of uniq) {
-    const body = name.trim().split(/\s+/).map(escapeRe).join('\\s+')
-    const re = new RegExp(`(?<![\\p{L}\\p{N}])${body}(?![\\p{L}\\p{N}])`, 'gu')
+    const words = name.trim().split(/\s+/)
+    if (!text.includes(words[0])) continue          // cheap check first: most names are not on a given page
+    let re = patterns.get(name)
+    if (!re) {
+      re = new RegExp(`(?<![\\p{L}\\p{N}])${words.map(escapeRe).join('\\s+')}(?![\\p{L}\\p{N}])`, 'gu')
+      if (patterns.size > 20_000) patterns.clear()
+      patterns.set(name, re)
+    }
+    re.lastIndex = 0
     for (const m of text.matchAll(re)) {
       const start = m.index ?? 0, end = start + m[0].length
       let free = true

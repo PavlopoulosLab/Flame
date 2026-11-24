@@ -8,6 +8,7 @@ import { BrushModes, pointInPolygon, useBrush, type BrushMode } from '../lib/bru
 import { categorical, usePaletteMode, type PaletteMode } from '../lib/palette'
 import { ExportImageButton } from './ExportImage'
 import { LIGHT, openImageExport, type ImageSource, type RenderOptions } from '../lib/imageExport'
+import { plotlySafeDeep } from '../lib/format'
 
 type PlotData = Partial<Plotly.PlotData>[]
 
@@ -144,7 +145,7 @@ export function Plot({
     }
     redrawing.current = true
     Promise.resolve(
-      Plotly.react(el, data as Plotly.Data[], merged, {
+      Plotly.react(el, plotlySafeDeep(data) as Plotly.Data[], plotlySafeDeep(merged), {
         responsive: true,
         displaylogo: false,
         ...(tools ? {} : { displayModeBar: false }),

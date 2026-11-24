@@ -22,11 +22,39 @@ export function splitGenes(genes: string | null | undefined): string[] {
 
 export const isHttpUrl = (u: unknown): u is string => typeof u === 'string' && /^https?:\/\//i.test(u.trim())
 
+/** A text cell a spreadsheet would read as a formula (=, +, -, @, tab or carriage return first) gets a leading
+ *  apostrophe. Numbers are left alone, so negative values stay numbers. */
+const neutralise = (value: unknown): string => {
+  const s = value == null ? '' : String(value)
+  return typeof value !== 'number' && /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+}
+
 /** CSV cell: quote when needed and neutralise spreadsheet formulas. */
 export function csvCell(value: unknown): string {
-  let s = value == null ? '' : String(value)
-  if (/^[=+\-@]/.test(s)) s = `'${s}`
+  const s = neutralise(value)
   return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+}
+
+/** TSV cell: tabs and line breaks become spaces, and spreadsheet formulas are neutralised. */
+export function tsvCell(value: unknown): string {
+  return neutralise(typeof value === 'string' ? value.replace(/[\t\r\n]+/g, ' ') : value)
+}
+
+/** Plotly draws a few HTML tags in labels and hover text. Keep the ones our charts use and show any
+ *  other markup (from uploaded names or API data, e.g. a link) as plain text. */
+export const plotlySafe = (s: string): string =>
+  s.includes('<') ? s.replace(/<(?!\/?(?:br|b|i|extra)\s*\/?>)/gi, '&lt;') : s
+
+/** plotlySafe applied to every string of traces or a layout, except identifiers used for selection. */
+export function plotlySafeDeep<T>(v: T, key = ''): T {
+  if (typeof v === 'string') return plotlySafe(v) as T
+  if (Array.isArray(v)) return (key === 'customdata' || key === 'ids' ? v : v.map((x) => plotlySafeDeep(x))) as T
+  if (v && typeof v === 'object' && Object.getPrototypeOf(v) === Object.prototype) {
+    const out: Record<string, unknown> = {}
+    for (const [k, x] of Object.entries(v as Record<string, unknown>)) out[k] = k === 'customdata' || k === 'ids' ? x : plotlySafeDeep(x, k)
+    return out as T
+  }
+  return v
 }
 
 export function toCsv(rows: Record<string, unknown>[], columns: { key: string; label: string }[]): string {

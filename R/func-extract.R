@@ -38,7 +38,7 @@ extract_entities <- function(text, species, types = NULL) {
     params <- sprintf("document=%s&entity_types=%s&auto_detect=0&format=tsv",
                       encoded$text, encoded$entityTypes)
 
-    request <- httr::POST(url, body = params)
+    request <- httr::POST(url, body = params, httr::timeout(120))   # never wait forever on the tagger
 
     if (isPOSTResponseValid(request)) {
       result <- data.table::fread(
@@ -80,7 +80,7 @@ extract_annotated_html <- function(text, species) {
     params <- sprintf("document=%s&entity_types=%s&auto_detect=0",
                       encoded$text, encoded$entityTypes)
 
-    request <- httr::POST(url, body = params)
+    request <- httr::POST(url, body = params, httr::timeout(120))   # never wait forever on the tagger
 
     if (isPOSTResponseValid(request)) {
       return(rawToChar(httr::content(request, "raw")))

@@ -81,18 +81,18 @@ cox_by_gene <- function(X, time, event, strata = NULL, maxIter = 25L) {
   M <- t(X)                                                 # samples x genes
   G <- ncol(M)
   # For each sample, the first sample of its risk set: same stratum, time >= its time (ties share the set).
-  first <- integer(n)
-  for (s in unique(strata)) {
-    idx <- which(strata == s)
-    first[idx] <- idx[match(time[idx], time[idx])]          # first index with the same time in this stratum
-  }
-  blockEnd <- integer(n)                                    # last index of each sample's stratum
-  for (s in unique(strata)) { idx <- which(strata == s); blockEnd[idx] <- max(idx) }
+  key <- paste(strata, time, sep = "\r")
+  first <- match(key, key)                                  # first index with the same stratum and time (rows are sorted)
+  runs <- rle(as.character(strata))
+  blockEnd <- rep(cumsum(runs$lengths), runs$lengths)       # last index of each sample's stratum
   ev <- which(event == 1L)
-  # Reverse cumulative sums within strata: R[i, ] = sum over j in [i, end of stratum].
+  # Reverse cumulative sums within strata: R[i, ] = sum over j in [i, end of stratum],
+  # from the reverse cumulative sum over all rows minus what lies beyond the stratum.
+  after <- blockEnd + 1L
   revcum <- function(A) {
-    for (i in rev(seq_len(n - 1))) if (blockEnd[i] == blockEnd[i + 1]) A[i, ] <- A[i, ] + A[i + 1, ]
-    A
+    C <- apply(A[n:1, , drop = FALSE], 2, cumsum)
+    C <- rbind(C[n:1, , drop = FALSE], 0)
+    C[seq_len(n), , drop = FALSE] - C[after, , drop = FALSE]
   }
   beta <- rep(0, G)
   for (it in seq_len(maxIter)) {
@@ -129,6 +129,8 @@ expression_survival <- function(x, clin, minEvents = 5L) {
   if (!is.null(strata)) ok <- ok & !is.na(strata)
   samples <- colnames(m)[keep][ok]
   time <- time[ok]; event <- event[ok]; if (!is.null(strata)) strata <- strata[ok]
+  if (!is.null(strata) && length(unique(strata)) > 50)
+    stop(sprintf("The strata column has %d different values; choose a column with at most 50 (e.g. stage or batch).", length(unique(strata))))
   nMatched <- sum(keep)
   if (nMatched == 0) stop("No sample of the clinical table matches a column of the expression table. The first column of the clinical table must hold the sample names.")
   if (length(samples) < 10) stop(sprintf("Only %d samples have a usable time and event; at least 10 are needed.", length(samples)))

@@ -256,11 +256,8 @@ tcga_de_genes <- function(study, groupA, groupB, direction = "both", minLog2FC =
 }
 
 digest_key <- function(x) {
-  # a short, stable fingerprint of a character vector (no extra dependency)
-  s <- paste(x, collapse = "\u0001")
-  h <- 0
-  for (b in as.integer(charToRaw(s))) h <- (h * 31 + b) %% 4294967291
-  sprintf("%s-%d", format(h, scientific = FALSE), nchar(s))
+  # SHA-256 fingerprint of a character vector: cache keys shared by all users must not collide
+  sodium::bin2hex(sodium::sha256(charToRaw(enc2utf8(paste(x, collapse = "\u0001")))))
 }
 
 #' One entry point for the API.

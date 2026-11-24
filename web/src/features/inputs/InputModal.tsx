@@ -4,7 +4,7 @@ import { useCreateList } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, ModalPaletteContext, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
-import { plural } from '../../lib/format'
+import { plural, tsvCell } from '../../lib/format'
 import { categorical, PaletteScope, roleColors, usePaletteKey, usePaletteMode } from '../../lib/palette'
 import { PaletteSelect } from '../../components/PaletteSelect'
 import { METHODS, type InputKind } from './MethodPicker'
@@ -878,12 +878,12 @@ function Upset({ lists, onClose, onCreated, title, initialListIds }: P) {
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSelIds(combos.map((c) => c.id))}>Select all bars</button>
                 <button type="button" className="btn btn-ghost btn-sm" disabled={!selIds.length} onClick={() => setSelIds([])}>Clear</button>
                 <ExportImageButton source={() => htmlSource(upsetRef.current, `flame_upset_${res.mode}`)} />
-                <CopyButton label="Copy table" text={['combination\tcount\tids', ...combos.map((c) => `${c.label}\t${c.count}\t${c.ids.join(',')}`)].join('\n')} />
+                <CopyButton label="Copy table" text={['combination\tcount\tids', ...combos.map((c) => [c.label, c.count, c.ids.join(',')].map(tsvCell).join('\t'))].join('\n')} />
                 <button type="button" className="btn btn-ghost btn-sm" title="Excel workbook: a summary and one sheet per combination" onClick={() => saveXlsx([
                   { name: 'Combinations', rows: combos.map((c) => ({ Combination: c.label, Lists: c.sourceNames.join(' + '), Count: c.count, IDs: c.ids.join(', ') })) },
                   ...combos.slice(0, 60).map((c) => ({ name: c.label, rows: c.ids.map((i) => ({ ID: i })) })),
                 ], `flame_upset_${res.mode}.xlsx`)}>Excel</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(['combination\tlists\tcount\tids', ...combos.map((c) => `${c.label}\t${c.sourceNames.join(' + ')}\t${c.count}\t${c.ids.join(',')}`)].join('\n'), `flame_upset_${res.mode}.tsv`, 'text/tab-separated-values')}>TSV</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => saveText(['combination\tlists\tcount\tids', ...combos.map((c) => [c.label, c.sourceNames.join(' + '), c.count, c.ids.join(',')].map(tsvCell).join('\t'))].join('\n'), `flame_upset_${res.mode}.tsv`, 'text/tab-separated-values')}>TSV</button>
               </div>
             </>
           )}
@@ -1332,7 +1332,7 @@ function CorrelationView({ text, fileName, log, groups, organism, setOrganism, i
   const tsv = () => {
     const t = fullTable()
     const cols = Object.keys(t[0] ?? { gene: '' })
-    return [cols.join('\t'), ...t.map((r) => cols.map((c) => String((r as Record<string, unknown>)[c] ?? '')).join('\t'))].join('\n')
+    return [cols.join('\t'), ...t.map((r) => cols.map((c) => tsvCell((r as Record<string, unknown>)[c] ?? '')).join('\t'))].join('\n')
   }
   const methodBoxes = (
     <Field label="Methods">
@@ -1730,7 +1730,7 @@ function PathwayActivity({ text, fileName, log, organism }: { text: string; file
       return row.map((v) => Math.round(((v - m) / sd) * 100) / 100)
     })
   }, [res, scale])
-  const tsv = res ? ['pathway\t' + res.samples.join('\t'), ...res.pathways.map((p, i) => `${p}\t${res.scores[i].join('\t')}`)].join('\n') : ''
+  const tsv = res ? [['pathway', ...res.samples].map(tsvCell).join('\t'), ...res.pathways.map((p, i) => [p, ...res.scores[i]].map(tsvCell).join('\t'))].join('\n') : ''
   return (
     <div className="stack-sm">
       <p className="muted small">Scores each pathway in each sample, so you can see which programmes are on or off per sample or group — no comparison needed.</p>

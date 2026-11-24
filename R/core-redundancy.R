@@ -13,7 +13,7 @@
 REDUNDANCY_METHODS <- c("genes", "semantic", "revigo")
 REVIGO_MEASURES <- c("SIMREL", "LIN", "RESNIK", "JIANG")
 REVIGO_CUTOFFS <- c(0.4, 0.5, 0.7, 0.9)
-REVIGO_URLS <- c("https://revigo.irb.hr", "http://revigo.irb.hr")
+REVIGO_URLS <- c("https://revigo.irb.hr", "http://revigo.irb.hr")   # REVIGO serves only HTTP today (disclosed on the privacy page); HTTPS is tried first
 
 .is_go_source <- function(src) grepl("^GO", src)
 .ontology_of <- function(src) {
@@ -216,7 +216,7 @@ revigo_cache_key <- function(ids, pvalues, taxid, cutoff, measure) {
   p <- .revigo_params(taxid, cutoff, measure)
   key <- paste(p$taxid, p$cutoff, p$measure, paste(ids, signif(pvalues, 4), collapse = ";"), sep = "|")
   # R environment names are limited to 10,000 bytes: long term lists are stored under a hash.
-  if (requireNamespace("sodium", quietly = TRUE)) sodium::bin2hex(sodium::sha256(charToRaw(key))) else digest_key(key)
+  digest_key(key)
 }
 
 #' REVIGO's verdict for each GO term: data frame (id, representative); representative is

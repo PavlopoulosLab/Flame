@@ -24,8 +24,12 @@ NUTRITION_SOURCES <- c("ctd", "chembl", "uniprot")
   hit <- .nutri_cache[[key]]
   if (!is.null(hit)) return(hit)
   val <- expr
-  if (length(ls(.nutri_cache)) > 100) rm(list = ls(.nutri_cache), envir = .nutri_cache)
+  size <- as.numeric(utils::object.size(val))
+  if (size > 20e6) return(val)                                  # very large answers are not kept
+  used <- .nutri_cache$.bytes %||% 0
+  if (length(ls(.nutri_cache)) >= 100 || used + size > 200e6) { rm(list = ls(.nutri_cache, all.names = TRUE), envir = .nutri_cache); used <- 0 }
   .nutri_cache[[key]] <- val
+  .nutri_cache$.bytes <- used + size
   val
 }
 

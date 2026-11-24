@@ -186,6 +186,12 @@ function(req, res, id) {
   })
 }
 
+# Exports reuse REVIGO's answer for the view on screen; they never ask REVIGO themselves.
+.needs_revigo_view <- function(results, filters, taxid) {
+  if (!is.null(revigo_pending(results, filters %||% list(), taxid)))
+    api_abort(409, "Show this view with REVIGO first, then export it.")
+}
+
 #* Open the current view in Arena3D (3D multilayer network, arena3d.org). Same body as /view.
 #* Works for network views and for the term–gene heatmap / Sankey (terms by source as layers + genes).
 #* @post /<id>/arena3d
@@ -197,11 +203,13 @@ function(req, res, id) {
     view <- as.character(b$view %||% "network-tg")
     if (!view %in% c("network-tg", "network-tt", "network-gg", "heatmap-tg")) api_abort(400, "Arena3D export is available for network views.")
     out <- run_output(ws, id)
+    taxid <- get_run_row(ws, id)$taxid
+    .needs_revigo_view(out$results, b$filters, taxid)
     body <- tryCatch(arena3d_payload_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
-                                              b$sortBy %||% "-log10Pvalue", b$settings %||% list(),
-                                              taxid = get_run_row(ws, id)$taxid),
+                                              b$sortBy %||% "-log10Pvalue", b$settings %||% list(), taxid = taxid),
                      error = function(e) api_abort(422, conditionMessage(e)))
-    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+    # Arena3D is a web service: send the network from the external-service workers.
+    fetch_async(res, quote(arena3d_open(body)), list(body = body))
   })
 }
 
@@ -216,12 +224,12 @@ function(req, res, id) {
     if (!view %in% c("network-tg", "network-tt", "network-gg")) api_abort(400, "NORMA export is available for network views.")
     r <- get_run_row(ws, id)
     out <- run_output(ws, id)
+    .needs_revigo_view(out$results, b$filters, r$taxid)
     payload <- tryCatch(norma_payload_for_view(out$results, view, b$filters %||% list(), b$top %||% 20L,
                                                b$sortBy %||% "-log10Pvalue", b$settings %||% list(),
                                                name = paste(r$tool, r$list_name), taxid = r$taxid),
                         error = function(e) api_abort(422, conditionMessage(e)))
-    url <- tryCatch(norma_export(payload), error = function(e) api_abort(502, conditionMessage(e)))
-    list(url = url)
+    fetch_async(res, quote(list(url = norma_export(payload))), list(payload = payload))
   })
 }
 

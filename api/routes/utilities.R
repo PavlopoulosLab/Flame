@@ -81,6 +81,6 @@ function(req, res) {
                                 b$networkEdges %||% "evidence", b$score %||% 400),
                     error = function(e) api_abort(422, conditionMessage(e)))
     body <- tryCatch(arena3d_payload_for_ppi(net), error = function(e) api_abort(422, conditionMessage(e)))
-    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+    fetch_async(res, quote(arena3d_open(body)), list(body = body))   # web service: from the external-service workers
   })
 }

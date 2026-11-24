@@ -112,7 +112,7 @@ function(req, res, id) {
     if (!identical(r$status, "complete")) api_abort(409, "The analysis has not finished.")
     result <- unserialize(r$result_blob[[1]])
     body <- tryCatch(arena3d_payload_for_variants(result), error = function(e) api_abort(422, conditionMessage(e)))
-    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+    fetch_async(res, quote(arena3d_open(body)), list(body = body))   # web service: from the external-service workers
   })
 }
 

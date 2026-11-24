@@ -8,6 +8,18 @@
 # loading order, as these utilities are used by many other files.
 # =============================================================================
 
+# --- Trimming whitespace ---------------------------------------------------------
+# Same results as base::trimws, in linear time. The base version strips trailing space with
+# "[ \t\r\n]+$", which retries at every position of a long run of spaces inside a cell, so a
+# pasted cell with a few hundred thousand spaces could keep the server busy for minutes.
+# Defined here, it is the trimws every function of the package uses.
+trimws <- function(x, which = c("both", "left", "right"), whitespace = "[ \t\r\n]") {
+  which <- match.arg(which)
+  left <- function(v) sub(paste0("^", whitespace, "+"), "", v, perl = TRUE)
+  right <- function(v) sub(paste0("(?<!", whitespace, ")", whitespace, "+$"), "", v, perl = TRUE)  # starts only where a run starts
+  switch(which, left = left(x), right = right(x), both = right(left(x)))
+}
+
 # --- HTML Parsing -----------------------------------------------------------
 
 #' Extract href URL from an HTML anchor tag

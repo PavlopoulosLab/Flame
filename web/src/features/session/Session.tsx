@@ -7,7 +7,7 @@ import type { Run, WorkspaceSummary } from '../../api/types'
 import { BusyBar, CopyButton, ErrorNote, Modal, Note, Segmented } from '../../components/ui'
 import { useUndoToast } from '../../components/Undo'
 import { IconLabel } from '../../components/Icons'
-import { getCustomPalette, hasSavedCustomPalette, setCustomPalette, setPaletteMode, type CustomPalette, type PaletteMode } from '../../lib/palette'
+import { PALETTES, getCustomPalette, hasSavedCustomPalette, setCustomPalette, setPaletteMode, type CustomPalette, type PaletteMode } from '../../lib/palette'
 import { formatNum, plural } from '../../lib/format'
 
 export interface SessionStatus {
@@ -107,7 +107,7 @@ function applyPrefs(prefs: Record<string, string>) {
       if (k.startsWith('flame-') && !PREF_SKIP.has(k) && typeof v === 'string' && v.length < 20_000) sessionStorage.setItem(k, v)
     })
   } catch { /* storage unavailable */ }
-  if (prefs['flame-palette']) setPaletteMode(prefs['flame-palette'] as PaletteMode)
+  if (PALETTES.some((p) => p.value === prefs['flame-palette'])) setPaletteMode(prefs['flame-palette'] as PaletteMode)   // only known modes from a session file
   if (prefs['flame-custom-palette']) {
     try { setCustomPalette(JSON.parse(prefs['flame-custom-palette']) as CustomPalette) } catch { /* not a palette */ }
   }

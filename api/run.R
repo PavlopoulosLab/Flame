@@ -53,7 +53,7 @@ dist <- file.path(FLAME_ROOT, "web", "dist")
 CSP <- paste(
   "default-src 'self'", "script-src 'self' 'wasm-unsafe-eval'", "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:", "font-src 'self' data:", "connect-src 'self'",
-  "worker-src 'self' blob:", "frame-ancestors 'none'", "base-uri 'self'",
+  "worker-src 'self'", "frame-ancestors 'none'", "base-uri 'self'",
   "form-action 'self'", "object-src 'none'", sep = "; ")
 
 if (dir.exists(dist)) {

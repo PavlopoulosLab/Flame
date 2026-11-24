@@ -16,9 +16,11 @@
 # =============================================================================
 
 BENCH_HELPERS <- c("none", "qpcr", "western", "facs")
+BENCH_MAX_REPLICATES <- 100   # values per group and target: bench experiments are small, and paired tests grow fast with it
 
 .bench_group_of <- function(name) {
   # "Control 1", "Control_2", "Control rep3", "Control (4)", "Control.1" -> "Control" (a tag needs a separator before it)
+  name <- substr(name, 1, 100)   # long names would make the pattern below slow (it backtracks over separators)
   g <- trimws(sub("(?:[ _.#-]+(?:rep|r|n|sample))?[ _.#-]*\\(?[0-9]+\\)?$", "", name, ignore.case = TRUE, perl = TRUE))
   ifelse(nzchar(g), g, name)
 }
@@ -27,6 +29,8 @@ BENCH_HELPERS <- c("none", "qpcr", "western", "facs")
 bench_parse <- function(text, fileName = "", layout = "auto") {
   df <- parse_delimited_table(text, fileName)
   if (ncol(df) < 2) stop("Paste a table with at least two columns: groups side by side.")
+  if (ncol(df) > 12 * BENCH_MAX_REPLICATES + 1) stop("The table has too many columns for bench data.")
+  names(df) <- substr(names(df), 1, 100)
   num <- lapply(df, function(x) suppressWarnings(as.numeric(gsub(",", ".", as.character(x), fixed = TRUE))))
   firstText <- mean(is.na(num[[1]]) & nzchar(trimws(as.character(df[[1]])))) > 0.5
   layout <- if (identical(layout, "column") || identical(layout, "grouped")) layout else if (firstText) "grouped" else "column"
@@ -39,6 +43,8 @@ bench_parse <- function(text, fileName = "", layout = "auto") {
     long <- do.call(rbind, lapply(seq_along(cols), function(j) data.frame(
       target = targets, group = groups[j], sample = cols[j], pair = pos[j], value = num[[j + 1]], stringsAsFactors = FALSE)))
   } else {
+    if (nrow(df) > BENCH_MAX_REPLICATES)
+      stop(sprintf("At most %d values per group are supported: this module is meant for bench experiments.", BENCH_MAX_REPLICATES))
     groups <- trimws(names(df))
     long <- do.call(rbind, lapply(seq_along(groups), function(j) data.frame(
       target = "value", group = groups[j], sample = paste(groups[j], seq_len(nrow(df))), pair = seq_len(nrow(df)),
@@ -50,6 +56,8 @@ bench_parse <- function(text, fileName = "", layout = "auto") {
   if (length(grp) < 2) stop("At least two groups are needed (e.g. Control and Treated columns).")
   if (length(grp) > 12) stop("At most 12 groups are supported.")
   if (length(unique(long$target)) > 60) stop("At most 60 genes or targets are supported.")
+  if (max(table(long$group, long$target)) > BENCH_MAX_REPLICATES)
+    stop(sprintf("At most %d values per group are supported: this module is meant for bench experiments.", BENCH_MAX_REPLICATES))
   list(layout = layout, data = long, groups = grp, targets = unique(long$target))
 }
 

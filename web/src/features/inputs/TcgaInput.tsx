@@ -206,12 +206,25 @@ function GroupEditor({ title, g, setG, attrs }: { title: string; g: Group; setG:
 
 // ---- MAF import (read in the browser; nothing is uploaded) --------------------------------
 
+const MAF_MAX_BYTES = 300 * 1024 * 1024   // a whole-cohort MAF is far smaller; larger files would exhaust the tab
+
 async function readText(file: File): Promise<string> {
-  if (/\.gz$/i.test(file.name)) {
-    const ds = new DecompressionStream('gzip')
-    return new Response(file.stream().pipeThrough(ds)).text()
+  if (!/\.gz$/i.test(file.name)) {
+    if (file.size > MAF_MAX_BYTES) throw new Error(`The file is larger than ${MAF_MAX_BYTES / 1024 / 1024} MB.`)
+    return file.text()
   }
-  return file.text()
+  // Decompress as a stream and stop at the limit, so a small .gz cannot expand into gigabytes.
+  const reader = file.stream().pipeThrough(new DecompressionStream('gzip')).getReader()
+  const parts: Uint8Array[] = []
+  let total = 0
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    total += value.byteLength
+    if (total > MAF_MAX_BYTES) { await reader.cancel(); throw new Error(`The decompressed file is larger than ${MAF_MAX_BYTES / 1024 / 1024} MB.`) }
+    parts.push(value)
+  }
+  return new TextDecoder().decode(await new Blob(parts as BlobPart[]).arrayBuffer())
 }
 
 function MafImport({ onResult, setErr }: { onResult: (r: GeneResult | null) => void; setErr: (e: unknown) => void }) {

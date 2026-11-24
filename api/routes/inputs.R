@@ -109,9 +109,14 @@ function(req, res) {
     taxid <- suppressWarnings(as.integer(b$organismTaxId %||% 9606L))
     if (is.na(taxid) || !taxid %in% ORGANISMS$taxid) api_abort(400, "Unknown organism.")
     kinds <- as.character(unlist(b$kinds %||% names(EXTRACT_KINDS)))
-    ents <- tryCatch(extract_document_entities(text, taxid, kinds), error = function(e) api_abort(400, conditionMessage(e)))
-    list(entities = .as_records(ents), kinds = lapply(names(EXTRACT_KINDS), function(k) list(id = k, label = EXTRACT_KINDS[[k]]$label)),
-         organismTaxId = taxid, organismLabel = .organism_label(taxid), characters = nchar(text))
+    label <- .organism_label(taxid)
+    # EXTRACT is a web service: ask it from the external-service workers.
+    fetch_async(res, quote({
+      ents <- extract_document_entities(text, taxid, kinds)
+      recs <- if (is.null(ents) || !nrow(ents)) list() else lapply(seq_len(nrow(ents)), function(i) as.list(ents[i, , drop = FALSE]))
+      list(entities = recs, kinds = lapply(names(EXTRACT_KINDS), function(k) list(id = k, label = EXTRACT_KINDS[[k]]$label)),
+           organismTaxId = taxid, organismLabel = label, characters = nchar(text))
+    }), list(text = text, taxid = taxid, kinds = kinds, label = label))
   })
 }
 
@@ -298,7 +303,14 @@ function(req, res) {
 }
 
 # ---- Fetch gene lists from public resources ----------------------------------
-.fetch <- function(res, expr) api_handle(res, tryCatch(expr, error = function(e) {
+# Requests to external services run on the external-service workers (api/jobs.R), with the
+# route's local variables (except req and res); .fetch_here is for local computations.
+.fetch <- function(res, expr) {
+  env <- parent.frame()
+  vars <- setdiff(ls(env), c("req", "res"))
+  fetch_async(res, substitute(expr), mget(vars, envir = env))
+}
+.fetch_here <- function(res, expr) api_handle(res, tryCatch(expr, error = function(e) {
   if (inherits(e, "flame_api_error")) stop(e)
   api_abort(422, conditionMessage(e))
 }))
@@ -452,7 +464,7 @@ function(req, res) {
 #* @serializer flamejson
 function(req, res) {
   b <- body_of(req)
-  .fetch(res, bench_analyse(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
+  .fetch_here(res, bench_analyse(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
                             as.character(b$helper %||% "none"), b$refs, b$loading, b$control,
                             isTRUE(b$paired), isTRUE(b$nonparametric), isTRUE(b$allPairs), isTRUE(b$log)))
 }

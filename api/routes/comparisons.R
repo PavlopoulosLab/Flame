@@ -71,7 +71,7 @@ function(req, res) {
     if (identical(top, "all")) top <- 200L
     body <- tryCatch(arena3d_payload_for_comparison(cs, b$filters %||% list(), min(as.integer(top), 200L), b$sortBy %||% "-log10Pvalue", b$layers %||% list()),
                      error = function(e) api_abort(422, conditionMessage(e)))
-    tryCatch(arena3d_open(body), error = function(e) api_abort(502, conditionMessage(e)))
+    fetch_async(res, quote(arena3d_open(body)), list(body = body))   # web service: from the external-service workers
   })
 }
 
@@ -90,8 +90,7 @@ function(req, res) {
     payload <- tryCatch(norma_payload_for_comparison(cs, b$filters %||% list(), min(as.integer(top), 100L), b$sortBy %||% "-log10Pvalue", b$sources),
                         error = function(e) api_abort(422, conditionMessage(e)))
     info <- payload$.info; payload$.info <- NULL
-    url <- tryCatch(norma_export(payload), error = function(e) api_abort(502, conditionMessage(e)))
-    c(list(url = url), info)
+    fetch_async(res, quote(c(list(url = norma_export(payload)), info)), list(payload = payload, info = info))   # web service
   })
 }
 
