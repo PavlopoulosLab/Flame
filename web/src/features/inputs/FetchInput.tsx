@@ -412,15 +412,6 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
             ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}), ...(g.from ? { 'Listed by': g.from.join('; ') } : {}),
             ...(g.evidence ? Object.fromEntries(Object.entries(g.evidence).map(([k, v]) => [`Evidence: ${k}`, v])) : {}) })) }], `flame_${mode}_genes.xlsx`)}>Excel</button>{r.link && <a className="btn btn-ghost btn-sm" href={r.link} target="_blank" rel="noopener noreferrer">Source ↗</a>}</span>
       </div>
-      {chosen.length > 0 && (
-        <div className="row wrap">
-          <button className="btn btn-primary btn-sm" disabled={quickSave.isPending} title={`Save the ${plural(chosen.length, 'gene')} below as "${name.slice(0, 70)}"`} onClick={() => saveNow(false)}>
-            {quickSave.isPending ? 'Saving…' : `Save ${plural(chosen.length, 'gene')} as list`}</button>
-          <button className="btn btn-secondary btn-sm" disabled={quickSave.isPending} onClick={() => saveNow(true)}>Save &amp; run enrichment</button>
-          <span className="muted small">To change the list name, organism or ID type, use the form at the bottom.</span>
-        </div>
-      )}
-      <ErrorNote error={quickSave.error} />
       {r.genes.length > 1 && (
         <div className="keep-top">
           <label className="small" htmlFor="keep-top-range">Keep the top</label>
@@ -429,6 +420,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           <span className="small">of {r.genes.length.toLocaleString()} genes</span>
           <input id="keep-top-range" type="range" min={minTop} max={r.genes.length} step={1} value={Math.max(minTop, top)} disabled={sel.length > 0}
             onChange={(e) => setTop(Number(e.target.value))} />
+          <button className="btn btn-ghost btn-sm" disabled={sel.length > 0 || top === r.genes.length} onClick={() => setTop(r.genes.length)}>All</button>
           {sel.length > 0 && <span className="small"><strong>{plural(sel.length, 'hand-picked gene')}</strong> used instead <button className="btn btn-ghost btn-sm" onClick={() => setSel([])}>Back to top {top}</button></span>}
         </div>
       )}
@@ -438,6 +430,15 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           <button className="btn btn-ghost btn-sm" onClick={() => setSel([])} disabled={!sel.length}>None</button>
         </div>
       )}
+      {chosen.length > 0 && (
+        <div className="row wrap">
+          <button className="btn btn-primary btn-sm" disabled={quickSave.isPending} title={`Save the ${plural(chosen.length, 'gene')} below as "${name.slice(0, 70)}"`} onClick={() => saveNow(false)}>
+            {quickSave.isPending ? 'Saving…' : sel.length ? `Save ${plural(chosen.length, 'hand-picked gene')} as list` : chosen.length === r.genes.length ? `Save all ${plural(chosen.length, 'gene')} as list` : `Save the top ${plural(chosen.length, 'gene')} as list`}</button>
+          <button className="btn btn-secondary btn-sm" disabled={quickSave.isPending} onClick={() => saveNow(true)}>Save &amp; run enrichment</button>
+          <span className="muted small">Change the number above, or tick genes in the table. Name, organism and ID type: form at the bottom.</span>
+        </div>
+      )}
+      <ErrorNote error={quickSave.error} />
       <div className="table-scroll fetch-table gene-table"><table className="table compact">
         <thead><tr><th><input type="checkbox" checked={allPicked} aria-label="Select all genes" title={allPicked ? 'Clear the selection' : 'Select all genes'} onChange={() => (allPicked ? setSel([]) : pickAll())} /></th><th className="num">#</th><th>Gene</th><th>Name</th>{valueLabel && <th className="num">{valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1)}</th>}{hasFrom && <th>Listed by</th>}{hasNote && <th>Details</th>}</tr></thead>
         <tbody>{r.genes.slice(0, TABLE_ROWS).map((g, i) => (
