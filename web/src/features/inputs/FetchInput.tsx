@@ -7,6 +7,7 @@ import { BusyBar, CopyButton, ErrorNote, Field, GeneCardsLink, GeneChips, Modal,
 import { formatP, plural } from '../../lib/format'
 import { SaveList } from './InputModal'
 import { saveXlsx } from '../../lib/xlsx'
+import { useCreateList } from '../../api/hooks'
 
 export type FetchMode = 'disease' | 'pubmed' | 'geo' | 'clinvar'
 
@@ -368,7 +369,8 @@ function ClinvarVariants({ data }: { data: { searched?: { query: string; term: s
 }
 
 /** Ranked genes of the fetched source; choose how many and save them as a list. */
-export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode | 'tcga' | 'maf' | 'survival' | 'nutrition'; onCreated: (l: AnalyteList) => void }) {
+export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode | 'tcga' | 'maf' | 'survival' | 'nutrition'; onCreated: (l: AnalyteList, opts?: { enrich?: boolean }) => void }) {
+  const quickSave = useCreateList()
   const value = (g: FGene) => g.value ?? g.sources ?? g.score ?? g.articles ?? g.variants ?? null
   const valueLabel = r.valueLabel ? r.valueLabel : r.genes.some((g) => g.sources != null) ? 'selected results listing the gene' : r.genes.some((g) => g.score != null) ? 'association score' : r.genes.some((g) => g.articles != null) ? 'articles' : r.genes.some((g) => g.variants != null) ? 'variants' : null
   // Labels such as "% of tumours mutated" hold percentages: show them as 72.5%, not 72.470.
@@ -395,6 +397,12 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
   const minTop = Math.min(5, r.genes.length)
   const name = { disease: r.disease ?? r.term ?? 'Disease genes', pubmed: 'PubMed genes', geo: r.term ?? 'GEO signature', clinvar: 'ClinVar variant genes', tcga: r.term ?? 'TCGA genes', maf: r.term ?? 'Mutated genes (MAF)', survival: r.term ?? 'Survival genes', nutrition: r.term ?? 'Nutrition genes' }[mode]
   const hasNote = r.genes.some((g) => g.note)
+  const meta = { method: `fetch-${mode}`, source: r.source ?? mode, query: r.disease ?? r.term ?? '' }
+  const scores = withScores && valueLabel ? chosen.map((g) => value(g) ?? 0) : undefined
+  // One-click save from the top of the results (the full form with name, organism and ID type is at the bottom).
+  const saveNow = (enrich: boolean) => quickSave.mutate(
+    { name: name.slice(0, 70), ids: chosen.map((g) => g.gene), scores, organismTaxId: organism, idFormat, meta, uniqueName: false },
+    { onSuccess: (l) => onCreated(l, { enrich }) })
   return (
     <div className="stack-sm fetch-genes">
       <div className="row between wrap">
@@ -404,6 +412,15 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
             ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}), ...(g.from ? { 'Listed by': g.from.join('; ') } : {}),
             ...(g.evidence ? Object.fromEntries(Object.entries(g.evidence).map(([k, v]) => [`Evidence: ${k}`, v])) : {}) })) }], `flame_${mode}_genes.xlsx`)}>Excel</button>{r.link && <a className="btn btn-ghost btn-sm" href={r.link} target="_blank" rel="noopener noreferrer">Source ↗</a>}</span>
       </div>
+      {chosen.length > 0 && (
+        <div className="row wrap">
+          <button className="btn btn-primary btn-sm" disabled={quickSave.isPending} title={`Save the ${plural(chosen.length, 'gene')} below as "${name.slice(0, 70)}"`} onClick={() => saveNow(false)}>
+            {quickSave.isPending ? 'Saving…' : `Save ${plural(chosen.length, 'gene')} as list`}</button>
+          <button className="btn btn-secondary btn-sm" disabled={quickSave.isPending} onClick={() => saveNow(true)}>Save &amp; run enrichment</button>
+          <span className="muted small">To change the list name, organism or ID type, use the form at the bottom.</span>
+        </div>
+      )}
+      <ErrorNote error={quickSave.error} />
       {r.genes.length > 1 && (
         <div className="keep-top">
           <label className="small" htmlFor="keep-top-range">Keep the top</label>
@@ -452,9 +469,9 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
       {valueLabel && <details className="small"><summary>Genes that will be saved ({chosen.length}) — click a gene for GeneCards</summary><GeneChips genes={chosen.map((g) => g.gene)} taxid={r.organismTaxId} max={200} /></details>}
       {r.citation && <p className="muted small">{r.citation}</p>}
       {chosen.length > 0 && (
-        <SaveList ids={chosen.map((g) => g.gene)} scores={withScores && valueLabel ? chosen.map((g) => value(g) ?? 0) : undefined}
+        <SaveList ids={chosen.map((g) => g.gene)} scores={scores}
           defaultName={name.slice(0, 70)} organism={organism} setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat}
-          meta={{ method: `fetch-${mode}`, source: r.source ?? mode, query: r.disease ?? r.term ?? '' }} onCreated={onCreated}
+          meta={meta} onCreated={onCreated}
           extra={valueLabel ? <label className="check small"><input type="checkbox" checked={withScores} onChange={(e) => setWithScores(e.target.checked)} /> Keep {valueLabel} as scores (ranked list for GSEA)</label> : undefined} />
       )}
       {r.genes.length === 0 && <Note kind="info">No genes for this selection.</Note>}
