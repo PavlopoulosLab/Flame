@@ -223,6 +223,11 @@ test_that("one-sample tests, two-way ANOVA and corrections across rows", {
   expect_equal(vapply(tu$comparisons, `[[`, "", "a"), "tgf-b")
   expect_equal(tu$comparisons[[1]]$p, t.test(c(800, 1000, 1600), mu = 0)$p.value)
   expect_match(tu$notes[[1]], "control: all 3 values are 100")
+  # no value given: the control's common value (100 here) is the hypothetical value
+  ra <- bench_analyse(u, "u.tsv", test = "one_sample_t")
+  expect_equal(ra$hypothetical, 100)
+  expect_equal(ra$targets[[1]]$comparisons[[1]]$p, t.test(c(500, 660, 850), mu = 100)$p.value)
+  expect_equal(bench_analyse(v, "v.tsv", test = "one_sample_t")$hypothetical, 100)
   expect_match(bench_analyse("R\tA 1\tA 2\tB 1\tB 2\nx\t5\t5\t7\t7", "c.tsv", test = "one_sample_t", hypothetical = 0)$targets[[1]]$error, "No group could be tested")
   # two-way ANOVA = aov(y ~ row * group); comparisons within each row from the pooled error
   e <- example_input("bench_elisa")

@@ -5,12 +5,13 @@ import { POSTHOC, posthocsFor, resolvePosthoc, resolveTest, TESTS, type PosthocI
  * The statistical test, its multiple-comparisons test, which comparisons, the correction across rows
  * and (one-sample tests) the hypothetical value, offered as in GraphPad Prism for the number of groups.
  */
-export function BenchTestControls({ s, set, k, rows, canRatio, foldScale }: {
+export function BenchTestControls({ s, set, k, rows, canRatio, foldScale, autoHypo }: {
   s: StatOpts; set: (f: (s: StatOpts) => StatOpts) => void
   /** Number of groups being tested. */ k: number
   /** Number of rows tested (genes / readouts, without reference or normalising rows). */ rows: number
   /** Raw positive values (not a log-scale analysis): the ratio paired t test makes sense. */ canRatio: boolean
   /** Fold changes / log scale: the hypothetical value defaults to 1. */ foldScale: boolean
+  /** The value used when none is typed (from the last analysis, e.g. the control's 100). */ autoHypo?: number | null
 }) {
   const up = <K extends keyof StatOpts>(key: K, v: StatOpts[K]) => set((x) => ({ ...x, [key]: v }))
   const r = resolveTest(s.test, k)
@@ -52,7 +53,8 @@ export function BenchTestControls({ s, set, k, rows, canRatio, foldScale }: {
         )}
         {isValue && (
           <Field label="Hypothetical value">
-            <input className="input input-sm input-narrow" type="number" step="any" value={s.hypo} placeholder={foldScale ? '1' : '0'} onChange={(e) => up('hypo', e.target.value)} />
+            <input className="input input-sm input-narrow" type="number" step="any" value={s.hypo} placeholder={autoHypo != null ? `auto: ${autoHypo}` : foldScale ? '1' : 'auto'} style={{ width: 110 }}
+              title="Empty: 1 for fold changes; otherwise the control's value when all its replicates have the same one (e.g. 100 for % of control), else 0" onChange={(e) => up('hypo', e.target.value)} />
           </Field>
         )}
         {rows > 1 && r !== 'twoway' && (

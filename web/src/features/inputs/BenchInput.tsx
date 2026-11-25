@@ -310,7 +310,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             </Field>
           </div>
           <BenchTestControls s={stat} set={setStat} k={groupNames.length} rows={testRows}
-            canRatio={helper === 'none' && !log} foldScale={helper !== 'none' || log} />
+            canRatio={helper === 'none' && !log} foldScale={helper !== 'none' || log} autoHypo={res?.test?.startsWith('one_sample') && stat.hypo.trim() === '' ? res.hypothetical ?? null : null} />
           {helper === 'qpcr' && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
           {helper === 'qpcr' && !grouped && <Note kind="warning">ΔΔCt needs genes in rows (including a reference gene) and samples in columns.</Note>}
           <h3 className="small">Plot</h3>

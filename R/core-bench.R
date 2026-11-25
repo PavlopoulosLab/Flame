@@ -210,7 +210,12 @@ bench_analyse <- function(text, fileName = "", layout = "auto", helper = "none",
   across <- if (as.character(across %||% "holm")[1] %in% c("holm", "bh", "none")) as.character(across %||% "holm")[1] else "holm"
   # One-sample tests: the hypothetical value in shown units (fold change / value); tested on the analysis scale.
   hypoShown <- suppressWarnings(as.numeric(hypothetical %||% NA))[1]
-  if (!is.finite(hypoShown)) hypoShown <- if (logScale) 1 else 0
+  # Not set: 1 for fold changes; for values as given, the control's value when every control replicate has the
+  # same one (e.g. 100 for % of control, 1 for fold changes made in Excel), else 0.
+  if (!is.finite(hypoShown)) hypoShown <- if (logScale) 1 else {
+    cv <- unique(d$y[d$group == ctrl])
+    if (length(cv) == 1 && is.finite(cv)) cv else 0
+  }
   if (logScale && hypoShown <= 0) stop("On a log2 scale the hypothetical value must be positive (e.g. 1 for no change).")
   hypo <- if (logScale) log2(hypoShown) else hypoShown
   # Shown values: fold change vs the control mean on the log scale, else the values as given.
