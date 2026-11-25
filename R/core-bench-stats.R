@@ -140,12 +140,20 @@ BENCH_POSTHOC <- c(dunnett = "Dunnett's test", tukey = "Tukey's test", sidak = "
 
   if (test %in% names(BENCH_TESTS$value)) {                    # each group (but the control) vs a hypothetical value
     gs <- setdiff(groups, ctrl)
+    # A group whose values are all the same (e.g. a control set to 100 in every experiment) has no variation to
+    # test: it is left out with a note, and the other groups are still tested.
+    flat <- vapply(gs, function(g) length(unique(val(g))) == 1, TRUE)
+    notes <- vapply(gs[flat], function(g) sprintf("%s: all %d values are %s, so it cannot be tested against %s (no variation).",
+                                                  g, length(val(g)), format(signif(val(g)[1], 4)), format(signif(hypo, 4))), "")
+    gs <- gs[!flat]
+    if (!length(gs)) return(list(error = paste(c(notes, "No group could be tested."), collapse = " "), notes = as.list(unname(notes))))
     cmp <- do.call(rbind, lapply(gs, function(g) {
       v <- val(g)
       if (test == "one_sample_t") { tt <- stats::t.test(v, mu = hypo); data.frame(a = g, b = "value", diff = mean(v) - hypo, lo = tt$conf.int[1] - hypo, hi = tt$conf.int[2] - hypo, p = tt$p.value) }
       else { wt <- suppressWarnings(stats::wilcox.test(v, mu = hypo)); data.frame(a = g, b = "value", diff = stats::median(v) - hypo, lo = NA_real_, hi = NA_real_, p = wt$p.value) }
     }))
-    return(list(omnibus = list(name = BENCH_TESTS$value[[test]], p = if (nrow(cmp) == 1) cmp$p else NA_real_), posthoc = NULL, comparisons = cmp, assumptions = assumptions))
+    return(list(omnibus = list(name = BENCH_TESTS$value[[test]], p = if (nrow(cmp) == 1) cmp$p else NA_real_), posthoc = NULL, comparisons = cmp, assumptions = assumptions,
+                notes = as.list(unname(notes))))
   }
 
   if (k == 2) {

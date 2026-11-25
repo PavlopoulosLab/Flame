@@ -8,7 +8,7 @@ export interface ExportResult {
   across?: 'holm' | 'bh' | 'none'
   anova2?: { effect: string; F: number; df1: number; df2: number; p: number }[] | null
   targets: {
-    target: string; error?: string
+    target: string; error?: string; notes?: string[]
     values: { group: string; sample: string; value: number }[]
     summary: { group: string; n: number; mean: number; sd: number | null; sem: number | null }[]
     omnibus?: { name: string; p: number; pAcross?: number; detail?: string }
@@ -31,6 +31,8 @@ const fin = (x: number | null | undefined) => (x == null || !Number.isFinite(x) 
 export function resultTables(res: ExportResult): Table[] {
   const tested = res.targets.filter((t) => t.comparisons?.length)
   const across = tested.some((t) => t.omnibus?.pAcross != null)
+  // Rows (or groups) that could not be tested, with the reason: so a table is never silently empty.
+  const notTested = res.targets.flatMap((t) => [...(t.error ? [t.error] : []), ...(t.error ? [] : t.notes ?? [])].map((note) => ({ target: t.target, note })))
   const acrossLabel = res.across === 'bh' ? 'q (BH FDR across rows)' : 'p (Holm across rows)'
   const comparisons: Table = {
     id: 'comparisons', title: 'Comparisons',
@@ -39,14 +41,15 @@ export function resultTables(res: ExportResult): Table[] {
         : [{ key: 'diff', label: 'Difference', kind: 'num' as Kind }]),
       { key: 'lo', label: '95% CI low', kind: 'num' }, { key: 'hi', label: '95% CI high', kind: 'num' }, { key: 'p', label: 'p', kind: 'p' },
       { key: 'stars', label: 'Summary', kind: 'text' }, ...(across ? [{ key: 'across', label: acrossLabel, kind: 'p' as Kind }] : []),
-      { key: 'test', label: 'Test', kind: 'text' }, { key: 'stat', label: 'Test statistic', kind: 'text' }, { key: 'testp', label: 'Test p', kind: 'p' }, { key: 'posthoc', label: 'Multiple comparisons', kind: 'text' }],
-    rows: tested.flatMap((t) => t.comparisons!.map((c) => ({
+      { key: 'test', label: 'Test', kind: 'text' }, { key: 'stat', label: 'Test statistic', kind: 'text' }, { key: 'testp', label: 'Test p', kind: 'p' }, { key: 'posthoc', label: 'Multiple comparisons', kind: 'text' },
+      ...(notTested.length ? [{ key: 'note', label: 'Note', kind: 'text' as Kind }] : [])],
+    rows: [...tested.flatMap((t) => t.comparisons!.map((c) => ({
       target: t.target, comparison: `${c.a} vs ${c.b === 'value' ? res.hypothetical : c.b}`,
       ...(res.logScale ? { fold: fin(c.fold), log2fc: fin(c.diff), lo: fin(c.lo == null ? null : 2 ** c.lo), hi: fin(c.hi == null ? null : 2 ** c.hi) }
         : { diff: fin(c.diff), lo: fin(c.lo), hi: fin(c.hi) }),
       p: fin(c.p), stars: c.stars, ...(across ? { across: fin(t.omnibus?.pAcross) } : {}),
       test: t.omnibus?.name ?? '', stat: t.omnibus?.detail ?? '', testp: fin(t.omnibus?.p), posthoc: t.posthoc ?? '',
-    }))),
+    }))), ...notTested.map((x) => ({ target: x.target, comparison: 'Not tested', note: x.note }))],
   }
   const descriptive: Table = {
     id: 'descriptive', title: 'Descriptive statistics',

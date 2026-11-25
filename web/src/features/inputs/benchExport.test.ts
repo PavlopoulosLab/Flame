@@ -43,6 +43,18 @@ describe('experimental analysis export', () => {
     expect(htmlReport(res, tables, 'data:image/png;base64,AAAA')).toContain('<img alt="Figure"')
     expect(JSON.parse(jsonReport(res, tables)).tables.comparisons[0].target).toBe('FKBP5')
   })
+  it('rows or groups that could not be tested are listed with the reason, so no table is empty', () => {
+    const r: ExportResult = { ...res, across: 'none', targets: [
+      { target: 'il6', values: [{ group: 'control', sample: 'c1', value: 100 }], summary: [], error: 'No group could be tested.' },
+      { ...res.targets[0], notes: ['control: all 3 values are 100, so it cannot be tested against 0 (no variation).'] }] }
+    const c = resultTables(r)[0]
+    expect(c.cols.at(-1)!.label).toBe('Note')
+    expect(c.rows).toContainEqual({ target: 'il6', comparison: 'Not tested', note: 'No group could be tested.' })
+    expect(c.rows.find((x) => x.note?.toString().startsWith('control:'))).toMatchObject({ target: 'FKBP5', comparison: 'Not tested' })
+    const sheet = strFromU8(unzipSync(xlsxBytes(r, resultTables(r)))['xl/worksheets/sheet1.xml'])
+    expect(sheet).toContain('No group could be tested.')
+    expect(resultTables(res)[0].cols.map((x) => x.key)).not.toContain('note')                      // no Note column when all was tested
+  })
   it('Excel, zipped CSV and PDF files are valid', async () => {
     const x = unzipSync(xlsxBytes(res, tables))
     expect(Object.keys(x)).toContain('xl/worksheets/sheet4.xml')                                     // 3 tables + Methods

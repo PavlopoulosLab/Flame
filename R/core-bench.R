@@ -147,6 +147,13 @@ bench_parse <- function(text, fileName = "", layout = "auto", sampleGroups = NUL
 
 .stars <- function(p) ifelse(is.na(p), "", ifelse(p < 0.001, "***", ifelse(p < 0.01, "**", ifelse(p < 0.05, "*", "ns"))))
 
+# The control when none is chosen: a group named like one (control, vehicle, untreated, WT, DMSO...), else the first.
+BENCH_CONTROL_RE <- "^(control|ctrl|ctl|con|vehicle|veh|untreated|untr|unstim|mock|wt|wild[ _-]?type|dmso|pbs|saline|naive|baseline|nt|non[ _-]?target|scr|scramble|sh[ _-]?(ctrl|scr|nt)|si[ _-]?(ctrl|scr|nt)|neg|negative)\\b"
+.bench_default_control <- function(groups) {
+  hit <- groups[grepl(BENCH_CONTROL_RE, groups, ignore.case = TRUE, perl = TRUE)]
+  if (length(hit)) hit[1] else groups[1]
+}
+
 # Dunnett: each group vs control, from the pooled error (mse, df); simultaneous p-values and 95% CIs.
 .dunnett <- function(means, ns, ctrl, mse, df) {
   means <- stats::setNames(as.numeric(means), names(means)); ns <- stats::setNames(as.numeric(ns), names(ns))
@@ -194,7 +201,7 @@ bench_analyse <- function(text, fileName = "", layout = "auto", helper = "none",
   d <- .bench_transform(p, helper, refs, loading, log)
   groups <- p$groups
   ctrl <- as.character(control %||% "")[1]
-  if (!ctrl %in% groups) ctrl <- groups[1]
+  if (!ctrl %in% groups) ctrl <- .bench_default_control(groups)
   groups <- c(ctrl, setdiff(groups, ctrl))
   paired <- isTRUE(paired); nonpar <- isTRUE(nonparametric); allPairs <- isTRUE(allPairs)
   logScale <- helper %in% c("qpcr", "western") || isTRUE(log)

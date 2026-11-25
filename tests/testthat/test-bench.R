@@ -214,6 +214,16 @@ test_that("one-sample tests, two-way ANOVA and corrections across rows", {
   v <- "Readout\tVeh 1\tVeh 2\tVeh 3\tDrug 1\tDrug 2\tDrug 3\nViability\t100\t100\t100\t71\t68\t76"
   rv <- bench_analyse(v, "v.tsv", test = "one_sample_t", hypothetical = 100)
   expect_equal(rv$targets[[1]]$comparisons[[1]]$p, t.test(c(71, 68, 76), mu = 100)$p.value)
+  # the control is guessed from its name, not its position; a group with no variation is left out with a note
+  u <- "IL6\tdp 1\tdp 2\tdp 3\tcontrol 1\tcontrol 2\tcontrol 3\ttgf-b 1\ttgf-b 2\ttgf-b 3\nil6\t500\t660\t850\t100\t100\t100\t800\t1000\t1600"
+  expect_equal(bench_analyse(u, "u.tsv")$control, "control")
+  ru <- bench_analyse(u, "u.tsv", control = "dp", test = "one_sample_t", hypothetical = 0)
+  tu <- ru$targets[[1]]
+  expect_null(tu$error)
+  expect_equal(vapply(tu$comparisons, `[[`, "", "a"), "tgf-b")
+  expect_equal(tu$comparisons[[1]]$p, t.test(c(800, 1000, 1600), mu = 0)$p.value)
+  expect_match(tu$notes[[1]], "control: all 3 values are 100")
+  expect_match(bench_analyse("R\tA 1\tA 2\tB 1\tB 2\nx\t5\t5\t7\t7", "c.tsv", test = "one_sample_t", hypothetical = 0)$targets[[1]]$error, "No group could be tested")
   # two-way ANOVA = aov(y ~ row * group); comparisons within each row from the pooled error
   e <- example_input("bench_elisa")
   r2 <- bench_analyse(e$text, e$fileName, log = TRUE, test = "twoway", posthoc = "sidak")

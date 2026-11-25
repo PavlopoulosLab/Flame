@@ -101,7 +101,8 @@ const hash = (s: string) => { let h = 0; for (const ch of s) h = (h * 31 + ch.ch
 
 /** The Plotly figure for the chosen chart type and style; `colorOf` gives each group's colour. */
 export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string, i: number) => string, defaultYTitle: string) {
-  const ts = res.targets.filter((t) => !t.error && t.values.length)
+  // Values are drawn even when the test could not be run (e.g. a group with no variation).
+  const ts = res.targets.filter((t) => t.values.length)
   const groups = res.groups
   const bw = o.style === 'bw'
   const ink = '#000000'

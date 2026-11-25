@@ -17,7 +17,7 @@ import { plural } from '../../lib/format'
 type Helper = 'none' | 'qpcr' | 'western' | 'facs'
 interface Comparison { a: string; b: string; diff: number; lo: number | null; hi: number | null; p: number; stars: string; fold?: number }
 interface Target {
-  target: string; error?: string
+  target: string; error?: string; notes?: string[]
   values: { group: string; sample: string; pair: number; value: number }[]
   summary: { group: string; n: number; mean: number; sd: number | null; sem: number | null }[]
   omnibus?: { name: string; p: number; pAcross?: number; detail?: string }
@@ -47,6 +47,10 @@ const setupFrom = (p: Parsed): GroupSetup => {
 
 type Analysis = 'generic' | 'ddct'
 /** Example experiments: each loads its table and the settings that suit it. */
+// The control when none is chosen: a group named like one (control, vehicle, untreated, WT, DMSO...), else the first (as in R).
+const CONTROL_RE = /^(control|ctrl|ctl|con|vehicle|veh|untreated|untr|unstim|mock|wt|wild[ _-]?type|dmso|pbs|saline|naive|baseline|nt|non[ _-]?target|scr|scramble|sh[ _-]?(ctrl|scr|nt)|si[ _-]?(ctrl|scr|nt)|neg|negative)\b/i
+const defaultControl = (groups: string[]) => groups.find((g) => CONTROL_RE.test(g)) ?? groups[0] ?? ''
+
 const EXAMPLES: { kind: string; analysis: Analysis; label: string; what: string; refs?: string[]; loading?: string; log?: boolean; stat?: Partial<StatOpts>; plot?: Partial<PlotOpts> }[] = [
   { kind: 'bench_qpcr_fold', analysis: 'generic', label: 'qPCR: glucocorticoid target genes in airway cells, fold changes from Excel (dexamethasone ± RU486)', log: true, stat: { test: 'rm_anova' },
     what: '2^−ΔΔCt fold changes already calculated per sample; tested on a log2 scale, paired by experiment.', plot: { kind: 'bar' } },
@@ -105,7 +109,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   // Groups as they will be tested (grouped tables: the editor's groups with samples; column tables: the columns).
   const groupNames = useMemo(() => (grouped && groupSetup ? groupSetup.names.map((n) => n.trim()).filter((_, i) => groupSizes[i] > 0)
     : [...new Set(parsed?.guess ?? [])]), [grouped, groupSetup, parsed, groupSizes.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
-  const effControl = groupNames.includes(control) ? control : groupNames[0] ?? ''
+  const effControl = groupNames.includes(control) ? control : defaultControl(groupNames)
   // Rows that are tested: all but the reference genes (ΔΔCt) or the row everything is normalised to.
   const testRows = (parsed?.rowNames ?? []).filter((r) => !(helper === 'qpcr' && refs.includes(r)) && !(helper === 'western' && r === loading)).length || (parsed?.layout === 'column' ? 1 : 0)
 
@@ -300,7 +304,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
               </>
             )}
             <Field label="Control group">
-              <select className="input input-sm" value={effControl} onChange={(e) => setControl(e.target.value)}>
+              <select className="input input-sm" aria-label="Control group" value={effControl} onChange={(e) => setControl(e.target.value)}>
                 {groupNames.map((g) => <option key={g}>{g}</option>)}
               </select>
             </Field>
@@ -339,7 +343,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                 <span className="muted small">One at a time: its own figure, comparisons, statistics and exports (stars: its smallest p).</span>
               </div>
             )}
-            {figure && applied && (() => { const ap = applied.plot, w = ap.figW || autoFigWidth(shown!.targets.filter((t) => !t.error && t.values.length).length, plotGroups.length, ap); return (
+            {figure && applied && (() => { const ap = applied.plot, w = ap.figW || autoFigWidth(shown!.targets.filter((t) => t.values.length).length, plotGroups.length, ap); return (
               <div className="stack-sm bench-figure">
                 {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
                 {ap.brk !== 'off' && !figure.broken && ap.kind !== 'stacked' && <p className="small muted">{ap.brk === 'auto' ? 'No axis break needed: the values are of similar height.' : 'Axis break: set from < to, both below the top of the axis.'}</p>}
@@ -366,7 +370,8 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                 </tr>
               )))}</tbody>
             </table></div>
-            {shown!.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="info">{t.target}: {t.error}</Note>)}
+            {shown!.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="warning">{t.target} was not tested: {t.error}</Note>)}
+            {shown!.targets.filter((t) => !t.error && t.notes?.length).map((t) => <Note key={t.target} kind="info">{shown!.targets.length > 1 ? `${t.target}: ` : ''}{t.notes!.join(' ')}</Note>)}
             {res.anova2 && (
               <div className="table-scroll"><table className="table compact">
                 <thead><tr><th>Two-way ANOVA</th><th className="num">F</th><th className="num">DFn, DFd</th><th className="num">p</th><th /></tr></thead>
