@@ -371,6 +371,9 @@ function ClinvarVariants({ data }: { data: { searched?: { query: string; term: s
 export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode | 'tcga' | 'maf' | 'survival' | 'nutrition'; onCreated: (l: AnalyteList) => void }) {
   const value = (g: FGene) => g.value ?? g.sources ?? g.score ?? g.articles ?? g.variants ?? null
   const valueLabel = r.valueLabel ? r.valueLabel : r.genes.some((g) => g.sources != null) ? 'selected results listing the gene' : r.genes.some((g) => g.score != null) ? 'association score' : r.genes.some((g) => g.articles != null) ? 'articles' : r.genes.some((g) => g.variants != null) ? 'variants' : null
+  // Labels such as "% of tumours mutated" hold percentages: show them as 72.5%, not 72.470.
+  const isPct = !!valueLabel?.startsWith('%')
+  const showValue = (v: number | null) => (typeof v !== 'number' ? v : isPct ? `${v.toFixed(1)}%` : Number.isInteger(v) ? v : v.toFixed(3))
   const firstTop = () => (r.keepAll ? r.genes.length : Math.min(r.genes.length, r.defaultTop ?? (valueLabel === 'association score' ? 200 : 500)))
   const [top, setTop] = useState(firstTop)
   const [withScores, setWithScores] = useState(!!r.keepAll)
@@ -424,7 +427,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           <tr key={g.gene} className={chosenSet.has(g.gene) ? 'selected' : ''}>
             <td><input type="checkbox" checked={selSet.has(g.gene)} aria-label={`Hand-pick ${g.gene}`} onChange={() => toggleGene(g.gene)} /></td>
             <td className="num muted">{i + 1}</td><td><GeneCardsLink gene={g.gene} /></td><td className="small">{g.name}</td>
-            {valueLabel && <td className="num">{typeof value(g) === 'number' && !Number.isInteger(value(g)) ? (value(g) as number).toFixed(3) : value(g)}</td>}
+            {valueLabel && <td className="num">{showValue(value(g))}</td>}
             {hasFrom && <td className="small muted">{(g.from ?? []).join('; ')}</td>}
             {hasNote && <td className="small muted">{g.note}</td>}
           </tr>
@@ -439,7 +442,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           type: 'bar', orientation: 'h', y: shown.map((g) => g.gene), x: shown.map((g) => value(g) ?? 0), customdata: shown.map((g) => g.gene),
           text: shown.map((g) => g.name ?? ''), textposition: 'none',
           marker: { color: shown.map((g) => (!chosenSet.has(g.gene) ? '#c7ccd3' : sel.length ? '#e11d48' : '#8b5cf6')) },
-          hovertemplate: `%{y}: %{x} ${valueLabel}<br>%{text}<extra></extra>`,
+          hovertemplate: `${isPct ? `%{y}: %{x:.1f}% ${valueLabel.replace(/^%\s*/, '')}` : `%{y}: %{x} ${valueLabel}`}<br>%{text}<extra></extra>`,
         } as never]} layout={{ yaxis: { autorange: 'reversed', automargin: true }, xaxis: { title: { text: valueLabel } }, margin: { l: 80, r: 10, t: 10, b: 45 } }} />
           <p className="muted small">Coloured bars are the genes that will be saved; click a bar to hand-pick or remove that gene.</p>
         </details>
