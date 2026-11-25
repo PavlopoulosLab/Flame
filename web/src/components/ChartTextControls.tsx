@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle, hex2, parseColor, toRgb } from '../lib/chartText'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle, hex2, hexToHsv, hsvToHex, parseColor, toRgb } from '../lib/chartText'
 import { Field } from './ui'
 
 /** The grey charts use for text (shown in the colour picker until a colour is chosen). */
@@ -10,8 +10,38 @@ const PRESETS = ['#444444', '#000000', '#7f7f7f', '#c0392b', '#e67e22', '#d4a017
  * Colour of one part of the text: preset colours, R G B and hex boxes, and the default grey, in a small panel
  * inside the page (the system colour window would close the Aa Text panel and lose the choice).
  */
+/** Any colour: a saturation × brightness area (click or drag) and a hue slider, inside the page. */
+function SpectrumPicker({ label, color, onChange }: { label: string; color: string; onChange: (c: string) => void }) {
+  // The hue is kept here: greys and black have none, so it would jump back to red as the colour changes.
+  const [hsv, setHsv] = useState<[number, number, number]>(() => hexToHsv(color))
+  const area = useRef<HTMLDivElement>(null)
+  const set = (h: number, s: number, v: number) => { setHsv([h, s, v]); onChange(hsvToHex(h, s, v)) }
+  const at = (e: ReactPointerEvent) => {
+    const r = area.current!.getBoundingClientRect()
+    set(hsv[0], Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)), 1 - Math.min(1, Math.max(0, (e.clientY - r.top) / r.height)))
+  }
+  return (
+    <span className="spectrum">
+      <div ref={area} className="spectrum-area" role="slider" tabIndex={0} aria-label={`${label}: saturation and brightness`} aria-valuetext={hsvToHex(...hsv)}
+        style={{ background: `linear-gradient(to top, #000, transparent), linear-gradient(to right, #fff, transparent), hsl(${hsv[0]}, 100%, 50%)` }}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); at(e) }} onPointerMove={(e) => { if (e.buttons) at(e) }}
+        onKeyDown={(e) => {
+          const d = e.shiftKey ? 0.1 : 0.02, [h, sat, v] = hsv
+          if (e.key === 'ArrowRight') set(h, Math.min(1, sat + d), v); else if (e.key === 'ArrowLeft') set(h, Math.max(0, sat - d), v)
+          else if (e.key === 'ArrowUp') set(h, sat, Math.min(1, v + d)); else if (e.key === 'ArrowDown') set(h, sat, Math.max(0, v - d)); else return
+          e.preventDefault()
+        }}>
+        <span className="spectrum-dot" style={{ left: `${hsv[1] * 100}%`, top: `${(1 - hsv[2]) * 100}%`, background: hsvToHex(...hsv) }} />
+      </div>
+      <input type="range" className="spectrum-hue" min={0} max={359} value={Math.round(hsv[0])} aria-label={`${label}: hue`}
+        onChange={(e) => set(Number(e.target.value), hsv[1] || 1, hsv[2] || 1)} />
+    </span>
+  )
+}
+
 function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
   const [open, setOpen] = useState(false)
+  const [spectrum, setSpectrum] = useState(false)
   const [hexText, setHexText] = useState('')
   const ref = useRef<HTMLSpanElement>(null)
   const shown = value || DEFAULT_TEXT_COLOR
@@ -32,7 +62,10 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           <span className="text-color-presets">
             {PRESETS.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === DEFAULT_TEXT_COLOR ? 'Default grey' : c}
               title={c === DEFAULT_TEXT_COLOR ? 'Default grey' : c} onClick={() => (c === DEFAULT_TEXT_COLOR ? onChange('') : pick(c))} />)}
+            <button type="button" className={`text-color-swatch text-color-multi${spectrum ? ' on' : ''}`} aria-label="More colours" aria-pressed={spectrum} title="Any colour"
+              onClick={() => setSpectrum((v) => !v)} />
           </span>
+          {spectrum && <SpectrumPicker key={label} label={label} color={shown} onChange={(c) => { onChange(c); setHexText('') }} />}
           <span className="row" style={{ gap: 4 }}>
             {(['R', 'G', 'B'] as const).map((ch, i) => (
               <label key={ch} className="small text-color-ch">{ch}

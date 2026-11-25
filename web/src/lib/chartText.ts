@@ -134,3 +134,17 @@ export function parseColor(v: string): string | null {
   return null
 }
 
+
+/** #rrggbb as hue (0-360), saturation and value (0-1). */
+export function hexToHsv(h: string): [number, number, number] {
+  const [r, g, b] = toRgb(h).map((x) => x / 255)
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min
+  let hue = 0
+  if (d) hue = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  return [((hue * 60) + 360) % 360, max ? d / max : 0, max]
+}
+/** Hue (0-360), saturation and value (0-1) as #rrggbb. */
+export function hsvToHex(h: number, s: number, v: number): string {
+  const f = (n: number) => { const k = (n + h / 60) % 6; return v - v * s * Math.max(0, Math.min(k, 4 - k, 1)) }
+  return `#${[f(5), f(3), f(1)].map((x) => hex2(x * 255)).join('')}`
+}

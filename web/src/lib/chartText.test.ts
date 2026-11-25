@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyChartLabels, applyChartText, chartLabels, DEFAULT_CHART_TEXT, NO_LABELS, parseColor, sanitizeChartText, type ChartText } from './chartText'
+import { applyChartLabels, applyChartText, chartLabels, DEFAULT_CHART_TEXT, NO_LABELS, hexToHsv, hsvToHex, parseColor, sanitizeChartText, type ChartText } from './chartText'
 
 const t = (o: Partial<ChartText>): ChartText => ({ ...DEFAULT_CHART_TEXT, ...o })
 type F = { size?: number; weight?: string; style?: string; family?: string; color?: string }
@@ -59,5 +59,12 @@ describe('text of all charts', () => {
     expect(parseColor('37 99 235')).toBe('#2563eb')
     expect(parseColor('rgb(300, 0, 0)')).toBeNull()
     expect(parseColor('red')).toBeNull()
+  })
+  it('hue, saturation and value convert to and from hex', () => {
+    expect(hsvToHex(0, 1, 1)).toBe('#ff0000')
+    expect(hsvToHex(120, 1, 1)).toBe('#00ff00')
+    expect(hsvToHex(240, 1, 0.5)).toBe('#000080')
+    expect(hsvToHex(0, 0, 0.2667)).toBe('#444444')
+    for (const c of ['#c0392b', '#2563eb', '#16a085', '#444444', '#000000', '#ffffff']) expect(hsvToHex(...hexToHsv(c))).toBe(c)
   })
 })
