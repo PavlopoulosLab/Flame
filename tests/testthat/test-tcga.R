@@ -25,3 +25,33 @@ test_that("bad TCGA input is refused before any request", {
   expect_error(tcga_genes("x", "nonsense"), "Unknown TCGA query")
   expect_error(.entrez_of("not a gene!"), "gene symbol")
 })
+
+test_that("the precomputed tumour-vs-normal table is sound (offline)", {
+  tn <- .tcga_tn()
+  expect_gte(length(tn$cancers), 15)
+  expect_true(all(c("BRCA", "LIHC", "LUAD", "COADREAD", "PRAD") %in% names(tn$cancers)))
+  for (code in names(tn$cancers)) {
+    d <- tn$cancers[[code]]
+    expect_gte(d$n$normal, 9)
+    expect_named(d$genes, c("gene", "entrez", "log2FC", "q"))
+    expect_gt(nrow(d$genes), 10000)
+    expect_false(anyDuplicated(d$genes$gene) > 0)
+  }
+  fc <- function(code, g) tn$cancers[[code]]$genes$log2FC[match(g, tn$cancers[[code]]$genes$gene)]
+  expect_lt(fc("LIHC", "ALB"), 0)          # less albumin in liver tumours than in normal liver
+  expect_gt(fc("PRAD", "AMACR"), 1)        # AMACR, a prostate cancer marker
+  expect_gt(fc("COADREAD", "CDH3"), 1)     # P-cadherin, up in colorectal tumours
+  expect_lt(fc("LUAD", "AGER"), -2)        # RAGE, lost in lung tumours
+})
+
+test_that("TCGA tumour vs normal filters the precomputed table (online: study list)", {
+  skip_if_not(identical(Sys.getenv("FLAME_ONLINE_TESTS"), "true"), "set FLAME_ONLINE_TESTS=true to run")
+  r <- tcga_genes("lihc_tcga_pan_can_atlas_2018", "normal", direction = "up", minLog2FC = 2, maxQ = 0.01)
+  v <- vapply(r$genes, `[[`, 0, "value")
+  expect_true(all(v >= 2))
+  expect_equal(r$groups$b$label, "Adjacent normal")
+  all <- tcga_genes("lihc_tcga_pan_can_atlas_2018", "normal", all = TRUE)
+  expect_true(isTRUE(all$keepAll))
+  expect_false(is.unsorted(rev(vapply(all$genes, `[[`, 0, "value"))))
+  expect_error(tcga_genes("ov_tcga_pan_can_atlas_2018", "normal"), "no normal tissue")
+})

@@ -424,6 +424,7 @@ function(req, res) {
 #*   cna          direction: amp | del         most often amplified / deleted genes
 #*   coexpression gene, direction: positive | negative | both, minCorrelation
 #*   de           groupA, groupB, direction: up | down | both, minLog2FC, maxQ, all
+#*   normal       direction: up | down | both, minLog2FC, maxQ, all  (tumour vs adjacent normal, precomputed)
 #* A group is { type: "clinical", attribute, values: [...] } or { type: "mutation", gene, status: mutant | wildtype }.
 #* @post /tcga/genes
 #* @serializer flamejson

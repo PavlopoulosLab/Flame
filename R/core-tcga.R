@@ -2,7 +2,10 @@
 #
 #   tcga_studies()                       the 32 cancer types
 #   tcga_groups(study)                   clinical attributes that split the tumours into groups
-#   tcga_genes(study, query, ...)        genes: "mutated", "cna", "coexpression" or "de"
+#   tcga_genes(study, query, ...)        genes: "mutated", "cna", "coexpression", "de" or "normal"
+#
+# "normal" (tumour vs adjacent normal tissue) is not on cBioPortal: it reads a table precomputed
+# from the GDC STAR counts by data-raw/build_tcga_tumor_normal.R (inst/extdata/tcga_tumor_normal.rds).
 #
 # Results are lists in the shape the gene-list dialogs use: genes (gene, name, value, note),
 # valueLabel, source, term, link, citation, organismTaxId (always 9606).
@@ -50,7 +53,8 @@ tcga_studies <- function() {
     s <- s[order(s$name), , drop = FALSE]
     lapply(seq_len(nrow(s)), function(i) list(
       id = s$studyId[i], code = toupper(sub(TCGA_SUFFIX, "", s$studyId[i], fixed = TRUE)),
-      name = sub("\\s*\\(TCGA, PanCancer Atlas\\)\\s*$", "", s$name[i]), samples = s$allSampleCount[i]))
+      name = sub("\\s*\\(TCGA, PanCancer Atlas\\)\\s*$", "", s$name[i]), samples = s$allSampleCount[i],
+      normals = .tcga_tn()$cancers[[toupper(sub(TCGA_SUFFIX, "", s$studyId[i], fixed = TRUE))]]$n$normal %||% 0L))
   })
 }
 
@@ -90,11 +94,11 @@ tcga_studies <- function() {
   tryCatch(as.character(.cbio(paste0("/sample-lists/", id))$sampleIds), error = function(e) character(0))
 }
 
-.tcga_result <- function(st, genes, valueLabel, what, extra = list()) {
+.tcga_result <- function(st, genes, valueLabel, what, extra = list(), citation = TCGA_CITATION,
+                         link = paste0("https://www.cbioportal.org/study/summary?id=", st$id)) {
   c(list(genes = genes, valueLabel = valueLabel, organismTaxId = 9606L, ranked = TRUE,
          source = paste0("TCGA ", st$code, " \u00b7 ", what), term = paste0("TCGA ", st$code, " ", what),
-         link = paste0("https://www.cbioportal.org/study/summary?id=", st$id), citation = TCGA_CITATION,
-         total = length(genes)), extra)
+         link = link, citation = citation, total = length(genes)), extra)
 }
 
 .gene_records <- function(gene, name, value, note) {
@@ -255,6 +259,49 @@ tcga_de_genes <- function(study, groupA, groupB, direction = "both", minLog2FC =
                     keepAll = isTRUE(all)))
 }
 
+# The precomputed tumour-vs-normal table (read once; NULL-safe when the file is missing).
+.tcga_tn_env <- new.env()
+.tcga_tn <- function() {
+  if (is.null(.tcga_tn_env$tab)) {
+    f <- getExtdataPath("tcga_tumor_normal.rds")
+    .tcga_tn_env$tab <- if (file.exists(f)) readRDS(f) else list(meta = list(), cancers = list())
+  }
+  .tcga_tn_env$tab
+}
+
+TCGA_TN_CITATION <- paste(
+  "TCGA STAR gene counts (GDC) via the UCSC Xena GDC hub (Goldman et al. 2020, Nat Biotechnol 38:675);",
+  "primary tumours vs adjacent normal tissue, limma-voom (Law et al. 2014, Genome Biol 15:R29).")
+
+#' Differentially expressed genes, primary tumour vs adjacent normal tissue (precomputed;
+#' only the cancer types with enough normal samples in TCGA).
+tcga_tumor_normal <- function(study, direction = "both", minLog2FC = 1, maxQ = 0.05, all = FALSE) {
+  st <- .tcga_study(study)
+  tn <- .tcga_tn()
+  d <- tn$cancers[[st$code]]
+  if (is.null(d)) {
+    stop(sprintf("TCGA has (almost) no normal tissue samples for %s. Tumour vs normal is available for: %s.",
+                 st$code, paste(names(tn$cancers), collapse = ", ")))
+  }
+  df <- d$genes
+  minLog2FC <- max(suppressWarnings(as.numeric(minLog2FC))[1] %||% 1, 0, na.rm = TRUE)
+  maxQ <- min(max(suppressWarnings(as.numeric(maxQ))[1] %||% 0.05, 1e-10, na.rm = TRUE), 1)
+  if (isTRUE(all)) {
+    df <- df[order(-df$log2FC), , drop = FALSE]                    # every gene, ranked by fold change (for GSEA)
+  } else {
+    keep <- df$q <= maxQ & switch(direction, up = df$log2FC >= minLog2FC, down = df$log2FC <= -minLog2FC, abs(df$log2FC) >= minLog2FC)
+    df <- df[keep, , drop = FALSE]
+    df <- df[order(df$q, -abs(df$log2FC)), , drop = FALSE]
+  }
+  .tcga_result(st, .gene_records(df$gene, .gene_names(df$entrez), df$log2FC,
+                                 sprintf("q = %s", formatC(df$q, format = "g", digits = 2))),
+               "log2 fold change (tumour vs normal)", "tumour vs normal",
+               list(groups = list(a = list(label = "Primary tumour", n = d$n$tumour), b = list(label = "Adjacent normal", n = d$n$normal)),
+                    keepAll = isTRUE(all)),
+               citation = paste0(TCGA_TN_CITATION, " Computed ", tn$meta$built %||% "", "."),
+               link = sprintf("https://portal.gdc.cancer.gov/projects/TCGA-%s", d$projects[[1]]))
+}
+
 digest_key <- function(x) {
   # SHA-256 fingerprint of a character vector: cache keys shared by all users must not collide
   sodium::bin2hex(sodium::sha256(charToRaw(enc2utf8(paste(x, collapse = "\u0001")))))
@@ -269,5 +316,6 @@ tcga_genes <- function(study, query, ...) {
     coexpression = tcga_coexpressed(study, a$gene, a$direction %||% "positive", a$minCorrelation %||% 0.4),
     de = tcga_de_genes(study, a$groupA %||% list(), a$groupB %||% list(), a$direction %||% "both",
                        a$minLog2FC %||% 1, a$maxQ %||% 0.05, isTRUE(a$all)),
+    normal = tcga_tumor_normal(study, a$direction %||% "both", a$minLog2FC %||% 1, a$maxQ %||% 0.05, isTRUE(a$all)),
     stop("Unknown TCGA query."))
 }
