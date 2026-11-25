@@ -130,6 +130,9 @@ test_that("the six example experiments load and give the expected results", {
   fold <- function(r, tg, a) { t <- Filter(function(x) x$target == tg, r$targets)[[1]]; Filter(function(c) c$a == a, t$comparisons)[[1]]$fold }
   q <- run("bench_qpcr", helper = "qpcr", refs = list("GAPDH", "ACTB"), paired = TRUE)
   expect_gt(fold(q, "FKBP5", "Dex"), 5)                                           # FKBP5, the classic glucocorticoid target
+  # the same experiment as fold changes already calculated in Excel: same answer, as plain values on a log2 scale
+  qf <- run("bench_qpcr_fold", log = TRUE, paired = TRUE)
+  expect_equal(fold(qf, "FKBP5", "Dex"), fold(q, "FKBP5", "Dex"), tolerance = 0.01)
   w <- run("bench_western", helper = "western", loading = "ACTB")
   expect_gt(fold(w, "p-AKT (S473)", "Drug"), 2)
   f <- run("bench_facs")

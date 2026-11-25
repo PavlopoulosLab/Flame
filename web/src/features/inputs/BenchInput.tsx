@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { api, API_BASE } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
-import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note } from '../../components/ui'
+import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note, Segmented } from '../../components/ui'
 import { roleColors, usePaletteMode } from '../../lib/palette'
 import { PaletteSelect } from '../../components/PaletteSelect'
 import { benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
@@ -40,23 +40,25 @@ const setupFrom = (p: Parsed): GroupSetup => {
   return { names, assign: Object.fromEntries(p.samples.map((smp, i) => [smp, names.indexOf(p.guess[i] ?? '')])) }
 }
 
-/** Example experiments: each loads its table and the data type, normalisation and chart that suit it. */
-const EXAMPLES: { kind: string; label: string; what: string; helper: Helper; refs?: string[]; loading?: string; log?: boolean; paired?: boolean; plot?: Partial<PlotOpts> }[] = [
-  { kind: 'bench_qpcr', label: 'qPCR: glucocorticoid target genes in airway cells (dexamethasone ± RU486)', helper: 'qpcr', refs: ['GAPDH', 'ACTB'], paired: true,
-    what: 'Ct values of 6 genes and 2 reference genes → ΔΔCt fold changes, paired by experiment.', plot: { kind: 'bar' } },
-  { kind: 'bench_western', label: 'Western blot: AKT phosphorylation and apoptosis after a drug ± PI3K inhibitor', helper: 'western', loading: 'ACTB',
-    what: 'Band intensities (e.g. from ImageJ), normalised to the β-actin loading control.', plot: { kind: 'bar' } },
-  { kind: 'bench_facs', label: 'Flow cytometry: cell-cycle arrest in G2/M after nocodazole', helper: 'none',
+type Analysis = 'generic' | 'ddct'
+/** Example experiments: each loads its table and the settings that suit it. */
+const EXAMPLES: { kind: string; analysis: Analysis; label: string; what: string; refs?: string[]; loading?: string; log?: boolean; paired?: boolean; plot?: Partial<PlotOpts> }[] = [
+  { kind: 'bench_qpcr_fold', analysis: 'generic', label: 'qPCR: glucocorticoid target genes in airway cells, fold changes from Excel (dexamethasone ± RU486)', log: true, paired: true,
+    what: '2^−ΔΔCt fold changes already calculated per sample; tested on a log2 scale.', plot: { kind: 'bar' } },
+  { kind: 'bench_western', analysis: 'generic', label: 'Western blot: AKT phosphorylation and apoptosis after a drug ± PI3K inhibitor', loading: 'ACTB',
+    what: 'Raw band intensities (e.g. from ImageJ), normalised here to the β-actin row (optional step).', plot: { kind: 'bar' } },
+  { kind: 'bench_facs', analysis: 'generic', label: 'Flow cytometry: cell-cycle arrest in G2/M after nocodazole',
     what: '% of cells in G0/G1, S and G2/M, shown as stacked bars.', plot: { kind: 'stacked' } },
-  { kind: 'bench_viability', label: 'MTT assay: cancer cell viability across cisplatin doses', helper: 'none',
+  { kind: 'bench_viability', analysis: 'generic', label: 'MTT assay: cancer cell viability across cisplatin doses',
     what: 'Viability (% of vehicle) at 4 doses, each dose against the vehicle (Dunnett).', plot: { kind: 'bar' } },
-  { kind: 'bench_elisa', label: 'ELISA: cytokines secreted by macrophages after LPS ± dexamethasone', helper: 'none', log: true,
+  { kind: 'bench_elisa', analysis: 'generic', label: 'ELISA: cytokines secreted by macrophages after LPS ± dexamethasone', log: true,
     what: 'IL-6, TNF and IL-1β in pg/mL, tested as log2 ratios, on a log axis.', plot: { kind: 'dots', logY: true } },
-  { kind: 'bench_luciferase', label: 'Luciferase reporter: NF-κB activity after TNF ± IKK inhibitor', helper: 'western', loading: 'Renilla luciferase (control)',
-    what: 'Firefly reporter ÷ Renilla control (dual-luciferase), relative to unstimulated cells.', plot: { kind: 'bar' } },
+  { kind: 'bench_luciferase', analysis: 'generic', label: 'Luciferase reporter: NF-κB activity after TNF ± IKK inhibitor', loading: 'Renilla luciferase (control)',
+    what: 'Firefly reporter, normalised here to the Renilla row (dual-luciferase).', plot: { kind: 'bar' } },
+  { kind: 'bench_qpcr', analysis: 'ddct', label: 'qPCR: glucocorticoid target genes in airway cells, raw Ct values (dexamethasone ± RU486)', refs: ['GAPDH', 'ACTB'], paired: true,
+    what: 'Ct values of 6 genes and 2 reference genes → ΔCt → ΔΔCt → fold change, paired by experiment.', plot: { kind: 'bar' } },
 ]
 const REF_GENES = ['GAPDH', 'ACTB', 'B2M', 'HPRT1', 'RPLP0', 'TBP', '18S', 'RN18S1', 'PPIA', 'YWHAZ', 'UBC', 'GUSB', 'TUBB', 'Gapdh', 'Actb']
-const LOADING = /^(ACTB|GAPDH|TUBB|TUBA1A|VCL|vinculin|tubulin|actin|β-actin|beta-actin|total protein|HSP90|LMNB1|lamin)/i
 const PHASES = /^(G0\/G1|G1|S|G2\/M|G2|M|sub-?G1)$/i
 const fmtP = (p: number | null | undefined) => (p == null || !Number.isFinite(p) ? '' : p < 0.0001 ? p.toExponential(1) : p < 0.01 ? p.toPrecision(2) : p.toFixed(3))
 const num = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '' : x.toFixed(d))
@@ -122,21 +124,13 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
-      setRes(null); setApplied(null); setControl(''); setHelper(ex.helper); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
+      setRes(null); setApplied(null); setControl(''); setHelper(ex.analysis === 'ddct' ? 'qpcr' : ex.loading ? 'western' : 'none'); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
       setNonpar(false); setAllPairs(false); setLog(!!ex.log); setFileName(r.fileName); setSource(r.source); setText(r.text); setExampleKind(ex.kind)
       setPlot((p) => ({ ...p, kind: 'bar', logY: false, ...ex.plot }))
     } catch (e) { setErr(e) }
   }
   useEffect(() => { if (example) loadExample(EXAMPLES[0]) // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // Guess the helper from the row names the first time a table is analysed.
-  const guess = (rows: string[]) => {
-    if (rows.some((r) => PHASES.test(r)) && rows.length <= 5) return { helper: 'none' as Helper, stacked: true }
-    const refRows = rows.filter((r) => REF_GENES.includes(r))
-    const lc = rows.find((r) => LOADING.test(r))
-    return refRows.length ? { helper: 'qpcr' as Helper, refs: refRows } : lc ? { helper: 'western' as Helper, loading: lc } : null
-  }
 
   // Step 1: read the sample columns of a new table (no statistics yet).
   useEffect(() => {
@@ -150,9 +144,10 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           setGroupSetup(p.layout === 'grouped' ? setupFrom(p) : null)
           setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
           if (source) setAutoGen(true)
-          if (helper === 'none' && !source && p.layout === 'grouped') {
-            const g = guess(p.rowNames)
-            if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading); if ('stacked' in g) setPlot((x) => ({ ...x, kind: 'stacked' })) }
+          // Own tables: never switch the analysis; only pre-tick reference genes (ΔΔCt) or suggest stacked bars (cell-cycle phases).
+          if (!source && p.layout === 'grouped') {
+            if (helper === 'qpcr' && !refs.length) setRefs(p.rowNames.filter((r) => REF_GENES.includes(r)))
+            if (helper !== 'qpcr' && p.rowNames.some((r) => PHASES.test(r)) && p.rowNames.length <= 5) setPlot((x) => ({ ...x, kind: 'stacked' }))
           }
         })
         .catch((e) => setErr(e))
@@ -195,18 +190,26 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     <Modal title={title} size="xl" onClose={onClose}
       subtitle="Statistics and figures for small lab experiments (qPCR, ELISA, westerns, viability, reporter assays, flow cytometry): upload a table with samples in columns and genes or readouts in rows, group the samples, choose the test and the plot.">
       <div className="stack">
+        <Segmented label="Analysis" value={helper === 'qpcr' ? 'ddct' : 'generic'}
+          onChange={(v) => { setExampleKind(''); setApplied(null); if (v === 'ddct') { setHelper('qpcr'); setLog(false); setLoading(''); if (!refs.length && parsed) setRefs(parsed.rowNames.filter((r) => REF_GENES.includes(r))) } else { setHelper('none') } }}
+          options={[{ value: 'generic', label: 'Experimental analysis (any assay, values ready)' }, { value: 'ddct', label: 'qPCR ΔΔCt (from raw Ct values)' }]} />
+        <p className="muted small">{helper === 'qpcr'
+          ? 'Raw Ct values, genes in rows and samples in columns, including one or more reference genes: Flame computes ΔCt, ΔΔCt and the fold changes (2^−ΔΔCt).'
+          : 'Values you already have, e.g. processed in Excel: fold changes (including qPCR 2^−ΔΔCt), normalised band intensities, % viability, pg/mL, reporter ratios, % of cells. Samples in columns, genes or readouts in rows. Normalising to a row is optional.'}</p>
         <div className="row wrap">
-          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setExampleKind(''); setRes(null); setControl(''); setHelper('none'); setText(t); setFileName(n) }} />
+          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setExampleKind(''); setRes(null); setControl(''); setText(t); setFileName(n) }} />
           <Field label="Or try an example experiment">
             <select className="input input-sm" aria-label="Example experiment" value={exampleKind} style={{ maxWidth: 560 }}
               onChange={(e) => { const ex = EXAMPLES.find((x) => x.kind === e.target.value); if (ex) loadExample(ex) }}>
               <option value="">Choose an experiment…</option>
-              {EXAMPLES.map((ex) => <option key={ex.kind} value={ex.kind}>{ex.label}</option>)}
+              {EXAMPLES.filter((ex) => ex.analysis === (helper === 'qpcr' ? 'ddct' : 'generic')).map((ex) => <option key={ex.kind} value={ex.kind}>{ex.label}</option>)}
             </select>
           </Field>
         </div>
         <textarea className="input mono" rows={5} value={text} aria-label="Table"
-          placeholder={'Column table — one column per group:\nControl\tDrug A\tDrug B\n100\t71.4\t95.2\n96.8\t65.9\t101.3\n\nGrouped table — genes in rows, replicates under each group:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'}
+          placeholder={helper === 'qpcr'
+            ? 'Raw Ct values: genes in rows (with a reference gene), one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'
+            : 'Values ready to compare: genes or readouts in rows, one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nFKBP5\t1.00\t0.95\t11.7\t12.6\nIL6\t1.00\t0.96\t0.31\t0.33\n\nOr one column per group, one row per replicate:\nVehicle\tCisplatin\n100\t49.8\n96.8\t45.2'}
           onChange={(e) => { setSource(null); setExampleKind(''); setText(e.target.value); setFileName('') }} />
         {source && (() => { const ex = EXAMPLES.find((x) => x.kind === exampleKind); return (
           <p className="example-source"><strong>Example data:</strong> {source}{ex ? <> <em>{ex.what}</em></> : null}{' '}
@@ -237,36 +240,25 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           <div className="card stack-sm bench-setup">
           <h3 className="small">Test</h3>
           <div className="row wrap bench-options">
-            <Field label="Data type">
-              <select className="input input-sm" value={helper === 'qpcr' ? 'qpcr' : 'values'} onChange={(e) => { setHelper(e.target.value === 'qpcr' ? 'qpcr' : 'none'); setLog(false) }}>
-                <option value="qpcr" disabled={!grouped}>qPCR Ct values → ΔΔCt fold change</option>
-                <option value="values">Measurements (ELISA, western, viability, reporter, FACS…)</option>
-              </select>
-            </Field>
-            {helper !== 'qpcr' && (
-              <Field label="Measurements">
-                <select className="input input-sm" value={helper === 'western' ? 'row' : log ? 'log' : 'asis'}
-                  onChange={(e) => { const v = e.target.value; setHelper(v === 'row' ? 'western' : 'none'); setLog(v === 'log') }}>
-                  <option value="asis">As given</option>
-                  <option value="log">Ratios: test on log2 scale</option>
-                  <option value="row" disabled={!grouped}>Normalise to a row (e.g. loading control)</option>
-                </select>
-              </Field>
-            )}
-            {helper === 'qpcr' && (
+            {helper === 'qpcr' ? (
               <Field label="Reference gene(s)">
                 <div className="row wrap">{parsed.rowNames.map((r) => (
                   <label key={r} className="check small"><input type="checkbox" checked={refs.includes(r)}
                     onChange={(e) => setRefs((cur) => (e.target.checked ? [...cur, r] : cur.filter((x) => x !== r)))} /> {r}</label>
                 ))}</div>
               </Field>
-            )}
-            {helper === 'western' && (
-              <Field label="Normalise to">
-                <select className="input input-sm" value={loading} onChange={(e) => setLoading(e.target.value)}>
-                  <option value="">choose…</option>{parsed.rowNames.map((r) => <option key={r}>{r}</option>)}
-                </select>
-              </Field>
+            ) : (
+              <>
+                <Field label="Normalise to a row (optional)">
+                  <select className="input input-sm" value={helper === 'western' ? loading : ''} disabled={!grouped}
+                    onChange={(e) => { const r = e.target.value; setLoading(r); setHelper(r ? 'western' : 'none') }}>
+                    <option value="">No: values are ready</option>
+                    {parsed.rowNames.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </Field>
+                <label className="check small align-end" title="Fold changes and ratios are compared on a log2 scale, so that 2× up and 2× down are equally far from 1">
+                  <input type="checkbox" checked={helper === 'western' || log} disabled={helper === 'western'} onChange={(e) => setLog(e.target.checked)} /> Values are ratios or fold changes: test on log2 scale</label>
+              </>
             )}
             <Field label="Control group">
               <select className="input input-sm" value={effControl} onChange={(e) => setControl(e.target.value)}>
@@ -278,7 +270,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             {groupNames.length > 2 && <label className="check small"><input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} /> All pairs (not only vs control)</label>}
           </div>
           {helper === 'qpcr' && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
-          {helper === 'western' && !loading && <Note kind="info">Choose the row to normalise to (e.g. the loading control).</Note>}
+          {helper === 'qpcr' && !grouped && <Note kind="warning">ΔΔCt needs genes in rows (including a reference gene) and samples in columns.</Note>}
           <h3 className="small">Plot</h3>
           <PlotControls o={plot} set={setPlot} hasComparisons canStack={parsed.rowNames.filter((r) => !(helper === 'qpcr' && refs.includes(r)) && r !== loading).length > 1} />
           <div className="toolbar">

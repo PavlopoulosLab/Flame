@@ -241,7 +241,7 @@ flameComputeUpsetCombinations <- function(namedSets, mode = UpsetMode$INTERSECTI
 
 #' Example inputs used by every "Load example" button and the guided demo
 EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna", "metabolites", "survival", "bench_qpcr", "bench_western", "bench_facs", "bench_column",
-                   "bench_viability", "bench_elisa", "bench_luciferase")
+                   "bench_viability", "bench_elisa", "bench_luciferase", "bench_qpcr_fold")
 
 #' TRUE for recognisable gene names; FALSE for uncharacterised ORFs and
 #' placeholder symbols (C11orf24, LOC647225, KIAA0100, FAM100A, FLJ..., LINC...,
@@ -309,7 +309,7 @@ example_input <- function(kind = EXAMPLE_KINDS) {
            thresholds = list(log2FC = 1, padj = 0.05), source = EXAMPLE_SOURCES$airway)
     },
     # Experimental analysis: small illustrative tables (made-up numbers in realistic ranges, not measured data).
-    bench_qpcr = , bench_western = , bench_facs = , bench_column = , bench_viability = , bench_elisa = , bench_luciferase = {
+    bench_qpcr = , bench_western = , bench_facs = , bench_column = , bench_viability = , bench_elisa = , bench_luciferase = , bench_qpcr_fold = {
       f <- paste0(kind, ".tsv")
       list(text = paste(readLines(getExamplesPath(f), warn = FALSE), collapse = "\n"), fileName = paste0("flame_example_", f),
            source = c(bench_qpcr = "Illustrative qPCR Ct values (made-up numbers): airway cells, control vs dexamethasone vs dexamethasone + RU486, 3 experiments; GAPDH and ACTB as reference genes.",
@@ -318,6 +318,7 @@ example_input <- function(kind = EXAMPLE_KINDS) {
                       bench_column = "Illustrative cell viability (% of control, made-up numbers): 4 replicates per group.",
                       bench_viability = "Illustrative MTT viability (% of vehicle, made-up numbers): cancer cells treated with increasing cisplatin doses for 48 h, 4 wells per dose.",
                       bench_elisa = "Illustrative ELISA (pg/mL, made-up numbers): IL-6, TNF and IL-1\u03b2 in macrophage supernatants, unstimulated vs LPS vs LPS + dexamethasone, 3 experiments.",
+                      bench_qpcr_fold = "Illustrative qPCR fold changes (2^-\u0394\u0394Ct already calculated, e.g. in Excel; made-up numbers): airway cells, control vs dexamethasone vs dexamethasone + RU486, 3 experiments, relative to the control mean.",
                       bench_luciferase = "Illustrative dual-luciferase assay (relative light units, made-up numbers): NF-\u03baB firefly reporter and Renilla control, unstimulated vs TNF vs TNF + IKK inhibitor, 4 wells.")[[kind]])
     },
     # Expression of 365 liver tumours with their survival (and stage), for the survival analysis.
