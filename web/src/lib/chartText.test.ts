@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { applyChartLabels, applyChartText, chartLabels, DEFAULT_CHART_TEXT, NO_LABELS, sanitizeChartText, type ChartText } from './chartText'
+import { applyChartLabels, applyChartText, chartLabels, DEFAULT_CHART_TEXT, NO_LABELS, parseColor, sanitizeChartText, type ChartText } from './chartText'
 
 const t = (o: Partial<ChartText>): ChartText => ({ ...DEFAULT_CHART_TEXT, ...o })
 type F = { size?: number; weight?: string; style?: string; family?: string; color?: string }
@@ -50,5 +50,14 @@ describe('text of all charts', () => {
     expect(l.yaxis.title.text).toBe('Term')
     expect(l.xaxis.title.text).toBe('Gene ratio')                                                   // empty: the chart's own
     expect(applyChartLabels(base, NO_LABELS, DEFAULT_CHART_TEXT)).toEqual(base)
+  })
+  it('colours typed as hex or RGB', () => {
+    expect(parseColor('#C0392B')).toBe('#c0392b')
+    expect(parseColor('c0392b')).toBe('#c0392b')
+    expect(parseColor('#f00')).toBe('#ff0000')
+    expect(parseColor('rgb(37, 99, 235)')).toBe('#2563eb')
+    expect(parseColor('37 99 235')).toBe('#2563eb')
+    expect(parseColor('rgb(300, 0, 0)')).toBeNull()
+    expect(parseColor('red')).toBeNull()
   })
 })

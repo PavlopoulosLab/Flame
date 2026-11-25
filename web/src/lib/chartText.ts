@@ -118,3 +118,19 @@ export function applyChartText<L extends Obj>(layout: L, t: ChartText): L {
   out.legend = { ...asObj(out.legend), font: font(asObj(out.legend).font, t.legend, t.family) }
   return out as L
 }
+
+// ---- Colours typed by the user ----
+export const hex2 = (n: number) => Math.max(0, Math.min(255, Math.round(n || 0))).toString(16).padStart(2, '0')
+export const toRgb = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16))
+/** "#abc", "#aabbcc", "aabbcc" or "rgb(10, 20, 30)" / "10 20 30" as #rrggbb (null if not a colour). */
+export function parseColor(v: string): string | null {
+  const t = v.trim().toLowerCase()
+  let m = t.match(/^#?([0-9a-f]{6})$/)
+  if (m) return `#${m[1]}`
+  m = t.match(/^#?([0-9a-f])([0-9a-f])([0-9a-f])$/)
+  if (m) return `#${m[1]}${m[1]}${m[2]}${m[2]}${m[3]}${m[3]}`
+  m = t.match(/^(?:rgb\s*\()?\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*[,\s]\s*(\d{1,3})\s*\)?$/)
+  if (m && [m[1], m[2], m[3]].every((x) => Number(x) <= 255)) return `#${hex2(+m[1])}${hex2(+m[2])}${hex2(+m[3])}`
+  return null
+}
+

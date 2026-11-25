@@ -1,9 +1,56 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle } from '../lib/chartText'
+import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle, hex2, parseColor, toRgb } from '../lib/chartText'
 import { Field } from './ui'
 
 /** The grey charts use for text (shown in the colour picker until a colour is chosen). */
 const DEFAULT_TEXT_COLOR = '#444444'
+
+const PRESETS = ['#444444', '#000000', '#7f7f7f', '#c0392b', '#e67e22', '#d4a017', '#27ae60', '#16a085', '#2563eb', '#1f3a93', '#8e44ad', '#c2185b']
+/**
+ * Colour of one part of the text: preset colours, R G B and hex boxes, and the default grey, in a small panel
+ * inside the page (the system colour window would close the Aa Text panel and lose the choice).
+ */
+function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [hexText, setHexText] = useState('')
+  const ref = useRef<HTMLSpanElement>(null)
+  const shown = value || DEFAULT_TEXT_COLOR
+  const rgb = toRgb(shown)
+  useEffect(() => {
+    if (!open) return
+    const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+  const pick = (c: string) => { onChange(c === DEFAULT_TEXT_COLOR && !value ? '' : c); setHexText('') }
+  return (
+    <span className="text-color-wrap" ref={ref}>
+      <button type="button" className="text-color" aria-label={`${label}: colour`} aria-expanded={open} title={value ? `Colour ${value}` : "Colour (the chart's own grey)"}
+        style={{ background: shown }} onClick={() => setOpen((v) => !v)} />
+      {open && (
+        <span className="text-color-pop card" role="dialog" aria-label={`${label} colour`}>
+          <span className="text-color-presets">
+            {PRESETS.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === DEFAULT_TEXT_COLOR ? 'Default grey' : c}
+              title={c === DEFAULT_TEXT_COLOR ? 'Default grey' : c} onClick={() => (c === DEFAULT_TEXT_COLOR ? onChange('') : pick(c))} />)}
+          </span>
+          <span className="row" style={{ gap: 4 }}>
+            {(['R', 'G', 'B'] as const).map((ch, i) => (
+              <label key={ch} className="small text-color-ch">{ch}
+                <input className="input input-sm" type="number" min={0} max={255} aria-label={`${label}: ${ch}`} value={rgb[i]}
+                  onChange={(e) => { const v = [...rgb]; v[i] = Number(e.target.value); onChange(`#${v.map(hex2).join('')}`) }} />
+              </label>
+            ))}
+          </span>
+          <span className="row" style={{ gap: 4 }}>
+            <input className="input input-sm" aria-label={`${label}: hex or rgb`} placeholder={shown} value={hexText} style={{ width: 130 }}
+              onChange={(e) => { setHexText(e.target.value); const c = parseColor(e.target.value); if (c) onChange(c) }} />
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { onChange(''); setHexText('') }} disabled={!value}>Default grey</button>
+          </span>
+        </span>
+      )}
+    </span>
+  )
+}
 
 /** Bold, italic, size and colour of one part of the chart text. */
 export function TextStyleButtons({ part, label }: { part: TextPart; label: string }) {
@@ -20,9 +67,7 @@ export function TextStyleButtons({ part, label }: { part: TextPart; label: strin
         <option value={0}>Auto</option>
         {TEXT_SIZES.map((n) => <option key={n} value={n}>{n} pt</option>)}
       </select>
-      <input type="color" className="text-color" aria-label={`${label}: colour`} title={s.color ? 'Colour' : "Colour (the chart's own grey)"} value={s.color || DEFAULT_TEXT_COLOR}
-        onChange={(e) => up({ color: e.target.value })} />
-      {s.color && <button type="button" className="btn btn-ghost btn-sm text-color-reset" aria-label={`${label}: default colour`} title="Back to the default grey" onClick={() => up({ color: '' })}>↺</button>}
+      <ColorPicker label={label} value={s.color} onChange={(c) => up({ color: c })} />
     </>
   )
 }
