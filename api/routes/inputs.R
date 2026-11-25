@@ -456,6 +456,15 @@ function(req, res) {
   .fetch(res, list(traits = nutrition_traits(as.character(b$term %||% ""))))
 }
 
+#* Bench data, step 1: the sample columns of a pasted table and a guess of their groups from the
+#* column names, so the user can group them before any test. Body: { text, fileName?, layout? }
+#* @post /bench/samples
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch_here(res, bench_samples(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto")))
+}
+
 #* Bench data: a small pasted table (column or grouped layout) analysed with a sensible default test,
 #* optional helpers for qPCR (delta-delta Ct), westerns (band / loading control) and FACS phases.
 #* Body: { text, fileName?, layout?: auto|column|grouped, helper?: none|qpcr|western|facs, refs?: [genes] (qPCR),

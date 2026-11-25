@@ -89,3 +89,38 @@ test_that("bad sample groups are refused with a clear message", {
   expect_error(run(list(A = list("Control 1"), B = list("Control 1"))), "only one group")
   expect_error(run(list(A = list("Control 1", "Control 2"), B = list())), "two groups")
 })
+
+test_that("step 1 reads the sample columns and guesses groups from their names", {
+  s <- bench_samples(example_input("bench_qpcr")$text, "q.tsv")
+  expect_equal(s$layout, "grouped")
+  expect_equal(length(s$samples), 9L)
+  expect_equal(unique(unlist(s$guess)), c("Control", "Dex", "Dex + RU486"))
+  expect_true(all(c("GAPDH", "FKBP5") %in% unlist(s$rowNames)))
+  # Names with no pattern: no guess, every sample left for the user to group
+  s2 <- bench_samples("Gene\tS1\tS2\tS3\tS4\nGAPDH\t18\t18.1\t18\t18.2\nFKBP5\t27\t27.1\t24\t24.1", "q.tsv")
+  expect_equal(unlist(s2$samples), paste0("S", 1:4))
+  expect_true(all(unlist(s2$guess) == ""))
+  # Letter replicate tags
+  s4 <- bench_samples("Gene\tWT_a\tWT_b\tKO_a\tKO_b\nGAPDH\t18\t18\t18\t18\nIL6\t25\t25\t23\t23", "q.tsv")
+  expect_equal(unlist(s4$guess), c("WT", "WT", "KO", "KO"))
+  # Every guessed group would hold one sample: no guess
+  s5 <- bench_samples("Gene\tAlpha\tBeta\tGamma\nGAPDH\t18\t18\t18", "q.tsv")
+  expect_true(all(unlist(s5$guess) == ""))
+  # Column table: each column is a group
+  s3 <- bench_samples("Control\tDrug\n1\t2\n1.1\t2.2", "c.tsv")
+  expect_equal(s3$layout, "column")
+  expect_equal(unlist(s3$guess), c("Control", "Drug"))
+})
+
+test_that("many groups are allowed (up to BENCH_MAX_GROUPS)", {
+  n <- 20L
+  hdr <- paste(c("Gene", paste0("S", seq_len(2 * n))), collapse = "\t")
+  ref <- paste(c("GAPDH", rep("18", 2 * n)), collapse = "\t")
+  tg <- paste(c("FKBP5", sprintf("%.1f", 27 - rep(seq_len(n), each = 2) / 10 + rep(c(0, 0.05), n))), collapse = "\t")
+  groups <- stats::setNames(lapply(seq_len(n), function(i) list(paste0("S", 2 * i - 1), paste0("S", 2 * i))), paste("Dose", seq_len(n)))
+  r <- bench_analyse(paste(hdr, ref, tg, sep = "\n"), "q.tsv", helper = "qpcr", refs = list("GAPDH"), sampleGroups = groups)
+  expect_equal(length(r$groups), n)
+  expect_equal(length(r$targets[[1]]$comparisons), n - 1L)              # each dose vs the first
+  too_many <- stats::setNames(lapply(seq_len(BENCH_MAX_GROUPS + 1), function(i) list(paste0("S", i))), paste("G", seq_len(BENCH_MAX_GROUPS + 1)))
+  expect_error(bench_analyse(paste(hdr, ref, tg, sep = "\n"), "q.tsv", helper = "qpcr", refs = list("GAPDH"), sampleGroups = too_many), "At most 24 groups")
+})

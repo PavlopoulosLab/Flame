@@ -16,6 +16,7 @@
 # =============================================================================
 
 BENCH_HELPERS <- c("none", "qpcr", "western", "facs")
+BENCH_MAX_GROUPS <- 24
 BENCH_MAX_REPLICATES <- 100   # values per group and target: bench experiments are small, and paired tests grow fast with it
 
 .bench_group_of <- function(name) {
@@ -25,13 +26,39 @@ BENCH_MAX_REPLICATES <- 100   # values per group and target: bench experiments a
   ifelse(nzchar(g), g, name)
 }
 
+#' First step after an upload: the table's layout, its sample columns and a guess of their groups
+#' from the column names ("" for every sample when the names give no usable groups, e.g. S1..S6),
+#' and the row names (genes / targets). No statistics.
+bench_samples <- function(text, fileName = "", layout = "auto") {
+  df <- parse_delimited_table(text, fileName)
+  if (ncol(df) < 2) stop("Paste a table with at least two columns: groups side by side.")
+  if (ncol(df) > BENCH_MAX_GROUPS * BENCH_MAX_REPLICATES + 1) stop("The table has too many columns for bench data.")
+  names(df) <- substr(names(df), 1, 100)
+  num1 <- suppressWarnings(as.numeric(gsub(",", ".", as.character(df[[1]]), fixed = TRUE)))
+  firstText <- mean(is.na(num1) & nzchar(trimws(as.character(df[[1]])))) > 0.5
+  layout <- if (identical(layout, "column") || identical(layout, "grouped")) layout else if (firstText) "grouped" else "column"
+  if (layout == "column") {
+    g <- trimws(names(df))
+    return(list(layout = layout, samples = as.list(g), guess = as.list(g), rowNames = list(), maxGroups = BENCH_MAX_GROUPS))
+  }
+  cols <- make.unique(names(df)[-1])
+  usable <- function(g) { k <- length(unique(g)); k >= 2 && k <= BENCH_MAX_GROUPS && k < length(g) }   # some group has 2+ samples
+  guess <- .bench_group_of(cols)                                             # "Control 1" -> Control
+  if (!usable(guess)) {                                                      # "WT_a", "WT-b" -> WT
+    byLetter <- trimws(sub("[ _.-]+[A-Za-z]$", "", substr(cols, 1, 100)))
+    guess <- if (usable(byLetter)) byLetter else rep("", length(cols))
+  }
+  list(layout = layout, samples = as.list(cols), guess = as.list(guess),
+       rowNames = as.list(make.unique(trimws(as.character(df[[1]])))), maxGroups = BENCH_MAX_GROUPS)
+}
+
 #' Parse a pasted bench table into long form: target, group, sample, pair (replicate key), value.
 #' sampleGroups (grouped tables): list(<group name> = c(<sample columns>), ...) set by the user;
 #' it replaces the groups guessed from the column names, and columns in no group are left out.
 bench_parse <- function(text, fileName = "", layout = "auto", sampleGroups = NULL) {
   df <- parse_delimited_table(text, fileName)
   if (ncol(df) < 2) stop("Paste a table with at least two columns: groups side by side.")
-  if (ncol(df) > 12 * BENCH_MAX_REPLICATES + 1) stop("The table has too many columns for bench data.")
+  if (ncol(df) > BENCH_MAX_GROUPS * BENCH_MAX_REPLICATES + 1) stop("The table has too many columns for bench data.")
   names(df) <- substr(names(df), 1, 100)
   num <- lapply(df, function(x) suppressWarnings(as.numeric(gsub(",", ".", as.character(x), fixed = TRUE))))
   firstText <- mean(is.na(num[[1]]) & nzchar(trimws(as.character(df[[1]])))) > 0.5
@@ -60,11 +87,11 @@ bench_parse <- function(text, fileName = "", layout = "auto", sampleGroups = NUL
   grp <- if (length(sampleGroups) && layout == "grouped") intersect(substr(trimws(names(sampleGroups)), 1, 60), unique(long$group)) else unique(long$group)
   # Grouped table whose column names give no usable groups (e.g. S1..S6): hand back the samples so
   # the user can group them, instead of failing.
-  if (layout == "grouped" && !length(sampleGroups) && (length(grp) < 2 || length(grp) > 12) && length(unique(long$target)) <= 60)
+  if (layout == "grouped" && !length(sampleGroups) && (length(grp) < 2 || length(grp) > BENCH_MAX_GROUPS) && length(unique(long$target)) <= 60)
     return(list(layout = layout, needsGroups = TRUE, data = long, groups = character(0), targets = unique(long$target),
                 samples = samples, sampleGroup = rep(NA_character_, length(samples))))
   if (length(grp) < 2) stop("At least two groups are needed (e.g. Control and Treated columns).")
-  if (length(grp) > 12) stop("At most 12 groups are supported.")
+  if (length(grp) > BENCH_MAX_GROUPS) stop(sprintf("At most %d groups are supported.", BENCH_MAX_GROUPS))
   if (length(unique(long$target)) > 60) stop("At most 60 genes or targets are supported.")
   if (max(table(long$group, long$target)) > BENCH_MAX_REPLICATES)
     stop(sprintf("At most %d values per group are supported: this module is meant for bench experiments.", BENCH_MAX_REPLICATES))
@@ -77,7 +104,7 @@ bench_parse <- function(text, fileName = "", layout = "auto", sampleGroups = NUL
   nm <- substr(trimws(names(sampleGroups)), 1, 60)
   if (any(!nzchar(nm))) stop("Give every sample group a name.")
   if (anyDuplicated(nm)) stop("Give each sample group a different name.")
-  if (length(nm) > 12) stop("At most 12 groups are supported.")
+  if (length(nm) > BENCH_MAX_GROUPS) stop(sprintf("At most %d groups are supported.", BENCH_MAX_GROUPS))
   out <- rep(NA_character_, length(cols))
   for (i in seq_along(nm)) {
     ss <- as.character(unlist(sampleGroups[[i]]))

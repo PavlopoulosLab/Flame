@@ -7,6 +7,7 @@ import { categorical } from '../../lib/palette'
 import { saveXlsx } from '../../lib/xlsx'
 import { SampleGroupPicker, SaveList } from './InputModal'
 import { autoBreak, nice } from '../../lib/axisBreak'
+import { plural } from '../../lib/format'
 
 type Helper = 'none' | 'qpcr' | 'western' | 'facs'
 interface Comparison { a: string; b: string; diff: number; lo: number | null; hi: number | null; p: number; stars: string; fold?: number }
@@ -28,6 +29,14 @@ interface Result {
 }
 /** Sample groups set by the user: group names, and each sample column's group index (-1 = not used). */
 interface GroupSetup { names: string[]; assign: Record<string, number> }
+/** Step 1 (/inputs/bench/samples): the table's sample columns and the groups guessed from their names. */
+interface Parsed { layout: 'column' | 'grouped'; samples: string[]; guess: string[]; rowNames: string[]; maxGroups: number }
+/** Groups guessed from the column names; two empty groups when the names give none. */
+const setupFrom = (p: Parsed): GroupSetup => {
+  const found = [...new Set(p.guess.filter(Boolean))]
+  const names = found.length ? found : ['Group 1', 'Group 2']
+  return { names, assign: Object.fromEntries(p.samples.map((smp, i) => [smp, names.indexOf(p.guess[i] ?? '')])) }
+}
 
 const EXAMPLES: { kind: string; label: string; helper: Helper; refs?: string[]; loading?: string; paired?: boolean }[] = [
   { kind: 'bench_qpcr', label: 'qPCR (Ct)', helper: 'qpcr', refs: ['GAPDH', 'ACTB'], paired: true },
@@ -67,12 +76,17 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [brkFrom, setBrkFrom] = useState('')
   const [brkTo, setBrkTo] = useState('')
   const [organism, setOrganism] = useState(9606)
-  // null: groups guessed from the column names ("Control 1", "Control 2" -> Control).
+  // Step 1 -> 2: the sample columns, read as soon as a table is pasted or uploaded.
+  const [parsed, setParsed] = useState<Parsed | null>(null)
+  // Step 2: which samples form each group (grouped tables). Step 3 starts once the user confirms.
   const [groupSetup, setGroupSetup] = useState<GroupSetup | null>(null)
-  useEffect(() => { setGroupSetup(null) }, [text])
+  const [confirmed, setConfirmed] = useState(false)
+  const grouped = parsed?.layout === 'grouped'
   const groupNamesOk = !groupSetup || (groupSetup.names.every((n) => n.trim()) && new Set(groupSetup.names.map((n) => n.trim())).size === groupSetup.names.length)
-  const groupsBody = useMemo(() => (!groupSetup || !groupNamesOk ? null : JSON.stringify(Object.fromEntries(groupSetup.names.map((n, i) => [n.trim(),
-    Object.keys(groupSetup.assign).filter((smp) => groupSetup.assign[smp] === i)])))), [groupSetup, groupNamesOk])
+  const groupSizes = groupSetup ? groupSetup.names.map((_, i) => Object.values(groupSetup.assign).filter((g) => g === i).length) : []
+  const groupsReady = !grouped || (!!groupSetup && groupNamesOk && groupSizes.filter((n) => n > 0).length >= 2)
+  const groupsBody = useMemo(() => (!grouped || !groupSetup || !groupNamesOk ? null : JSON.stringify(Object.fromEntries(groupSetup.names.map((n, i) => [n.trim(),
+    Object.keys(groupSetup.assign).filter((smp) => groupSetup.assign[smp] === i)]).filter(([, m]) => (m as string[]).length)))), [grouped, groupSetup, groupNamesOk])
 
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
@@ -92,28 +106,47 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     return refRows.length ? { helper: 'qpcr' as Helper, refs: refRows } : lc ? { helper: 'western' as Helper, loading: lc } : null
   }
 
+  // Step 1: read the sample columns of a new table (no statistics yet).
   useEffect(() => {
-    if (!text.trim()) { setRes(null); return }
+    setParsed(null); setGroupSetup(null); setConfirmed(false); setRes(null)
+    if (!text.trim()) return
+    const t = setTimeout(() => {
+      setBusy(true); setErr(null)
+      api<Parsed>('/inputs/bench/samples', { body: { text, fileName } })
+        .then((p) => {
+          setParsed(p)
+          setGroupSetup(p.layout === 'grouped' ? setupFrom(p) : null)
+          setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
+          if (helper === 'none' && !source && p.layout === 'grouped') {
+            const g = guess(p.rowNames)
+            if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading) }
+          }
+        })
+        .catch((e) => setErr(e))
+        .finally(() => setBusy(false))
+    }, 250)
+    return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text, fileName])
+
+  // Step 3: the tests, once the groups are confirmed; any later change re-runs them.
+  useEffect(() => {
+    if (!parsed || !confirmed || !groupsReady) { setRes(null); return }
     if (helper === 'qpcr' && !refs.length) return
     if (helper === 'western' && !loading) return
-    if (!groupNamesOk) return
     const t = setTimeout(() => {
       setBusy(true); setErr(null)
       api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper, refs, loading, control: control || null, paired, nonparametric: nonpar, allPairs, log, ...(groupsBody ? { groups: JSON.parse(groupsBody) } : {}) } })
         .then((r) => {
           setRes(r)
           if (!control || !r.groups.includes(control)) setControl(r.control)
-          if (helper === 'none' && !source && r.layout === 'grouped') {
-            const g = guess(r.rowNames)
-            if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading) }
-          }
         })
         .catch((e) => { setErr(e); setRes(null) })
         .finally(() => setBusy(false))
     }, 250)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, fileName, helper, refs, loading, control, paired, nonpar, allPairs, log, groupsBody, groupNamesOk])
+  }, [parsed, confirmed, groupsReady, helper, refs, loading, control, paired, nonpar, allPairs, log, groupsBody])
 
   const colors = categorical('flame')
   const figure = useMemo(() => (res ? benchFigure(res, { errBar, style: figStyle, brk, from: brkFrom ? Number(brkFrom) : undefined, to: brkTo ? Number(brkTo) : undefined }, colors) : null),
@@ -134,6 +167,27 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           placeholder={'Column table — one column per group:\nControl\tDrug A\tDrug B\n100\t71.4\t95.2\n96.8\t65.9\t101.3\n\nGrouped table — genes in rows, replicates under each group:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'}
           onChange={(e) => { setSource(null); setText(e.target.value); setFileName('') }} />
         {source && <p className="example-source"><strong>Example data:</strong> {source}</p>}
+        {parsed && (
+          <ol className="progress-steps" aria-label="Steps">
+            <li className="done"><span>1</span> Table: {plural(parsed.samples.length, grouped ? 'sample' : 'group')}{grouped ? `, ${plural(parsed.rowNames.length, 'row')}` : ''}</li>
+            <li className={!grouped || confirmed ? 'done' : 'current'}><span>2</span> {grouped ? 'Group the samples' : 'Groups: one per column'}</li>
+            <li className={confirmed ? 'current' : ''}><span>3</span> Tests and figure</li>
+          </ol>
+        )}
+        {grouped && groupSetup && parsed && (
+          <BenchGroups samples={parsed.samples} setup={groupSetup} setSetup={setGroupSetup} initial={setupFrom(parsed)} maxGroups={parsed.maxGroups}
+            helper={helper} colors={categorical('flame')} />
+        )}
+        {grouped && !groupNamesOk && <Note kind="warning">Give each group a different, non-empty name.</Note>}
+        {grouped && groupNamesOk && !groupsReady && <Note kind="info">Put samples in at least two groups.</Note>}
+        {grouped && groupsReady && groupSizes.some((n) => n === 1) && <Note kind="info">A group with one sample has no spread: put 2 or more samples in each group to test it.</Note>}
+        {grouped && !confirmed && (
+          <div className="row">
+            <button className="btn btn-primary" disabled={!groupsReady} onClick={() => setConfirmed(true)}>
+              Analyse {plural(groupSizes.filter((n) => n > 0).length, 'group')}</button>
+            <span className="muted small">You can still change the groups afterwards; the tests update.</span>
+          </div>
+        )}
         {res && (
           <div className="row wrap bench-options">
             <Field label="Helper">
@@ -170,14 +224,9 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             {res.groups.length > 2 && <label className="check small"><input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} /> All pairs (not only vs control)</label>}
           </div>
         )}
-        {res?.layout === 'grouped' && !!res.samples?.length && (
-          <BenchGroups res={res} setup={groupSetup} setSetup={setGroupSetup} colors={categorical('flame')} />
-        )}
-        {res?.needsGroups && groupNamesOk && <Note kind="info">The column names do not show which samples belong together. Tick samples below and put them in groups (at least two, with 2 or more samples each).</Note>}
-        {!groupNamesOk && <Note kind="warning">Give each group a different, non-empty name.</Note>}
         {helper === 'qpcr' && res && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
         {helper === 'western' && res && !loading && <Note kind="info">Choose the loading control row.</Note>}
-        {busy && <BusyBar label="Testing" expect={2} />}
+        {busy && <BusyBar label={confirmed ? 'Testing' : 'Reading the table'} expect={2} />}
         <ErrorNote error={err} />
         {res && !res.needsGroups && (
           <>
@@ -346,42 +395,38 @@ function benchFigure(res: Result, o: FigOpts, colors: string[]) {
 }
 
 /**
- * Which sample columns form each group (the same editor as in the expression tools). Starts from the
- * groups guessed from the column names; columns in no group are left out of the tests.
+ * Step 2: which sample columns form each group (the same editor as in the expression tools). Starts from
+ * the groups guessed from the column names; columns in no group are left out of the tests.
  */
-function BenchGroups({ res, setup, setSetup, colors }: { res: Result; setup: GroupSetup | null; setSetup: (s: GroupSetup | null) => void; colors: string[] }) {
-  const samples = useMemo(() => res.samples ?? [], [res])
-  const view: GroupSetup = useMemo(() => {
-    if (setup) return setup
-    const found = [...new Set((res.sampleGroups ?? []).filter(Boolean))]
-    const names = found.length ? found : ['Group 1', 'Group 2']
-    return { names, assign: Object.fromEntries(samples.map((smp, i) => [smp, names.indexOf(res.sampleGroups?.[i] ?? '')])) }
-  }, [setup, res, samples])
-  const edit = (f: (v: GroupSetup) => GroupSetup) => setSetup(f(view))
+function BenchGroups({ samples, setup, setSetup, initial, maxGroups, helper, colors }: {
+  samples: string[]; setup: GroupSetup; setSetup: (s: GroupSetup) => void; initial: GroupSetup; maxGroups: number; helper: Helper; colors: string[]
+}) {
+  const edit = (f: (v: GroupSetup) => GroupSetup) => setSetup(f(setup))
   const removeGroup = (g: number) => edit((v) => ({
     names: v.names.filter((_, i) => i !== g),
     assign: Object.fromEntries(Object.entries(v.assign).map(([smp, i]) => [smp, i === g ? -1 : i > g ? i - 1 : i])),
   }))
-  const newName = () => { let k = view.names.length + 1; while (view.names.includes(`Group ${k}`)) k++; return `Group ${k}` }
+  const newName = () => { let k = setup.names.length + 1; while (setup.names.includes(`Group ${k}`)) k++; return `Group ${k}` }
+  const changed = JSON.stringify(setup) !== JSON.stringify(initial)
   return (
-    <SampleGroupPicker samples={samples} names={view.names} colors={colors}
-      groupOf={(smp) => view.assign[smp] ?? -1}
+    <SampleGroupPicker samples={samples} names={setup.names} colors={colors}
+      groupOf={(smp) => setup.assign[smp] ?? -1}
       onAssign={(ss, g) => edit((v) => ({ ...v, assign: { ...v.assign, ...Object.fromEntries(ss.map((x) => [x, g])) } }))}>
       <div className="row wrap">
-        {view.names.map((n, i) => (
+        {setup.names.map((n, i) => (
           <Field key={i} label={`Group ${i + 1}`}>
             <span className="row">
               <i className="swatch" style={{ background: colors[i % colors.length] }} />
               <input className="input input-sm" value={n} maxLength={60} aria-label={`Name of group ${i + 1}`}
                 onChange={(e) => edit((v) => ({ ...v, names: v.names.map((x, j) => (j === i ? e.target.value : x)) }))} />
-              {view.names.length > 2 && <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${n}`} title="Remove this group (its samples become unused)" onClick={() => removeGroup(i)}>×</button>}
+              {setup.names.length > 2 && <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${n}`} title="Remove this group (its samples become unused)" onClick={() => removeGroup(i)}>×</button>}
             </span>
           </Field>
         ))}
-        {view.names.length < 12 && <button type="button" className="btn btn-ghost btn-sm align-end" onClick={() => edit((v) => ({ ...v, names: [...v.names, newName()] }))}>+ Add group</button>}
-        {setup && <button type="button" className="btn btn-ghost btn-sm align-end" title="Group the samples by their column names again" onClick={() => setSetup(null)}>Reset to column names</button>}
+        {setup.names.length < maxGroups && <button type="button" className="btn btn-ghost btn-sm align-end" onClick={() => edit((v) => ({ ...v, names: [...v.names, newName()] }))}>+ Add group</button>}
+        {changed && <button type="button" className="btn btn-ghost btn-sm align-end" title="Group the samples by their column names again" onClick={() => setSetup(initial)}>Reset to column names</button>}
       </div>
-      <p className="muted small">Samples in no group are left out of the tests{res.helper === 'qpcr' ? ' (they are still normalised to the reference genes)' : ''}. With <em>Rows are paired</em>, the first sample of each group is paired with the first of the others, and so on, in table order.</p>
+      <p className="muted small">Up to {maxGroups} groups. Samples in no group are left out of the tests{helper === 'qpcr' ? ' (they are still normalised to the reference genes)' : ''}. With <em>Rows are paired</em>, the first sample of each group is paired with the first of the others, and so on, in table order.</p>
     </SampleGroupPicker>
   )
 }
