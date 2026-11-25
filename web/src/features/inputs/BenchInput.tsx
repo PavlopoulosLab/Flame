@@ -7,6 +7,8 @@ import { roleColors, usePaletteMode } from '../../lib/palette'
 import { PaletteSelect } from '../../components/PaletteSelect'
 import { benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
 import { PlotControls } from './BenchPlotControls'
+import { BenchTestControls } from './BenchTestControls'
+import { DEFAULT_STAT, resolvePosthoc, resolveTest, type StatOpts } from './benchTests'
 import { saveXlsx } from '../../lib/xlsx'
 import { SampleGroupPicker, SaveList } from './InputModal'
 import { plural } from '../../lib/format'
@@ -17,12 +19,14 @@ interface Target {
   target: string; error?: string
   values: { group: string; sample: string; pair: number; value: number }[]
   summary: { group: string; n: number; mean: number; sd: number | null; sem: number | null }[]
-  omnibus?: { name: string; p: number; pAcross?: number }
+  omnibus?: { name: string; p: number; pAcross?: number; detail?: string }
+  assumptions?: { normality: { group: string; n: number; p: number | null }[]; equalSD?: { name: string; p: number } | null }
   posthoc?: string | null
   comparisons?: Comparison[]
 }
 interface Result {
   layout: 'column' | 'grouped'; helper: Helper; groups: string[]; control: string; paired: boolean; allPairs?: boolean; logScale: boolean; shownAs: string
+  test?: string; posthoc?: string | null; across?: 'holm' | 'bh' | 'none'; hypothetical?: number; anova2?: { effect: string; F: number; df1: number; df2: number; p: number }[] | null
   targets: Target[]; sentence: string; methods: string; warnings: string[]; rowNames: string[]
   /** Grouped tables: the sample columns and the group of each ('' = not used). */
   samples?: string[]; sampleGroups?: string[]; customGroups?: boolean
@@ -42,9 +46,9 @@ const setupFrom = (p: Parsed): GroupSetup => {
 
 type Analysis = 'generic' | 'ddct'
 /** Example experiments: each loads its table and the settings that suit it. */
-const EXAMPLES: { kind: string; analysis: Analysis; label: string; what: string; refs?: string[]; loading?: string; log?: boolean; paired?: boolean; plot?: Partial<PlotOpts> }[] = [
-  { kind: 'bench_qpcr_fold', analysis: 'generic', label: 'qPCR: glucocorticoid target genes in airway cells, fold changes from Excel (dexamethasone ± RU486)', log: true, paired: true,
-    what: '2^−ΔΔCt fold changes already calculated per sample; tested on a log2 scale.', plot: { kind: 'bar' } },
+const EXAMPLES: { kind: string; analysis: Analysis; label: string; what: string; refs?: string[]; loading?: string; log?: boolean; stat?: Partial<StatOpts>; plot?: Partial<PlotOpts> }[] = [
+  { kind: 'bench_qpcr_fold', analysis: 'generic', label: 'qPCR: glucocorticoid target genes in airway cells, fold changes from Excel (dexamethasone ± RU486)', log: true, stat: { test: 'rm_anova' },
+    what: '2^−ΔΔCt fold changes already calculated per sample; tested on a log2 scale, paired by experiment.', plot: { kind: 'bar' } },
   { kind: 'bench_western', analysis: 'generic', label: 'Western blot: AKT phosphorylation and apoptosis after a drug ± PI3K inhibitor', loading: 'ACTB',
     what: 'Raw band intensities (e.g. from ImageJ), normalised here to the β-actin row (optional step).', plot: { kind: 'bar' } },
   { kind: 'bench_facs', analysis: 'generic', label: 'Flow cytometry: cell-cycle arrest in G2/M after nocodazole',
@@ -55,8 +59,8 @@ const EXAMPLES: { kind: string; analysis: Analysis; label: string; what: string;
     what: 'IL-6, TNF and IL-1β in pg/mL, tested as log2 ratios, on a log axis.', plot: { kind: 'dots', logY: true } },
   { kind: 'bench_luciferase', analysis: 'generic', label: 'Luciferase reporter: NF-κB activity after TNF ± IKK inhibitor', loading: 'Renilla luciferase (control)',
     what: 'Firefly reporter, normalised here to the Renilla row (dual-luciferase).', plot: { kind: 'bar' } },
-  { kind: 'bench_qpcr', analysis: 'ddct', label: 'qPCR: glucocorticoid target genes in airway cells, raw Ct values (dexamethasone ± RU486)', refs: ['GAPDH', 'ACTB'], paired: true,
-    what: 'Ct values of 6 genes and 2 reference genes → ΔCt → ΔΔCt → fold change, paired by experiment.', plot: { kind: 'bar' } },
+  { kind: 'bench_qpcr', analysis: 'ddct', label: 'qPCR: glucocorticoid target genes in airway cells, raw Ct values (dexamethasone ± RU486)', refs: ['GAPDH', 'ACTB'], stat: { test: 'rm_anova' },
+    what: 'Ct values of 6 genes and 2 reference genes → ΔCt → ΔΔCt → fold change, paired by experiment (repeated-measures ANOVA).', plot: { kind: 'bar' } },
 ]
 const REF_GENES = ['GAPDH', 'ACTB', 'B2M', 'HPRT1', 'RPLP0', 'TBP', '18S', 'RN18S1', 'PPIA', 'YWHAZ', 'UBC', 'GUSB', 'TUBB', 'Gapdh', 'Actb']
 const PHASES = /^(G0\/G1|G1|S|G2\/M|G2|M|sub-?G1)$/i
@@ -77,9 +81,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [loading, setLoading] = useState('')
   const [log, setLog] = useState(false)
   const [control, setControl] = useState('')
-  const [paired, setPaired] = useState(false)
-  const [nonpar, setNonpar] = useState(false)
-  const [allPairs, setAllPairs] = useState(false)
+  const [stat, setStat] = useState<StatOpts>(DEFAULT_STAT)
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
@@ -101,16 +103,19 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const groupNames = useMemo(() => (grouped && groupSetup ? groupSetup.names.map((n) => n.trim()).filter((_, i) => groupSizes[i] > 0)
     : [...new Set(parsed?.guess ?? [])]), [grouped, groupSetup, parsed, groupSizes.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
   const effControl = groupNames.includes(control) ? control : groupNames[0] ?? ''
+  // Rows that are tested: all but the reference genes (ΔΔCt) or the row everything is normalised to.
+  const testRows = (parsed?.rowNames ?? []).filter((r) => !(helper === 'qpcr' && refs.includes(r)) && !(helper === 'western' && r === loading)).length || (parsed?.layout === 'column' ? 1 : 0)
 
   // The options are only a draft until "Generate plot": the tests and the figure use the applied copy.
   const pmode = usePaletteMode()
   const palette = useMemo(() => roleColors(pmode).series, [pmode])
   const groupColors = useMemo(() => (groupSetup ? groupSetup.names.map((_, i) => groupSetup.colors?.[i] || palette[i % palette.length]) : palette), [groupSetup, palette])
   const draft = useMemo(() => ({
-    helper, refs, loading, log, control: effControl, paired, nonpar, allPairs, groupsBody, plot,
+    helper, refs, loading, log, control: effControl, stat, groupsBody, plot,
     order: grouped && groupSetup ? groupSetup.names.map((n) => n.trim()) : groupNames,
+    k: groupNames.length,
     colors: groupColors,
-  }), [helper, refs, loading, log, effControl, paired, nonpar, allPairs, groupsBody, plot, grouped, groupSetup, groupNames, groupColors])
+  }), [helper, refs, loading, log, effControl, stat, groupsBody, plot, grouped, groupSetup, groupNames, groupColors])
   type Applied = typeof draft
   const [applied, setApplied] = useState<Applied | null>(null)
   const [autoGen, setAutoGen] = useState(false)
@@ -121,11 +126,17 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   // Examples are drawn straight away.
   useEffect(() => { if (autoGen && optionsReady) { setApplied(draft); setAutoGen(false) } }, [autoGen, optionsReady, draft])
 
+  // Your own table after an example: drop the settings that came with the example (log scale, normalising
+  // row, test, chart), keeping the analysis (generic / ΔΔCt) and the plot style.
+  const ownTable = () => {
+    if (source) { setLog(false); setLoading(''); if (helper === 'western') setHelper('none'); setStat(DEFAULT_STAT); setRefs([]); setPlot((p) => ({ ...p, kind: 'bar', logY: false })) }
+    setSource(null); setExampleKind('')
+  }
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
-      setRes(null); setApplied(null); setControl(''); setHelper(ex.analysis === 'ddct' ? 'qpcr' : ex.loading ? 'western' : 'none'); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
-      setNonpar(false); setAllPairs(false); setLog(!!ex.log); setFileName(r.fileName); setSource(r.source); setText(r.text); setExampleKind(ex.kind)
+      setRes(null); setApplied(null); setControl(''); setHelper(ex.analysis === 'ddct' ? 'qpcr' : ex.loading ? 'western' : 'none'); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setStat({ ...DEFAULT_STAT, ...ex.stat })
+      setLog(!!ex.log); setFileName(r.fileName); setSource(r.source); setText(r.text); setExampleKind(ex.kind)
       setPlot((p) => ({ ...p, kind: 'bar', logY: false, ...ex.plot }))
     } catch (e) { setErr(e) }
   }
@@ -163,8 +174,10 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     if (!applied || !parsed) { setRes(null); return }
     const a = applied
     setBusy(true); setErr(null)
-    api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper: a.helper, refs: a.refs, loading: a.loading, control: a.control || null, paired: a.paired,
-      nonparametric: a.nonpar, allPairs: a.allPairs, log: a.log, ...(a.groupsBody ? { groups: JSON.parse(a.groupsBody) } : {}) } })
+    const k = a.k
+    api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper: a.helper, refs: a.refs, loading: a.loading, control: a.control || null, log: a.log,
+      test: resolveTest(a.stat.test, k), posthoc: resolvePosthoc(a.stat, k) ?? 'auto', allPairs: a.stat.compare === 'all', across: a.stat.across,
+      ...(a.stat.hypo.trim() !== '' ? { hypothetical: Number(a.stat.hypo) } : {}), ...(a.groupsBody ? { groups: JSON.parse(a.groupsBody) } : {}) } })
       .then(setRes)
       .catch((e) => { setErr(e); setRes(null) })
       .finally(() => setBusy(false))
@@ -184,6 +197,8 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     [res, plotGroups, applied, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
   const smallViolin = !!res && applied?.plot.kind === 'violin' && res.targets.some((t) => t.summary.some((x) => x.n > 0 && x.n < 5))
   const tested = res?.targets.filter((t) => t.comparisons?.length) ?? []
+  const acrossCol = tested.some((t) => t.omnibus?.pAcross != null)
+  const acrossLabel = res?.across === 'bh' ? 'q (BH FDR, all rows)' : 'p (Holm, all rows)'
   const genesLike = !!res && res.layout === 'grouped' && res.helper !== 'facs'
 
   return (
@@ -197,7 +212,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           ? 'Raw Ct values, genes in rows and samples in columns, including one or more reference genes: Flame computes ΔCt, ΔΔCt and the fold changes (2^−ΔΔCt).'
           : 'Values you already have, e.g. processed in Excel: fold changes (including qPCR 2^−ΔΔCt), normalised band intensities, % viability, pg/mL, reporter ratios, % of cells. Samples in columns, genes or readouts in rows. Normalising to a row is optional.'}</p>
         <div className="row wrap">
-          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setExampleKind(''); setRes(null); setControl(''); setText(t); setFileName(n) }} />
+          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { ownTable(); setRes(null); setControl(''); setText(t); setFileName(n) }} />
           <Field label="Or try an example experiment">
             <select className="input input-sm" aria-label="Example experiment" value={exampleKind} style={{ maxWidth: 560 }}
               onChange={(e) => { const ex = EXAMPLES.find((x) => x.kind === e.target.value); if (ex) loadExample(ex) }}>
@@ -210,7 +225,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           placeholder={helper === 'qpcr'
             ? 'Raw Ct values: genes in rows (with a reference gene), one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'
             : 'Values ready to compare: genes or readouts in rows, one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nFKBP5\t1.00\t0.95\t11.7\t12.6\nIL6\t1.00\t0.96\t0.31\t0.33\n\nOr one column per group, one row per replicate:\nVehicle\tCisplatin\n100\t49.8\n96.8\t45.2'}
-          onChange={(e) => { setSource(null); setExampleKind(''); setText(e.target.value); setFileName('') }} />
+          onChange={(e) => { ownTable(); setText(e.target.value); setFileName('') }} />
         {source && (() => { const ex = EXAMPLES.find((x) => x.kind === exampleKind); return (
           <p className="example-source"><strong>Example data:</strong> {source}{ex ? <> <em>{ex.what}</em></> : null}{' '}
             {ex && <a href={`${API_BASE}/inputs/examples/${ex.kind}/file`} download>Download the table</a>} to see the layout.</p>
@@ -265,10 +280,9 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                 {groupNames.map((g) => <option key={g}>{g}</option>)}
               </select>
             </Field>
-            <label className="check small" title="Each replicate (row, or replicate number) is the same experiment, blot or donor in every group"><input type="checkbox" checked={paired} onChange={(e) => setPaired(e.target.checked)} /> Rows are paired</label>
-            <label className="check small"><input type="checkbox" checked={nonpar} onChange={(e) => setNonpar(e.target.checked)} /> Non-parametric</label>
-            {groupNames.length > 2 && <label className="check small"><input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} /> All pairs (not only vs control)</label>}
           </div>
+          <BenchTestControls s={stat} set={setStat} k={groupNames.length} rows={testRows}
+            canRatio={helper === 'none' && !log} foldScale={helper !== 'none' || log} />
           {helper === 'qpcr' && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
           {helper === 'qpcr' && !grouped && <Note kind="warning">ΔΔCt needs genes in rows (including a reference gene) and samples in columns.</Note>}
           <h3 className="small">Plot</h3>
@@ -301,29 +315,52 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                   <Plot data={figure.data as never} layout={figure.layout as never} height={ap.figH} tools={false} exportName={`flame_bench_${ap.kind}`} />
                 </div>
                 <p className="muted small">{ap.points && ap.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && ap.pvals !== 'off'
-                  ? `${ap.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${ap.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${ap.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>
+                  ? `${res.test?.startsWith('one_sample') ? `Stars: each group vs ${res.hypothetical}` : ap.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${ap.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${ap.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>
               </div>
             ) })()}
             <div className="table-scroll fetch-table"><table className="table compact">
               <thead><tr><th>{res.layout === 'grouped' ? 'Gene / target' : 'Target'}</th><th>Comparison</th>
                 <th className="num">{res.logScale ? 'Fold change' : 'Difference'}</th>{res.logScale && <th className="num">log2 FC</th>}<th className="num">95% CI</th>
-                <th className="num">p</th>{tested.length > 1 && <th className="num">p (Holm, all targets)</th>}<th /></tr></thead>
+                <th className="num">p</th>{acrossCol && <th className="num">{acrossLabel}</th>}<th /></tr></thead>
               <tbody>{tested.flatMap((t) => t.comparisons!.map((c, i) => (
                 <tr key={`${t.target}-${c.a}-${c.b}`}>
-                  <td>{i === 0 ? <strong>{t.target}</strong> : ''}</td><td className="small">{c.a} vs {c.b}</td>
+                  <td>{i === 0 ? <><strong>{t.target}</strong>{t.omnibus?.detail && t.comparisons!.length > 1 && <div className="muted small">{t.omnibus.name}: {t.omnibus.detail}, p = {fmtP(t.omnibus.p)}</div>}
+                    {t.omnibus?.detail && t.comparisons!.length === 1 && <div className="muted small">{t.omnibus.detail}</div>}</> : ''}</td>
+                  <td className="small">{c.a} vs {c.b === 'value' ? res.hypothetical : c.b}</td>
                   <td className="num">{res.logScale ? num(c.fold) : num(c.diff)}</td>{res.logScale && <td className="num">{num(c.diff)}</td>}
                   <td className="num small">{c.lo != null && Number.isFinite(c.lo) ? (res.logScale ? `${num(2 ** c.lo)} to ${num(2 ** c.hi!)}` : `${num(c.lo)} to ${num(c.hi)}`) : '—'}</td>
-                  <td className="num">{fmtP(c.p)}</td>{tested.length > 1 && <td className="num">{i === 0 ? fmtP(t.omnibus?.pAcross) : ''}</td>}<td><strong>{c.stars}</strong></td>
+                  <td className="num">{fmtP(c.p)}</td>{acrossCol && <td className="num">{i === 0 ? fmtP(t.omnibus?.pAcross) : ''}</td>}<td><strong>{c.stars}</strong></td>
                 </tr>
               )))}</tbody>
             </table></div>
             {res.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="info">{t.target}: {t.error}</Note>)}
+            {res.anova2 && (
+              <div className="table-scroll"><table className="table compact">
+                <thead><tr><th>Two-way ANOVA</th><th className="num">F</th><th className="num">DFn, DFd</th><th className="num">p</th><th /></tr></thead>
+                <tbody>{res.anova2.map((r) => <tr key={r.effect}><td>{r.effect}</td><td className="num">{num(r.F)}</td><td className="num">{r.df1}, {r.df2}</td><td className="num">{fmtP(r.p)}</td>
+                  <td><strong>{r.p < 0.001 ? '***' : r.p < 0.01 ? '**' : r.p < 0.05 ? '*' : 'ns'}</strong></td></tr>)}</tbody>
+              </table></div>
+            )}
+            {res.targets.some((t) => t.assumptions) && (
+              <details className="small">
+                <summary>Assumptions: normality and equal SDs</summary>
+                <div className="table-scroll"><table className="table compact">
+                  <thead><tr><th>Gene / target</th>{res.groups.map((g) => <th key={g} className="num">Shapiro–Wilk p, {g}</th>)}<th className="num">Equal SDs p</th></tr></thead>
+                  <tbody>{res.targets.filter((t) => t.assumptions).map((t) => (
+                    <tr key={t.target}><td>{t.target}</td>
+                      {res.groups.map((g) => { const nm = t.assumptions!.normality.find((x) => x.group === g); return <td key={g} className="num">{nm?.p != null ? fmtP(nm.p) : 'n < 3'}</td> })}
+                      <td className="num">{t.assumptions!.equalSD ? `${fmtP(t.assumptions!.equalSD.p)} (${t.assumptions!.equalSD.name})` : '—'}</td></tr>
+                  ))}</tbody>
+                </table></div>
+                <p className="muted">Small p-values (&lt; 0.05) suggest the data are not Gaussian (Shapiro–Wilk) or the SDs differ (then prefer Welch / Brown–Forsythe ANOVA, or a non-parametric test). With 3–4 values per group these checks have little power: a large p does not prove the assumption.</p>
+              </details>
+            )}
             <div className="row wrap">
               <span className="small"><strong>Methods:</strong> {res.methods}</span>
               <CopyButton label="Copy methods" text={res.methods} />
               <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: 'Results', rows: tested.flatMap((t) => t.comparisons!.map((c) => ({
                 Target: t.target, Comparison: `${c.a} vs ${c.b}`, ...(res.logScale ? { 'Fold change': c.fold, log2FC: c.diff } : { Difference: c.diff }),
-                'CI low': c.lo, 'CI high': c.hi, p: c.p, 'p (Holm, all targets)': t.omnibus?.pAcross ?? '', Test: `${t.omnibus?.name ?? ''}${t.posthoc ? `; ${t.posthoc}` : ''}` }))) },
+                'CI low': c.lo, 'CI high': c.hi, p: c.p, ...(acrossCol ? { [acrossLabel]: t.omnibus?.pAcross ?? '' } : {}), Test: `${t.omnibus?.name ?? ''}${t.omnibus?.detail ? ` (${t.omnibus.detail})` : ''}${t.posthoc ? `; ${t.posthoc}` : ''}` }))) },
                 { name: 'Values', rows: res.targets.flatMap((t) => t.values.map((v) => ({ Target: t.target, Group: v.group, Sample: v.sample, [res.shownAs]: v.value }))) }], 'flame_bench_results.xlsx')}>Excel</button>
             </div>
             {genesLike && tested.length > 0 && <BenchGenes res={res} tested={tested} organism={organism} setOrganism={setOrganism} onCreated={onCreated} />}
@@ -400,7 +437,7 @@ function BenchGroups({ samples, setup, setSetup, initial, maxGroups, helper, col
           </Field>
         ))}
       </div>
-      <p className="muted small">Up to {maxGroups} groups. Samples in no group are left out of the tests{helper === 'qpcr' ? ' (they are still normalised to the reference genes)' : ''}. With <em>Rows are paired</em>, the first sample of each group is paired with the first of the others, and so on, in table order.</p>
+      <p className="muted small">Up to {maxGroups} groups. Samples in no group are left out of the tests{helper === 'qpcr' ? ' (they are still normalised to the reference genes)' : ''}. With a paired test (paired t, ratio paired t, Wilcoxon, repeated-measures ANOVA, Friedman), the first sample of each group is paired with the first of the others, and so on, in table order.</p>
     </SampleGroupPicker>
   )
 }

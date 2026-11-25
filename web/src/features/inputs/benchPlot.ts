@@ -121,11 +121,16 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const yTitleXY = o.yTitle.trim() || (one && !res.logScale && ts[0].target !== 'value' ? ts[0].target : defaultYTitle)
 
   // p-value brackets: each comparison of a target as a bracket over its two groups, shortest lowest.
-  type Bracket = { ti: number; x0: number; x1: number; y: number; label: string }
+  type Bracket = { ti: number; x0: number; x1: number; y: number; label: string; single?: boolean }
   const brackets: Bracket[] = []
   if (o.pvals !== 'off') {
     const step = (ymax - ymin || 1) * 0.075
     ts.forEach((t, ti) => {
+      // One-sample tests (each group vs a value): the label alone, above the group.
+      for (const c of (t.comparisons ?? []).filter((c) => c.b === 'value' && groups.includes(c.a) && (!o.hideNs || c.stars !== 'ns'))) {
+        const gi = groups.indexOf(c.a)
+        brackets.push({ ti, x0: pos(ti, gi), x1: pos(ti, gi), y: T(top(t, c.a)) + step * 0.3, label: o.pvals === 'exact' ? fmtP(c.p) : c.stars, single: true })
+      }
       const cs = (t.comparisons ?? []).filter((c) => groups.includes(c.a) && groups.includes(c.b) && (!o.hideNs || c.stars !== 'ns'))
         .map((c) => ({ c, gi: [groups.indexOf(c.a), groups.indexOf(c.b)].sort((a, b) => a - b) }))
         .sort((a, b) => (a.gi[1] - a.gi[0]) - (b.gi[1] - b.gi[0]) || a.gi[0] - b.gi[0])
@@ -207,7 +212,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     const ln = { color: bw ? ink : '#374151', width: 1.2 }
     // On a log axis Plotly places annotations in log10 units but shapes in data units.
     const U = (v: number) => (o.logY ? 10 ** v : v)
-    shapes.push({ type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x1, y0: U(y), y1: U(y), line: ln },
+    if (!b.single) shapes.push({ type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x1, y0: U(y), y1: U(y), line: ln },
       { type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x0, y0: U(y - tick), y1: U(y), line: ln },
       { type: 'line', xref: 'x', yref: r, x0: b.x1, x1: b.x1, y0: U(y - tick), y1: U(y), line: ln })
     annotations.push({ x: (b.x0 + b.x1) / 2, y, yref: r, text: b.label, showarrow: false, yanchor: 'bottom',

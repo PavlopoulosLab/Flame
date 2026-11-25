@@ -99,6 +99,13 @@ describe('bench figures', () => {
     expect(l.xaxis.title.text).toBe('')
   })
 
+  it('one-sample tests: a label above each tested group, no bracket', () => {
+    const vs = { ...res, targets: res.targets.map((t) => ({ ...t, comparisons: [{ a: 'Dex', b: 'value', p: 0.001, stars: '**' }] })) }
+    const l = benchFigure(vs, DEFAULT_PLOT, () => '#000000', 'Fold change').layout as unknown as { annotations: { text: string }[]; shapes: unknown[] }
+    expect(l.annotations.map((a) => a.text)).toEqual(['**', '**'])
+    expect(l.shapes).toHaveLength(1)                                                                  // only the line at fold change 1
+  })
+
   it('one target: each group is labelled under its bar', () => {
     const one = benchFigure({ ...res, targets: [res.targets[0]] }, DEFAULT_PLOT, () => '#000000', 'Value')
     expect((one.layout as unknown as Record<string, any>).xaxis.ticktext).toEqual(['Control', 'Dex', 'RU486'])

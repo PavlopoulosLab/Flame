@@ -116,7 +116,7 @@ test_that("many groups are allowed (up to BENCH_MAX_GROUPS)", {
   n <- 20L
   hdr <- paste(c("Gene", paste0("S", seq_len(2 * n))), collapse = "\t")
   ref <- paste(c("GAPDH", rep("18", 2 * n)), collapse = "\t")
-  tg <- paste(c("FKBP5", sprintf("%.1f", 27 - rep(seq_len(n), each = 2) / 10 + rep(c(0, 0.05), n))), collapse = "\t")
+  tg <- paste(c("FKBP5", sprintf("%.2f", 27 - rep(seq_len(n), each = 2) / 10 + rep(c(0, 0.05), n) + rep(c(0.013, -0.007), n) * seq_len(2 * n) / 10)), collapse = "\t")
   groups <- stats::setNames(lapply(seq_len(n), function(i) list(paste0("S", 2 * i - 1), paste0("S", 2 * i))), paste("Dose", seq_len(n)))
   r <- bench_analyse(paste(hdr, ref, tg, sep = "\n"), "q.tsv", helper = "qpcr", refs = list("GAPDH"), sampleGroups = groups)
   expect_equal(length(r$groups), n)
@@ -146,4 +146,91 @@ test_that("the six example experiments load and give the expected results", {
   expect_equal(length(l$targets), 1L)                                              # the Renilla control is not tested
   expect_gt(fold(l, "NF-kB firefly luciferase", "TNF"), 6)
   expect_lt(fold(l, "NF-kB firefly luciferase", "TNF + IKK inhibitor"), 3)
+})
+
+test_that("GraphPad's tests: each equals R's reference implementation", {
+  # 3 groups x 4 replicates (pairs = replicate number), one target
+  A <- c(10.1, 11.4, 9.8, 10.9); B <- c(13.2, 14.9, 12.1, 15.3); C <- c(10.5, 12.8, 9.1, 13.6)
+  txt3 <- paste(c("Gene\tA 1\tA 2\tA 3\tA 4\tB 1\tB 2\tB 3\tB 4\tC 1\tC 2\tC 3\tC 4", paste(c("X", A, B, C), collapse = "\t")), collapse = "\n")
+  txt2 <- paste(c("Gene\tA 1\tA 2\tA 3\tA 4\tB 1\tB 2\tB 3\tB 4", paste(c("X", A, B), collapse = "\t")), collapse = "\n")
+  p1 <- function(r) r$targets[[1]]$comparisons[[1]]$p
+  om <- function(r) r$targets[[1]]$omnibus$p
+  y <- c(A, B, C); g <- factor(rep(c("A", "B", "C"), each = 4)); s <- factor(rep(1:4, 3))
+  # two groups
+  expect_equal(p1(bench_analyse(txt2, "t.tsv", test = "t_unpaired")), t.test(B, A, var.equal = TRUE)$p.value)
+  expect_equal(p1(bench_analyse(txt2, "t.tsv", test = "t_welch")), t.test(B, A)$p.value)
+  expect_equal(p1(bench_analyse(txt2, "t.tsv", test = "t_paired")), t.test(B, A, paired = TRUE)$p.value)
+  expect_equal(p1(bench_analyse(txt2, "t.tsv", test = "t_ratio")), t.test(log2(B), log2(A), paired = TRUE)$p.value)
+  expect_equal(p1(bench_analyse(txt2, "t.tsv", test = "ks")), suppressWarnings(ks.test(B, A))$p.value)
+  expect_equal(p1(bench_analyse(txt2, "t.tsv", test = "mann_whitney")), suppressWarnings(wilcox.test(B, A))$p.value)
+  # three groups: omnibus tests
+  expect_equal(om(bench_analyse(txt3, "t.tsv", test = "anova")), summary(aov(y ~ g))[[1]][1, "Pr(>F)"])
+  expect_equal(om(bench_analyse(txt3, "t.tsv", test = "welch_anova")), oneway.test(y ~ g)$p.value)
+  # Brown-Forsythe F* equals the ordinary F when the groups are the same size
+  bf <- flame:::.bf_anova(y, g); expect_equal(unname(bf$stat), unname(summary(aov(y ~ g))[[1]][1, "F value"]))
+  expect_equal(om(bench_analyse(txt3, "t.tsv", test = "kruskal")), kruskal.test(y ~ g)$p.value)
+  expect_equal(om(bench_analyse(txt3, "t.tsv", test = "friedman")), friedman.test(matrix(y, 4))$p.value)
+  # RM ANOVA: Geisser-Greenhouse epsilon checked with orthonormal contrasts
+  W <- matrix(y, 4); Cn <- qr.Q(qr(contr.helmert(3))); M <- t(Cn) %*% cov(W) %*% Cn
+  eps <- sum(diag(M))^2 / (2 * sum(M^2))
+  tab <- summary(aov(y ~ g + s))[[1]]
+  expect_equal(om(bench_analyse(txt3, "t.tsv", test = "rm_anova")), pf(tab[1, "F value"], eps * 2, eps * tab["Residuals", "Df"], lower.tail = FALSE))
+  # post hoc after ordinary ANOVA: Fisher, Bonferroni, Sidak from pooled-SD t tests; Tukey = TukeyHSD
+  raw <- pairwise.t.test(y, g, p.adjust.method = "none", pool.sd = TRUE)$p.value
+  rawv <- c(raw["B", "A"], raw["C", "A"], raw["C", "B"])
+  ps <- function(ph) { r <- bench_analyse(txt3, "t.tsv", test = "anova", posthoc = ph, allPairs = TRUE)
+    stats::setNames(vapply(r$targets[[1]]$comparisons, `[[`, 0, "p"), vapply(r$targets[[1]]$comparisons, function(c) paste(c$a, c$b), "")) }
+  expect_equal(unname(ps("fisher")[c("B A", "C A", "C B")]), unname(rawv))
+  expect_equal(unname(ps("bonferroni")[c("B A", "C A", "C B")]), pmin(1, rawv * 3))
+  expect_equal(unname(ps("sidak")[c("B A", "C A", "C B")]), 1 - (1 - rawv)^3)
+  hs <- ps("holm_sidak")[c("B A", "C A", "C B")]; o <- order(rawv)
+  expect_equal(unname(hs[o]), cummax(1 - (1 - rawv[o])^(3:1)))
+  tk <- TukeyHSD(aov(y ~ g))$g
+  expect_equal(unname(sort(ps("tukey"))), unname(sort(tk[, "p adj"])), tolerance = 1e-8)
+  # unequal-SD post hoc tests reduce to Welch's t test for one comparison
+  d2 <- data.frame(group = factor(rep(c("A", "B"), each = 4)), y = c(A, B))
+  expect_equal(flame:::.unequal_cmp(d2, list(c("B", "A")), "games_howell", 2)$p, t.test(B, A)$p.value, tolerance = 1e-4)   # ptukey integrates numerically
+  expect_equal(flame:::.unequal_cmp(d2, list(c("B", "A")), "dunnett_t3", 2)$p, t.test(B, A)$p.value)
+  r <- bench_analyse(txt3, "t.tsv", test = "welch_anova", posthoc = "games_howell")
+  expect_equal(length(r$targets[[1]]$comparisons), 3L)                                   # Games-Howell: all pairs
+  # Dunnett is vs control only, whatever "all pairs" says
+  expect_equal(length(bench_analyse(txt3, "t.tsv", test = "anova", posthoc = "dunnett", allPairs = TRUE)$targets[[1]]$comparisons), 2L)
+  # wrong number of groups: a clear message
+  expect_error(bench_analyse(txt3, "t.tsv", test = "t_welch"), "compares two groups")
+  expect_error(bench_analyse(txt2, "t.tsv", test = "anova"), "three or more groups")
+  # assumption checks
+  a <- bench_analyse(txt3, "t.tsv", test = "anova")$targets[[1]]$assumptions
+  expect_equal(a$normality[[1]]$p, shapiro.test(A)$p.value)
+  expect_equal(a$equalSD$name, "Brown–Forsythe test")
+})
+
+test_that("one-sample tests, two-way ANOVA and corrections across rows", {
+  # fold changes from Excel with the controls exactly 1: each group vs 1 (on log2)
+  fc <- "Gene\tC 1\tC 2\tC 3\tD 1\tD 2\tD 3\nFKBP5\t1\t1\t1\t11.7\t12.6\t10.3\nIL6\t1\t1\t1\t0.31\t0.33\t0.28"
+  r <- bench_analyse(fc, "f.tsv", log = TRUE, test = "one_sample_t", hypothetical = 1)
+  expect_equal(r$targets[[1]]$comparisons[[1]]$p, t.test(log2(c(11.7, 12.6, 10.3)), mu = 0)$p.value)
+  expect_match(r$sentence, "vs 1")
+  # values as given: vs 100 (% of control)
+  v <- "Readout\tVeh 1\tVeh 2\tVeh 3\tDrug 1\tDrug 2\tDrug 3\nViability\t100\t100\t100\t71\t68\t76"
+  rv <- bench_analyse(v, "v.tsv", test = "one_sample_t", hypothetical = 100)
+  expect_equal(rv$targets[[1]]$comparisons[[1]]$p, t.test(c(71, 68, 76), mu = 100)$p.value)
+  # two-way ANOVA = aov(y ~ row * group); comparisons within each row from the pooled error
+  e <- example_input("bench_elisa")
+  r2 <- bench_analyse(e$text, e$fileName, log = TRUE, test = "twoway", posthoc = "sidak")
+  x <- read.delim(text = e$text, check.names = FALSE)
+  long <- data.frame(target = rep(x[[1]], 9), group = rep(sub(" [0-9]+$", "", names(x)[-1]), each = 3), v = unlist(x[-1]))
+  long$y <- log2(long$v); long$group <- factor(long$group, levels = c("Unstimulated", "LPS", "LPS + dexamethasone"))
+  tab <- summary(aov(y ~ target * group, data = long))[[1]]
+  expect_equal(r2$anova2[[1]]$p, tab[trimws(rownames(tab)) == "target:group", "Pr(>F)"])
+  expect_equal(r2$targets[[1]]$comparisons[[1]]$a, "LPS")
+  expect_match(r2$sentence, "two-way ANOVA")
+  expect_error(bench_analyse(e$text, e$fileName, test = "twoway", helper = "western", loading = "IL6"), NA)  # 2 rows left: fine
+  # corrections across rows: Holm (default), Benjamini-Hochberg, none
+  q <- example_input("bench_qpcr")
+  main <- function(r) vapply(r$targets, function(t) t$omnibus$p, 0)
+  holm <- bench_analyse(q$text, q$fileName, helper = "qpcr", refs = list("GAPDH", "ACTB"))
+  bh <- bench_analyse(q$text, q$fileName, helper = "qpcr", refs = list("GAPDH", "ACTB"), across = "bh")
+  expect_equal(vapply(bh$targets, function(t) t$omnibus$pAcross, 0), p.adjust(main(bh), "BH"))
+  expect_equal(vapply(holm$targets, function(t) t$omnibus$pAcross, 0), p.adjust(main(holm), "holm"))
+  expect_null(bench_analyse(q$text, q$fileName, helper = "qpcr", refs = list("GAPDH", "ACTB"), across = "none")$targets[[1]]$omnibus$pAcross)
 })
