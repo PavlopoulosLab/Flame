@@ -109,7 +109,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   // Rows that are tested: all but the reference genes (ΔΔCt) or the row everything is normalised to.
   const testRows = (parsed?.rowNames ?? []).filter((r) => !(helper === 'qpcr' && refs.includes(r)) && !(helper === 'western' && r === loading)).length || (parsed?.layout === 'column' ? 1 : 0)
 
-  // The options are only a draft until "Generate plot": the tests and the figure use the applied copy.
+  // The options as set; the tests and the figure follow them automatically (see "applied" below).
   const pmode = usePaletteMode()
   const palette = useMemo(() => roleColors(pmode).series, [pmode])
   const groupColors = useMemo(() => (groupSetup ? groupSetup.names.map((_, i) => groupSetup.colors?.[i] || palette[i % palette.length]) : palette), [groupSetup, palette])
@@ -121,13 +121,14 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   }), [helper, refs, loading, log, effControl, stat, groupsBody, plot, grouped, groupSetup, groupNames, groupColors])
   type Applied = typeof draft
   const [applied, setApplied] = useState<Applied | null>(null)
-  const [autoGen, setAutoGen] = useState(false)
-  const optionsReady = !!parsed && confirmed && groupsReady && groupNames.length >= 2
+  const optionsReady = mode !== 'normality' && !!parsed && confirmed && groupsReady && groupNames.length >= 2
     && !(helper === 'qpcr' && !refs.length) && !(helper === 'western' && !loading)
-  const dirty = !!applied && JSON.stringify(draft) !== JSON.stringify(applied)
-  const generate = () => { if (optionsReady) setApplied(draft) }
-  // Examples are drawn straight away.
-  useEffect(() => { if (autoGen && optionsReady) { setApplied(draft); setAutoGen(false) } }, [autoGen, optionsReady, draft])
+  // Every change applies itself shortly after (typing in a box does not test at each key). While an option is
+  // missing there is no figure at all, rather than an old one that no longer matches the options.
+  useEffect(() => {
+    const t = setTimeout(() => setApplied(optionsReady ? draft : null), optionsReady ? 350 : 0)
+    return () => clearTimeout(t)
+  }, [optionsReady, draft])
 
   // Your own table after an example: drop the settings that came with the example (log scale, normalising
   // row, test, chart), keeping the analysis (generic / ΔΔCt) and the plot style.
@@ -137,7 +138,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   }
   // "Analyse with this test" from the normality step: the experimental analysis, with that test, drawn at once.
   const useRecommendation = (r: Recommendation) => {
-    setMode('generic'); setHelper('none'); setLoading(''); setLog(r.log); setStat({ ...DEFAULT_STAT, test: r.test }); setApplied(null); setAutoGen(true)
+    setMode('generic'); setHelper('none'); setLoading(''); setLog(r.log); setStat({ ...DEFAULT_STAT, test: r.test }); setApplied(null)
   }
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
@@ -162,7 +163,6 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           setParsed(p)
           setGroupSetup(p.layout === 'grouped' ? setupFrom(p) : null)
           setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
-          if (source && mode !== 'normality') setAutoGen(true)
           // Own tables: never switch the analysis; only pre-tick reference genes (ΔΔCt) or suggest stacked bars (cell-cycle phases).
           if (!source && p.layout === 'grouped') {
             if (helper === 'qpcr' && !refs.length) setRefs(p.rowNames.filter((r) => REF_GENES.includes(r)))
@@ -312,11 +312,8 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             <PaletteSelect />
             {grouped && <span className="small muted">or pick one per group in the group editor above</span>}
           </div>
-          <div className="row">
-            <button className="btn btn-primary" disabled={!optionsReady || (!!applied && !dirty) || busy} onClick={generate}>{applied ? 'Update plot' : 'Generate plot'}</button>
-            {dirty && <span className="small">Options changed: press <strong>Update plot</strong> to apply them.</span>}
-            {!optionsReady && confirmed && <span className="small muted">{!groupsReady || groupNames.length < 2 ? 'Put samples in at least two groups first.' : 'Complete the options above first.'}</span>}
-          </div>
+          {!optionsReady && confirmed && <Note kind="info">{!groupsReady || groupNames.length < 2 ? 'Put samples in at least two groups to get the tests and the figure.' : 'Complete the options above: the tests and the figure appear as soon as they are set.'}</Note>}
+          {optionsReady && <p className="muted small">The tests and the figure update as you change any option.</p>}
           </div>
         )}
         {busy && <BusyBar label={applied ? 'Testing and drawing' : 'Reading the table'} expect={2} />}
@@ -327,7 +324,6 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             {res.warnings.map((w) => <Note key={w} kind="warning">{w}</Note>)}
             {figure && applied && (() => { const ap = applied.plot; return (
               <div className="stack-sm bench-figure">
-                {dirty && <Note kind="info">This figure uses the previous options. Press <strong>Update plot</strong> above to apply your changes.</Note>}
                 {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
                 {ap.brk !== 'off' && !figure.broken && ap.kind !== 'stacked' && <p className="small muted">{ap.brk === 'auto' ? 'No axis break needed: the values are of similar height.' : 'Axis break: set from < to, both below the top of the axis.'}</p>}
                 {figure.broken && <p className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</p>}
