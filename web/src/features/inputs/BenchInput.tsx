@@ -9,8 +9,8 @@ import { benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
 import { PlotControls } from './BenchPlotControls'
 import { BenchTestControls } from './BenchTestControls'
 import { BenchNormality, type Recommendation } from './BenchNormality'
+import { BenchExport, TableView } from './BenchExport'
 import { DEFAULT_STAT, resolvePosthoc, resolveTest, type StatOpts } from './benchTests'
-import { saveXlsx } from '../../lib/xlsx'
 import { SampleGroupPicker, SaveList } from './InputModal'
 import { plural } from '../../lib/format'
 
@@ -374,11 +374,13 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             <div className="row wrap">
               <span className="small"><strong>Methods:</strong> {res.methods}</span>
               <CopyButton label="Copy methods" text={res.methods} />
-              <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: 'Results', rows: tested.flatMap((t) => t.comparisons!.map((c) => ({
-                Target: t.target, Comparison: `${c.a} vs ${c.b}`, ...(res.logScale ? { 'Fold change': c.fold, log2FC: c.diff } : { Difference: c.diff }),
-                'CI low': c.lo, 'CI high': c.hi, p: c.p, ...(acrossCol ? { [acrossLabel]: t.omnibus?.pAcross ?? '' } : {}), Test: `${t.omnibus?.name ?? ''}${t.omnibus?.detail ? ` (${t.omnibus.detail})` : ''}${t.posthoc ? `; ${t.posthoc}` : ''}` }))) },
-                { name: 'Values', rows: res.targets.flatMap((t) => t.values.map((v) => ({ Target: t.target, Group: v.group, Sample: v.sample, [res.shownAs]: v.value }))) }], 'flame_bench_results.xlsx')}>Excel</button>
+
             </div>
+            <details className="small" open>
+              <summary><strong>Descriptive statistics</strong> (n, mean, SD, SEM, 95% CI, median, range)</summary>
+              <TableView res={res} id="descriptive" />
+            </details>
+            <BenchExport res={res} />
             {genesLike && tested.length > 0 && <BenchGenes res={res} tested={tested} organism={organism} setOrganism={setOrganism} onCreated={onCreated} />}
           </>
         )}
