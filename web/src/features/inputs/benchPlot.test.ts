@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { benchFigure, DEFAULT_PLOT, type FigInput, type PlotOpts } from './benchPlot'
+import { autoFigWidth, benchFigure, DEFAULT_PLOT, type FigInput, type PlotOpts } from './benchPlot'
 
 // Two targets, three groups of three replicates; FKBP5 up in Dex, IL6 down.
 const vals = (target: string, g: string, xs: number[]) => xs.map((value, i) => ({ group: g, sample: `${g} ${i + 1}`, value, target }))
@@ -120,6 +120,24 @@ describe('bench figures', () => {
     expect(l.title.text).toBe('FKBP5 after dexamethasone')
     expect(l.margin.t).toBeGreaterThan(30)
     expect((fig({}).layout as unknown as { title?: unknown }).title).toBeUndefined()
+  })
+
+  it('the plot and axis titles take their own font, size, bold and italic', () => {
+    type F = { size: number; weight: string; style: string; family?: string }
+    const l = fig({ title: 'T', yTitle: 'Relative mRNA', xTitle: 'Gene', family: 'Arial', titleSize: 24, titleItalic: true, yTitleBold: true, xTitleSize: 10, xTitleItalic: true })
+      .layout as unknown as { title: { font: F }; yaxis: { title: { text: string; font: F } }; xaxis: { title: { font: F } }; font: { family: string } }
+    expect(l.title.font).toMatchObject({ size: 24, weight: 'bold', style: 'italic', family: 'Arial' })
+    expect(l.yaxis.title).toMatchObject({ text: 'Relative mRNA', font: { size: 13, weight: 'bold', style: 'normal' } })
+    expect(l.xaxis.title.font).toMatchObject({ size: 10, weight: 'normal', style: 'italic' })
+    expect(l.font.family).toBe('Arial')
+  })
+
+  it('one gene shown on its own gets a figure sized to its groups, not the whole window', () => {
+    expect(autoFigWidth(1, 2, DEFAULT_PLOT)).toBe(340)
+    expect(autoFigWidth(1, 5, DEFAULT_PLOT)).toBeGreaterThan(autoFigWidth(1, 2, DEFAULT_PLOT)!)
+    expect(autoFigWidth(1, 2, { ...DEFAULT_PLOT, title: 'A long title for one gene shown on its own here' })).toBeGreaterThan(500)
+    expect(autoFigWidth(6, 2, DEFAULT_PLOT)).toBeNull()                                          // all genes: the window's width
+    expect(autoFigWidth(1, 2, { ...DEFAULT_PLOT, figW: 700 })).toBeNull()                         // the user's width wins
   })
 
   it('one target: each group is labelled under its bar', () => {

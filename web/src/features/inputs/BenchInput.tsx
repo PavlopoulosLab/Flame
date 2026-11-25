@@ -5,7 +5,7 @@ import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note, Segmented } from '../../components/ui'
 import { roleColors, usePaletteMode } from '../../lib/palette'
 import { PaletteSelect } from '../../components/PaletteSelect'
-import { benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
+import { autoFigWidth, benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
 import { PlotControls } from './BenchPlotControls'
 import { BenchTestControls } from './BenchTestControls'
 import { BenchNormality, type Recommendation } from './BenchNormality'
@@ -329,22 +329,22 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             {res.targets.length > 1 && (
               <div className="bench-genes-pick row wrap" role="group" aria-label="Show one gene or readout">
                 <strong className="small">Show:</strong>
-                <button type="button" className={`btn btn-sm ${!focusOk ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={!focusOk} onClick={() => setFocus('')}>All {res.layout === 'grouped' ? 'genes / readouts' : 'rows'} ({res.targets.length})</button>
                 {res.targets.map((t) => {
                   const best = Math.min(...(t.comparisons ?? []).map((c) => c.p).filter(Number.isFinite))
                   const star = !Number.isFinite(best) ? '' : best < 0.001 ? ' ***' : best < 0.01 ? ' **' : best < 0.05 ? ' *' : ''
                   return <button key={t.target} type="button" className={`btn btn-sm ${focus === t.target ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={focus === t.target}
                     title={t.error ?? `${t.target}: smallest p = ${Number.isFinite(best) ? fmtP(best) : 'none'}`} onClick={() => setFocus(t.target)}>{t.target}{star}</button>
                 })}
+                <button type="button" className={`btn btn-sm ${!focusOk ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={!focusOk} onClick={() => setFocus('')}>All {res.layout === 'grouped' ? 'genes / readouts' : 'rows'} ({res.targets.length})</button>
                 <span className="muted small">One at a time: its own figure, comparisons, statistics and exports (stars: its smallest p).</span>
               </div>
             )}
-            {figure && applied && (() => { const ap = applied.plot; return (
+            {figure && applied && (() => { const ap = applied.plot, w = ap.figW || autoFigWidth(shown!.targets.filter((t) => !t.error && t.values.length).length, plotGroups.length, ap); return (
               <div className="stack-sm bench-figure">
                 {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
                 {ap.brk !== 'off' && !figure.broken && ap.kind !== 'stacked' && <p className="small muted">{ap.brk === 'auto' ? 'No axis break needed: the values are of similar height.' : 'Axis break: set from < to, both below the top of the axis.'}</p>}
                 {figure.broken && <p className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</p>}
-                <div style={ap.figW ? { width: ap.figW, maxWidth: '100%' } : undefined}>
+                <div style={w ? { width: w, maxWidth: '100%' } : undefined}>
                   <Plot data={figure.data as never} layout={figure.layout as never} height={ap.figH} tools={false} exportName={`flame_bench_${ap.kind}`} />
                 </div>
                 <p className="muted small">{ap.points && ap.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && ap.pvals !== 'off'
