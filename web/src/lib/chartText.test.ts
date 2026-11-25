@@ -8,14 +8,16 @@ type Ax = { title: { text: string; font: F }; tickfont: F; tickangle?: number; g
 describe('text of all charts', () => {
   it('styles the title, every x / y axis title and tick labels, and the legend', () => {
     const l = applyChartText({ title: 'Volcano', xaxis: { title: { text: 'log2 FC' }, gridcolor: '#eee' }, yaxis: { title: '−log10 p' }, yaxis2: { title: { text: 'Count', font: { color: 'red' } } } },
-      t({ family: 'Arial', tickAngle: 45, xTitle: { size: 16, bold: true, italic: false }, yTitle: { size: 0, bold: false, italic: true }, xTick: { size: 11, bold: false, italic: false }, yTick: { size: 9, bold: true, italic: false }, legend: { size: 14, bold: true, italic: false } })) as unknown as
+      t({ family: 'Arial', tickAngle: 45, xTitle: { size: 16, bold: true, italic: false, color: '#aa0000' }, yTitle: { size: 0, bold: false, italic: true, color: '' }, xTick: { size: 11, bold: false, italic: false, color: '' }, yTick: { size: 9, bold: true, italic: false, color: '#1f77b4' }, legend: { size: 14, bold: true, italic: false, color: '' } })) as unknown as
       { title: { text: string; font: F }; xaxis: Ax; yaxis: Ax; yaxis2: Ax; legend: { font: F }; font: F }
     expect(l.title).toMatchObject({ text: 'Volcano', font: { weight: 'bold', family: 'Arial' } })   // the title is bold by default
     expect(l.xaxis).toMatchObject({ title: { text: 'log2 FC', font: { size: 16, weight: 'bold' } }, tickfont: { size: 11 }, tickangle: -45, gridcolor: '#eee' })
     expect(l.yaxis.title).toMatchObject({ text: '−log10 p', font: { style: 'italic', family: 'Arial' } })
     expect(l.yaxis.title.font.size).toBeUndefined()                                                  // Auto keeps the chart's size
     expect(l.yaxis.tickangle).toBeUndefined()
-    expect(l.yaxis.tickfont).toMatchObject({ size: 9, weight: 'bold' })                              // y ticks: their own style                                                        // the angle is for x labels only
+    expect(l.yaxis.tickfont).toMatchObject({ size: 9, weight: 'bold', color: '#1f77b4' })           // y ticks: their own style and colour
+    expect(l.xaxis.title.font.color).toBe('#aa0000')
+    expect(l.xaxis.tickfont.color).toBeUndefined()                                                   // no colour chosen: the chart's own grey                                                        // the angle is for x labels only
     expect(l.yaxis2.title.font).toMatchObject({ color: 'red', style: 'italic' })                     // the chart's own font is kept underneath
     expect(l.legend.font).toMatchObject({ size: 14, weight: 'bold' })
     expect(l.font.family).toBe('Arial')
@@ -32,8 +34,10 @@ describe('text of all charts', () => {
     expect(s.family).toBe('')
     expect(s.tickAngle).toBe(0)
     expect(s.title).toEqual(DEFAULT_CHART_TEXT.title)
-    expect(s.xTick).toEqual({ size: 14, bold: false, italic: true })
-    expect(s.yTick).toEqual({ size: 14, bold: false, italic: true })
+    expect(s.xTick).toEqual({ size: 14, bold: false, italic: true, color: '' })
+    expect(s.yTick).toEqual({ size: 14, bold: false, italic: true, color: '' })
+    expect(sanitizeChartText({ legend: { color: '#ABCDEF' } }).legend.color).toBe('#abcdef')
+    expect(sanitizeChartText({ legend: { color: 'red; x' } }).legend.color).toBe('')
     expect(sanitizeChartText(null)).toEqual(DEFAULT_CHART_TEXT)
   })
   it("a chart's own title and axis titles can be replaced, and a title added where there was none", () => {

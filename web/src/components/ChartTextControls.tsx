@@ -2,7 +2,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle } from '../lib/chartText'
 import { Field } from './ui'
 
-/** Bold, italic and size of one part of the chart text. */
+/** The grey charts use for text (shown in the colour picker until a colour is chosen). */
+const DEFAULT_TEXT_COLOR = '#444444'
+
+/** Bold, italic, size and colour of one part of the chart text. */
 export function TextStyleButtons({ part, label }: { part: TextPart; label: string }) {
   const t = useChartText()
   const s = t[part]
@@ -17,6 +20,9 @@ export function TextStyleButtons({ part, label }: { part: TextPart; label: strin
         <option value={0}>Auto</option>
         {TEXT_SIZES.map((n) => <option key={n} value={n}>{n} pt</option>)}
       </select>
+      <input type="color" className="text-color" aria-label={`${label}: colour`} title={s.color ? 'Colour' : "Colour (the chart's own grey)"} value={s.color || DEFAULT_TEXT_COLOR}
+        onChange={(e) => up({ color: e.target.value })} />
+      {s.color && <button type="button" className="btn btn-ghost btn-sm text-color-reset" aria-label={`${label}: default colour`} title="Back to the default grey" onClick={() => up({ color: '' })}>↺</button>}
     </>
   )
 }

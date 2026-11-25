@@ -6,7 +6,8 @@ import { useSyncExternalStore } from 'react'
  * button or the experimental-analysis figure) and kept in this browser; a size of 0 (Auto) or bold / italic off
  * leave a chart's own style.
  */
-export interface TextStyle { size: number; bold: boolean; italic: boolean }
+/** color: '' = the chart's own (grey, or the theme's text colour). */
+export interface TextStyle { size: number; bold: boolean; italic: boolean; color: string }
 export type TextPart = 'title' | 'yTitle' | 'xTitle' | 'yTick' | 'xTick' | 'legend'
 export interface ChartText extends Record<TextPart, TextStyle> {
   /** '' = the chart's own font. */
@@ -15,10 +16,10 @@ export interface ChartText extends Record<TextPart, TextStyle> {
   tickAngle: number
 }
 
-const plain: TextStyle = { size: 0, bold: false, italic: false }
+const plain: TextStyle = { size: 0, bold: false, italic: false, color: '' }
 export const DEFAULT_CHART_TEXT: ChartText = {
   family: '', tickAngle: 0,
-  title: { size: 0, bold: true, italic: false }, yTitle: plain, xTitle: plain, yTick: plain, xTick: plain, legend: plain,
+  title: { size: 0, bold: true, italic: false, color: '' }, yTitle: plain, xTitle: plain, yTick: plain, xTick: plain, legend: plain,
 }
 export const TEXT_PARTS: { key: TextPart; label: string }[] = [
   { key: 'title', label: 'Plot title' }, { key: 'yTitle', label: 'Y axis title' }, { key: 'xTitle', label: 'X axis title' },
@@ -42,7 +43,8 @@ export function sanitizeChartText(v: unknown): ChartText {
     const s = (src && typeof src === 'object' ? src : {}) as Record<string, unknown>
     const d = DEFAULT_CHART_TEXT[k]
     return { size: typeof s.size === 'number' && s.size >= 0 && s.size <= 72 ? s.size : d.size,
-      bold: typeof s.bold === 'boolean' ? s.bold : d.bold, italic: typeof s.italic === 'boolean' ? s.italic : d.italic }
+      bold: typeof s.bold === 'boolean' ? s.bold : d.bold, italic: typeof s.italic === 'boolean' ? s.italic : d.italic,
+      color: typeof s.color === 'string' && /^#[0-9a-f]{6}$/i.test(s.color) ? s.color.toLowerCase() : '' }
   }
   return {
     family: typeof o.family === 'string' && FONTS.some(([f]) => f === o.family) ? o.family : '',
@@ -70,7 +72,7 @@ type Obj = Record<string, unknown>
 const asObj = (v: unknown): Obj => (v && typeof v === 'object' ? v as Obj : typeof v === 'string' ? { text: v } : {})
 /** A font with this part's size / bold / italic laid over the chart's own (Auto and "off" keep the chart's). */
 function font(base: unknown, s: TextStyle, family: string): Obj {
-  return { ...asObj(base), ...(s.size ? { size: s.size } : {}), ...(s.bold ? { weight: 'bold' } : {}), ...(s.italic ? { style: 'italic' } : {}), ...(family ? { family } : {}) }
+  return { ...asObj(base), ...(s.size ? { size: s.size } : {}), ...(s.bold ? { weight: 'bold' } : {}), ...(s.italic ? { style: 'italic' } : {}), ...(s.color ? { color: s.color } : {}), ...(family ? { family } : {}) }
 }
 
 /** Text written for one chart ('' = the chart's own). */
