@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Field } from '../../components/ui'
-import { DEFAULT_PLOT, FONTS, LEGEND_POS, SHAPES, type PlotOpts, type TextStyleKey } from './benchPlot'
+import { FontSelect, TextStyleButtons, TickAngleSelect } from '../../components/ChartTextControls'
+import { DEFAULT_PLOT, LEGEND_POS, SHAPES, type PlotOpts } from './benchPlot'
 
 /** The chart controls, grouped as in GraphPad: chart type, points, bars and error bars, p-values, axes and text. */
 export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts; set: (f: (o: PlotOpts) => PlotOpts) => void; hasComparisons: boolean; canStack: boolean }) {
@@ -18,30 +19,15 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
     </label>
   )
   const stacked = o.kind === 'stacked'
-  // A title box with its own size, bold and italic, like a text box in Prism or PowerPoint.
+  // A title box, then its size, bold and italic: shared by all the charts in Flame.
   const titleBox = (k: 'title' | 'yTitle' | 'xTitle', label: string, placeholder: string, minWidth: number) => (
     <Field label={label}>
       <span className="row bench-title-box" style={{ gap: 4 }}>
         <input className="input input-sm" value={o[k]} maxLength={140} placeholder={placeholder} style={{ minWidth }} aria-label={label} onChange={(e) => up(k)(e.target.value)} />
-        {textStyle(k, label)}
+        <TextStyleButtons part={k} label={label} />
       </span>
     </Field>
   )
-  const textStyle = (k: TextStyleKey, label: string) => {
-    const b = `${k}Bold` as const, it = `${k}Italic` as const, sz = `${k}Size` as const
-    return (
-        <>
-          <button type="button" className={`btn btn-sm ${o[b] ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={o[b]} aria-label={`${label}: bold`} title="Bold"
-            style={{ fontWeight: 700, minWidth: 30 }} onClick={() => up(b)(!o[b])}>B</button>
-          <button type="button" className={`btn btn-sm ${o[it] ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={o[it]} aria-label={`${label}: italic`} title="Italic"
-            style={{ fontStyle: 'italic', minWidth: 30, fontFamily: 'Georgia, serif' }} onClick={() => up(it)(!o[it])}>I</button>
-          <select className="input input-sm" aria-label={`${label}: size`} title="Text size" value={o[sz]} onChange={(e) => up(sz)(Number(e.target.value))} style={{ width: 'auto' }}>
-            <option value={0}>Auto</option>
-            {[9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32].map((n) => <option key={n} value={n}>{n} pt</option>)}
-          </select>
-        </>
-    )
-  }
   return (
     <div className="bench-plot-controls stack-sm">
       <div className="row wrap">
@@ -52,22 +38,16 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
         {hasComparisons && <Field label="P-values on the plot">{sel('pvals', [['stars', 'Stars (* ** ***)'], ['exact', 'Exact p'], ['off', 'Hide']], 'P-values')}</Field>}
         {hasComparisons && o.pvals !== 'off' && <label className="check small align-end"><input type="checkbox" checked={o.hideNs} onChange={(e) => up('hideNs')(e.target.checked)} /> Hide ns</label>}
       </div>
-      <div className="row wrap bench-titles" role="group" aria-label="Titles and text">
+      <div className="row wrap bench-titles" role="group" aria-label="Titles and text" title="Font, sizes, bold and italic apply to every chart in Flame">
         {titleBox('title', 'Plot title', 'e.g. FKBP5 is induced by dexamethasone', 240)}
         {titleBox('yTitle', 'Y axis title', 'automatic', 170)}
         {titleBox('xTitle', 'X axis title', 'none', 130)}
-        <Field label="Font">
-          <select className="input input-sm" aria-label="Font" value={o.family} onChange={(e) => up('family')(e.target.value)} style={{ width: 'auto' }}>
-            {FONTS.map(([v, l]) => <option key={l} value={v} style={v ? { fontFamily: v } : undefined}>{l}</option>)}
-          </select>
-        </Field>
+        <FontSelect />
         {rng('font', 9, 22, 1, 'Text size', 'align-end')}
         <Field label="Tick labels">
           <span className="row bench-title-box" style={{ gap: 4 }}>
-            {textStyle('tick', 'Tick labels')}
-            <select className="input input-sm" aria-label="X tick label angle" title="Angle of the names under the x axis" value={o.tickAngle} onChange={(e) => up('tickAngle')(Number(e.target.value))} style={{ width: 'auto' }}>
-              <option value={0}>Horizontal</option><option value={30}>Slanted 30°</option><option value={45}>Slanted 45°</option><option value={90}>Vertical</option>
-            </select>
+            <TextStyleButtons part="tick" label="Tick labels" />
+            <TickAngleSelect />
           </span>
         </Field>
         <Field label="Legend">
@@ -75,7 +55,7 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
             <select className="input input-sm" aria-label="Legend position" title="The groups (the targets in stacked bars). With one gene the groups are named under the bars instead." value={o.legendPos} onChange={(e) => up('legendPos')(e.target.value as PlotOpts['legendPos'])} style={{ width: 'auto' }}>
               {LEGEND_POS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            {o.legendPos !== 'off' && textStyle('legend', 'Legend')}
+            {o.legendPos !== 'off' && <TextStyleButtons part="legend" label="Legend" />}
           </span>
         </Field>
       </div>

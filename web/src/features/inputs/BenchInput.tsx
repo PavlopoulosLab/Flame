@@ -5,7 +5,8 @@ import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note, Segmented } from '../../components/ui'
 import { roleColors, usePaletteMode } from '../../lib/palette'
 import { PaletteSelect } from '../../components/PaletteSelect'
-import { autoFigWidth, benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
+import { autoFigWidth, benchFigure, DEFAULT_PLOT, withChartText, type PlotOpts } from './benchPlot'
+import { useChartText } from '../../lib/chartText'
 import { PlotControls } from './BenchPlotControls'
 import { BenchTestControls } from './BenchTestControls'
 import { BenchNormality, type Recommendation } from './BenchNormality'
@@ -209,8 +210,9 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const shown = useMemo(() => (res && focusOk ? { ...res, targets: res.targets.filter((t) => t.target === focus) } : res), [res, focus, focusOk])
   const sumsTo100 = !!res && res.groups.every((g) => Math.abs(res.targets.reduce((a, t) => a + (t.summary.find((x) => x.group === g)?.mean ?? 0), 0) - 100) < 5)
   const defaultYTitle = !res || !applied ? '' : res.logScale ? `Fold change vs ${res.control}` : applied.helper === 'western' ? `Ratio to ${applied.loading}` : applied.plot.kind === 'stacked' && sumsTo100 ? 'Percentage' : 'Value'
-  const figure = useMemo(() => (shown && applied ? benchFigure({ ...shown, groups: plotGroups }, applied.plot, colorOf, defaultYTitle) : null),
-    [shown, plotGroups, applied, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
+  const chartText = useChartText()
+  const figure = useMemo(() => (shown && applied ? benchFigure({ ...shown, groups: plotGroups }, withChartText(applied.plot, chartText), colorOf, defaultYTitle) : null),
+    [shown, plotGroups, applied, defaultYTitle, chartText]) // eslint-disable-line react-hooks/exhaustive-deps
   const smallViolin = !!shown && applied?.plot.kind === 'violin' && shown.targets.some((t) => t.summary.some((x) => x.n > 0 && x.n < 5))
   const tested = shown?.targets.filter((t) => t.comparisons?.length) ?? []
   const acrossCol = tested.some((t) => t.omnibus?.pAcross != null)
@@ -343,13 +345,13 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                 <span className="muted small">One at a time: its own figure, comparisons, statistics and exports (stars: its smallest p).</span>
               </div>
             )}
-            {figure && applied && (() => { const ap = applied.plot, w = ap.figW || autoFigWidth(shown!.targets.filter((t) => t.values.length).length, plotGroups.length, ap); return (
+            {figure && applied && (() => { const ap = withChartText(applied.plot, chartText), w = ap.figW || autoFigWidth(shown!.targets.filter((t) => t.values.length).length, plotGroups.length, ap); return (
               <div className="stack-sm bench-figure">
                 {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
                 {ap.brk !== 'off' && !figure.broken && ap.kind !== 'stacked' && <p className="small muted">{ap.brk === 'auto' ? 'No axis break needed: the values are of similar height.' : 'Axis break: set from < to, both below the top of the axis.'}</p>}
                 {figure.broken && <p className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</p>}
                 <div style={w ? { width: w, maxWidth: '100%' } : undefined}>
-                  <Plot data={figure.data as never} layout={figure.layout as never} height={ap.figH} tools={false} exportName={`flame_bench_${ap.kind}`} />
+                  <Plot data={figure.data as never} layout={figure.layout as never} height={ap.figH} tools={false} textButton={false} exportName={`flame_bench_${ap.kind}`} />
                 </div>
                 <p className="muted small">{ap.points && ap.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && ap.pvals !== 'off'
                   ? `${res.test?.startsWith('one_sample') ? `Stars: each group vs ${res.hypothetical}` : ap.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${ap.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${ap.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>

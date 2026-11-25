@@ -7,6 +7,8 @@ import { DEFAULT_STYLE, visOptions, type NetworkStyle } from '../lib/networkStyl
 import { BrushModes, pointInPolygon, useBrush, type BrushMode } from '../lib/brush'
 import { categorical, usePaletteMode, type PaletteMode } from '../lib/palette'
 import { ExportImageButton } from './ExportImage'
+import { ChartTextButton } from './ChartTextControls'
+import { applyChartText, useChartText } from '../lib/chartText'
 import { LIGHT, openImageExport, type ImageSource, type RenderOptions } from '../lib/imageExport'
 import { plotlySafeDeep } from '../lib/format'
 
@@ -94,6 +96,7 @@ export function Plot({
   onShapesMoved,
   exportName = 'flame_plot',
   tools = true,
+  textButton = true,
 }: {
   data: PlotData
   layout?: Partial<Plotly.Layout>
@@ -109,8 +112,11 @@ export function Plot({
   exportName?: string
   /** false: no box/lasso/zoom/pan controls — the chart is only clicked (e.g. a bar chart of genes). */
   tools?: boolean
+  /** false: no "Aa Text" button (the page has its own text controls); the text style still applies. */
+  textButton?: boolean
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const text = useChartText()
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
   const clickRef = useRef(onPointClick)
@@ -134,7 +140,8 @@ export function Plot({
     const el = ref.current
     if (!el) return
     const base = themeLayout(cb)
-    const merged: Partial<Plotly.Layout> = {
+    // The text style of all charts (font, title, axis, tick and legend text) over the chart's own.
+    const merged = applyChartText({
       ...base,
       height,
       margin: { l: 60, r: 20, t: 20, b: 50 },
@@ -142,7 +149,7 @@ export function Plot({
       ...layout,
       xaxis: { ...base.xaxis, ...(layout?.xaxis ?? {}) },
       yaxis: { ...base.yaxis, ...(layout?.yaxis ?? {}) },
-    }
+    } as Record<string, unknown>, text) as Partial<Plotly.Layout>
     redrawing.current = true
     Promise.resolve(
       Plotly.react(el, plotlySafeDeep(data) as Plotly.Data[], plotlySafeDeep(merged), {
@@ -178,7 +185,7 @@ export function Plot({
     if (handleRef) {
       handleRef.current = { exportImage: (name) => openImageExport(plotSource(el, name ?? nameRef.current, !!selectRef.current)) }
     }
-  }, [data, layout, height, mode, handleRef, cb, tools])
+  }, [data, layout, height, mode, handleRef, cb, tools, text])
 
   useEffect(() => {
     const el = ref.current
@@ -198,6 +205,7 @@ export function Plot({
             ))}
           </div>
         )}
+        {textButton && <ChartTextButton />}
         <ExportImageButton source={() => (ref.current ? plotSource(ref.current, exportName, !!onSelect) : null)} />
       </div>
       {/* reserve the plot height so following content never slides under the chart */}

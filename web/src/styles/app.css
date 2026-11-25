@@ -762,6 +762,9 @@ html, body { overflow-x: clip; }
 .export-name { display: flex; align-items: center; gap: 6px; }
 .export-name .input { flex: 1; }
 .plot-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.chart-text-button { position: relative; }
+.chart-text-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; width: min(720px, calc(100vw - 32px)); padding: 12px;
+  background: var(--surface-color, #fff); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); text-align: left; }
 @media (max-width: 560px) { .export-grid { grid-template-columns: 1fr; } }
 .figure { display: flex; flex-direction: column; gap: 6px; }
 .palette-select-wrap { display: inline-flex; align-items: center; gap: 4px; }

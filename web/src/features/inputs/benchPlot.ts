@@ -2,6 +2,7 @@
 // values per group and target, with points (shape, size, jitter), error bars (SD / SEM / 95% CI),
 // p-value brackets, axis titles and ranges, log scale, an optional axis break and the figure size.
 import { autoBreak, nice } from '../../lib/axisBreak'
+import type { ChartText } from '../../lib/chartText'
 
 export type PlotKind = 'bar' | 'dots' | 'box' | 'violin' | 'stacked'
 export type Shape = 'circle' | 'triangle-up' | 'square' | 'diamond' | 'cross' | 'x' | 'triangle-down' | 'star'
@@ -52,9 +53,6 @@ export type LegendPos = 'bottom' | 'top' | 'right' | 'inside-tr' | 'inside-tl' |
 export const LEGEND_POS: [LegendPos, string][] = [['bottom', 'Below'], ['top', 'Above'], ['right', 'Right'],
   ['inside-tr', 'Inside, top right'], ['inside-tl', 'Inside, top left'], ['off', 'Hidden']]
 export type TextStyleKey = 'title' | 'yTitle' | 'xTitle' | 'legend' | 'tick'
-export const FONTS: [string, string][] = [['', 'Default'], ['Arial, Helvetica, sans-serif', 'Arial'], ['Helvetica, Arial, sans-serif', 'Helvetica'],
-  ['Calibri, Carlito, sans-serif', 'Calibri'], ['Verdana, sans-serif', 'Verdana'], ['"Times New Roman", Times, serif', 'Times New Roman'],
-  ['Georgia, serif', 'Georgia'], ['"Courier New", monospace', 'Courier New']]
 export const DEFAULT_PLOT: PlotOpts = {
   kind: 'bar', errBar: 'sd', cap: 6, width: 0.8, points: true, shape: 'circle', shapePerGroup: false, hollow: false, pointSize: 8, jitter: 0.5,
   pvals: 'stars', hideNs: false, style: 'color', yTitle: '', xTitle: '', yMin: '', yMax: '', logY: false, font: 13,
@@ -68,6 +66,16 @@ export const SHAPES: { value: Shape; label: string }[] = [
   { value: 'diamond', label: '◆ Diamond' }, { value: 'triangle-down', label: '▼ Triangle down' }, { value: 'cross', label: '✚ Cross' },
   { value: 'x', label: '✖ X' }, { value: 'star', label: '★ Star' },
 ]
+
+/** The figure options with the text style shared by all charts (font; title, axis, tick and legend text). */
+export function withChartText(o: PlotOpts, t: ChartText): PlotOpts {
+  return { ...o, family: t.family, tickAngle: t.tickAngle,
+    titleSize: t.title.size, titleBold: t.title.bold, titleItalic: t.title.italic,
+    yTitleSize: t.yTitle.size, yTitleBold: t.yTitle.bold, yTitleItalic: t.yTitle.italic,
+    xTitleSize: t.xTitle.size, xTitleBold: t.xTitle.bold, xTitleItalic: t.xTitle.italic,
+    tickSize: t.tick.size, tickBold: t.tick.bold, tickItalic: t.tick.italic,
+    legendSize: t.legend.size, legendBold: t.legend.bold, legendItalic: t.legend.italic }
+}
 
 /**
  * Width of the figure when the user has not set one: one gene / readout gets a figure sized to its groups

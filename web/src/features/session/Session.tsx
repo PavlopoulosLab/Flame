@@ -1,3 +1,4 @@
+import { CHART_TEXT_KEY, getChartText, hasSavedChartText, sanitizeChartText, setChartText } from '../../lib/chartText'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -99,6 +100,7 @@ function collectPrefs(): Record<string, string> {
     }
   } catch { /* storage unavailable */ }
   if (hasSavedCustomPalette()) out['flame-custom-palette'] = JSON.stringify(getCustomPalette())   // "My colours"
+  if (hasSavedChartText()) out[CHART_TEXT_KEY] = JSON.stringify(getChartText())                    // text of the charts
   return out
 }
 function applyPrefs(prefs: Record<string, string>) {
@@ -110,6 +112,9 @@ function applyPrefs(prefs: Record<string, string>) {
   if (PALETTES.some((p) => p.value === prefs['flame-palette'])) setPaletteMode(prefs['flame-palette'] as PaletteMode)   // only known modes from a session file
   if (prefs['flame-custom-palette']) {
     try { setCustomPalette(JSON.parse(prefs['flame-custom-palette']) as CustomPalette) } catch { /* not a palette */ }
+  }
+  if (prefs[CHART_TEXT_KEY]) {
+    try { setChartText(sanitizeChartText(JSON.parse(prefs[CHART_TEXT_KEY]))) } catch { /* not a text style */ }
   }
   if (prefs['flame-theme'] === 'dark') document.documentElement.setAttribute('data-theme', 'dark')
   else if (prefs['flame-theme'] === 'light') document.documentElement.removeAttribute('data-theme')
