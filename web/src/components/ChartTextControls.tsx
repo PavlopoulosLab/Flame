@@ -39,12 +39,15 @@ function SpectrumPicker({ label, color, onChange }: { label: string; color: stri
   )
 }
 
-function ColorPicker({ label, value, onChange }: { label: string; value: string; onChange: (c: string) => void }) {
+export function ColorPicker({ label, value, onChange, fallback = DEFAULT_TEXT_COLOR, defaultName = 'Default grey' }: {
+  label: string; value: string; onChange: (c: string) => void
+  /** The colour used while none is chosen (value ''), and the name of that default. */ fallback?: string; defaultName?: string
+}) {
   const [open, setOpen] = useState(false)
   const [spectrum, setSpectrum] = useState(false)
   const [hexText, setHexText] = useState('')
   const ref = useRef<HTMLSpanElement>(null)
-  const shown = value || DEFAULT_TEXT_COLOR
+  const shown = value || fallback
   const rgb = toRgb(shown)
   useEffect(() => {
     if (!open) return
@@ -52,16 +55,16 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
-  const pick = (c: string) => { onChange(c === DEFAULT_TEXT_COLOR && !value ? '' : c); setHexText('') }
+  const pick = (c: string) => { onChange(c === fallback ? '' : c); setHexText('') }
   return (
     <span className="text-color-wrap" ref={ref}>
-      <button type="button" className="text-color" aria-label={`${label}: colour`} aria-expanded={open} title={value ? `Colour ${value}` : "Colour (the chart's own grey)"}
+      <button type="button" className="text-color" aria-label={`${label}: colour`} aria-expanded={open} title={value ? `Colour ${value}` : `Colour (${defaultName.toLowerCase()})`}
         style={{ background: shown }} onClick={() => setOpen((v) => !v)} />
       {open && (
         <span className="text-color-pop card" role="dialog" aria-label={`${label} colour`}>
           <span className="text-color-presets">
-            {PRESETS.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === DEFAULT_TEXT_COLOR ? 'Default grey' : c}
-              title={c === DEFAULT_TEXT_COLOR ? 'Default grey' : c} onClick={() => (c === DEFAULT_TEXT_COLOR ? onChange('') : pick(c))} />)}
+            {PRESETS.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === fallback ? defaultName : c}
+              title={c === fallback ? defaultName : c} onClick={() => pick(c)} />)}
             <button type="button" className={`text-color-swatch text-color-multi${spectrum ? ' on' : ''}`} aria-label="More colours" aria-pressed={spectrum} title="Any colour"
               onClick={() => setSpectrum((v) => !v)} />
           </span>
@@ -77,7 +80,7 @@ function ColorPicker({ label, value, onChange }: { label: string; value: string;
           <span className="row" style={{ gap: 4 }}>
             <input className="input input-sm" aria-label={`${label}: hex or rgb`} placeholder={shown} value={hexText} style={{ width: 130 }}
               onChange={(e) => { setHexText(e.target.value); const c = parseColor(e.target.value); if (c) onChange(c) }} />
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { onChange(''); setHexText('') }} disabled={!value}>Default grey</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { onChange(''); setHexText('') }} disabled={!value}>{defaultName}</button>
           </span>
         </span>
       )}

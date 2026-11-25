@@ -259,7 +259,7 @@ const TOPICS: Topic[] = [
         <h3>Views</h3>
         <ul>
           <li><strong>Dot plot</strong> — one row per term; x = gene ratio (or fold enrichment / coverage), dot size = genes found, colour = significance. Look for large, dark dots on the right.</li>
-          <li><strong>Bar chart</strong> — the most significant terms, coloured by source.</li>
+          <li><strong>Bar chart</strong> — the most significant terms. <em>Colours</em>: by source (default), shaded by significance (OrRd, Viridis, Cividis or Magma, with a colour bar, as in the dot plot), or one colour of your choice.</li>
           <li><strong>Scatter</strong> — significance against coverage; terms at the top right are both significant and well covered.</li>
           <li><strong>Heatmap T×G</strong> — which genes drive which terms; genes shared by many terms appear as filled columns.</li>
           <li><strong>Heatmap T×T</strong> — overlap between terms (shared genes ÷ all their genes). Blocks of high similarity are redundant terms describing one process.</li>

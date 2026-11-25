@@ -14,14 +14,15 @@ import { UndoRedoButtons } from '../components/Undo'
 import { useHistory } from '../lib/history'
 import { useNetworkStyle } from '../lib/networkStyle'
 import { LayoutSelect, NetworkOptions } from '../components/NetworkOptions'
-import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, type ViewSettings } from '../features/results/views'
+import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, defaultBarColor, type ViewSettings } from '../features/results/views'
 import { svgSource } from '../components/viz'
 import { openImageExport, usePlainSelection } from '../lib/imageExport'
 import { saveXlsx, sheetsByCategory, termSheetRows } from '../lib/xlsx'
 import { BackToWorkspace } from '../components/ui'
 import { ListsPanel } from '../components/ListsPanel'
 import { PaletteSelect } from '../components/PaletteSelect'
-import { PaletteScope, usePaletteKey } from '../lib/palette'
+import { PaletteScope, usePaletteKey, usePaletteMode } from '../lib/palette'
+import { ColorPicker } from '../components/ChartTextControls'
 import { formatNum, formatP, isHttpUrl, plural, slug, splitGenes, toCsv, toHtmlTable } from '../lib/format'
 
 const LAYOUT_LABELS: Record<string, string> = {
@@ -103,6 +104,7 @@ function ResultsPageBody() {
   // The table tab always comes first.
   const tabOrder = visible.includes('table') ? ['table', ...visible.filter((v) => v !== 'table')] : visible
   usePaletteKey(view)
+  const palMode = usePaletteMode()
   useEffect(() => {
     if (!visible.includes(view)) setVisible((v) => [...v, view])
   }, [view, visible])
@@ -410,10 +412,16 @@ function ResultsPageBody() {
                   <label>Colours <select className="input input-sm" value={settings.palette} onChange={(e) => setSettings({ ...settings, palette: e.target.value as ViewSettings['palette'] })}>
                     <option>OrRd</option><option>Viridis</option><option>Cividis</option><option>Magma</option></select></label>
                 </>}
-                {view === 'barchart' && (
+                {view === 'barchart' && <>
                   <label>Bars <select className="input input-sm" value={settings.barMetric ?? 'log10p'} onChange={(e) => setSettings({ ...settings, barMetric: e.target.value as 'log10p' | 'coverage' })}>
                     <option value="log10p">Significance</option><option value="coverage">Coverage</option>{isGsea && <option value="nes">NES</option>}</select></label>
-                )}
+                  <label>Colours <select className="input input-sm" aria-label="Bar colours" value={settings.barColors ?? 'source'} onChange={(e) => setSettings({ ...settings, barColors: e.target.value as ViewSettings['barColors'] })}>
+                    <option value="source">By source</option>
+                    <optgroup label="By significance">{['OrRd', 'Viridis', 'Cividis', 'Magma'].map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
+                    <option value="single">One colour</option></select></label>
+                  {settings.barColors === 'single' && <ColorPicker label="Bar colour" value={settings.barColor ?? ''} fallback={defaultBarColor(palMode)} defaultName="Palette colour"
+                    onChange={(c) => setSettings({ ...settings, barColor: c || undefined })} />}
+                </>}
                 {(view === 'heatmap-tt' || view === 'heatmap-gg') && (
                   <label>Colours <select className="input input-sm" value={settings.heatScale ?? ''} onChange={(e) => setSettings({ ...settings, heatScale: e.target.value || undefined })}>
                     <option value="">Palette default</option>{['Viridis', 'Cividis', 'YlOrRd', 'Blues', 'Greys', 'Hot'].map((c) => <option key={c} value={c}>{c}</option>)}</select></label>
