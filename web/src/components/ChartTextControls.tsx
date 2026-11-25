@@ -89,7 +89,6 @@ export function ChartTextButton() {
           <strong className="small">Text of all charts</strong>
           <ChartTextControls />
           <div className="row">
-            <span className="muted small">Applies to every chart in Flame and is remembered in this browser. Auto keeps each chart's own size.</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChartText(DEFAULT_CHART_TEXT)}>Reset</button>
           </div>
         </div>
