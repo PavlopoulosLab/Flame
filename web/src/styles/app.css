@@ -809,3 +809,9 @@ html, body { overflow-x: clip; }
 .bench-options { align-items: flex-end; gap: 10px 18px; }
 .bench-sentence { margin: 0; }
 .bench-genes > summary { cursor: pointer; padding: 4px 0; }
+
+/* Survival: the two input tables side by side, the Kaplan-Meier risk table */
+.survival-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.survival-box.loaded { border-color: var(--color-success, #16a34a); }
+.survival-ok { color: var(--color-success, #16a34a); font-weight: 700; }
+.km-swatch { display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 1px; }

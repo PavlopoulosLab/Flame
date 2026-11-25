@@ -234,6 +234,25 @@ function(req, res) {
   })
 }
 
+#* Kaplan-Meier curves: samples split by a gene's expression or grouped by a clinical column; log-rank test,
+#* median survival, numbers at risk and (two groups) the Cox hazard ratio.
+#* Body: { text, fileName?, log?, clinical, clinicalFileName?, timeColumn, eventColumn, by: gene|column, gene?, split?, percent?, column? }
+#* @post /expression/km
+#* @serializer flamejson
+function(req, res) {
+  api_handle(res, {
+    b <- body_of(req)
+    x <- tryCatch(parse_expression_matrix(paste(as.character(unlist(b$text %||% "")), collapse = "\n"), as.character(b$fileName %||% ""), if (is.null(b$log)) NA else isTRUE(b$log)),
+                  error = function(e) api_abort(400, conditionMessage(e)))
+    clin <- tryCatch(parse_survival_table(paste(as.character(unlist(b$clinical %||% "")), collapse = "\n"), as.character(b$clinicalFileName %||% ""),
+                                          b$timeColumn, b$eventColumn),
+                     error = function(e) api_abort(400, conditionMessage(e)))
+    by <- if (identical(as.character(b$by %||% "gene")[1], "column")) "column" else "gene"
+    tryCatch(survival_km(x, clin, gene = b$gene, by = by, split = as.character(b$split %||% "median")[1], percent = b$percent %||% 50, column = b$column),
+             error = function(e) api_abort(400, conditionMessage(e)))
+  })
+}
+
 #* Gene expression matrix: correlate a gene of interest with every other gene.
 #* Body: { text, fileName?, gene, methods?: [pearson|spearman|kendall], samples?: [names], log? }
 #* @post /expression/correlate
