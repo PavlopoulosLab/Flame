@@ -199,12 +199,16 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   }
   const plotGroups = useMemo(() => (!res ? [] : applied ? [...res.groups].sort((a, b) => applied.order.indexOf(a) - applied.order.indexOf(b)) : res.groups), [res, applied])
   // Stacked bars that add up to ~100 in every group (e.g. cell-cycle phases) are percentages.
+  // One gene / readout at a time ('' = all): the figure, the tables and the exports follow it.
+  const [focus, setFocus] = useState('')
+  const focusOk = !!res && res.targets.some((t) => t.target === focus)
+  const shown = useMemo(() => (res && focusOk ? { ...res, targets: res.targets.filter((t) => t.target === focus) } : res), [res, focus, focusOk])
   const sumsTo100 = !!res && res.groups.every((g) => Math.abs(res.targets.reduce((a, t) => a + (t.summary.find((x) => x.group === g)?.mean ?? 0), 0) - 100) < 5)
   const defaultYTitle = !res || !applied ? '' : res.logScale ? `Fold change vs ${res.control}` : applied.helper === 'western' ? `Ratio to ${applied.loading}` : applied.plot.kind === 'stacked' && sumsTo100 ? 'Percentage' : 'Value'
-  const figure = useMemo(() => (res && applied ? benchFigure({ ...res, groups: plotGroups }, applied.plot, colorOf, defaultYTitle) : null),
-    [res, plotGroups, applied, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
-  const smallViolin = !!res && applied?.plot.kind === 'violin' && res.targets.some((t) => t.summary.some((x) => x.n > 0 && x.n < 5))
-  const tested = res?.targets.filter((t) => t.comparisons?.length) ?? []
+  const figure = useMemo(() => (shown && applied ? benchFigure({ ...shown, groups: plotGroups }, applied.plot, colorOf, defaultYTitle) : null),
+    [shown, plotGroups, applied, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
+  const smallViolin = !!shown && applied?.plot.kind === 'violin' && shown.targets.some((t) => t.summary.some((x) => x.n > 0 && x.n < 5))
+  const tested = shown?.targets.filter((t) => t.comparisons?.length) ?? []
   const acrossCol = tested.some((t) => t.omnibus?.pAcross != null)
   const acrossLabel = res?.across === 'bh' ? 'q (BH FDR, all rows)' : 'p (Holm, all rows)'
   const genesLike = !!res && res.layout === 'grouped' && res.helper !== 'facs'
@@ -322,6 +326,19 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           <>
             <p className="bench-sentence"><strong>Test:</strong> {res.sentence}</p>
             {res.warnings.map((w) => <Note key={w} kind="warning">{w}</Note>)}
+            {res.targets.length > 1 && (
+              <div className="bench-genes-pick row wrap" role="group" aria-label="Show one gene or readout">
+                <strong className="small">Show:</strong>
+                <button type="button" className={`btn btn-sm ${!focusOk ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={!focusOk} onClick={() => setFocus('')}>All {res.layout === 'grouped' ? 'genes / readouts' : 'rows'} ({res.targets.length})</button>
+                {res.targets.map((t) => {
+                  const best = Math.min(...(t.comparisons ?? []).map((c) => c.p).filter(Number.isFinite))
+                  const star = !Number.isFinite(best) ? '' : best < 0.001 ? ' ***' : best < 0.01 ? ' **' : best < 0.05 ? ' *' : ''
+                  return <button key={t.target} type="button" className={`btn btn-sm ${focus === t.target ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={focus === t.target}
+                    title={t.error ?? `${t.target}: smallest p = ${Number.isFinite(best) ? fmtP(best) : 'none'}`} onClick={() => setFocus(t.target)}>{t.target}{star}</button>
+                })}
+                <span className="muted small">One at a time: its own figure, comparisons, statistics and exports (stars: its smallest p).</span>
+              </div>
+            )}
             {figure && applied && (() => { const ap = applied.plot; return (
               <div className="stack-sm bench-figure">
                 {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
@@ -349,7 +366,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                 </tr>
               )))}</tbody>
             </table></div>
-            {res.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="info">{t.target}: {t.error}</Note>)}
+            {shown!.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="info">{t.target}: {t.error}</Note>)}
             {res.anova2 && (
               <div className="table-scroll"><table className="table compact">
                 <thead><tr><th>Two-way ANOVA</th><th className="num">F</th><th className="num">DFn, DFd</th><th className="num">p</th><th /></tr></thead>
@@ -357,12 +374,12 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                   <td><strong>{r.p < 0.001 ? '***' : r.p < 0.01 ? '**' : r.p < 0.05 ? '*' : 'ns'}</strong></td></tr>)}</tbody>
               </table></div>
             )}
-            {res.targets.some((t) => t.assumptions) && (
+            {shown!.targets.some((t) => t.assumptions) && (
               <details className="small">
                 <summary>Assumptions: normality and equal SDs</summary>
                 <div className="table-scroll"><table className="table compact">
                   <thead><tr><th>Gene / target</th>{res.groups.map((g) => <th key={g} className="num">Shapiro–Wilk p, {g}</th>)}<th className="num">Equal SDs p</th></tr></thead>
-                  <tbody>{res.targets.filter((t) => t.assumptions).map((t) => (
+                  <tbody>{shown!.targets.filter((t) => t.assumptions).map((t) => (
                     <tr key={t.target}><td>{t.target}</td>
                       {res.groups.map((g) => { const nm = t.assumptions!.normality.find((x) => x.group === g); return <td key={g} className="num">{nm?.p != null ? fmtP(nm.p) : 'n < 3'}</td> })}
                       <td className="num">{t.assumptions!.equalSD ? `${fmtP(t.assumptions!.equalSD.p)} (${t.assumptions!.equalSD.name})` : '—'}</td></tr>
@@ -378,9 +395,9 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             </div>
             <details className="small" open>
               <summary><strong>Descriptive statistics</strong> (n, mean, SD, SEM, 95% CI, median, range)</summary>
-              <TableView res={res} id="descriptive" />
+              <TableView res={shown!} id="descriptive" />
             </details>
-            <BenchExport res={res} />
+            <BenchExport res={shown!} name={focusOk ? focus : ''} />
             {genesLike && tested.length > 0 && <BenchGenes res={res} tested={tested} organism={organism} setOrganism={setOrganism} onCreated={onCreated} />}
           </>
         )}

@@ -1,8 +1,10 @@
+import { useState } from 'react'
 import { Field } from '../../components/ui'
 import { DEFAULT_PLOT, SHAPES, type PlotOpts } from './benchPlot'
 
 /** The chart controls, grouped as in GraphPad: chart type, points, bars and error bars, p-values, axes and text. */
 export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts; set: (f: (o: PlotOpts) => PlotOpts) => void; hasComparisons: boolean; canStack: boolean }) {
+  const [open, setOpen] = useState(false)
   const up = <K extends keyof PlotOpts>(k: K) => (v: PlotOpts[K]) => set((x) => ({ ...x, [k]: v }))
   const sel = <K extends keyof PlotOpts>(k: K, opts: [string, string][], label: string) => (
     <select className="input input-sm" aria-label={label} value={String(o[k])} onChange={(e) => up(k)(e.target.value as PlotOpts[K])}>
@@ -19,6 +21,10 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
   return (
     <div className="bench-plot-controls stack-sm">
       <div className="row wrap">
+        <Field label="Plot title">
+          <input className="input input-sm" value={o.title} maxLength={140} placeholder="e.g. FKBP5 is induced by dexamethasone" style={{ minWidth: 260 }}
+            aria-label="Plot title" onChange={(e) => up('title')(e.target.value)} />
+        </Field>
         <Field label="Chart">{sel('kind', [['bar', 'Bars (mean ± error)'], ['dots', 'Scatter dot plot (mean ± error)'], ['box', 'Box plot'], ['violin', 'Violin plot'],
           ...(canStack ? [['stacked', 'Stacked bars (targets stacked)'] as [string, string]] : [])], 'Chart type')}</Field>
         <Field label="Style">{sel('style', [['color', 'Colour'], ['bw', 'Black & white']], 'Style')}</Field>
@@ -26,8 +32,13 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
         {hasComparisons && <Field label="P-values on the plot">{sel('pvals', [['stars', 'Stars (* ** ***)'], ['exact', 'Exact p'], ['off', 'Hide']], 'P-values')}</Field>}
         {hasComparisons && o.pvals !== 'off' && <label className="check small align-end"><input type="checkbox" checked={o.hideNs} onChange={(e) => up('hideNs')(e.target.checked)} /> Hide ns</label>}
       </div>
-      <details className="small">
-        <summary>Points, bars and axes</summary>
+      <div className="row">
+        <button type="button" className={`btn btn-sm ${open ? 'btn-primary' : 'btn-secondary'}`} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+          {open ? '▾' : '▸'} Customise the chart: points and shapes, bar width, error-bar caps, axes, font, size
+        </button>
+      </div>
+      {open && (
+      <div className="small card stack-sm" style={{ padding: 12 }}>
         <div className="stack-sm" style={{ marginTop: 8 }}>
           {!stacked && (
             <div className="row wrap">
@@ -66,10 +77,11 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
             <Field label="Figure width (px)"><input className="input input-sm input-narrow" type="number" min={0} step={10} value={o.figW || ''} placeholder="window" onChange={(e) => up('figW')(Math.max(0, Number(e.target.value) || 0))} /></Field>
             <Field label="Figure height (px)"><input className="input input-sm input-narrow" type="number" min={200} max={1600} step={10} value={o.figH} onChange={(e) => up('figH')(Math.min(1600, Math.max(200, Number(e.target.value) || 420)))} /></Field>
             <span className="muted small align-end">The exported image has this size (PNG at the resolution you pick, or SVG/PDF).</span>
-            <button type="button" className="btn btn-ghost btn-sm align-end" onClick={() => set((x) => ({ ...DEFAULT_PLOT, kind: x.kind }))}>Reset style</button>
+            <button type="button" className="btn btn-ghost btn-sm align-end" onClick={() => set((x) => ({ ...DEFAULT_PLOT, kind: x.kind, title: x.title }))}>Reset style</button>
           </div>
         </div>
-      </details>
+      </div>
+      )}
     </div>
   )
 }

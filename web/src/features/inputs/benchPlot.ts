@@ -34,12 +34,14 @@ export interface PlotOpts {
   brkTo: string
   /** Figure size on screen and in the exported image (px); width 0 = the width of the window. */
   figW: number
+  /** Title above the figure, written by the user ('' = none). */
+  title: string
   figH: number
 }
 export const DEFAULT_PLOT: PlotOpts = {
   kind: 'bar', errBar: 'sd', cap: 6, width: 0.8, points: true, shape: 'circle', shapePerGroup: false, hollow: false, pointSize: 8, jitter: 0.5,
   pvals: 'stars', hideNs: false, style: 'color', yTitle: '', xTitle: '', yMin: '', yMax: '', logY: false, font: 13,
-  brk: 'off', brkFrom: '', brkTo: '', figW: 0, figH: 420,
+  brk: 'off', brkFrom: '', brkTo: '', figW: 0, figH: 420, title: '',
 }
 export const SHAPES: { value: Shape; label: string }[] = [
   { value: 'circle', label: '● Circle' }, { value: 'triangle-up', label: '▲ Triangle' }, { value: 'square', label: '■ Square' },
@@ -74,7 +76,10 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const fill = (gi: number) => (bw ? BW_FILLS[gi % BW_FILLS.length] : colorOf(groups[gi], gi))
   const font = { size: o.font, ...(bw ? { color: ink, family: 'Arial, Helvetica, sans-serif' } : {}) }
   const axisStyle = { showline: true, linecolor: bw ? ink : '#6b7280', linewidth: 1.2, ticks: 'outside', tickcolor: bw ? ink : '#6b7280', showgrid: false, zeroline: false }
-  const page = { font, ...(bw ? { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff' } : {}) }
+  const title = o.title.trim()
+  const page = { font, ...(bw ? { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff' } : {}),
+    ...(title ? { title: { text: title, x: 0.5, xanchor: 'center', y: 0.98, yanchor: 'top', font: { size: o.font + 5, ...(bw ? { color: ink } : {}) } } } : {}) }
+  const topM = title ? 30 + o.font * 2 : 10
   const yTitle = o.yTitle.trim() || defaultYTitle
   const legend = { orientation: 'h', y: -0.18 }
 
@@ -91,14 +96,17 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     const yr = [num(o.yMin), num(o.yMax)]
     return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle, title: { text: o.xTitle } },
       yaxis: { ...axisStyle, title: { text: yTitle }, type: o.logY ? 'log' : 'linear', ...(yr[0] != null && yr[1] != null ? { range: o.logY ? yr.map((v) => Math.log10(v!)) : yr } : { rangemode: 'tozero' }) },
-      legend, margin: { l: 70, r: 10, t: 10, b: 80 } }, broken: null as [number, number] | null }
+      legend, margin: { l: 70, r: 10, t: topM, b: 80 } }, broken: null as [number, number] | null }
   }
 
   // ---- one slot per target, the groups side by side within it ----
   const k = groups.length
-  const slot = Math.min(0.85 / k, 0.3)
+  // The gap between neighbouring bars stays the same whatever their width (20% of a unit, as at the default
+  // width of 80%): narrower bars sit closer together instead of drifting apart.
+  const unit = Math.min(0.85 / k, 0.3, 0.95 / (k * (o.width + 0.2)))
+  const barW = unit * o.width, gap = unit * 0.2, step = barW + gap
   const one = ts.length === 1
-  const pos = (ti: number, gi: number) => ti + (gi - (k - 1) / 2) * slot
+  const pos = (ti: number, gi: number) => ti + (gi - (k - 1) / 2) * step
   const stat = (t: FigTarget, g: string) => t.summary.find((x) => x.group === g)
   const mean = (t: FigTarget, g: string) => stat(t, g)?.mean ?? NaN
   const err = (t: FigTarget, g: string) => {
@@ -157,7 +165,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const traces = axes.flatMap((ax, ai) => groups.flatMap((g, gi) => {
     const out: Record<string, unknown>[] = []
     const xs = ts.map((_, ti) => pos(ti, gi))
-    const w = slot * o.width
+    const w = barW
     const line = { color: bw ? ink : fill(gi), width: 1.5 }
     if (o.kind === 'bar') {
       out.push({ type: 'bar', name: g, showlegend: ai === 0 && !one, legendgroup: g, yaxis: ax, x: xs, y: ts.map((t) => mean(t, g)), width: w,
@@ -234,9 +242,9 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const layout = broken
     ? { ...page, ...mode, xaxis, yaxis: { ...axisStyle, domain: [0, low], range: [autoRange[0], broken[0]] },
         yaxis2: { ...axisStyle, domain: [high, 1], range: [broken[1], userRange?.[1] ?? upTop], anchor: 'x' },
-        annotations, shapes, legend, margin: { l: 75, r: 10, t: 10, b: 80 } }
+        annotations, shapes, legend, margin: { l: 75, r: 10, t: topM, b: 80 } }
     : { ...page, ...mode, xaxis, yaxis: { ...axisStyle, title: { text: yTitleXY }, type: o.logY ? 'log' : 'linear', range: userRange ?? autoRange },
-        annotations, shapes, legend, margin: { l: 70, r: 10, t: 10, b: 80 } }
+        annotations, shapes, legend, margin: { l: 70, r: 10, t: topM, b: 80 } }
   return { data: traces, layout, broken }
 }
 

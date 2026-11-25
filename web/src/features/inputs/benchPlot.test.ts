@@ -106,6 +106,22 @@ describe('bench figures', () => {
     expect(l.shapes).toHaveLength(1)                                                                  // only the line at fold change 1
   })
 
+  it('the gap between neighbouring bars is the same at every bar width', () => {
+    const gapAt = (width: number) => {
+      const bars = fig({ kind: 'bar', width, points: false }).data as { x: number[]; width: number }[]
+      return (bars[1].x[0] - bars[0].x[0]) - bars[0].width                                          // centre distance minus bar width
+    }
+    expect(gapAt(0.4)).toBeCloseTo(gapAt(0.8), 10)
+    expect(gapAt(0.25)).toBeCloseTo(gapAt(0.8), 10)
+  })
+
+  it('a title written by the user is drawn above the figure, with room for it', () => {
+    const l = fig({ title: '  FKBP5 after dexamethasone ' }).layout as unknown as { title: { text: string }; margin: { t: number } }
+    expect(l.title.text).toBe('FKBP5 after dexamethasone')
+    expect(l.margin.t).toBeGreaterThan(30)
+    expect((fig({}).layout as unknown as { title?: unknown }).title).toBeUndefined()
+  })
+
   it('one target: each group is labelled under its bar', () => {
     const one = benchFigure({ ...res, targets: [res.targets[0]] }, DEFAULT_PLOT, () => '#000000', 'Value')
     expect((one.layout as unknown as Record<string, any>).xaxis.ticktext).toEqual(['Control', 'Dex', 'RU486'])

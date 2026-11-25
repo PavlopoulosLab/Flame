@@ -23,7 +23,7 @@ async function figurePng(): Promise<string | null> {
 }
 
 /** Export the statistics as tables, in many formats, or copy one table to paste into Excel or Prism. */
-export function BenchExport({ res }: { res: ExportResult }) {
+export function BenchExport({ res, name = '' }: { res: ExportResult; /** One gene / readout shown: in the file names. */ name?: string }) {
   const tables = useMemo(() => resultTables(res), [res])
   const [which, setWhich] = useState('all')
   const [busy, setBusy] = useState<Format | null>(null)
@@ -33,7 +33,7 @@ export function BenchExport({ res }: { res: ExportResult }) {
   const save = async (f: Format) => {
     setBusy(f)
     try {
-      const base = `flame_experimental_${which}`
+      const base = `flame_experimental_${name ? `${name.replace(/[^\w.-]+/g, '_').slice(0, 40)}_` : ''}${which}`
       if (f === 'xlsx') download(xlsxBytes(res, chosen), `${base}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       else if (f === 'csv' || f === 'tsv') {
         const sep = f === 'csv' ? ',' : '\t'
