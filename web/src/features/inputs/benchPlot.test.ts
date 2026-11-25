@@ -153,11 +153,20 @@ describe('bench figures', () => {
   })
 
   it('one gene shown on its own gets a figure sized to its groups, not the whole window', () => {
-    expect(autoFigWidth(1, 2, DEFAULT_PLOT)).toBe(340)
+    expect(autoFigWidth(1, 2, DEFAULT_PLOT)).toBe(373)
+    expect(autoFigWidth(1, 3, { ...DEFAULT_PLOT, width: 0.3 })!).toBeLessThan(autoFigWidth(1, 3, DEFAULT_PLOT)! * 0.75)   // narrower bars, smaller figure
     expect(autoFigWidth(1, 5, DEFAULT_PLOT)).toBeGreaterThan(autoFigWidth(1, 2, DEFAULT_PLOT)!)
     expect(autoFigWidth(1, 2, { ...DEFAULT_PLOT, title: 'A long title for one gene shown on its own here' })).toBeGreaterThan(500)
     expect(autoFigWidth(6, 2, DEFAULT_PLOT)).toBeNull()                                          // all genes: the window's width
     expect(autoFigWidth(1, 2, { ...DEFAULT_PLOT, figW: 700 })).toBeNull()                         // the user's width wins
+  })
+
+  it('one target: the x axis hugs the groups, so narrow bars do not leave empty space at the sides', () => {
+    const xr = (width: number) => (benchFigure({ ...res, targets: [res.targets[0]] }, { ...DEFAULT_PLOT, width }, () => '#000000', 'Value').layout as unknown as { xaxis: { range: number[] } }).xaxis.range
+    expect(xr(0.3)[1]).toBeLessThan(xr(0.8)[1])
+    const bars = benchFigure({ ...res, targets: [res.targets[0]] }, { ...DEFAULT_PLOT, width: 0.3 }, () => '#000000', 'Value').data.filter((t) => (t as { type: string }).type === 'bar') as unknown as { x: number[]; width: number }[]
+    const right = Math.max(...bars.map((b) => b.x[0] + b.width / 2))
+    expect(xr(0.3)[1] - right).toBeLessThan(right - Math.min(...bars.map((b) => b.x[0] - b.width / 2)))   // side space < the span of the bars
   })
 
   it('one target: each group is labelled under its bar', () => {

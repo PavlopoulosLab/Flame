@@ -76,7 +76,9 @@ export const SHAPES: { value: Shape; label: string }[] = [
 export function autoFigWidth(nTargets: number, nGroups: number, o: PlotOpts): number | null {
   if (o.figW || nTargets !== 1 || o.kind === 'stacked') return null
   const titleW = o.title.trim().length * (o.titleSize || o.font + 5) * 0.6 + 60
-  return Math.round(Math.max(340, 150 + nGroups * 95, titleW))
+  // 95 px per group at the default bar width (80%), less for narrower bars: the plot shrinks with them.
+  const perGroup = 95 * (o.width + 0.2)
+  return Math.round(Math.max(220, (nGroups - 1 + 1.6) * perGroup + 100 + o.font * 2, titleW))
 }
 
 /** What the figure needs from a bench result. */
@@ -278,7 +280,9 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     annotations.push({ xref: 'paper', yref: 'paper', x: -0.08, y: 0.5, text: yTitleXY, textangle: -90, showarrow: false, font: tfont('yTitle', o.font + 1) })
   }
   // One target (e.g. a column table): label each group under its bar; else one label per target.
-  const xaxis = { ...axisStyle, ...xTicks, anchor: 'y', range: [-0.6, ts.length - 0.4], title: { text: o.xTitle || (one && res.logScale && ts[0].target !== 'value' ? ts[0].target : ''), font: tfont('xTitle', o.font) },
+  // One target: the axis spans its groups with 0.8 of a step either side, so narrower bars give a narrower plot.
+  const xEdge = (k - 1) / 2 * step + 0.8 * step
+  const xaxis = { ...axisStyle, ...xTicks, anchor: 'y', range: one ? [-xEdge, xEdge] : [-0.6, ts.length - 0.4], title: { text: o.xTitle || (one && res.logScale && ts[0].target !== 'value' ? ts[0].target : ''), font: tfont('xTitle', o.font) },
     ...(one ? { tickvals: groups.map((_, gi) => pos(0, gi)), ticktext: groups } : { tickvals: ts.map((_, i) => i), ticktext: ts.map((t) => t.target) }) }
   const yr = [num(o.yMin), num(o.yMax)]
   const userRange = yr[0] != null && yr[1] != null && yr[1]! > yr[0]! ? (o.logY ? yr.map((v) => Math.log10(Math.max(v!, 1e-12))) : yr) : null
