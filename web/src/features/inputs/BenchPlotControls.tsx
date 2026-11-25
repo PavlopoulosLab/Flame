@@ -19,7 +19,7 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
   )
   const stacked = o.kind === 'stacked'
   // A title box with its own size, bold and italic, like a text box in Prism or PowerPoint.
-  const titleBox = (k: Exclude<TextStyleKey, 'legend'>, label: string, placeholder: string, minWidth: number) => (
+  const titleBox = (k: 'title' | 'yTitle' | 'xTitle', label: string, placeholder: string, minWidth: number) => (
     <Field label={label}>
       <span className="row bench-title-box" style={{ gap: 4 }}>
         <input className="input input-sm" value={o[k]} maxLength={140} placeholder={placeholder} style={{ minWidth }} aria-label={label} onChange={(e) => up(k)(e.target.value)} />
@@ -62,6 +62,14 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
           </select>
         </Field>
         {rng('font', 9, 22, 1, 'Text size', 'align-end')}
+        <Field label="Tick labels">
+          <span className="row bench-title-box" style={{ gap: 4 }}>
+            {textStyle('tick', 'Tick labels')}
+            <select className="input input-sm" aria-label="X tick label angle" title="Angle of the names under the x axis" value={o.tickAngle} onChange={(e) => up('tickAngle')(Number(e.target.value))} style={{ width: 'auto' }}>
+              <option value={0}>Horizontal</option><option value={30}>Slanted 30°</option><option value={45}>Slanted 45°</option><option value={90}>Vertical</option>
+            </select>
+          </span>
+        </Field>
         <Field label="Legend">
           <span className="row bench-title-box" style={{ gap: 4 }}>
             <select className="input input-sm" aria-label="Legend position" title="The groups (the targets in stacked bars). With one gene the groups are named under the bars instead." value={o.legendPos} onChange={(e) => up('legendPos')(e.target.value as PlotOpts['legendPos'])} style={{ width: 'auto' }}>

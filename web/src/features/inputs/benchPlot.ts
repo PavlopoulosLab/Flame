@@ -45,11 +45,13 @@ export interface PlotOpts {
   xTitleSize: number; xTitleBold: boolean; xTitleItalic: boolean
   /** Where the legend goes (groups; targets in stacked bars), and its text. */
   legendPos: LegendPos; legendSize: number; legendBold: boolean; legendItalic: boolean
+  /** The numbers and names along the axes: size (0 = automatic), bold, italic, and the angle of the x labels. */
+  tickSize: number; tickBold: boolean; tickItalic: boolean; tickAngle: number
 }
 export type LegendPos = 'bottom' | 'top' | 'right' | 'inside-tr' | 'inside-tl' | 'off'
 export const LEGEND_POS: [LegendPos, string][] = [['bottom', 'Below'], ['top', 'Above'], ['right', 'Right'],
   ['inside-tr', 'Inside, top right'], ['inside-tl', 'Inside, top left'], ['off', 'Hidden']]
-export type TextStyleKey = 'title' | 'yTitle' | 'xTitle' | 'legend'
+export type TextStyleKey = 'title' | 'yTitle' | 'xTitle' | 'legend' | 'tick'
 export const FONTS: [string, string][] = [['', 'Default'], ['Arial, Helvetica, sans-serif', 'Arial'], ['Helvetica, Arial, sans-serif', 'Helvetica'],
   ['Calibri, Carlito, sans-serif', 'Calibri'], ['Verdana, sans-serif', 'Verdana'], ['"Times New Roman", Times, serif', 'Times New Roman'],
   ['Georgia, serif', 'Georgia'], ['"Courier New", monospace', 'Courier New']]
@@ -59,6 +61,7 @@ export const DEFAULT_PLOT: PlotOpts = {
   brk: 'off', brkFrom: '', brkTo: '', figW: 0, figH: 420, title: '',
   family: '', titleSize: 0, titleBold: true, titleItalic: false, yTitleSize: 0, yTitleBold: false, yTitleItalic: false, xTitleSize: 0, xTitleBold: false, xTitleItalic: false,
   legendPos: 'bottom', legendSize: 0, legendBold: false, legendItalic: false,
+  tickSize: 0, tickBold: false, tickItalic: false, tickAngle: 0,
 }
 export const SHAPES: { value: Shape; label: string }[] = [
   { value: 'circle', label: '● Circle' }, { value: 'triangle-up', label: '▲ Triangle' }, { value: 'square', label: '■ Square' },
@@ -106,7 +109,10 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   // The font of the plot title or an axis title: size (0 = automatic), bold, italic.
   const tfont = (k: TextStyleKey, auto: number) => ({ size: o[`${k}Size`] || auto, weight: o[`${k}Bold`] ? 'bold' : 'normal', style: o[`${k}Italic`] ? 'italic' : 'normal',
     ...(family ? { family } : {}), ...(bw ? { color: ink } : {}) })
-  const axisStyle = { showline: true, linecolor: bw ? ink : '#6b7280', linewidth: 1.2, ticks: 'outside', tickcolor: bw ? ink : '#6b7280', showgrid: false, zeroline: false }
+  const axisStyle = { showline: true, linecolor: bw ? ink : '#6b7280', linewidth: 1.2, ticks: 'outside', tickcolor: bw ? ink : '#6b7280', showgrid: false, zeroline: false,
+    tickfont: tfont('tick', o.font), automargin: true }
+  // Slanted or vertical names under the x axis (long gene or group names).
+  const xTicks = { tickangle: -o.tickAngle }
   const title = o.title.trim()
   const page = { font, ...(bw ? { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff' } : {}),
     ...(title ? { title: { text: title, x: 0.5, xanchor: 'center', y: 0.98, yanchor: 'top', font: tfont('title', o.font + 5) } } : {}) }
@@ -114,7 +120,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const yTitle = o.yTitle.trim() || defaultYTitle
   const inside = { bgcolor: bw ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.75)', bordercolor: bw ? ink : '#d1d5db', borderwidth: 1 }
   const legend = { font: tfont('legend', o.font), ...({
-    bottom: { orientation: 'h', x: 0.5, xanchor: 'center', y: -0.18, yanchor: 'top' },
+    bottom: { orientation: 'h', x: 0.5, xanchor: 'center', y: o.tickAngle ? -0.3 : -0.18, yanchor: 'top' },
     top: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.02, yanchor: 'bottom' },
     right: { orientation: 'v', x: 1.02, xanchor: 'left', y: 1, yanchor: 'top' },
     'inside-tr': { orientation: 'v', x: 0.99, xanchor: 'right', y: 0.99, yanchor: 'top', ...inside },
@@ -134,7 +140,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
       textfont: { color: bw ? (DARK.has(BW_FILLS[i % BW_FILLS.length]) ? '#ffffff' : ink) : '#ffffff', size: o.font - 1 },
     }))
     const yr = [num(o.yMin), num(o.yMax)]
-    return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle, title: { text: o.xTitle, font: tfont('xTitle', o.font) } },
+    return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle, ...xTicks, title: { text: o.xTitle, font: tfont('xTitle', o.font) } },
       yaxis: { ...axisStyle, title: { text: yTitle, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', ...(yr[0] != null && yr[1] != null ? { range: o.logY ? yr.map((v) => Math.log10(v!)) : yr } : { rangemode: 'tozero' }) },
       legend, showlegend, margin: { l: 70, r: 10, t: topM, b: 80 } }, broken: null as [number, number] | null }
   }
@@ -272,7 +278,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     annotations.push({ xref: 'paper', yref: 'paper', x: -0.08, y: 0.5, text: yTitleXY, textangle: -90, showarrow: false, font: tfont('yTitle', o.font + 1) })
   }
   // One target (e.g. a column table): label each group under its bar; else one label per target.
-  const xaxis = { ...axisStyle, anchor: 'y', range: [-0.6, ts.length - 0.4], title: { text: o.xTitle || (one && res.logScale && ts[0].target !== 'value' ? ts[0].target : ''), font: tfont('xTitle', o.font) },
+  const xaxis = { ...axisStyle, ...xTicks, anchor: 'y', range: [-0.6, ts.length - 0.4], title: { text: o.xTitle || (one && res.logScale && ts[0].target !== 'value' ? ts[0].target : ''), font: tfont('xTitle', o.font) },
     ...(one ? { tickvals: groups.map((_, gi) => pos(0, gi)), ticktext: groups } : { tickvals: ts.map((_, i) => i), ticktext: ts.map((t) => t.target) }) }
   const yr = [num(o.yMin), num(o.yMax)]
   const userRange = yr[0] != null && yr[1] != null && yr[1]! > yr[0]! ? (o.logY ? yr.map((v) => Math.log10(Math.max(v!, 1e-12))) : yr) : null

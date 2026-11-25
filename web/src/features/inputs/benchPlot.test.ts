@@ -143,6 +143,15 @@ describe('bench figures', () => {
     expect((fig({ kind: 'stacked', legendPos: 'top', legendBold: true }).layout as unknown as L).legend).toMatchObject({ y: 1.02, font: { weight: 'bold' } })
   })
 
+  it('tick labels: their own size, bold, italic, and slanted x labels', () => {
+    type A = { tickfont: { size: number; weight: string; style: string }; tickangle?: number }
+    const l = fig({ tickSize: 15, tickBold: true, tickAngle: 45 }).layout as unknown as { xaxis: A; yaxis: A }
+    expect(l.xaxis).toMatchObject({ tickangle: -45, tickfont: { size: 15, weight: 'bold', style: 'normal' } })
+    expect(l.yaxis.tickfont).toMatchObject({ size: 15, weight: 'bold' })
+    expect((fig({ tickItalic: true }).layout as unknown as { yaxis: A }).yaxis.tickfont).toMatchObject({ size: 13, style: 'italic', weight: 'normal' })
+    expect((fig({ kind: 'stacked', tickAngle: 90 }).layout as unknown as { xaxis: A }).xaxis.tickangle).toBe(-90)
+  })
+
   it('one gene shown on its own gets a figure sized to its groups, not the whole window', () => {
     expect(autoFigWidth(1, 2, DEFAULT_PLOT)).toBe(340)
     expect(autoFigWidth(1, 5, DEFAULT_PLOT)).toBeGreaterThan(autoFigWidth(1, 2, DEFAULT_PLOT)!)
