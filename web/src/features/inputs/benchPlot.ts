@@ -110,10 +110,15 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const showsBars = o.kind === 'bar' || o.kind === 'dots'
   const top = (t: FigTarget, g: string) => Math.max(showsBars ? mean(t, g) + err(t, g) : -Infinity, ...(o.points || !showsBars ? vals(t, g) : [-Infinity]))
   const bottom = (t: FigTarget, g: string) => Math.min(showsBars ? mean(t, g) - err(t, g) : Infinity, ...(o.points || !showsBars ? vals(t, g) : [Infinity]))
-  const allTops = ts.flatMap((t) => groups.map((g) => top(t, g))).filter(Number.isFinite)
-  const allBottoms = ts.flatMap((t) => groups.map((g) => bottom(t, g))).filter(Number.isFinite)
-  let ymax = Math.max(...allTops, res.logScale ? 1 : 0)
-  const ymin = Math.min(0, ...allBottoms)
+  // Brackets, labels and the range are placed in axis units: log10 of the value on a log axis (as Plotly wants).
+  const T = (y: number) => (o.logY ? Math.log10(Math.max(y, 1e-12)) : y)
+  const rawTops = ts.flatMap((t) => groups.map((g) => top(t, g))).filter(Number.isFinite)
+  const rawBottoms = ts.flatMap((t) => groups.map((g) => bottom(t, g))).filter(Number.isFinite)
+  const dataSpan = (Math.max(...rawTops, 0) - Math.min(0, ...rawBottoms)) || 1
+  let ymax = Math.max(...rawTops.map(T), res.logScale ? T(1) : o.logY ? -Infinity : 0)
+  const ymin = o.logY ? Math.min(...rawBottoms.map(T)) : Math.min(0, ...rawBottoms)
+  // One readout (e.g. viability): its name is the y-axis title; with several, the default title.
+  const yTitleXY = o.yTitle.trim() || (one && !res.logScale && ts[0].target !== 'value' ? ts[0].target : defaultYTitle)
 
   // p-value brackets: each comparison of a target as a bracket over its two groups, shortest lowest.
   type Bracket = { ti: number; x0: number; x1: number; y: number; label: string }
@@ -127,7 +132,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
       const levels: number[] = []                                      // highest bracket so far over each group
       for (const { c, gi } of cs) {
         let base = -Infinity
-        for (let g = gi[0]; g <= gi[1]; g++) base = Math.max(base, levels[g] ?? top(t, groups[g]))
+        for (let g = gi[0]; g <= gi[1]; g++) base = Math.max(base, levels[g] ?? T(top(t, groups[g])))
         const y = base + step
         for (let g = gi[0]; g <= gi[1]; g++) levels[g] = y + step * 0.35
         brackets.push({ ti, x0: pos(ti, gi[0]), x1: pos(ti, gi[1]), y, label: o.pvals === 'exact' ? fmtP(c.p) : c.stars })
@@ -172,7 +177,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
         if (!v.length) return
         const n = v.length, m = v.reduce((a, b) => a + b, 0) / n
         const sd = n > 1 ? Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (n - 1)) : 0
-        const bwd = Math.max(1.06 * sd * n ** -0.2, (ymax - ymin || 1) * 0.04)
+        const bwd = Math.max(1.06 * sd * n ** -0.2, dataSpan * 0.04)
         out.push({ type: 'violin', name: g, showlegend: ai === 0 && !one && ti === 0, legendgroup: g, yaxis: ax, x: v.map(() => pos(ti, gi)), y: v,
           width: w, hoverinfo: 'y', line: { color: bw ? ink : fill(gi), width: 1.3 }, fillcolor: bw ? fill(gi) : fill(gi) + '40',
           bandwidth: bwd, spanmode: 'soft', scalemode: 'width', points: false, meanline: { visible: false },
@@ -200,30 +205,32 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     if (broken && y > broken[0] && y < broken[1]) y = broken[1] + (upTop - broken[1]) * 0.05     // in the gap: just above it
     const r = yref(y), tick = (broken && r === 'y2' ? upTop - broken[1] : ymax - ymin) * 0.02
     const ln = { color: bw ? ink : '#374151', width: 1.2 }
-    shapes.push({ type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x1, y0: y, y1: y, line: ln },
-      { type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x0, y0: y - tick, y1: y, line: ln },
-      { type: 'line', xref: 'x', yref: r, x0: b.x1, x1: b.x1, y0: y - tick, y1: y, line: ln })
+    // On a log axis Plotly places annotations in log10 units but shapes in data units.
+    const U = (v: number) => (o.logY ? 10 ** v : v)
+    shapes.push({ type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x1, y0: U(y), y1: U(y), line: ln },
+      { type: 'line', xref: 'x', yref: r, x0: b.x0, x1: b.x0, y0: U(y - tick), y1: U(y), line: ln },
+      { type: 'line', xref: 'x', yref: r, x0: b.x1, x1: b.x1, y0: U(y - tick), y1: U(y), line: ln })
     annotations.push({ x: (b.x0 + b.x1) / 2, y, yref: r, text: b.label, showarrow: false, yanchor: 'bottom',
       font: { size: b.label === 'ns' || o.pvals === 'exact' ? o.font - 2 : o.font + 2, color: bw ? ink : undefined } })
   }
   const low = 0.6, high = 0.68
   if (broken) {
     for (const y of [low, high]) shapes.push({ type: 'line', xref: 'paper', yref: 'paper', x0: -0.012, x1: 0.012, y0: y - 0.014, y1: y + 0.014, line: { color: bw ? ink : '#6b7280', width: 1.5 } })
-    annotations.push({ xref: 'paper', yref: 'paper', x: -0.08, y: 0.5, text: yTitle, textangle: -90, showarrow: false, font: { size: o.font + 1, color: bw ? ink : undefined } })
+    annotations.push({ xref: 'paper', yref: 'paper', x: -0.08, y: 0.5, text: yTitleXY, textangle: -90, showarrow: false, font: { size: o.font + 1, color: bw ? ink : undefined } })
   }
   // One target (e.g. a column table): label each group under its bar; else one label per target.
-  const xaxis = { ...axisStyle, anchor: 'y', range: [-0.6, ts.length - 0.4], title: { text: o.xTitle || (one && ts[0].target !== 'value' ? ts[0].target : '') },
+  const xaxis = { ...axisStyle, anchor: 'y', range: [-0.6, ts.length - 0.4], title: { text: o.xTitle || (one && res.logScale && ts[0].target !== 'value' ? ts[0].target : '') },
     ...(one ? { tickvals: groups.map((_, gi) => pos(0, gi)), ticktext: groups } : { tickvals: ts.map((_, i) => i), ticktext: ts.map((t) => t.target) }) }
   const yr = [num(o.yMin), num(o.yMax)]
   const userRange = yr[0] != null && yr[1] != null && yr[1]! > yr[0]! ? (o.logY ? yr.map((v) => Math.log10(Math.max(v!, 1e-12))) : yr) : null
   const pad = (ymax - ymin) * 0.04
-  const autoRange = [ymin < 0 ? ymin - pad : 0, ymax + pad]
+  const autoRange = o.logY ? [ymin - pad, ymax + pad] : [ymin < 0 ? ymin - pad : 0, ymax + pad]
   const mode = o.kind === 'box' ? { boxmode: 'overlay' } : o.kind === 'violin' ? { violinmode: 'overlay' } : { barmode: 'overlay', bargap: 0 }
   const layout = broken
     ? { ...page, ...mode, xaxis, yaxis: { ...axisStyle, domain: [0, low], range: [autoRange[0], broken[0]] },
         yaxis2: { ...axisStyle, domain: [high, 1], range: [broken[1], userRange?.[1] ?? upTop], anchor: 'x' },
         annotations, shapes, legend, margin: { l: 75, r: 10, t: 10, b: 80 } }
-    : { ...page, ...mode, xaxis, yaxis: { ...axisStyle, title: { text: yTitle }, type: o.logY ? 'log' : 'linear', ...(userRange ? { range: userRange } : o.logY ? { autorange: true } : { range: autoRange }) },
+    : { ...page, ...mode, xaxis, yaxis: { ...axisStyle, title: { text: yTitleXY }, type: o.logY ? 'log' : 'linear', range: userRange ?? autoRange },
         annotations, shapes, legend, margin: { l: 70, r: 10, t: 10, b: 80 } }
   return { data: traces, layout, broken }
 }

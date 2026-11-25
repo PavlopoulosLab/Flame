@@ -124,3 +124,23 @@ test_that("many groups are allowed (up to BENCH_MAX_GROUPS)", {
   too_many <- stats::setNames(lapply(seq_len(BENCH_MAX_GROUPS + 1), function(i) list(paste0("S", i))), paste("G", seq_len(BENCH_MAX_GROUPS + 1)))
   expect_error(bench_analyse(paste(hdr, ref, tg, sep = "\n"), "q.tsv", helper = "qpcr", refs = list("GAPDH"), sampleGroups = too_many), "At most 24 groups")
 })
+
+test_that("the six example experiments load and give the expected results", {
+  run <- function(kind, ...) { e <- example_input(kind); expect_match(e$source, "made-up"); bench_analyse(e$text, e$fileName, ...) }
+  fold <- function(r, tg, a) { t <- Filter(function(x) x$target == tg, r$targets)[[1]]; Filter(function(c) c$a == a, t$comparisons)[[1]]$fold }
+  q <- run("bench_qpcr", helper = "qpcr", refs = list("GAPDH", "ACTB"), paired = TRUE)
+  expect_gt(fold(q, "FKBP5", "Dex"), 5)                                           # FKBP5, the classic glucocorticoid target
+  w <- run("bench_western", helper = "western", loading = "ACTB")
+  expect_gt(fold(w, "p-AKT (S473)", "Drug"), 2)
+  f <- run("bench_facs")
+  expect_equal(unlist(f$groups), c("Control", "Nocodazole"))
+  v <- run("bench_viability")
+  expect_equal(length(v$groups), 5L)
+  expect_lt(v$targets[[1]]$comparisons[[4]]$diff, -70)                            # 25 uM: about 20% of vehicle
+  el <- run("bench_elisa", log = TRUE)
+  expect_true(all(vapply(el$targets, function(t) fold(el, t$target, "LPS"), 0) > 20))
+  l <- run("bench_luciferase", helper = "western", loading = "Renilla luciferase (control)")
+  expect_equal(length(l$targets), 1L)                                              # the Renilla control is not tested
+  expect_gt(fold(l, "NF-kB firefly luciferase", "TNF"), 6)
+  expect_lt(fold(l, "NF-kB firefly luciferase", "TNF + IKK inhibitor"), 3)
+})

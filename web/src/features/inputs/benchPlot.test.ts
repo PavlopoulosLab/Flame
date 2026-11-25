@@ -81,6 +81,24 @@ describe('bench figures', () => {
     expect((b.layout as unknown as Record<string, any>).yaxis2.range[0]).toBe(9)
   })
 
+  it('log axis: brackets and range in log10 units, as Plotly expects', () => {
+    const f = fig({ logY: true, pvals: 'stars' })
+    const l = f.layout as unknown as { yaxis: { type: string; range: number[] }; annotations: { y: number }[] }
+    expect(l.yaxis.type).toBe('log')
+    expect(l.yaxis.range[1]).toBeLessThan(2)                                                           // log10 of ~12-20, not 10^98
+    expect(Math.max(...l.annotations.map((a) => a.y))).toBeLessThan(l.yaxis.range[1])                 // the stars fit on the axis
+    // bracket lines (shapes) are in data units: 10^(the label's height)
+    const sh = (f.layout as unknown as { shapes: { y0: number; y1: number }[] }).shapes
+    expect(sh[0].y1).toBeCloseTo(10 ** l.annotations[0].y, 6)
+  })
+
+  it('one readout that is not a fold change: its name is the y-axis title', () => {
+    const raw = { ...res, logScale: false, targets: [{ ...res.targets[0], target: 'Viability (% of vehicle)' }] }
+    const l = benchFigure(raw, DEFAULT_PLOT, () => '#000000', 'Value').layout as unknown as Record<string, any>
+    expect(l.yaxis.title.text).toBe('Viability (% of vehicle)')
+    expect(l.xaxis.title.text).toBe('')
+  })
+
   it('one target: each group is labelled under its bar', () => {
     const one = benchFigure({ ...res, targets: [res.targets[0]] }, DEFAULT_PLOT, () => '#000000', 'Value')
     expect((one.layout as unknown as Record<string, any>).xaxis.ticktext).toEqual(['Control', 'Dex', 'RU486'])

@@ -691,7 +691,7 @@ export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[]
   { kind: 'pubmed', title: 'PubMed genes', text: 'Genes of articles on glucocorticoids in airway muscle' },
   { kind: 'geo', title: 'GEO signature', text: 'GSE52778: dexamethasone vs untreated airway cells' },
   { kind: 'clinvar', title: 'ClinVar variants', text: 'Pathogenic cystic fibrosis variants and their genes' },
-  { kind: 'bench', title: 'Bench data (qPCR)', text: 'Ct values → ΔΔCt, test and figure' },
+  { kind: 'bench', title: 'Experimental analysis (qPCR)', text: 'Ct values → ΔΔCt, test and figure' },
   { kind: 'nutrition', title: 'Nutrient genes', text: 'Curcumin: CTD interactions, ChEMBL targets, UniProt' },
   { kind: 'tcga', title: 'TCGA tumour groups', text: 'Breast cancer: basal-like vs luminal A tumours' },
   { kind: 'survival', title: 'Survival genes', text: 'Liver cancer (TCGA): genes linked to overall survival' },

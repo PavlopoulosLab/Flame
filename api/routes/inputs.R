@@ -30,7 +30,8 @@ function(res, kind) {
              textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
              reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt", metabolites = "flame_example_metabolites.txt",
              survival = "flame_example_survival_expression.tsv", survival_clinical = "flame_example_survival_clinical.tsv",
-             bench_qpcr = "flame_example_bench_qpcr.tsv", bench_western = "flame_example_bench_western.tsv", bench_facs = "flame_example_bench_facs.tsv", bench_column = "flame_example_bench_column.tsv")
+             bench_qpcr = "flame_example_bench_qpcr.tsv", bench_western = "flame_example_bench_western.tsv", bench_facs = "flame_example_bench_facs.tsv", bench_column = "flame_example_bench_column.tsv",
+             bench_viability = "flame_example_bench_viability.tsv", bench_elisa = "flame_example_bench_elisa.tsv", bench_luciferase = "flame_example_bench_luciferase.tsv")
   if (!kind %in% names(files)) { res$status <- 404; return("Unknown example") }
   res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", files[[kind]]))
   if (kind == "survival_clinical") return(example_input("survival")$clinical)

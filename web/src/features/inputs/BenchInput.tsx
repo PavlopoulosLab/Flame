@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api } from '../../api/client'
+import { api, API_BASE } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note } from '../../components/ui'
@@ -40,11 +40,20 @@ const setupFrom = (p: Parsed): GroupSetup => {
   return { names, assign: Object.fromEntries(p.samples.map((smp, i) => [smp, names.indexOf(p.guess[i] ?? '')])) }
 }
 
-const EXAMPLES: { kind: string; label: string; helper: Helper; refs?: string[]; loading?: string; paired?: boolean; kind2?: PlotOpts['kind'] }[] = [
-  { kind: 'bench_qpcr', label: 'qPCR (Ct)', helper: 'qpcr', refs: ['GAPDH', 'ACTB'], paired: true },
-  { kind: 'bench_western', label: 'Western bands', helper: 'western', loading: 'ACTB' },
-  { kind: 'bench_facs', label: 'FACS cell cycle', helper: 'none', kind2: 'stacked' },
-  { kind: 'bench_column', label: 'Simple table', helper: 'none' },
+/** Example experiments: each loads its table and the data type, normalisation and chart that suit it. */
+const EXAMPLES: { kind: string; label: string; what: string; helper: Helper; refs?: string[]; loading?: string; log?: boolean; paired?: boolean; plot?: Partial<PlotOpts> }[] = [
+  { kind: 'bench_qpcr', label: 'qPCR: glucocorticoid target genes in airway cells (dexamethasone ± RU486)', helper: 'qpcr', refs: ['GAPDH', 'ACTB'], paired: true,
+    what: 'Ct values of 6 genes and 2 reference genes → ΔΔCt fold changes, paired by experiment.', plot: { kind: 'bar' } },
+  { kind: 'bench_western', label: 'Western blot: AKT phosphorylation and apoptosis after a drug ± PI3K inhibitor', helper: 'western', loading: 'ACTB',
+    what: 'Band intensities (e.g. from ImageJ), normalised to the β-actin loading control.', plot: { kind: 'bar' } },
+  { kind: 'bench_facs', label: 'Flow cytometry: cell-cycle arrest in G2/M after nocodazole', helper: 'none',
+    what: '% of cells in G0/G1, S and G2/M, shown as stacked bars.', plot: { kind: 'stacked' } },
+  { kind: 'bench_viability', label: 'MTT assay: cancer cell viability across cisplatin doses', helper: 'none',
+    what: 'Viability (% of vehicle) at 4 doses, each dose against the vehicle (Dunnett).', plot: { kind: 'bar' } },
+  { kind: 'bench_elisa', label: 'ELISA: cytokines secreted by macrophages after LPS ± dexamethasone', helper: 'none', log: true,
+    what: 'IL-6, TNF and IL-1β in pg/mL, tested as log2 ratios, on a log axis.', plot: { kind: 'dots', logY: true } },
+  { kind: 'bench_luciferase', label: 'Luciferase reporter: NF-κB activity after TNF ± IKK inhibitor', helper: 'western', loading: 'Renilla luciferase (control)',
+    what: 'Firefly reporter ÷ Renilla control (dual-luciferase), relative to unstimulated cells.', plot: { kind: 'bar' } },
 ]
 const REF_GENES = ['GAPDH', 'ACTB', 'B2M', 'HPRT1', 'RPLP0', 'TBP', '18S', 'RN18S1', 'PPIA', 'YWHAZ', 'UBC', 'GUSB', 'TUBB', 'Gapdh', 'Actb']
 const LOADING = /^(ACTB|GAPDH|TUBB|TUBA1A|VCL|vinculin|tubulin|actin|β-actin|beta-actin|total protein|HSP90|LMNB1|lamin)/i
@@ -53,7 +62,7 @@ const fmtP = (p: number | null | undefined) => (p == null || !Number.isFinite(p)
 const num = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '' : x.toFixed(d))
 
 /**
- * Bench data: paste a small table (qPCR Ct, band intensities, FACS percentages or any measurements
+ * Experimental analysis (bench data): paste a small table (qPCR Ct, band intensities, FACS percentages or any measurements
  * per group), get a sensible test and a clean figure, and send the genes to Flame. A quick, generic
  * tool, not a replacement for Prism, qbase+ or FlowJo.
  */
@@ -73,6 +82,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
   const [plot, setPlot] = useState<PlotOpts>(DEFAULT_PLOT)
+  const [exampleKind, setExampleKind] = useState('')
   const [organism, setOrganism] = useState(9606)
   // Step 1 -> 2: the sample columns, read as soon as a table is pasted or uploaded.
   const [parsed, setParsed] = useState<Parsed | null>(null)
@@ -113,8 +123,8 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     try {
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
       setRes(null); setApplied(null); setControl(''); setHelper(ex.helper); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
-      setNonpar(false); setAllPairs(false); setLog(false); setFileName(r.fileName); setSource(r.source); setText(r.text)
-      setPlot((p) => ({ ...p, kind: ex.kind2 ?? (p.kind === 'stacked' ? 'bar' : p.kind) }))
+      setNonpar(false); setAllPairs(false); setLog(!!ex.log); setFileName(r.fileName); setSource(r.source); setText(r.text); setExampleKind(ex.kind)
+      setPlot((p) => ({ ...p, kind: 'bar', logY: false, ...ex.plot }))
     } catch (e) { setErr(e) }
   }
   useEffect(() => { if (example) loadExample(EXAMPLES[0]) // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -183,17 +193,25 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
 
   return (
     <Modal title={title} size="xl" onClose={onClose}
-      subtitle="Upload a table (samples in columns, genes or targets in rows), group the samples, then get the tests and a figure: bars, dots, box, violin or stacked bars. qPCR Ct values are turned into fold changes. For a full analysis use Prism, qbase+ or FlowJo.">
+      subtitle="Statistics and figures for small lab experiments (qPCR, ELISA, westerns, viability, reporter assays, flow cytometry): upload a table with samples in columns and genes or readouts in rows, group the samples, choose the test and the plot.">
       <div className="stack">
         <div className="row wrap">
-          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setRes(null); setControl(''); setHelper('none'); setText(t); setFileName(n) }} />
-          <span className="muted small">Examples:</span>
-          {EXAMPLES.map((ex) => <button key={ex.kind} className="btn btn-ghost btn-sm" onClick={() => loadExample(ex)}>{ex.label}</button>)}
+          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setExampleKind(''); setRes(null); setControl(''); setHelper('none'); setText(t); setFileName(n) }} />
+          <Field label="Or try an example experiment">
+            <select className="input input-sm" aria-label="Example experiment" value={exampleKind} style={{ maxWidth: 560 }}
+              onChange={(e) => { const ex = EXAMPLES.find((x) => x.kind === e.target.value); if (ex) loadExample(ex) }}>
+              <option value="">Choose an experiment…</option>
+              {EXAMPLES.map((ex) => <option key={ex.kind} value={ex.kind}>{ex.label}</option>)}
+            </select>
+          </Field>
         </div>
         <textarea className="input mono" rows={5} value={text} aria-label="Table"
           placeholder={'Column table — one column per group:\nControl\tDrug A\tDrug B\n100\t71.4\t95.2\n96.8\t65.9\t101.3\n\nGrouped table — genes in rows, replicates under each group:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'}
-          onChange={(e) => { setSource(null); setText(e.target.value); setFileName('') }} />
-        {source && <p className="example-source"><strong>Example data:</strong> {source}</p>}
+          onChange={(e) => { setSource(null); setExampleKind(''); setText(e.target.value); setFileName('') }} />
+        {source && (() => { const ex = EXAMPLES.find((x) => x.kind === exampleKind); return (
+          <p className="example-source"><strong>Example data:</strong> {source}{ex ? <> <em>{ex.what}</em></> : null}{' '}
+            {ex && <a href={`${API_BASE}/inputs/examples/${ex.kind}/file`} download>Download the table</a>} to see the layout.</p>
+        ) })()}
         {parsed && (
           <ol className="progress-steps" aria-label="Steps">
             <li className="done"><span>1</span> Table: {plural(parsed.samples.length, grouped ? 'sample' : 'group')}{grouped ? `, ${plural(parsed.rowNames.length, 'row')}` : ''}</li>
@@ -219,14 +237,14 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           <div className="card stack-sm bench-setup">
           <h3 className="small">Test</h3>
           <div className="row wrap bench-options">
-            <Field label="Data">
+            <Field label="Data type">
               <select className="input input-sm" value={helper === 'qpcr' ? 'qpcr' : 'values'} onChange={(e) => { setHelper(e.target.value === 'qpcr' ? 'qpcr' : 'none'); setLog(false) }}>
-                <option value="qpcr" disabled={!grouped}>qPCR Ct → ΔΔCt, fold change</option>
-                <option value="values">Values (any measurement)</option>
+                <option value="qpcr" disabled={!grouped}>qPCR Ct values → ΔΔCt fold change</option>
+                <option value="values">Measurements (ELISA, western, viability, reporter, FACS…)</option>
               </select>
             </Field>
             {helper !== 'qpcr' && (
-              <Field label="Values">
+              <Field label="Measurements">
                 <select className="input input-sm" value={helper === 'western' ? 'row' : log ? 'log' : 'asis'}
                   onChange={(e) => { const v = e.target.value; setHelper(v === 'row' ? 'western' : 'none'); setLog(v === 'log') }}>
                   <option value="asis">As given</option>
