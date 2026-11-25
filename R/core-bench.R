@@ -26,7 +26,9 @@ BENCH_MAX_REPLICATES <- 100   # values per group and target: bench experiments a
 }
 
 #' Parse a pasted bench table into long form: target, group, sample, pair (replicate key), value.
-bench_parse <- function(text, fileName = "", layout = "auto") {
+#' sampleGroups (grouped tables): list(<group name> = c(<sample columns>), ...) set by the user;
+#' it replaces the groups guessed from the column names, and columns in no group are left out.
+bench_parse <- function(text, fileName = "", layout = "auto", sampleGroups = NULL) {
   df <- parse_delimited_table(text, fileName)
   if (ncol(df) < 2) stop("Paste a table with at least two columns: groups side by side.")
   if (ncol(df) > 12 * BENCH_MAX_REPLICATES + 1) stop("The table has too many columns for bench data.")
@@ -37,8 +39,9 @@ bench_parse <- function(text, fileName = "", layout = "auto") {
   if (layout == "grouped") {
     if (!firstText) stop("A grouped table needs gene or target names in its first column.")
     targets <- make.unique(trimws(as.character(df[[1]])))
-    cols <- names(df)[-1]
+    cols <- make.unique(names(df)[-1])
     groups <- .bench_group_of(cols)
+    if (length(sampleGroups)) groups <- .bench_user_groups(sampleGroups, cols)
     pos <- stats::ave(seq_along(groups), groups, FUN = seq_along)
     long <- do.call(rbind, lapply(seq_along(cols), function(j) data.frame(
       target = targets, group = groups[j], sample = cols[j], pair = pos[j], value = num[[j + 1]], stringsAsFactors = FALSE)))
@@ -50,15 +53,40 @@ bench_parse <- function(text, fileName = "", layout = "auto") {
       target = "value", group = groups[j], sample = paste(groups[j], seq_len(nrow(df))), pair = seq_len(nrow(df)),
       value = num[[j]], stringsAsFactors = FALSE)))
   }
-  long <- long[is.finite(long$value), , drop = FALSE]
+  samples <- if (layout == "grouped") cols else character(0)
+  sampleGroup <- if (layout == "grouped") groups else character(0)
+  long <- long[is.finite(long$value) & !is.na(long$group), , drop = FALSE]
   if (!nrow(long)) stop("No numbers were found in the table.")
-  grp <- unique(long$group)
+  grp <- if (length(sampleGroups) && layout == "grouped") intersect(substr(trimws(names(sampleGroups)), 1, 60), unique(long$group)) else unique(long$group)
+  # Grouped table whose column names give no usable groups (e.g. S1..S6): hand back the samples so
+  # the user can group them, instead of failing.
+  if (layout == "grouped" && !length(sampleGroups) && (length(grp) < 2 || length(grp) > 12) && length(unique(long$target)) <= 60)
+    return(list(layout = layout, needsGroups = TRUE, data = long, groups = character(0), targets = unique(long$target),
+                samples = samples, sampleGroup = rep(NA_character_, length(samples))))
   if (length(grp) < 2) stop("At least two groups are needed (e.g. Control and Treated columns).")
   if (length(grp) > 12) stop("At most 12 groups are supported.")
   if (length(unique(long$target)) > 60) stop("At most 60 genes or targets are supported.")
   if (max(table(long$group, long$target)) > BENCH_MAX_REPLICATES)
     stop(sprintf("At most %d values per group are supported: this module is meant for bench experiments.", BENCH_MAX_REPLICATES))
-  list(layout = layout, data = long, groups = grp, targets = unique(long$target))
+  list(layout = layout, data = long, groups = grp, targets = unique(long$target), samples = samples, sampleGroup = sampleGroup)
+}
+
+# Group of each sample column from the user's list(<group> = c(<samples>)); NA = not used.
+.bench_user_groups <- function(sampleGroups, cols) {
+  if (!is.list(sampleGroups) || is.null(names(sampleGroups))) stop("Sample groups must be given as { group name: [samples] }.")
+  nm <- substr(trimws(names(sampleGroups)), 1, 60)
+  if (any(!nzchar(nm))) stop("Give every sample group a name.")
+  if (anyDuplicated(nm)) stop("Give each sample group a different name.")
+  if (length(nm) > 12) stop("At most 12 groups are supported.")
+  out <- rep(NA_character_, length(cols))
+  for (i in seq_along(nm)) {
+    ss <- as.character(unlist(sampleGroups[[i]]))
+    bad <- setdiff(ss, cols)
+    if (length(bad)) stop("Not a column of the table: ", paste(utils::head(bad, 3), collapse = ", "), ".")
+    if (any(!is.na(out[match(ss, cols)]))) stop("A sample can be in only one group.")
+    out[match(ss, cols)] <- nm[i]
+  }
+  out
 }
 
 # ---- helpers ------------------------------------------------------------------------
@@ -182,9 +210,16 @@ bench_parse <- function(text, fileName = "", layout = "auto") {
 
 #' Analyse a bench table: helper conversion, the default (or chosen) test per target, figure data.
 bench_analyse <- function(text, fileName = "", layout = "auto", helper = "none", refs = NULL, loading = NULL,
-                          control = NULL, paired = FALSE, nonparametric = FALSE, allPairs = FALSE, log = FALSE) {
+                          control = NULL, paired = FALSE, nonparametric = FALSE, allPairs = FALSE, log = FALSE,
+                          sampleGroups = NULL) {
   helper <- if (helper %in% BENCH_HELPERS) helper else "none"
-  p <- bench_parse(text, fileName, layout)
+  p <- bench_parse(text, fileName, layout, sampleGroups)
+  if (isTRUE(p$needsGroups)) {
+    return(list(layout = p$layout, helper = helper, groups = list(), control = "", paired = isTRUE(paired), nonparametric = isTRUE(nonparametric),
+                allPairs = isTRUE(allPairs), logScale = helper %in% c("qpcr", "western"), shownAs = "", targets = list(),
+                sentence = "", methods = "", warnings = list(), rowNames = as.list(p$targets),
+                samples = as.list(p$samples), sampleGroups = as.list(rep("", length(p$samples))), customGroups = FALSE, needsGroups = TRUE))
+  }
   if (helper %in% c("qpcr", "western") && p$layout != "grouped")
     stop("The qPCR and western helpers need a grouped table: genes or proteins in the first column, samples across.")
   d <- .bench_transform(p, helper, refs, loading, log)
@@ -241,5 +276,7 @@ bench_analyse <- function(text, fileName = "", layout = "auto", helper = "none",
   list(layout = p$layout, helper = helper, groups = as.list(groups), control = ctrl, paired = paired, nonparametric = nonpar, allPairs = allPairs,
        logScale = logScale, shownAs = if (logScale) "fold change vs control" else "value", targets = res,
        sentence = sentence, methods = methods, warnings = as.list(warn),
-       rowNames = as.list(p$targets))
+       rowNames = as.list(p$targets),
+       samples = as.list(p$samples), sampleGroups = as.list(ifelse(is.na(p$sampleGroup), "", p$sampleGroup)),
+       customGroups = length(sampleGroups) > 0)
 }

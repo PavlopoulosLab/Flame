@@ -459,12 +459,14 @@ function(req, res) {
 #* Bench data: a small pasted table (column or grouped layout) analysed with a sensible default test,
 #* optional helpers for qPCR (delta-delta Ct), westerns (band / loading control) and FACS phases.
 #* Body: { text, fileName?, layout?: auto|column|grouped, helper?: none|qpcr|western|facs, refs?: [genes] (qPCR),
-#*        loading? (western), control?, paired?, nonparametric?, allPairs?, log? }
+#*        loading? (western), control?, paired?, nonparametric?, allPairs?, log?,
+#*        groups?: { <group name>: [sample columns] } (grouped tables: replaces the groups guessed from column names) }
 #* @post /bench/analyse
 #* @serializer flamejson
 function(req, res) {
   b <- body_of(req)
   .fetch_here(res, bench_analyse(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
                             as.character(b$helper %||% "none"), b$refs, b$loading, b$control,
-                            isTRUE(b$paired), isTRUE(b$nonparametric), isTRUE(b$allPairs), isTRUE(b$log)))
+                            isTRUE(b$paired), isTRUE(b$nonparametric), isTRUE(b$allPairs), isTRUE(b$log),
+                            sampleGroups = b$groups))
 }

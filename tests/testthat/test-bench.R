@@ -56,3 +56,36 @@ test_that("bad tables are refused with a clear message", {
   expect_error(bench_analyse("A\n1\n2", "x.tsv"), "at least two columns")
   expect_error(bench_analyse("A\tB\n1\t2", "x.tsv", helper = "qpcr"), "grouped table")
 })
+
+test_that("user-defined sample groups replace the groups guessed from column names", {
+  # Column names that say nothing about the groups: S1..S6
+  tx <- "Gene\tS1\tS2\tS3\tS4\tS5\tS6\nGAPDH\t18\t18.2\t18.1\t18\t18.1\t18.2\nFKBP5\t27\t27.2\t27.1\t24\t24.2\t24.1"
+  guessed <- bench_analyse(tx, "q.tsv", helper = "qpcr", refs = list("GAPDH"))
+  expect_true(guessed$needsGroups)                                      # S1..S6 give no groups: ask the user
+  expect_length(guessed$targets, 0)
+  expect_equal(unlist(guessed$samples), paste0("S", 1:6))
+  expect_false(guessed$customGroups)
+  r <- bench_analyse(tx, "q.tsv", helper = "qpcr", refs = list("GAPDH"),
+                     sampleGroups = list(Vehicle = list("S1", "S2", "S3"), Dex = list("S4", "S5", "S6")))
+  expect_equal(unlist(r$groups), c("Vehicle", "Dex"))
+  expect_equal(r$control, "Vehicle")
+  expect_true(r$customGroups)
+  expect_equal(unlist(r$sampleGroups), rep(c("Vehicle", "Dex"), each = 3))
+  expect_gt(r$targets[[1]]$comparisons[[1]]$fold, 7)                   # 2^3 = 8-fold up
+  # Samples in no group are left out; the chosen control is kept
+  q <- example_input("bench_qpcr")$text
+  r2 <- bench_analyse(q, "q.tsv", helper = "qpcr", refs = list("GAPDH", "ACTB"), control = "Steroid",
+                      sampleGroups = list(Vehicle = list("Control 1", "Control 2", "Control 3"), Steroid = list("Dex 1", "Dex 2", "Dex 3")))
+  expect_equal(unlist(r2$groups), c("Steroid", "Vehicle"))
+  expect_equal(sum(unlist(r2$sampleGroups) == ""), 3L)                  # the three Dex + RU486 columns
+  expect_true(all(vapply(r2$targets[[1]]$summary, `[[`, 0, "n") == 3))
+})
+
+test_that("bad sample groups are refused with a clear message", {
+  q <- example_input("bench_qpcr")$text
+  run <- function(g) bench_analyse(q, "q.tsv", helper = "qpcr", refs = list("GAPDH"), sampleGroups = g)
+  expect_error(run(list(A = list("Control 1"), A = list("Dex 1"))), "different name")
+  expect_error(run(list(A = list("nope"), B = list("Dex 1"))), "Not a column")
+  expect_error(run(list(A = list("Control 1"), B = list("Control 1"))), "only one group")
+  expect_error(run(list(A = list("Control 1", "Control 2"), B = list())), "two groups")
+})
