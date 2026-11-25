@@ -159,13 +159,26 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
         marker: { symbol: 'line-ew', size: Math.max(12, w * 260), line: { color: bw ? ink : fill(gi), width: 2.5 } },
         error_y: { type: 'data', array: ts.map((t) => err(t, g)), visible: true, color: bw ? ink : fill(gi), thickness: 1.5, width: o.cap },
         hovertemplate: `${g} mean: %{y:.3g}<extra></extra>` })
-    } else {
+    } else if (o.kind === 'box') {
       const xv = ts.flatMap((t, ti) => vals(t, g).map(() => pos(ti, gi)))
       const yv = ts.flatMap((t) => vals(t, g))
-      const common = { name: g, showlegend: ai === 0 && !one, legendgroup: g, yaxis: ax, x: xv, y: yv, width: w, hoverinfo: 'y', line }
-      out.push(o.kind === 'box'
-        ? { ...common, type: 'box', boxpoints: false, fillcolor: bw ? fill(gi) : fill(gi) + '55', boxmean: false }
-        : { ...common, type: 'violin', points: false, fillcolor: bw ? fill(gi) : fill(gi) + '55', meanline: { visible: true }, box: { visible: false }, spanmode: 'hard', scalemode: 'width' })
+      out.push({ type: 'box', name: g, showlegend: ai === 0 && !one, legendgroup: g, yaxis: ax, x: xv, y: yv, width: w, hoverinfo: 'y', line,
+        boxpoints: false, fillcolor: bw ? fill(gi) : fill(gi) + '55', boxmean: false })
+    } else {
+      // One violin per target, so each gets its own smoothing. Bandwidth: Silverman's rule, but at least 4% of
+      // the axis, so small groups (n = 3) or identical values still give a rounded shape instead of a flat line.
+      ts.forEach((t, ti) => {
+        const v = vals(t, g)
+        if (!v.length) return
+        const n = v.length, m = v.reduce((a, b) => a + b, 0) / n
+        const sd = n > 1 ? Math.sqrt(v.reduce((a, b) => a + (b - m) ** 2, 0) / (n - 1)) : 0
+        const bwd = Math.max(1.06 * sd * n ** -0.2, (ymax - ymin || 1) * 0.04)
+        out.push({ type: 'violin', name: g, showlegend: ai === 0 && !one && ti === 0, legendgroup: g, yaxis: ax, x: v.map(() => pos(ti, gi)), y: v,
+          width: w, hoverinfo: 'y', line: { color: bw ? ink : fill(gi), width: 1.3 }, fillcolor: bw ? fill(gi) : fill(gi) + '40',
+          bandwidth: bwd, spanmode: 'soft', scalemode: 'width', points: false, meanline: { visible: false },
+          // median and quartiles as a thin box inside, as in Prism
+          box: { visible: true, width: 0.18, fillcolor: bw ? '#ffffff' : '#ffffff', line: { color: bw ? ink : fill(gi), width: 1.3 } } })
+      })
     }
     if (o.points) {
       const pts = ts.flatMap((t, ti) => t.values.filter((v) => v.group === g).map((v) => ({ x: pos(ti, gi) + hash(v.sample + t.target) * w * o.jitter, y: v.value, s: v.sample })))

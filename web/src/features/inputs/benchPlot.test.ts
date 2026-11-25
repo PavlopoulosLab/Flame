@@ -35,6 +35,14 @@ describe('bench figures', () => {
     expect((st.layout as unknown as { barmode: string }).barmode).toBe('stack')
   })
 
+  it('violins: one per group and target, never thinner than 4% of the axis, with a quartile box', () => {
+    const v = fig({ kind: 'violin', points: false }).data as { type: string; bandwidth: number; box: { visible: boolean }; showlegend: boolean }[]
+    expect(v).toHaveLength(3 * 2)
+    expect(v.every((t) => t.type === 'violin' && t.box.visible)).toBe(true)
+    expect(Math.min(...v.map((t) => t.bandwidth))).toBeGreaterThan(0.04 * 12 * 0.99)                 // axis spans ~0-12.4
+    expect(v.filter((t) => t.showlegend)).toHaveLength(3)                                             // one legend entry per group
+  })
+
   it('error bars: SD, SEM or 95% CI', () => {
     const err = (e: PlotOpts['errBar']) => ((fig({ kind: 'bar', errBar: e }).data[0] as { error_y: { array: number[] } }).error_y.array[0])
     const s = summ('Control', data.FKBP5.Control)

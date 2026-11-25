@@ -85,11 +85,34 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const groupsReady = !grouped || (!!groupSetup && groupNamesOk && groupSizes.filter((n) => n > 0).length >= 2)
   const groupsBody = useMemo(() => (!grouped || !groupSetup || !groupNamesOk ? null : JSON.stringify(Object.fromEntries(groupSetup.names.map((n, i) => [n.trim(),
     Object.keys(groupSetup.assign).filter((smp) => groupSetup.assign[smp] === i)]).filter(([, m]) => (m as string[]).length)))), [grouped, groupSetup, groupNamesOk])
+  // Groups as they will be tested (grouped tables: the editor's groups with samples; column tables: the columns).
+  const groupNames = useMemo(() => (grouped && groupSetup ? groupSetup.names.map((n) => n.trim()).filter((_, i) => groupSizes[i] > 0)
+    : [...new Set(parsed?.guess ?? [])]), [grouped, groupSetup, parsed, groupSizes.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const effControl = groupNames.includes(control) ? control : groupNames[0] ?? ''
+
+  // The options are only a draft until "Generate plot": the tests and the figure use the applied copy.
+  const pmode = usePaletteMode()
+  const palette = useMemo(() => roleColors(pmode).series, [pmode])
+  const groupColors = useMemo(() => (groupSetup ? groupSetup.names.map((_, i) => groupSetup.colors?.[i] || palette[i % palette.length]) : palette), [groupSetup, palette])
+  const draft = useMemo(() => ({
+    helper, refs, loading, log, control: effControl, paired, nonpar, allPairs, groupsBody, plot,
+    order: grouped && groupSetup ? groupSetup.names.map((n) => n.trim()) : groupNames,
+    colors: groupColors,
+  }), [helper, refs, loading, log, effControl, paired, nonpar, allPairs, groupsBody, plot, grouped, groupSetup, groupNames, groupColors])
+  type Applied = typeof draft
+  const [applied, setApplied] = useState<Applied | null>(null)
+  const [autoGen, setAutoGen] = useState(false)
+  const optionsReady = !!parsed && confirmed && groupsReady && groupNames.length >= 2
+    && !(helper === 'qpcr' && !refs.length) && !(helper === 'western' && !loading)
+  const dirty = !!applied && JSON.stringify(draft) !== JSON.stringify(applied)
+  const generate = () => { if (optionsReady) setApplied(draft) }
+  // Examples are drawn straight away.
+  useEffect(() => { if (autoGen && optionsReady) { setApplied(draft); setAutoGen(false) } }, [autoGen, optionsReady, draft])
 
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
-      setRes(null); setControl(''); setHelper(ex.helper); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
+      setRes(null); setApplied(null); setControl(''); setHelper(ex.helper); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
       setNonpar(false); setAllPairs(false); setLog(false); setFileName(r.fileName); setSource(r.source); setText(r.text)
       setPlot((p) => ({ ...p, kind: ex.kind2 ?? (p.kind === 'stacked' ? 'bar' : p.kind) }))
     } catch (e) { setErr(e) }
@@ -107,7 +130,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
 
   // Step 1: read the sample columns of a new table (no statistics yet).
   useEffect(() => {
-    setParsed(null); setGroupSetup(null); setConfirmed(false); setRes(null)
+    setParsed(null); setGroupSetup(null); setConfirmed(false); setRes(null); setApplied(null)
     if (!text.trim()) return
     const t = setTimeout(() => {
       setBusy(true); setErr(null)
@@ -116,6 +139,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           setParsed(p)
           setGroupSetup(p.layout === 'grouped' ? setupFrom(p) : null)
           setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
+          if (source) setAutoGen(true)
           if (helper === 'none' && !source && p.layout === 'grouped') {
             const g = guess(p.rowNames)
             if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading); if ('stacked' in g) setPlot((x) => ({ ...x, kind: 'stacked' })) }
@@ -128,41 +152,32 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, fileName])
 
-  // Step 3: the tests, once the groups are confirmed; any later change re-runs them.
+  // Step 3: the tests, run with the applied options (plot-only changes redraw without testing again).
+  const testKey = applied ? JSON.stringify({ ...applied, plot: undefined, colors: undefined, order: undefined }) : ''
   useEffect(() => {
-    if (!parsed || !confirmed || !groupsReady) { setRes(null); return }
-    if (helper === 'qpcr' && !refs.length) return
-    if (helper === 'western' && !loading) return
-    const t = setTimeout(() => {
-      setBusy(true); setErr(null)
-      api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper, refs, loading, control: control || null, paired, nonparametric: nonpar, allPairs, log, ...(groupsBody ? { groups: JSON.parse(groupsBody) } : {}) } })
-        .then((r) => {
-          setRes(r)
-          if (!control || !r.groups.includes(control)) setControl(r.control)
-        })
-        .catch((e) => { setErr(e); setRes(null) })
-        .finally(() => setBusy(false))
-    }, 250)
-    return () => clearTimeout(t)
+    if (!applied || !parsed) { setRes(null); return }
+    const a = applied
+    setBusy(true); setErr(null)
+    api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper: a.helper, refs: a.refs, loading: a.loading, control: a.control || null, paired: a.paired,
+      nonparametric: a.nonpar, allPairs: a.allPairs, log: a.log, ...(a.groupsBody ? { groups: JSON.parse(a.groupsBody) } : {}) } })
+      .then(setRes)
+      .catch((e) => { setErr(e); setRes(null) })
+      .finally(() => setBusy(false))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parsed, confirmed, groupsReady, helper, refs, loading, control, paired, nonpar, allPairs, log, groupsBody])
+  }, [testKey])
 
-  const pm = usePaletteMode()
-  const palette = useMemo(() => roleColors(pm).series, [pm])
-  // Each group's colour: picked in the group editor, else the palette colour of its place in the editor.
-  const groupColors = useMemo(() => (groupSetup ? groupSetup.names.map((_, i) => groupSetup.colors?.[i] || palette[i % palette.length]) : palette), [groupSetup, palette])
+  // The figure: applied plot options, the editor's group order and colours (the tests put the control first).
   const colorOf = (g: string, i: number) => {
-    const at = groupSetup ? groupSetup.names.map((n) => n.trim()).indexOf(g) : -1
-    return at >= 0 ? groupColors[at] : palette[i % palette.length]
+    const at = applied ? applied.order.indexOf(g) : -1
+    return at >= 0 ? applied!.colors[at % applied!.colors.length] : palette[i % palette.length]
   }
-  // Plot the groups in the editor's order (the tests put the control first).
-  const plotGroups = useMemo(() => (!res ? [] : groupSetup
-    ? [...res.groups].sort((a, b) => groupSetup.names.map((n) => n.trim()).indexOf(a) - groupSetup.names.map((n) => n.trim()).indexOf(b)) : res.groups), [res, groupSetup])
+  const plotGroups = useMemo(() => (!res ? [] : applied ? [...res.groups].sort((a, b) => applied.order.indexOf(a) - applied.order.indexOf(b)) : res.groups), [res, applied])
   // Stacked bars that add up to ~100 in every group (e.g. cell-cycle phases) are percentages.
   const sumsTo100 = !!res && res.groups.every((g) => Math.abs(res.targets.reduce((a, t) => a + (t.summary.find((x) => x.group === g)?.mean ?? 0), 0) - 100) < 5)
-  const defaultYTitle = !res ? '' : res.logScale ? `Fold change vs ${res.control}` : helper === 'western' ? `Ratio to ${loading}` : plot.kind === 'stacked' && sumsTo100 ? 'Percentage' : 'Value'
-  const figure = useMemo(() => (res ? benchFigure({ ...res, groups: plotGroups }, plot, colorOf, defaultYTitle) : null),
-    [res, plotGroups, plot, groupColors, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
+  const defaultYTitle = !res || !applied ? '' : res.logScale ? `Fold change vs ${res.control}` : applied.helper === 'western' ? `Ratio to ${applied.loading}` : applied.plot.kind === 'stacked' && sumsTo100 ? 'Percentage' : 'Value'
+  const figure = useMemo(() => (res && applied ? benchFigure({ ...res, groups: plotGroups }, applied.plot, colorOf, defaultYTitle) : null),
+    [res, plotGroups, applied, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
+  const smallViolin = !!res && applied?.plot.kind === 'violin' && res.targets.some((t) => t.summary.some((x) => x.n > 0 && x.n < 5))
   const tested = res?.targets.filter((t) => t.comparisons?.length) ?? []
   const genesLike = !!res && res.layout === 'grouped' && res.helper !== 'facs'
 
@@ -196,15 +211,17 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
         {grouped && !confirmed && (
           <div className="row">
             <button className="btn btn-primary" disabled={!groupsReady} onClick={() => setConfirmed(true)}>
-              Analyse {plural(groupSizes.filter((n) => n > 0).length, 'group')}</button>
-            <span className="muted small">You can still change the groups afterwards; the tests update.</span>
+              Next: test and plot options ({plural(groupSizes.filter((n) => n > 0).length, 'group')})</button>
+            <span className="muted small">You can still change the groups afterwards.</span>
           </div>
         )}
-        {res && (
+        {parsed && confirmed && (
+          <div className="card stack-sm bench-setup">
+          <h3 className="small">Test</h3>
           <div className="row wrap bench-options">
             <Field label="Data">
               <select className="input input-sm" value={helper === 'qpcr' ? 'qpcr' : 'values'} onChange={(e) => { setHelper(e.target.value === 'qpcr' ? 'qpcr' : 'none'); setLog(false) }}>
-                <option value="qpcr" disabled={res.layout !== 'grouped'}>qPCR Ct → ΔΔCt, fold change</option>
+                <option value="qpcr" disabled={!grouped}>qPCR Ct → ΔΔCt, fold change</option>
                 <option value="values">Values (any measurement)</option>
               </select>
             </Field>
@@ -214,13 +231,13 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
                   onChange={(e) => { const v = e.target.value; setHelper(v === 'row' ? 'western' : 'none'); setLog(v === 'log') }}>
                   <option value="asis">As given</option>
                   <option value="log">Ratios: test on log2 scale</option>
-                  <option value="row" disabled={res.layout !== 'grouped'}>Normalise to a row (e.g. loading control)</option>
+                  <option value="row" disabled={!grouped}>Normalise to a row (e.g. loading control)</option>
                 </select>
               </Field>
             )}
             {helper === 'qpcr' && (
               <Field label="Reference gene(s)">
-                <div className="row wrap">{res.rowNames.map((r) => (
+                <div className="row wrap">{parsed.rowNames.map((r) => (
                   <label key={r} className="check small"><input type="checkbox" checked={refs.includes(r)}
                     onChange={(e) => setRefs((cur) => (e.target.checked ? [...cur, r] : cur.filter((x) => x !== r)))} /> {r}</label>
                 ))}</div>
@@ -229,45 +246,54 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             {helper === 'western' && (
               <Field label="Normalise to">
                 <select className="input input-sm" value={loading} onChange={(e) => setLoading(e.target.value)}>
-                  <option value="">choose…</option>{res.rowNames.map((r) => <option key={r}>{r}</option>)}
+                  <option value="">choose…</option>{parsed.rowNames.map((r) => <option key={r}>{r}</option>)}
                 </select>
               </Field>
             )}
             <Field label="Control group">
-              <select className="input input-sm" value={control} onChange={(e) => setControl(e.target.value)}>
-                {res.groups.map((g) => <option key={g}>{g}</option>)}
+              <select className="input input-sm" value={effControl} onChange={(e) => setControl(e.target.value)}>
+                {groupNames.map((g) => <option key={g}>{g}</option>)}
               </select>
             </Field>
             <label className="check small" title="Each replicate (row, or replicate number) is the same experiment, blot or donor in every group"><input type="checkbox" checked={paired} onChange={(e) => setPaired(e.target.checked)} /> Rows are paired</label>
             <label className="check small"><input type="checkbox" checked={nonpar} onChange={(e) => setNonpar(e.target.checked)} /> Non-parametric</label>
-            {res.groups.length > 2 && <label className="check small"><input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} /> All pairs (not only vs control)</label>}
+            {groupNames.length > 2 && <label className="check small"><input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} /> All pairs (not only vs control)</label>}
+          </div>
+          {helper === 'qpcr' && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
+          {helper === 'western' && !loading && <Note kind="info">Choose the row to normalise to (e.g. the loading control).</Note>}
+          <h3 className="small">Plot</h3>
+          <PlotControls o={plot} set={setPlot} hasComparisons canStack={parsed.rowNames.filter((r) => !(helper === 'qpcr' && refs.includes(r)) && r !== loading).length > 1} />
+          <div className="toolbar">
+            <span className="small muted">Colours</span>
+            <PaletteSelect />
+            {grouped && <span className="small muted">or pick one per group in the group editor above</span>}
+          </div>
+          <div className="row">
+            <button className="btn btn-primary" disabled={!optionsReady || (!!applied && !dirty) || busy} onClick={generate}>{applied ? 'Update plot' : 'Generate plot'}</button>
+            {dirty && <span className="small">Options changed: press <strong>Update plot</strong> to apply them.</span>}
+            {!optionsReady && confirmed && <span className="small muted">{!groupsReady || groupNames.length < 2 ? 'Put samples in at least two groups first.' : 'Complete the options above first.'}</span>}
+          </div>
           </div>
         )}
-        {helper === 'qpcr' && res && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
-        {helper === 'western' && res && !loading && <Note kind="info">Choose the row to normalise to (e.g. the loading control).</Note>}
-        {busy && <BusyBar label={confirmed ? 'Testing' : 'Reading the table'} expect={2} />}
+        {busy && <BusyBar label={applied ? 'Testing and drawing' : 'Reading the table'} expect={2} />}
         <ErrorNote error={err} />
         {res && !res.needsGroups && (
           <>
             <p className="bench-sentence"><strong>Test:</strong> {res.sentence}</p>
             {res.warnings.map((w) => <Note key={w} kind="warning">{w}</Note>)}
-            {figure && (
+            {figure && applied && (() => { const ap = applied.plot; return (
               <div className="stack-sm bench-figure">
-                <PlotControls o={plot} set={setPlot} hasComparisons={tested.length > 0} canStack={res.targets.length > 1} />
-                <div className="toolbar">
-                  <span className="small muted">Colours</span>
-                  <PaletteSelect />
-                  {grouped && <span className="small muted">or pick one per group in the group editor above</span>}
-                  {plot.brk !== 'off' && !figure.broken && plot.kind !== 'stacked' && <span className="small muted">{plot.brk === 'auto' ? 'No break needed: the values are of similar height.' : 'Set from < to, both below the top of the axis.'}</span>}
-                  {figure.broken && <span className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</span>}
+                {dirty && <Note kind="info">This figure uses the previous options. Press <strong>Update plot</strong> above to apply your changes.</Note>}
+                {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
+                {ap.brk !== 'off' && !figure.broken && ap.kind !== 'stacked' && <p className="small muted">{ap.brk === 'auto' ? 'No axis break needed: the values are of similar height.' : 'Axis break: set from < to, both below the top of the axis.'}</p>}
+                {figure.broken && <p className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</p>}
+                <div style={ap.figW ? { width: ap.figW, maxWidth: '100%' } : undefined}>
+                  <Plot data={figure.data as never} layout={figure.layout as never} height={ap.figH} tools={false} exportName={`flame_bench_${ap.kind}`} />
                 </div>
-                <div style={plot.figW ? { width: plot.figW, maxWidth: '100%' } : undefined}>
-                  <Plot data={figure.data as never} layout={figure.layout as never} height={plot.figH} tools={false} exportName={`flame_bench_${plot.kind}`} />
-                </div>
-                <p className="muted small">{plot.points && plot.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && plot.pvals !== 'off'
-                  ? `${plot.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${plot.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${plot.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>
+                <p className="muted small">{ap.points && ap.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && ap.pvals !== 'off'
+                  ? `${ap.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${ap.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${ap.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>
               </div>
-            )}
+            ) })()}
             <div className="table-scroll fetch-table"><table className="table compact">
               <thead><tr><th>{res.layout === 'grouped' ? 'Gene / target' : 'Target'}</th><th>Comparison</th>
                 <th className="num">{res.logScale ? 'Fold change' : 'Difference'}</th>{res.logScale && <th className="num">log2 FC</th>}<th className="num">95% CI</th>
