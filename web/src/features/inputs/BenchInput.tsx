@@ -3,10 +3,12 @@ import { api } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note } from '../../components/ui'
-import { categorical } from '../../lib/palette'
+import { roleColors, usePaletteMode } from '../../lib/palette'
+import { PaletteSelect } from '../../components/PaletteSelect'
+import { benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
+import { PlotControls } from './BenchPlotControls'
 import { saveXlsx } from '../../lib/xlsx'
 import { SampleGroupPicker, SaveList } from './InputModal'
-import { autoBreak, nice } from '../../lib/axisBreak'
 import { plural } from '../../lib/format'
 
 type Helper = 'none' | 'qpcr' | 'western' | 'facs'
@@ -20,7 +22,7 @@ interface Target {
   comparisons?: Comparison[]
 }
 interface Result {
-  layout: 'column' | 'grouped'; helper: Helper; groups: string[]; control: string; paired: boolean; logScale: boolean; shownAs: string
+  layout: 'column' | 'grouped'; helper: Helper; groups: string[]; control: string; paired: boolean; allPairs?: boolean; logScale: boolean; shownAs: string
   targets: Target[]; sentence: string; methods: string; warnings: string[]; rowNames: string[]
   /** Grouped tables: the sample columns and the group of each ('' = not used). */
   samples?: string[]; sampleGroups?: string[]; customGroups?: boolean
@@ -28,20 +30,20 @@ interface Result {
   needsGroups?: boolean
 }
 /** Sample groups set by the user: group names, and each sample column's group index (-1 = not used). */
-interface GroupSetup { names: string[]; assign: Record<string, number> }
+interface GroupSetup { names: string[]; assign: Record<string, number>; /** Colour picked per group; empty = from the palette. */ colors?: string[] }
 /** Step 1 (/inputs/bench/samples): the table's sample columns and the groups guessed from their names. */
 interface Parsed { layout: 'column' | 'grouped'; samples: string[]; guess: string[]; rowNames: string[]; maxGroups: number }
 /** Groups guessed from the column names; two empty groups when the names give none. */
 const setupFrom = (p: Parsed): GroupSetup => {
   const found = [...new Set(p.guess.filter(Boolean))]
-  const names = found.length ? found : ['Group 1', 'Group 2']
+  const names = found.length ? found : ['Group A', 'Group B']
   return { names, assign: Object.fromEntries(p.samples.map((smp, i) => [smp, names.indexOf(p.guess[i] ?? '')])) }
 }
 
-const EXAMPLES: { kind: string; label: string; helper: Helper; refs?: string[]; loading?: string; paired?: boolean }[] = [
+const EXAMPLES: { kind: string; label: string; helper: Helper; refs?: string[]; loading?: string; paired?: boolean; kind2?: PlotOpts['kind'] }[] = [
   { kind: 'bench_qpcr', label: 'qPCR (Ct)', helper: 'qpcr', refs: ['GAPDH', 'ACTB'], paired: true },
   { kind: 'bench_western', label: 'Western bands', helper: 'western', loading: 'ACTB' },
-  { kind: 'bench_facs', label: 'FACS cell cycle', helper: 'facs' },
+  { kind: 'bench_facs', label: 'FACS cell cycle', helper: 'none', kind2: 'stacked' },
   { kind: 'bench_column', label: 'Simple table', helper: 'none' },
 ]
 const REF_GENES = ['GAPDH', 'ACTB', 'B2M', 'HPRT1', 'RPLP0', 'TBP', '18S', 'RN18S1', 'PPIA', 'YWHAZ', 'UBC', 'GUSB', 'TUBB', 'Gapdh', 'Actb']
@@ -70,11 +72,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
-  const [errBar, setErrBar] = useState<'sd' | 'sem'>('sd')
-  const [figStyle, setFigStyle] = useState<FigStyle>('color')
-  const [brk, setBrk] = useState<BreakMode>('off')
-  const [brkFrom, setBrkFrom] = useState('')
-  const [brkTo, setBrkTo] = useState('')
+  const [plot, setPlot] = useState<PlotOpts>(DEFAULT_PLOT)
   const [organism, setOrganism] = useState(9606)
   // Step 1 -> 2: the sample columns, read as soon as a table is pasted or uploaded.
   const [parsed, setParsed] = useState<Parsed | null>(null)
@@ -93,6 +91,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
       setRes(null); setControl(''); setHelper(ex.helper); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
       setNonpar(false); setAllPairs(false); setLog(false); setFileName(r.fileName); setSource(r.source); setText(r.text)
+      setPlot((p) => ({ ...p, kind: ex.kind2 ?? (p.kind === 'stacked' ? 'bar' : p.kind) }))
     } catch (e) { setErr(e) }
   }
   useEffect(() => { if (example) loadExample(EXAMPLES[0]) // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -100,7 +99,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
 
   // Guess the helper from the row names the first time a table is analysed.
   const guess = (rows: string[]) => {
-    if (rows.some((r) => PHASES.test(r)) && rows.length <= 5) return { helper: 'facs' as Helper }
+    if (rows.some((r) => PHASES.test(r)) && rows.length <= 5) return { helper: 'none' as Helper, stacked: true }
     const refRows = rows.filter((r) => REF_GENES.includes(r))
     const lc = rows.find((r) => LOADING.test(r))
     return refRows.length ? { helper: 'qpcr' as Helper, refs: refRows } : lc ? { helper: 'western' as Helper, loading: lc } : null
@@ -119,7 +118,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
           if (helper === 'none' && !source && p.layout === 'grouped') {
             const g = guess(p.rowNames)
-            if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading) }
+            if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading); if ('stacked' in g) setPlot((x) => ({ ...x, kind: 'stacked' })) }
           }
         })
         .catch((e) => setErr(e))
@@ -148,15 +147,28 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [parsed, confirmed, groupsReady, helper, refs, loading, control, paired, nonpar, allPairs, log, groupsBody])
 
-  const colors = categorical('flame')
-  const figure = useMemo(() => (res ? benchFigure(res, { errBar, style: figStyle, brk, from: brkFrom ? Number(brkFrom) : undefined, to: brkTo ? Number(brkTo) : undefined }, colors) : null),
-    [res, errBar, figStyle, brk, brkFrom, brkTo, colors])
+  const pm = usePaletteMode()
+  const palette = useMemo(() => roleColors(pm).series, [pm])
+  // Each group's colour: picked in the group editor, else the palette colour of its place in the editor.
+  const groupColors = useMemo(() => (groupSetup ? groupSetup.names.map((_, i) => groupSetup.colors?.[i] || palette[i % palette.length]) : palette), [groupSetup, palette])
+  const colorOf = (g: string, i: number) => {
+    const at = groupSetup ? groupSetup.names.map((n) => n.trim()).indexOf(g) : -1
+    return at >= 0 ? groupColors[at] : palette[i % palette.length]
+  }
+  // Plot the groups in the editor's order (the tests put the control first).
+  const plotGroups = useMemo(() => (!res ? [] : groupSetup
+    ? [...res.groups].sort((a, b) => groupSetup.names.map((n) => n.trim()).indexOf(a) - groupSetup.names.map((n) => n.trim()).indexOf(b)) : res.groups), [res, groupSetup])
+  // Stacked bars that add up to ~100 in every group (e.g. cell-cycle phases) are percentages.
+  const sumsTo100 = !!res && res.groups.every((g) => Math.abs(res.targets.reduce((a, t) => a + (t.summary.find((x) => x.group === g)?.mean ?? 0), 0) - 100) < 5)
+  const defaultYTitle = !res ? '' : res.logScale ? `Fold change vs ${res.control}` : helper === 'western' ? `Ratio to ${loading}` : plot.kind === 'stacked' && sumsTo100 ? 'Percentage' : 'Value'
+  const figure = useMemo(() => (res ? benchFigure({ ...res, groups: plotGroups }, plot, colorOf, defaultYTitle) : null),
+    [res, plotGroups, plot, groupColors, defaultYTitle]) // eslint-disable-line react-hooks/exhaustive-deps
   const tested = res?.targets.filter((t) => t.comparisons?.length) ?? []
   const genesLike = !!res && res.layout === 'grouped' && res.helper !== 'facs'
 
   return (
     <Modal title={title} size="xl" onClose={onClose}
-      subtitle="Paste a small table (qPCR Ct, band intensities, FACS percentages or any values per group): Flame picks a test and draws the figure. For a full analysis use Prism, qbase+ or FlowJo.">
+      subtitle="Upload a table (samples in columns, genes or targets in rows), group the samples, then get the tests and a figure: bars, dots, box, violin or stacked bars. qPCR Ct values are turned into fold changes. For a full analysis use Prism, qbase+ or FlowJo.">
       <div className="stack">
         <div className="row wrap">
           <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setRes(null); setControl(''); setHelper('none'); setText(t); setFileName(n) }} />
@@ -176,7 +188,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
         )}
         {grouped && groupSetup && parsed && (
           <BenchGroups samples={parsed.samples} setup={groupSetup} setSetup={setGroupSetup} initial={setupFrom(parsed)} maxGroups={parsed.maxGroups}
-            helper={helper} colors={categorical('flame')} />
+            helper={helper} colors={groupColors} palette={palette} />
         )}
         {grouped && !groupNamesOk && <Note kind="warning">Give each group a different, non-empty name.</Note>}
         {grouped && groupNamesOk && !groupsReady && <Note kind="info">Put samples in at least two groups.</Note>}
@@ -190,14 +202,22 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
         )}
         {res && (
           <div className="row wrap bench-options">
-            <Field label="Helper">
-              <select className="input input-sm" value={helper} onChange={(e) => setHelper(e.target.value as Helper)}>
-                <option value="none">None: values as given</option>
-                <option value="qpcr" disabled={res.layout !== 'grouped'}>qPCR: Ct → ΔΔCt, fold change</option>
-                <option value="western" disabled={res.layout !== 'grouped'}>Western: band ÷ loading control</option>
-                <option value="facs">FACS: phase percentages</option>
+            <Field label="Data">
+              <select className="input input-sm" value={helper === 'qpcr' ? 'qpcr' : 'values'} onChange={(e) => { setHelper(e.target.value === 'qpcr' ? 'qpcr' : 'none'); setLog(false) }}>
+                <option value="qpcr" disabled={res.layout !== 'grouped'}>qPCR Ct → ΔΔCt, fold change</option>
+                <option value="values">Values (any measurement)</option>
               </select>
             </Field>
+            {helper !== 'qpcr' && (
+              <Field label="Values">
+                <select className="input input-sm" value={helper === 'western' ? 'row' : log ? 'log' : 'asis'}
+                  onChange={(e) => { const v = e.target.value; setHelper(v === 'row' ? 'western' : 'none'); setLog(v === 'log') }}>
+                  <option value="asis">As given</option>
+                  <option value="log">Ratios: test on log2 scale</option>
+                  <option value="row" disabled={res.layout !== 'grouped'}>Normalise to a row (e.g. loading control)</option>
+                </select>
+              </Field>
+            )}
             {helper === 'qpcr' && (
               <Field label="Reference gene(s)">
                 <div className="row wrap">{res.rowNames.map((r) => (
@@ -207,13 +227,12 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
               </Field>
             )}
             {helper === 'western' && (
-              <Field label="Loading control">
+              <Field label="Normalise to">
                 <select className="input input-sm" value={loading} onChange={(e) => setLoading(e.target.value)}>
                   <option value="">choose…</option>{res.rowNames.map((r) => <option key={r}>{r}</option>)}
                 </select>
               </Field>
             )}
-            {helper === 'none' && <label className="check small"><input type="checkbox" checked={log} onChange={(e) => setLog(e.target.checked)} /> Ratios: test on log2 scale</label>}
             <Field label="Control group">
               <select className="input input-sm" value={control} onChange={(e) => setControl(e.target.value)}>
                 {res.groups.map((g) => <option key={g}>{g}</option>)}
@@ -225,7 +244,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           </div>
         )}
         {helper === 'qpcr' && res && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
-        {helper === 'western' && res && !loading && <Note kind="info">Choose the loading control row.</Note>}
+        {helper === 'western' && res && !loading && <Note kind="info">Choose the row to normalise to (e.g. the loading control).</Note>}
         {busy && <BusyBar label={confirmed ? 'Testing' : 'Reading the table'} expect={2} />}
         <ErrorNote error={err} />
         {res && !res.needsGroups && (
@@ -233,33 +252,24 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             <p className="bench-sentence"><strong>Test:</strong> {res.sentence}</p>
             {res.warnings.map((w) => <Note key={w} kind="warning">{w}</Note>)}
             {figure && (
-              <div className="stack-sm">
-                <div className="row wrap small">
-                  {res.helper !== 'facs' && <><span className="muted">Error bars</span>
-                    <select className="input input-sm" value={errBar} onChange={(e) => setErrBar(e.target.value as 'sd' | 'sem')} aria-label="Error bars">
-                      <option value="sd">mean ± SD</option><option value="sem">mean ± SEM</option></select></>}
-                  <span className="muted">Style</span>
-                  <select className="input input-sm" value={figStyle} onChange={(e) => setFigStyle(e.target.value as FigStyle)} aria-label="Figure style">
-                    <option value="color">Colour</option><option value="bw">Black &amp; white</option></select>
-                  {res.helper !== 'facs' && <><span className="muted">Axis break</span>
-                    <select className="input input-sm" value={brk} onChange={(e) => setBrk(e.target.value as BreakMode)} aria-label="Axis break">
-                      <option value="off">None</option><option value="auto">Automatic</option><option value="custom">From … to …</option></select>
-                    {brk === 'custom' && <>
-                      <input className="input input-sm input-narrow" type="number" step="any" min={0} value={brkFrom} placeholder="from" aria-label="Break from" onChange={(e) => setBrkFrom(e.target.value)} />
-                      <input className="input input-sm input-narrow" type="number" step="any" min={0} value={brkTo} placeholder="to" aria-label="Break to" onChange={(e) => setBrkTo(e.target.value)} />
-                    </>}
-                    {brk !== 'off' && !figure.broken && <span className="muted">{brk === 'auto' ? 'no break needed: the bars are of similar height' : 'set from < to, both below the tallest bar'}</span>}
-                    {figure.broken && <span className="muted">axis broken from {figure.broken[0]} to {figure.broken[1]}</span>}
-                  </>}
+              <div className="stack-sm bench-figure">
+                <PlotControls o={plot} set={setPlot} hasComparisons={tested.length > 0} canStack={res.targets.length > 1} />
+                <div className="toolbar">
+                  <span className="small muted">Colours</span>
+                  <PaletteSelect />
+                  {grouped && <span className="small muted">or pick one per group in the group editor above</span>}
+                  {plot.brk !== 'off' && !figure.broken && plot.kind !== 'stacked' && <span className="small muted">{plot.brk === 'auto' ? 'No break needed: the values are of similar height.' : 'Set from < to, both below the top of the axis.'}</span>}
+                  {figure.broken && <span className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</span>}
                 </div>
-                <div className="row wrap small">
-                  <span className="muted">Dots = replicates; stars vs {res.control}: * p &lt; 0.05, ** &lt; 0.01, *** &lt; 0.001.</span>
+                <div style={plot.figW ? { width: plot.figW, maxWidth: '100%' } : undefined}>
+                  <Plot data={figure.data as never} layout={figure.layout as never} height={plot.figH} tools={false} exportName={`flame_bench_${plot.kind}`} />
                 </div>
-                <Plot data={figure.data as never} layout={figure.layout as never} height={figure.height} tools={false} exportName={`flame_bench_${res.helper}`} />
+                <p className="muted small">{plot.points && plot.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && plot.pvals !== 'off'
+                  ? `${plot.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${plot.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${plot.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>
               </div>
             )}
             <div className="table-scroll fetch-table"><table className="table compact">
-              <thead><tr><th>{res.layout === 'grouped' ? (res.helper === 'facs' ? 'Phase' : 'Gene / target') : 'Target'}</th><th>Comparison</th>
+              <thead><tr><th>{res.layout === 'grouped' ? 'Gene / target' : 'Target'}</th><th>Comparison</th>
                 <th className="num">{res.logScale ? 'Fold change' : 'Difference'}</th>{res.logScale && <th className="num">log2 FC</th>}<th className="num">95% CI</th>
                 <th className="num">p</th>{tested.length > 1 && <th className="num">p (Holm, all targets)</th>}<th /></tr></thead>
               <tbody>{tested.flatMap((t) => t.comparisons!.map((c, i) => (
@@ -311,120 +321,48 @@ function BenchGenes({ res, tested, organism, setOrganism, onCreated }: { res: Re
   )
 }
 
-type FigStyle = 'color' | 'bw'
-type BreakMode = 'off' | 'auto' | 'custom'
-interface FigOpts { errBar: 'sd' | 'sem'; style: FigStyle; brk: BreakMode; from?: number; to?: number }
-const BW_FILLS = ['#ffffff', '#bdbdbd', '#636363', '#000000', '#e6e6e6', '#8c8c8c', '#404040', '#d0d0d0']
-/** Dot-and-bar figure (or stacked bars for FACS phases), Prism style, in colour or black & white, with an optional axis break. */
-function benchFigure(res: Result, o: FigOpts, colors: string[]) {
-  const ts = res.targets.filter((t) => !t.error)
-  const groups = res.groups
-  const bw = o.style === 'bw'
-  const ink = '#000000'
-  const fill = (i: number) => (bw ? BW_FILLS[i % BW_FILLS.length] : colors[i % colors.length])
-  const darkFill = (i: number) => bw && ['#636363', '#000000', '#404040', '#8c8c8c'].includes(fill(i))
-  const yTitle = res.logScale ? `Fold change vs ${res.control}` : res.helper === 'facs' ? '% of cells' : 'Value'
-  const axisStyle = bw ? { showline: true, linecolor: ink, linewidth: 1.2, ticks: 'outside', tickcolor: ink, showgrid: false, zeroline: false, color: ink } : {}
-  const page = bw ? { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff', font: { color: ink, family: 'Arial, Helvetica, sans-serif' } } : {}
-  if (res.helper === 'facs') {
-    const data = ts.map((t, i) => ({
-      type: 'bar', name: t.target, x: groups, y: groups.map((g) => t.summary.find((s) => s.group === g)?.mean ?? null),
-      marker: { color: fill(i), line: bw ? { color: ink, width: 1.2 } : undefined }, hovertemplate: `${t.target}: %{y:.1f}%<extra>%{x}</extra>`,
-      text: groups.map((g) => { const c = t.comparisons?.find((x) => x.a === g && x.b === res.control); return c && c.stars !== 'ns' ? c.stars : '' }), textposition: 'inside',
-      textfont: { color: bw ? (darkFill(i) ? '#ffffff' : ink) : '#ffffff' },
-    }))
-    return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle }, yaxis: { ...axisStyle, title: { text: yTitle }, range: [0, 100] }, legend: { orientation: 'h', y: -0.15 }, margin: { l: 60, r: 10, t: 10, b: 70 } }, height: 380, broken: null }
-  }
-  const k = groups.length, w = Math.min(0.8 / k, 0.28)
-  const pos = (ti: number, gi: number) => ti + (gi - (k - 1) / 2) * w
-  const err = (t: Target, g: string) => { const s = t.summary.find((x) => x.group === g); return (o.errBar === 'sd' ? s?.sd : s?.sem) ?? 0 }
-  const mean = (t: Target, g: string) => t.summary.find((x) => x.group === g)?.mean ?? NaN
-  const vals = (t: Target, g: string) => t.values.filter((v) => v.group === g).map((v) => v.value)
-  const top = (t: Target, g: string) => Math.max(mean(t, g) + err(t, g), ...vals(t, g))
-  const bottom = (t: Target, g: string) => Math.min(mean(t, g) - err(t, g), ...vals(t, g))
-  const ymax = Math.max(...ts.flatMap((t) => groups.map((g) => top(t, g))), res.logScale ? 1 : 0)
-  // Axis break: automatic or set by the user; null = one continuous axis.
-  let broken: [number, number] | null = null
-  if (o.brk === 'auto') broken = autoBreak(ts.flatMap((t) => groups.map((g) => ({ top: top(t, g), bottom: bottom(t, g) }))))
-  if (o.brk === 'custom' && o.from != null && o.to != null && o.from > 0 && o.to > o.from && o.to < ymax) broken = [o.from, o.to]
-  const upTop = nice(ymax * 1.12)
-  const axes = broken ? ['y', 'y2'] : ['y']
-  const traces = axes.flatMap((ax, ai) => [
-    ...groups.map((g, gi) => ({
-      type: 'bar', name: g, showlegend: ai === 0, legendgroup: g, yaxis: ax, x: ts.map((_, ti) => pos(ti, gi)), width: w * 0.85,
-      y: ts.map((t) => mean(t, g)),
-      error_y: { type: 'data', array: ts.map((t) => err(t, g)), visible: true, color: bw ? ink : '#374151', thickness: 1.2, width: 4 },
-      marker: bw ? { color: fill(gi), line: { color: ink, width: 1.2 } } : { color: fill(gi), opacity: 0.35, line: { color: fill(gi), width: 1.5 } },
-      hovertemplate: `${g}: %{y:.3g}<extra></extra>`,
-    })),
-    ...groups.map((g, gi) => {
-      const jitter = (s: string) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return ((h % 1000) / 1000 - 0.5) * w * 0.45 }
-      const pts = ts.flatMap((t, ti) => t.values.filter((v) => v.group === g).map((v) => ({ x: pos(ti, gi) + jitter(v.sample), y: v.value, s: v.sample })))
-      return { type: 'scatter', mode: 'markers', name: `${g} (replicates)`, showlegend: false, legendgroup: g, yaxis: ax, x: pts.map((p) => p.x), y: pts.map((p) => p.y), text: pts.map((p) => p.s),
-        marker: bw ? { color: darkFill(gi) ? '#ffffff' : ink, size: 7, line: { color: darkFill(gi) ? ink : '#ffffff', width: 1 } } : { color: fill(gi), size: 8, line: { color: '#fff', width: 1 } },
-        hovertemplate: '%{text}: %{y:.3g}<extra></extra>' }
-    }),
-  ])
-  const lowTop = broken ? broken[0] : ymax * 1.18
-  const span = (y: number) => (broken && y > broken[0] ? upTop - broken[1] : lowTop)
-  const annotations: Record<string, unknown>[] = ts.flatMap((t, ti) => groups.map((g, gi) => {
-    const c = t.comparisons?.find((x) => (x.a === g && x.b === res.control) || (x.b === g && x.a === res.control))
-    if (!c || g === res.control) return null
-    const y0 = top(t, g)
-    let y = y0 + span(y0) * 0.04, yref = broken && y0 > broken[0] ? 'y2' : 'y'
-    // a bar ending just below the break, or inside it, would have its stars cut off: show them at the foot of the upper axis
-    if (broken && yref === 'y' && y > broken[0] * 0.97) { y = broken[1]; yref = 'y2' }
-    if (broken && yref === 'y2' && y < broken[1]) y = broken[1]
-    return { x: pos(ti, gi), y, yref, text: c.stars, showarrow: false, font: { size: c.stars === 'ns' ? 10 : 15, color: bw ? ink : undefined }, yanchor: 'bottom' }
-  }).filter((a): a is NonNullable<typeof a> => !!a))
-  const shapes: Record<string, unknown>[] = res.logScale ? [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 1, y1: 1, line: { color: bw ? '#7a7a7a' : '#9ca3af', width: 1, dash: 'dot' } }] : []
-  const low = 0.6, high = 0.68                                         // paper heights where the lower axis ends and the upper one starts
-  if (broken) {
-    for (const y of [low, high]) shapes.push({ type: 'line', xref: 'paper', yref: 'paper', x0: -0.012, x1: 0.012, y0: y - 0.014, y1: y + 0.014, line: { color: bw ? ink : '#6b7280', width: 1.5 } })
-    annotations.push({ xref: 'paper', yref: 'paper', x: -0.075, y: 0.5, text: yTitle, textangle: -90, showarrow: false, font: { size: 13, color: bw ? ink : undefined } })
-  }
-  const xaxis = { ...axisStyle, tickvals: ts.map((_, i) => i), ticktext: ts.map((t) => t.target), range: [-0.6, ts.length - 0.4], zeroline: false, showgrid: false, anchor: 'y' }
-  const layout = broken
-    ? { ...page, barmode: 'overlay', bargap: 0, xaxis,
-        yaxis: { ...axisStyle, domain: [0, low], range: [0, broken[0]] },
-        yaxis2: { ...axisStyle, domain: [high, 1], range: [broken[1], upTop], anchor: 'x' },
-        annotations, shapes, legend: { orientation: 'h', y: -0.15 }, margin: { l: 70, r: 10, t: 10, b: 70 } }
-    : { ...page, barmode: 'overlay', bargap: 0, xaxis, yaxis: { ...axisStyle, title: { text: yTitle }, rangemode: 'tozero', range: [0, ymax * 1.18] },
-        annotations, shapes, legend: { orientation: 'h', y: -0.15 }, margin: { l: 60, r: 10, t: 10, b: 70 } }
-  return { data: traces, layout, height: broken ? 440 : 400, broken }
-}
-
 /**
- * Step 2: which sample columns form each group (the same editor as in the expression tools). Starts from
- * the groups guessed from the column names; columns in no group are left out of the tests.
+ * Step 2: which sample columns form each group, set as in the expression boxplots: the number of groups,
+ * a name and colour per group, then tick samples and send them to a group. Starts from the groups
+ * guessed from the column names; columns in no group are left out of the tests.
  */
-function BenchGroups({ samples, setup, setSetup, initial, maxGroups, helper, colors }: {
-  samples: string[]; setup: GroupSetup; setSetup: (s: GroupSetup) => void; initial: GroupSetup; maxGroups: number; helper: Helper; colors: string[]
+function BenchGroups({ samples, setup, setSetup, initial, maxGroups, helper, colors, palette }: {
+  samples: string[]; setup: GroupSetup; setSetup: (s: GroupSetup) => void; initial: GroupSetup; maxGroups: number; helper: Helper; colors: string[]; palette: string[]
 }) {
   const edit = (f: (v: GroupSetup) => GroupSetup) => setSetup(f(setup))
-  const removeGroup = (g: number) => edit((v) => ({
-    names: v.names.filter((_, i) => i !== g),
-    assign: Object.fromEntries(Object.entries(v.assign).map(([smp, i]) => [smp, i === g ? -1 : i > g ? i - 1 : i])),
-  }))
-  const newName = () => { let k = setup.names.length + 1; while (setup.names.includes(`Group ${k}`)) k++; return `Group ${k}` }
-  const changed = JSON.stringify(setup) !== JSON.stringify(initial)
+  const letter = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : String(i + 1))
+  // More groups: add "Group C", "Group D"...; fewer: the last groups go and their samples become unused.
+  const setCount = (n: number) => edit((v) => {
+    const names = v.names.slice(0, n)
+    for (let i = names.length; i < n; i++) { let nm = `Group ${letter(i)}`, k = i; while (names.includes(nm)) nm = `Group ${letter(++k)}`; names.push(nm) }
+    return { names, colors: (v.colors ?? []).slice(0, n), assign: Object.fromEntries(Object.entries(v.assign).map(([smp, g]) => [smp, g < n ? g : -1])) }
+  })
+  const changed = JSON.stringify({ ...setup, colors: undefined }) !== JSON.stringify({ ...initial, colors: undefined })
+  const custom = (setup.colors ?? []).some(Boolean)
   return (
     <SampleGroupPicker samples={samples} names={setup.names} colors={colors}
       groupOf={(smp) => setup.assign[smp] ?? -1}
       onAssign={(ss, g) => edit((v) => ({ ...v, assign: { ...v.assign, ...Object.fromEntries(ss.map((x) => [x, g])) } }))}>
       <div className="row wrap">
+        <Field label="Groups">
+          <select className="input input-sm" aria-label="Number of groups" value={setup.names.length} onChange={(e) => setCount(Number(e.target.value))}>
+            {Array.from({ length: maxGroups - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} groups</option>)}
+          </select>
+        </Field>
+        {changed && <button type="button" className="btn btn-ghost btn-sm align-end" title="Group the samples by their column names again" onClick={() => setSetup({ ...initial, colors: setup.colors })}>Reset to column names</button>}
+        {custom && <button type="button" className="btn btn-ghost btn-sm align-end" title="Drop the colours picked per group and use the palette again" onClick={() => edit((v) => ({ ...v, colors: [] }))}>Reset to palette</button>}
+      </div>
+      <div className="row wrap">
         {setup.names.map((n, i) => (
-          <Field key={i} label={`Group ${i + 1}`}>
+          <Field key={i} label={`Group ${i + 1}: name and colour`}>
             <span className="row">
-              <i className="swatch" style={{ background: colors[i % colors.length] }} />
               <input className="input input-sm" value={n} maxLength={60} aria-label={`Name of group ${i + 1}`}
                 onChange={(e) => edit((v) => ({ ...v, names: v.names.map((x, j) => (j === i ? e.target.value : x)) }))} />
-              {setup.names.length > 2 && <button type="button" className="btn btn-ghost btn-sm" aria-label={`Remove ${n}`} title="Remove this group (its samples become unused)" onClick={() => removeGroup(i)}>×</button>}
+              <input type="color" aria-label={`Colour of ${n}`} value={colors[i] ?? palette[i % palette.length]} style={{ width: 32, height: 28, padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                onChange={(e) => { const c = e.target.value; edit((v) => { const cs = [...(v.colors ?? [])]; cs[i] = c; return { ...v, colors: cs } }) }} />
             </span>
           </Field>
         ))}
-        {setup.names.length < maxGroups && <button type="button" className="btn btn-ghost btn-sm align-end" onClick={() => edit((v) => ({ ...v, names: [...v.names, newName()] }))}>+ Add group</button>}
-        {changed && <button type="button" className="btn btn-ghost btn-sm align-end" title="Group the samples by their column names again" onClick={() => setSetup(initial)}>Reset to column names</button>}
       </div>
       <p className="muted small">Up to {maxGroups} groups. Samples in no group are left out of the tests{helper === 'qpcr' ? ' (they are still normalised to the reference genes)' : ''}. With <em>Rows are paired</em>, the first sample of each group is paired with the first of the others, and so on, in table order.</p>
     </SampleGroupPicker>

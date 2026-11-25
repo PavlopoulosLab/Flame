@@ -331,7 +331,7 @@ a:hover { color: var(--link-hover); }
 .brand-version { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .tabs-nav a.active { background: var(--select-bg); color: var(--link-color); box-shadow: inset 0 -2px 0 var(--brand-violet); }
 
-.step-num, .progress-steps li.current span { background: var(--brand-gradient); }
+.step-num, .progress-steps li.current span { background: var(--accent-color); background-image: var(--brand-gradient); }   /* classic theme: no gradient */
 .progress-steps li.current { background: var(--select-bg); color: var(--link-color); }
 .badge { background: var(--brand-crimson); }
 .example-card.featured { border-color: var(--brand-violet); background: var(--select-bg); }
