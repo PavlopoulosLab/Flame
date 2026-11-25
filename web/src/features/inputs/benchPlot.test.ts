@@ -132,6 +132,17 @@ describe('bench figures', () => {
     expect(l.font.family).toBe('Arial')
   })
 
+  it('the legend goes where the user puts it, in its own font, or is hidden', () => {
+    type L = { legend: { orientation?: string; x?: number; y?: number; xanchor?: string; font: { size: number; weight: string; style: string } }; showlegend: boolean }
+    const below = fig({}).layout as unknown as L
+    expect(below).toMatchObject({ showlegend: true, legend: { orientation: 'h', y: -0.18 } })
+    const right = fig({ legendPos: 'right', legendSize: 16, legendItalic: true }).layout as unknown as L
+    expect(right.legend).toMatchObject({ orientation: 'v', x: 1.02, font: { size: 16, style: 'italic', weight: 'normal' } })
+    expect((fig({ legendPos: 'inside-tr' }).layout as unknown as L).legend).toMatchObject({ x: 0.99, xanchor: 'right' })
+    expect((fig({ legendPos: 'off' }).layout as unknown as L).showlegend).toBe(false)
+    expect((fig({ kind: 'stacked', legendPos: 'top', legendBold: true }).layout as unknown as L).legend).toMatchObject({ y: 1.02, font: { weight: 'bold' } })
+  })
+
   it('one gene shown on its own gets a figure sized to its groups, not the whole window', () => {
     expect(autoFigWidth(1, 2, DEFAULT_PLOT)).toBe(340)
     expect(autoFigWidth(1, 5, DEFAULT_PLOT)).toBeGreaterThan(autoFigWidth(1, 2, DEFAULT_PLOT)!)

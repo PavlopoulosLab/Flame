@@ -43,8 +43,13 @@ export interface PlotOpts {
   titleSize: number; titleBold: boolean; titleItalic: boolean
   yTitleSize: number; yTitleBold: boolean; yTitleItalic: boolean
   xTitleSize: number; xTitleBold: boolean; xTitleItalic: boolean
+  /** Where the legend goes (groups; targets in stacked bars), and its text. */
+  legendPos: LegendPos; legendSize: number; legendBold: boolean; legendItalic: boolean
 }
-export type TextStyleKey = 'title' | 'yTitle' | 'xTitle'
+export type LegendPos = 'bottom' | 'top' | 'right' | 'inside-tr' | 'inside-tl' | 'off'
+export const LEGEND_POS: [LegendPos, string][] = [['bottom', 'Below'], ['top', 'Above'], ['right', 'Right'],
+  ['inside-tr', 'Inside, top right'], ['inside-tl', 'Inside, top left'], ['off', 'Hidden']]
+export type TextStyleKey = 'title' | 'yTitle' | 'xTitle' | 'legend'
 export const FONTS: [string, string][] = [['', 'Default'], ['Arial, Helvetica, sans-serif', 'Arial'], ['Helvetica, Arial, sans-serif', 'Helvetica'],
   ['Calibri, Carlito, sans-serif', 'Calibri'], ['Verdana, sans-serif', 'Verdana'], ['"Times New Roman", Times, serif', 'Times New Roman'],
   ['Georgia, serif', 'Georgia'], ['"Courier New", monospace', 'Courier New']]
@@ -53,6 +58,7 @@ export const DEFAULT_PLOT: PlotOpts = {
   pvals: 'stars', hideNs: false, style: 'color', yTitle: '', xTitle: '', yMin: '', yMax: '', logY: false, font: 13,
   brk: 'off', brkFrom: '', brkTo: '', figW: 0, figH: 420, title: '',
   family: '', titleSize: 0, titleBold: true, titleItalic: false, yTitleSize: 0, yTitleBold: false, yTitleItalic: false, xTitleSize: 0, xTitleBold: false, xTitleItalic: false,
+  legendPos: 'bottom', legendSize: 0, legendBold: false, legendItalic: false,
 }
 export const SHAPES: { value: Shape; label: string }[] = [
   { value: 'circle', label: '● Circle' }, { value: 'triangle-up', label: '▲ Triangle' }, { value: 'square', label: '■ Square' },
@@ -106,7 +112,16 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     ...(title ? { title: { text: title, x: 0.5, xanchor: 'center', y: 0.98, yanchor: 'top', font: tfont('title', o.font + 5) } } : {}) }
   const topM = title ? 20 + (o.titleSize || o.font + 5) * 2 : 10
   const yTitle = o.yTitle.trim() || defaultYTitle
-  const legend = { orientation: 'h', y: -0.18 }
+  const inside = { bgcolor: bw ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.75)', bordercolor: bw ? ink : '#d1d5db', borderwidth: 1 }
+  const legend = { font: tfont('legend', o.font), ...({
+    bottom: { orientation: 'h', x: 0.5, xanchor: 'center', y: -0.18, yanchor: 'top' },
+    top: { orientation: 'h', x: 0.5, xanchor: 'center', y: 1.02, yanchor: 'bottom' },
+    right: { orientation: 'v', x: 1.02, xanchor: 'left', y: 1, yanchor: 'top' },
+    'inside-tr': { orientation: 'v', x: 0.99, xanchor: 'right', y: 0.99, yanchor: 'top', ...inside },
+    'inside-tl': { orientation: 'v', x: 0.01, xanchor: 'left', y: 0.99, yanchor: 'top', ...inside },
+    off: {},
+  } as Record<LegendPos, object>)[o.legendPos] }
+  const showlegend = o.legendPos !== 'off'
 
   // ---- stacked bars: one bar per group, one segment per target (e.g. cell-cycle phases) ----
   if (o.kind === 'stacked') {
@@ -121,7 +136,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     const yr = [num(o.yMin), num(o.yMax)]
     return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle, title: { text: o.xTitle, font: tfont('xTitle', o.font) } },
       yaxis: { ...axisStyle, title: { text: yTitle, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', ...(yr[0] != null && yr[1] != null ? { range: o.logY ? yr.map((v) => Math.log10(v!)) : yr } : { rangemode: 'tozero' }) },
-      legend, margin: { l: 70, r: 10, t: topM, b: 80 } }, broken: null as [number, number] | null }
+      legend, showlegend, margin: { l: 70, r: 10, t: topM, b: 80 } }, broken: null as [number, number] | null }
   }
 
   // ---- one slot per target, the groups side by side within it ----
@@ -267,9 +282,9 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const layout = broken
     ? { ...page, ...mode, xaxis, yaxis: { ...axisStyle, domain: [0, low], range: [autoRange[0], broken[0]] },
         yaxis2: { ...axisStyle, domain: [high, 1], range: [broken[1], userRange?.[1] ?? upTop], anchor: 'x' },
-        annotations, shapes, legend, margin: { l: 75, r: 10, t: topM, b: 80 } }
+        annotations, shapes, legend, showlegend, margin: { l: 75, r: 10, t: topM, b: 80 } }
     : { ...page, ...mode, xaxis, yaxis: { ...axisStyle, title: { text: yTitleXY, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', range: userRange ?? autoRange },
-        annotations, shapes, legend, margin: { l: 70, r: 10, t: topM, b: 80 } }
+        annotations, shapes, legend, showlegend, margin: { l: 70, r: 10, t: topM, b: 80 } }
   return { data: traces, layout, broken }
 }
 

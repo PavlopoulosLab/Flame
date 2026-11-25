@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Field } from '../../components/ui'
-import { DEFAULT_PLOT, FONTS, SHAPES, type PlotOpts, type TextStyleKey } from './benchPlot'
+import { DEFAULT_PLOT, FONTS, LEGEND_POS, SHAPES, type PlotOpts, type TextStyleKey } from './benchPlot'
 
 /** The chart controls, grouped as in GraphPad: chart type, points, bars and error bars, p-values, axes and text. */
 export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts; set: (f: (o: PlotOpts) => PlotOpts) => void; hasComparisons: boolean; canStack: boolean }) {
@@ -19,12 +19,18 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
   )
   const stacked = o.kind === 'stacked'
   // A title box with its own size, bold and italic, like a text box in Prism or PowerPoint.
-  const titleBox = (k: TextStyleKey, label: string, placeholder: string, minWidth: number) => {
+  const titleBox = (k: Exclude<TextStyleKey, 'legend'>, label: string, placeholder: string, minWidth: number) => (
+    <Field label={label}>
+      <span className="row bench-title-box" style={{ gap: 4 }}>
+        <input className="input input-sm" value={o[k]} maxLength={140} placeholder={placeholder} style={{ minWidth }} aria-label={label} onChange={(e) => up(k)(e.target.value)} />
+        {textStyle(k, label)}
+      </span>
+    </Field>
+  )
+  const textStyle = (k: TextStyleKey, label: string) => {
     const b = `${k}Bold` as const, it = `${k}Italic` as const, sz = `${k}Size` as const
     return (
-      <Field label={label}>
-        <span className="row bench-title-box" style={{ gap: 4 }}>
-          <input className="input input-sm" value={o[k]} maxLength={140} placeholder={placeholder} style={{ minWidth }} aria-label={label} onChange={(e) => up(k)(e.target.value)} />
+        <>
           <button type="button" className={`btn btn-sm ${o[b] ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={o[b]} aria-label={`${label}: bold`} title="Bold"
             style={{ fontWeight: 700, minWidth: 30 }} onClick={() => up(b)(!o[b])}>B</button>
           <button type="button" className={`btn btn-sm ${o[it] ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={o[it]} aria-label={`${label}: italic`} title="Italic"
@@ -33,8 +39,7 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
             <option value={0}>Auto</option>
             {[9, 10, 11, 12, 13, 14, 15, 16, 18, 20, 22, 24, 28, 32].map((n) => <option key={n} value={n}>{n} pt</option>)}
           </select>
-        </span>
-      </Field>
+        </>
     )
   }
   return (
@@ -57,6 +62,14 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
           </select>
         </Field>
         {rng('font', 9, 22, 1, 'Text size', 'align-end')}
+        <Field label="Legend">
+          <span className="row bench-title-box" style={{ gap: 4 }}>
+            <select className="input input-sm" aria-label="Legend position" title="The groups (the targets in stacked bars). With one gene the groups are named under the bars instead." value={o.legendPos} onChange={(e) => up('legendPos')(e.target.value as PlotOpts['legendPos'])} style={{ width: 'auto' }}>
+              {LEGEND_POS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </select>
+            {o.legendPos !== 'off' && textStyle('legend', 'Legend')}
+          </span>
+        </Field>
       </div>
       <div className="row">
         <button type="button" className={`btn btn-sm ${open ? 'btn-primary' : 'btn-secondary'}`} aria-expanded={open} onClick={() => setOpen((v) => !v)}>
