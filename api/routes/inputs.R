@@ -466,6 +466,16 @@ function(req, res) {
   .fetch_here(res, bench_samples(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto")))
 }
 
+#* Experimental analysis, "which test?": GraphPad Prism's normality tests per group (and row), equal-SD
+#* checks, QQ-plot points and a recommended test. Body: { text, fileName?, layout?, groups?, log?, matched? }
+#* @post /bench/normality
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch_here(res, bench_normality(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
+                                   sampleGroups = b$groups, log = isTRUE(b$log), matched = isTRUE(b$matched)))
+}
+
 #* Bench data: a small pasted table (column or grouped layout) analysed with a sensible default test,
 #* optional helpers for qPCR (delta-delta Ct), westerns (band / loading control) and FACS phases.
 #* Body: { text, fileName?, layout?: auto|column|grouped, helper?: none|qpcr|western|facs, refs?: [genes] (qPCR),

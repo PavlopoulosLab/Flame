@@ -8,6 +8,7 @@ import { PaletteSelect } from '../../components/PaletteSelect'
 import { benchFigure, DEFAULT_PLOT, type PlotOpts } from './benchPlot'
 import { PlotControls } from './BenchPlotControls'
 import { BenchTestControls } from './BenchTestControls'
+import { BenchNormality, type Recommendation } from './BenchNormality'
 import { DEFAULT_STAT, resolvePosthoc, resolveTest, type StatOpts } from './benchTests'
 import { saveXlsx } from '../../lib/xlsx'
 import { SampleGroupPicker, SaveList } from './InputModal'
@@ -82,6 +83,8 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [log, setLog] = useState(false)
   const [control, setControl] = useState('')
   const [stat, setStat] = useState<StatOpts>(DEFAULT_STAT)
+  // Which tool: "which test?" (normality), the experimental analysis, or qPCR ΔΔCt (helper 'qpcr').
+  const [mode, setMode] = useState<'normality' | 'generic' | 'ddct'>(example ? 'generic' : 'normality')
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
@@ -132,11 +135,16 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     if (source) { setLog(false); setLoading(''); if (helper === 'western') setHelper('none'); setStat(DEFAULT_STAT); setRefs([]); setPlot((p) => ({ ...p, kind: 'bar', logY: false })) }
     setSource(null); setExampleKind('')
   }
+  // "Analyse with this test" from the normality step: the experimental analysis, with that test, drawn at once.
+  const useRecommendation = (r: Recommendation) => {
+    setMode('generic'); setHelper('none'); setLoading(''); setLog(r.log); setStat({ ...DEFAULT_STAT, test: r.test }); setApplied(null); setAutoGen(true)
+  }
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
       setRes(null); setApplied(null); setControl(''); setHelper(ex.analysis === 'ddct' ? 'qpcr' : ex.loading ? 'western' : 'none'); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setStat({ ...DEFAULT_STAT, ...ex.stat })
       setLog(!!ex.log); setFileName(r.fileName); setSource(r.source); setText(r.text); setExampleKind(ex.kind)
+      setMode((m) => (m === 'normality' ? m : ex.analysis))
       setPlot((p) => ({ ...p, kind: 'bar', logY: false, ...ex.plot }))
     } catch (e) { setErr(e) }
   }
@@ -154,7 +162,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
           setParsed(p)
           setGroupSetup(p.layout === 'grouped' ? setupFrom(p) : null)
           setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
-          if (source) setAutoGen(true)
+          if (source && mode !== 'normality') setAutoGen(true)
           // Own tables: never switch the analysis; only pre-tick reference genes (ΔΔCt) or suggest stacked bars (cell-cycle phases).
           if (!source && p.layout === 'grouped') {
             if (helper === 'qpcr' && !refs.length) setRefs(p.rowNames.filter((r) => REF_GENES.includes(r)))
@@ -205,19 +213,25 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     <Modal title={title} size="xl" onClose={onClose}
       subtitle="Statistics and figures for small lab experiments (qPCR, ELISA, westerns, viability, reporter assays, flow cytometry): upload a table with samples in columns and genes or readouts in rows, group the samples, choose the test and the plot.">
       <div className="stack">
-        <Segmented label="Analysis" value={helper === 'qpcr' ? 'ddct' : 'generic'}
-          onChange={(v) => { setExampleKind(''); setApplied(null); if (v === 'ddct') { setHelper('qpcr'); setLog(false); setLoading(''); if (!refs.length && parsed) setRefs(parsed.rowNames.filter((r) => REF_GENES.includes(r))) } else { setHelper('none') } }}
-          options={[{ value: 'generic', label: 'Experimental analysis (any assay, values ready)' }, { value: 'ddct', label: 'qPCR ΔΔCt (from raw Ct values)' }]} />
-        <p className="muted small">{helper === 'qpcr'
-          ? 'Raw Ct values, genes in rows and samples in columns, including one or more reference genes: Flame computes ΔCt, ΔΔCt and the fold changes (2^−ΔΔCt).'
-          : 'Values you already have, e.g. processed in Excel: fold changes (including qPCR 2^−ΔΔCt), normalised band intensities, % viability, pg/mL, reporter ratios, % of cells. Samples in columns, genes or readouts in rows. Normalising to a row is optional.'}</p>
+        <Segmented label="Analysis" value={mode}
+          onChange={(v) => {
+            setMode(v); setApplied(null)
+            if (v === 'ddct') { setExampleKind(''); setHelper('qpcr'); setLog(false); setLoading(''); if (!refs.length && parsed) setRefs(parsed.rowNames.filter((r) => REF_GENES.includes(r))) }
+            else if (helper === 'qpcr') { setExampleKind(''); setHelper('none') }
+          }}
+          options={[{ value: 'normality', label: 'Which test? (normality)' }, { value: 'generic', label: 'Experimental analysis (values ready)' }, { value: 'ddct', label: 'qPCR ΔΔCt (raw Ct values)' }]} />
+        <p className="muted small">{mode === 'normality'
+          ? 'Not sure which test to use? Upload your values and group the samples: GraphPad Prism\'s normality tests (D\'Agostino–Pearson, Anderson–Darling, Shapiro–Wilk, Kolmogorov–Smirnov) and an equal-SD check suggest a t test, ANOVA or non-parametric test, which you can then run here.'
+          : mode === 'ddct'
+            ? 'Raw Ct values, genes in rows and samples in columns, including one or more reference genes: Flame computes ΔCt, ΔΔCt and the fold changes (2^−ΔΔCt).'
+            : 'Values you already have, e.g. processed in Excel: fold changes (including qPCR 2^−ΔΔCt), normalised band intensities, % viability, pg/mL, reporter ratios, % of cells. Samples in columns, genes or readouts in rows. Normalising to a row is optional.'}</p>
         <div className="row wrap">
           <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { ownTable(); setRes(null); setControl(''); setText(t); setFileName(n) }} />
           <Field label="Or try an example experiment">
             <select className="input input-sm" aria-label="Example experiment" value={exampleKind} style={{ maxWidth: 560 }}
               onChange={(e) => { const ex = EXAMPLES.find((x) => x.kind === e.target.value); if (ex) loadExample(ex) }}>
               <option value="">Choose an experiment…</option>
-              {EXAMPLES.filter((ex) => ex.analysis === (helper === 'qpcr' ? 'ddct' : 'generic')).map((ex) => <option key={ex.kind} value={ex.kind}>{ex.label}</option>)}
+              {EXAMPLES.filter((ex) => ex.analysis === (mode === 'ddct' ? 'ddct' : 'generic')).map((ex) => <option key={ex.kind} value={ex.kind}>{ex.label}</option>)}
             </select>
           </Field>
         </div>
@@ -247,11 +261,17 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
         {grouped && !confirmed && (
           <div className="row">
             <button className="btn btn-primary" disabled={!groupsReady} onClick={() => setConfirmed(true)}>
-              Next: test and plot options ({plural(groupSizes.filter((n) => n > 0).length, 'group')})</button>
+              {mode === 'normality' ? 'Next: check normality' : 'Next: test and plot options'} ({plural(groupSizes.filter((n) => n > 0).length, 'group')})</button>
             <span className="muted small">You can still change the groups afterwards.</span>
           </div>
         )}
-        {parsed && confirmed && (
+        {parsed && confirmed && mode === 'normality' && (
+          <BenchNormality text={text} fileName={fileName} groupsBody={groupsBody} auto={!!source} colors={(g, i) => {
+            const at = groupSetup ? groupSetup.names.map((n) => n.trim()).indexOf(g) : -1
+            return at >= 0 ? groupColors[at] : palette[i % palette.length]
+          }} onUse={useRecommendation} />
+        )}
+        {parsed && confirmed && mode !== 'normality' && (
           <div className="card stack-sm bench-setup">
           <h3 className="small">Test</h3>
           <div className="row wrap bench-options">

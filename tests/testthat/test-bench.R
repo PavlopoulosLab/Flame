@@ -234,3 +234,38 @@ test_that("one-sample tests, two-way ANOVA and corrections across rows", {
   expect_equal(vapply(holm$targets, function(t) t$omnibus$pAcross, 0), p.adjust(main(holm), "holm"))
   expect_null(bench_analyse(q$text, q$fileName, helper = "qpcr", refs = list("GAPDH", "ACTB"), across = "none")$targets[[1]]$omnibus$pAcross)
 })
+
+test_that("normality tests equal the reference implementations", {
+  skip_if_not_installed("nortest"); skip_if_not_installed("moments")
+  set.seed(7)
+  for (x in list(rnorm(12), rexp(20), rnorm(50), runif(30), rlnorm(9))) {
+    k2 <- moments::agostino.test(x)$statistic[["z"]]^2 + moments::anscombe.test(x)$statistic[["z"]]^2
+    expect_equal(flame:::.norm_dagostino(x), pchisq(k2, 2, lower.tail = FALSE), tolerance = 1e-10)
+    expect_equal(flame:::.norm_anderson(x), nortest::ad.test(x)$p.value, tolerance = 1e-10)
+    expect_equal(flame:::.norm_lilliefors(x), nortest::lillie.test(x)$p.value, tolerance = 1e-10)
+    expect_equal(flame:::.norm_shapiro(x), shapiro.test(x)$p.value)
+  }
+  expect_true(is.na(flame:::.norm_dagostino(rnorm(7))))                            # needs n >= 8, as in Prism
+})
+
+test_that("the normality step recommends a test", {
+  mk <- function(a, b, c = NULL) {
+    cols <- c(sprintf("A %d", seq_along(a)), sprintf("B %d", seq_along(b)), if (!is.null(c)) sprintf("C %d", seq_along(c)))
+    paste(c(paste(c("Readout", cols), collapse = "\t"), paste(c("X", a, b, c), collapse = "\t")), collapse = "\n")
+  }
+  set.seed(3)
+  g <- bench_normality(mk(rnorm(10, 10), rnorm(10, 12)))                           # Gaussian, similar SDs
+  expect_equal(g$recommendation$test, "t_unpaired")
+  expect_equal(length(g$rows[[1]]$groups[[1]]$qq$sample), 10L)
+  expect_equal(bench_normality(mk(rnorm(10, 10), rnorm(10, 12)), matched = TRUE)$recommendation$test, "t_paired")
+  expect_equal(bench_normality(mk(rnorm(10, 10), rnorm(10, 12), rnorm(10, 11)))$recommendation$test, "anova")
+  # clearly skewed, not lognormal either (an outlier): non-parametric
+  sk <- bench_normality(mk(c(1, 1.1, 0.9, 1.2, 1, 0.95, 1.05, 1.1, 1, 9), c(2, 2.1, 1.9, 2.2, 2, 2.05, 1.95, 2.1, 2, 2)))
+  expect_equal(sk$recommendation$test, "mann_whitney")
+  # lognormal values: test on a log scale with a parametric test
+  ln <- bench_normality(mk(round(exp(qnorm(ppoints(12), 0, 1.2)), 3), round(exp(qnorm(ppoints(12), 1, 1.2)), 3)))
+  expect_true(ln$recommendation$log)
+  expect_true(ln$recommendation$test %in% c("t_unpaired", "t_welch"))
+  # few values: a warning that normality tests have little power
+  expect_match(unlist(bench_normality(example_input("bench_qpcr_fold")$text)$warnings), "little power")
+})

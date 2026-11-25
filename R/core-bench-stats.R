@@ -250,3 +250,120 @@ BENCH_POSTHOC <- c(dunnett = "Dunnett's test", tukey = "Tukey's test", sidak = "
   }, error = function(e) NULL) else NULL
   list(normality = norm, equalSD = sd_)
 }
+
+# =============================================================================
+# Normality tests (GraphPad Prism's set), to help choose a test
+# =============================================================================
+#   D'Agostino-Pearson omnibus K2 (n >= 8), Anderson-Darling (n >= 8),
+#   Shapiro-Wilk (n 3-5000), Kolmogorov-Smirnov with the Dallal-Wilkinson-
+#   Lilliefors p-value (n >= 5); lognormal vs normal likelihood.
+
+.norm_dagostino <- function(x) {
+  n <- length(x); if (n < 8) return(NA_real_)
+  m <- mean(x); m2 <- mean((x - m)^2); m3 <- mean((x - m)^3); m4 <- mean((x - m)^4)
+  if (m2 == 0) return(NA_real_)
+  g1 <- m3 / m2^1.5; b2 <- m4 / m2^2
+  # skewness (D'Agostino 1970)
+  Y <- g1 * sqrt((n + 1) * (n + 3) / (6 * (n - 2)))
+  beta2 <- 3 * (n^2 + 27 * n - 70) * (n + 1) * (n + 3) / ((n - 2) * (n + 5) * (n + 7) * (n + 9))
+  W2 <- -1 + sqrt(2 * (beta2 - 1)); delta <- 1 / sqrt(log(sqrt(W2))); alpha <- sqrt(2 / (W2 - 1))
+  Zs <- delta * log(Y / alpha + sqrt((Y / alpha)^2 + 1))
+  # kurtosis (Anscombe & Glynn 1983)
+  E <- 3 * (n - 1) / (n + 1); V <- 24 * n * (n - 2) * (n - 3) / ((n + 1)^2 * (n + 3) * (n + 5))
+  xk <- (b2 - E) / sqrt(V)
+  sb1 <- 6 * (n^2 - 5 * n + 2) / ((n + 7) * (n + 9)) * sqrt(6 * (n + 3) * (n + 5) / (n * (n - 2) * (n - 3)))
+  A <- 6 + 8 / sb1 * (2 / sb1 + sqrt(1 + 4 / sb1^2))
+  t3 <- (1 - 2 / A) / (1 + xk * sqrt(2 / (A - 4)))
+  Zk <- ((1 - 2 / (9 * A)) - sign(t3) * abs(t3)^(1 / 3)) / sqrt(2 / (9 * A))
+  stats::pchisq(Zs^2 + Zk^2, 2, lower.tail = FALSE)
+}
+
+.norm_anderson <- function(x) {
+  n <- length(x); if (n < 8 || stats::sd(x) == 0) return(NA_real_)
+  z <- (sort(x) - mean(x)) / stats::sd(x)
+  h <- (2 * seq_len(n) - 1) * (stats::pnorm(z, log.p = TRUE) + rev(stats::pnorm(-z, log.p = TRUE)))
+  AA <- (1 + 0.75 / n + 2.25 / n^2) * (-n - mean(h))
+  if (AA < 0.2) 1 - exp(-13.436 + 101.14 * AA - 223.73 * AA^2)
+  else if (AA < 0.34) 1 - exp(-8.318 + 42.796 * AA - 59.938 * AA^2)
+  else if (AA < 0.6) exp(0.9177 - 4.279 * AA - 1.38 * AA^2)
+  else if (AA < 10) exp(1.2937 - 5.709 * AA + 0.0186 * AA^2) else 3.7e-24
+}
+
+.norm_lilliefors <- function(x) {
+  n <- length(x); if (n < 5 || stats::sd(x) == 0) return(NA_real_)
+  p <- stats::pnorm((sort(x) - mean(x)) / stats::sd(x))
+  K <- max(seq_len(n) / n - p, p - (seq_len(n) - 1) / n)
+  if (n <= 100) { Kd <- K; nd <- n } else { Kd <- K * (n / 100)^0.49; nd <- 100 }
+  pv <- exp(-7.01256 * Kd^2 * (nd + 2.78019) + 2.99587 * Kd * sqrt(nd + 2.78019) - 0.122119 + 0.974598 / sqrt(nd) + 1.67997 / nd)
+  if (pv > 0.1) {
+    KK <- (sqrt(n) - 0.01 + 0.85 / sqrt(n)) * K
+    pv <- if (KK <= 0.302) 1
+      else if (KK <= 0.5) 2.76773 - 19.828315 * KK + 80.709644 * KK^2 - 138.55152 * KK^3 + 81.218052 * KK^4
+      else if (KK <= 0.9) -4.901232 + 40.662806 * KK - 97.490286 * KK^2 + 94.029866 * KK^3 - 32.355711 * KK^4
+      else if (KK <= 1.31) 6.198765 - 19.558097 * KK + 23.186922 * KK^2 - 12.234627 * KK^3 + 2.423045 * KK^4 else 0
+  }
+  min(max(pv, 0), 1)
+}
+
+.norm_shapiro <- function(x) if (length(x) >= 3 && length(x) <= 5000 && length(unique(x)) > 1) tryCatch(stats::shapiro.test(x)$p.value, error = function(e) NA_real_) else NA_real_
+
+# Probability that the values come from a lognormal rather than a normal distribution (likelihood ratio).
+.prob_lognormal <- function(x) {
+  if (length(x) < 3 || any(x <= 0) || stats::sd(x) == 0) return(NA_real_)
+  n <- length(x); sdn <- sqrt(mean((x - mean(x))^2)); lx <- log(x); sdl <- sqrt(mean((lx - mean(lx))^2))
+  if (sdl == 0) return(NA_real_)
+  lln <- sum(stats::dnorm(x, mean(x), sdn, log = TRUE)); lll <- sum(stats::dlnorm(x, mean(lx), sdl, log = TRUE))
+  1 / (1 + exp(lln - lll))
+}
+
+#' The normality tests of each group (per row), equal-SD checks, QQ-plot points, and a recommended test.
+#' matched: the same experiment / donor in every group (recommends paired tests).
+bench_normality <- function(text, fileName = "", layout = "auto", sampleGroups = NULL, log = FALSE, matched = FALSE) {
+  p <- bench_parse(text, fileName, layout, sampleGroups)
+  if (isTRUE(p$needsGroups)) stop("Put the samples into groups first.")
+  d <- p$data; groups <- p$groups; k <- length(groups)
+  if (isTRUE(log)) { if (any(d$value <= 0)) stop("A log scale needs positive values."); d$value <- log2(d$value) }
+  one <- function(x) list(n = length(x), shapiro = .norm_shapiro(x), dagostino = .norm_dagostino(x), anderson = .norm_anderson(x),
+                          ks = .norm_lilliefors(x), lognormal = if (isTRUE(log)) NA_real_ else .prob_lognormal(x))
+  # the test Prism suggests reading: D'Agostino-Pearson from n = 8, Shapiro-Wilk below
+  primary <- function(r) if (is.finite(r$dagostino)) r$dagostino else r$shapiro
+  rows <- lapply(unique(d$target), function(tg) {
+    dt <- d[d$target == tg, , drop = FALSE]
+    gr <- lapply(groups, function(g) { x <- dt$value[dt$group == g]; r <- one(x); r$group <- g; r$passed <- if (is.finite(primary(r))) primary(r) >= 0.05 else NA
+      qq <- if (length(x) >= 3) { o <- sort(x); list(theoretical = signif(stats::qnorm(stats::ppoints(length(o))), 4), sample = signif(o, 6)) } else NULL
+      r$qq <- qq; r })
+    dt$y <- dt$value
+    list(target = tg, groups = gr, equalSD = .bench_assumptions(dt, groups)$equalSD)
+  })
+  flat <- unlist(lapply(rows, function(r) lapply(r$groups, function(g) g$passed)))
+  tested <- flat[!is.na(flat)]
+  allNormal <- length(tested) > 0 && all(tested)
+  sdOK <- all(vapply(rows, function(r) is.null(r$equalSD) || !is.finite(r$equalSD$p) || r$equalSD$p >= 0.05, TRUE))
+  lnP <- unlist(lapply(rows, function(r) lapply(r$groups, function(g) g$lognormal)))
+  lnP <- lnP[is.finite(lnP)]
+  minN <- min(unlist(lapply(rows, function(r) lapply(r$groups, function(g) g$n))))
+  why <- character(0)
+  logSuggest <- !isTRUE(log) && !allNormal && length(lnP) > 0 && mean(lnP > 0.5) > 0.5 && all(d$value > 0)
+  if (logSuggest) {
+    # do the log values pass?
+    lg <- d; lg$value <- log2(lg$value)
+    passLog <- unlist(lapply(unique(lg$target), function(tg) lapply(groups, function(g) { x <- lg$value[lg$target == tg & lg$group == g]; r <- one(x); pp <- primary(r); if (is.finite(pp)) pp >= 0.05 else NA })))
+    passLog <- passLog[!is.na(passLog)]
+    logSuggest <- length(passLog) > 0 && all(passLog)
+  }
+  parametric <- allNormal || logSuggest
+  test <- if (k == 2) { if (!parametric) (if (matched) "wilcoxon" else "mann_whitney") else if (matched) (if (logSuggest) "t_ratio" else "t_paired") else if (sdOK) "t_unpaired" else "t_welch" }
+          else { if (!parametric) (if (matched) "friedman" else "kruskal") else if (matched) "rm_anova" else if (sdOK) "anova" else "welch_anova" }
+  if (logSuggest && test == "t_ratio") logSuggest <- FALSE                    # the ratio paired t test logs the values itself
+  if (allNormal) why <- c(why, "Every group passed the normality test (p ≥ 0.05), so a parametric test fits.")
+  else if (logSuggest) why <- c(why, "Some groups failed the normality test, but the values look lognormal and pass on a log scale: test them on a log2 scale with a parametric test.")
+  else if (length(tested)) why <- c(why, "At least one group failed the normality test (p < 0.05): a non-parametric test does not assume Gaussian data.")
+  if (parametric && !matched && test %in% c("t_unpaired", "anova")) why <- c(why, "The SDs look similar (equal-SD test p ≥ 0.05).")
+  if (parametric && !matched && test %in% c("t_welch", "welch_anova")) why <- c(why, "The SDs differ (equal-SD test p < 0.05): Welch's version does not assume equal SDs.")
+  if (matched) why <- c(why, "The samples are matched (the same experiment or donor in every group), so a paired / repeated-measures test is used.")
+  warn <- character(0)
+  if (minN < 8) warn <- c(warn, sprintf("With %d value%s per group, D'Agostino–Pearson and Anderson–Darling need at least 8, and normality tests in general have little power: a pass does not prove the data are Gaussian. With so few values, decide from what is known about this kind of data (e.g. qPCR ΔCt and log fold changes are usually close to Gaussian).", minN, if (minN == 1) "" else "s"))
+  list(groups = as.list(groups), rows = rows, log = isTRUE(log),
+       recommendation = list(test = test, log = logSuggest, label = c(BENCH_TESTS$two, BENCH_TESTS$many)[[test]], why = as.list(why)),
+       warnings = as.list(warn))
+}
