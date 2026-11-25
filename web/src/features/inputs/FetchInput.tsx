@@ -11,10 +11,12 @@ import { useCreateList } from '../../api/hooks'
 
 export type FetchMode = 'disease' | 'pubmed' | 'geo' | 'clinvar'
 
-export interface FGene { gene: string; name?: string; /** Generic value (its label is the result's valueLabel). */ value?: number; /** Short detail shown in its own column. */ note?: string; score?: number; articles?: number; variants?: number; sources?: number; from?: string[]; bestScore?: number; pmids?: string[]; evidence?: Record<string, number> }
+export interface FGene { gene: string; name?: string; /** Generic value (its label is the result's valueLabel). */ value?: number; /** Short detail shown in its own column. */ note?: string; /** Significance (p or adjusted p; its label is the result's qLabel), shown in its own sortable column. */ q?: number; score?: number; articles?: number; variants?: number; sources?: number; from?: string[]; bestScore?: number; pmids?: string[]; evidence?: Record<string, number> }
 export interface GeneResult { genes: FGene[]; organismTaxId: number; ranked?: boolean; citation?: string; source?: string; disease?: string; term?: string; link?: string; total?: number
   /** Label of FGene.value; how many genes to keep at first (default 200–500); keep them all (e.g. a ranked list for GSEA). */
-  valueLabel?: string; defaultTop?: number; keepAll?: boolean; note?: string }
+  valueLabel?: string; defaultTop?: number; keepAll?: boolean; note?: string
+  /** Label of FGene.q, e.g. "q-value (BH-adjusted p)" or "p-value". */
+  qLabel?: string }
 
 const EXAMPLES: Record<FetchMode, string> = {
   disease: 'asthma',
@@ -382,15 +384,36 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
   const [organism, setOrganism] = useState(r.organismTaxId)
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const [sel, setSel] = useState<string[]>([])
-  useEffect(() => { setTop(firstTop()); setOrganism(r.organismTaxId); setSel([]); setWithScores(!!r.keepAll) // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Table order: the source's ranking, or sorted by the value or the q-value. "Keep the top N" follows it.
+  const [sort, setSort] = useState<{ key: 'rank' | 'value' | 'q'; dir: 1 | -1 }>({ key: 'rank', dir: 1 })
+  useEffect(() => { setTop(firstTop()); setOrganism(r.organismTaxId); setSel([]); setWithScores(!!r.keepAll); setSort({ key: 'rank', dir: 1 }) // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [r, valueLabel])
+  const hasQ = r.genes.some((g) => g.q != null)
+  const qLabel = r.qLabel ?? 'q-value'
+  const genes = useMemo(() => {
+    if (sort.key === 'rank') return r.genes
+    const v = (g: FGene) => (sort.key === 'q' ? g.q : value(g)) ?? null
+    return r.genes.map((g, i) => ({ g, i })).sort((a, b) => {
+      const x = v(a.g), y = v(b.g)
+      if (x == null || y == null) return x == null && y == null ? a.i - b.i : x == null ? 1 : -1     // missing values last
+      return x === y ? a.i - b.i : (x < y ? -1 : 1) * sort.dir
+    }).map((x) => x.g)
+  }, [r, sort]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sortBy = (key: 'rank' | 'value' | 'q') => setSort((s) => (s.key === key ? (key === 'rank' ? s : { key, dir: (s.dir * -1) as 1 | -1 })
+    : { key, dir: key === 'value' ? -1 : 1 }))                                    // value: largest first; q: smallest first
+  const sortTh = (key: 'rank' | 'value' | 'q', label: string, title: string) => (
+    <th className="num" aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="th-btn" title={title} onClick={() => sortBy(key)}>{label}{sort.key === key && key !== 'rank' ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</button>
+    </th>
+  )
+  const sortName = sort.key === 'rank' ? null : `${sort.key === 'q' ? qLabel : valueLabel}, ${sort.dir === 1 ? 'smallest' : 'largest'} first`
   // Two ways to choose: the top N genes (slider), or hand-picked bars. Hand-picked genes win while there are any.
   const selSet = useMemo(() => new Set(sel), [sel])
-  const chosen = useMemo(() => (sel.length ? r.genes.filter((g) => selSet.has(g.gene)) : r.genes.slice(0, top)), [r, top, sel, selSet])
+  const chosen = useMemo(() => (sel.length ? genes.filter((g) => selSet.has(g.gene)) : genes.slice(0, top)), [genes, top, sel, selSet])
   const allPicked = r.genes.length > 0 && sel.length === r.genes.length
   const pickAll = () => setSel(r.genes.map((g) => g.gene))
   const chosenSet = useMemo(() => new Set(chosen.map((g) => g.gene)), [chosen])
-  const shown = r.genes.slice(0, 40)
+  const shown = genes.slice(0, 40)
   const TABLE_ROWS = 500
   const hasFrom = r.genes.some((g) => g.from?.length)
   const toggleGene = (gene: string) => setSel((c) => (c.includes(gene) ? c.filter((x) => x !== gene) : [...c, gene]))
@@ -409,7 +432,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
         <h3>{plural(r.genes.length, 'gene')}{r.source ? ` · ${r.source}` : ''}{r.total && r.total > r.genes.length ? ` (top ${r.genes.length} of ${r.total.toLocaleString()})` : ''}</h3>
         <span className="row"><CopyButton label="Copy genes" text={chosen.map((g) => g.gene).join('\n')} />
           <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: (r.source ?? mode).slice(0, 31), rows: r.genes.map((g, i) => ({ Rank: i + 1, Gene: g.gene, Name: g.name ?? '',
-            ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}), ...(g.from ? { 'Listed by': g.from.join('; ') } : {}),
+            ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(hasQ ? { [qLabel]: g.q ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}), ...(g.from ? { 'Listed by': g.from.join('; ') } : {}),
             ...(g.evidence ? Object.fromEntries(Object.entries(g.evidence).map(([k, v]) => [`Evidence: ${k}`, v])) : {}) })) }], `flame_${mode}_genes.xlsx`)}>Excel</button>{r.link && <a className="btn btn-ghost btn-sm" href={r.link} target="_blank" rel="noopener noreferrer">Source ↗</a>}</span>
       </div>
       {r.genes.length > 1 && (
@@ -440,18 +463,21 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
       )}
       <ErrorNote error={quickSave.error} />
       <div className="table-scroll fetch-table gene-table"><table className="table compact">
-        <thead><tr><th><input type="checkbox" checked={allPicked} aria-label="Select all genes" title={allPicked ? 'Clear the selection' : 'Select all genes'} onChange={() => (allPicked ? setSel([]) : pickAll())} /></th><th className="num">#</th><th>Gene</th><th>Name</th>{valueLabel && <th className="num">{valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1)}</th>}{hasFrom && <th>Listed by</th>}{hasNote && <th>Details</th>}</tr></thead>
-        <tbody>{r.genes.slice(0, TABLE_ROWS).map((g, i) => (
+        <thead><tr><th><input type="checkbox" checked={allPicked} aria-label="Select all genes" title={allPicked ? 'Clear the selection' : 'Select all genes'} onChange={() => (allPicked ? setSel([]) : pickAll())} /></th>{sortTh('rank', '#', 'Back to the original order')}<th>Gene</th><th>Name</th>
+          {valueLabel && sortTh('value', valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1), 'Sort by this column')}
+          {hasQ && sortTh('q', qLabel[0].toUpperCase() + qLabel.slice(1), 'Sort by this column')}{hasFrom && <th>Listed by</th>}{hasNote && <th>Details</th>}</tr></thead>
+        <tbody>{genes.slice(0, TABLE_ROWS).map((g, i) => (
           <tr key={g.gene} className={chosenSet.has(g.gene) ? 'selected' : ''}>
             <td><input type="checkbox" checked={selSet.has(g.gene)} aria-label={`Hand-pick ${g.gene}`} onChange={() => toggleGene(g.gene)} /></td>
             <td className="num muted">{i + 1}</td><td><GeneCardsLink gene={g.gene} /></td><td className="small">{g.name}</td>
             {valueLabel && <td className="num">{showValue(value(g))}</td>}
+            {hasQ && <td className="num">{g.q == null ? '' : formatP(g.q)}</td>}
             {hasFrom && <td className="small muted">{(g.from ?? []).join('; ')}</td>}
             {hasNote && <td className="small muted">{g.note}</td>}
           </tr>
         ))}</tbody>
       </table></div>
-      <p className="muted small">Highlighted rows are the genes that will be saved{r.genes.length > TABLE_ROWS ? ` (the table shows the first ${TABLE_ROWS} of ${r.genes.length.toLocaleString()})` : ''}. Tick genes to hand-pick them instead of taking the top ones.</p>
+      <p className="muted small">Highlighted rows are the genes that will be saved{r.genes.length > TABLE_ROWS ? ` (the table shows the first ${TABLE_ROWS} of ${r.genes.length.toLocaleString()})` : ''}. Tick genes to hand-pick them instead of taking the top ones.{valueLabel || hasQ ? ' Click a column header to sort; the top genes follow the order shown.' : ''}</p>
       {valueLabel && (
         <details className="gene-chart" open={mode !== 'disease'}>
           <summary className="small">Bar chart of the first {shown.length} genes</summary>
@@ -466,7 +492,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
         </details>
       )}
       {!valueLabel && <GeneChips genes={r.genes.map((g) => g.gene)} taxid={r.organismTaxId} max={80} />}
-      <p className="small"><strong>{plural(chosen.length, 'gene')}</strong> will be saved{sel.length ? ' (hand-picked)' : r.genes.length > 1 ? ` (the top ${chosen.length} by ${valueLabel ?? 'rank'})` : ''}.</p>
+      <p className="small"><strong>{plural(chosen.length, 'gene')}</strong> will be saved{sel.length ? ' (hand-picked)' : r.genes.length > 1 ? ` (the top ${chosen.length} by ${sortName ?? valueLabel ?? 'rank'})` : ''}.</p>
       {valueLabel && <details className="small"><summary>Genes that will be saved ({chosen.length}) — click a gene for GeneCards</summary><GeneChips genes={chosen.map((g) => g.gene)} taxid={r.organismTaxId} max={200} /></details>}
       {r.citation && <p className="muted small">{r.citation}</p>}
       {chosen.length > 0 && (

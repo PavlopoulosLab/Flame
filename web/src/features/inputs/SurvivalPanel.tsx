@@ -60,7 +60,7 @@ export function SurvivalPanel({ text, fileName, log, clinical, setClinical, onCr
     const sorted = pick === 'all' ? [...keep].sort((a, b) => b.z - a.z) : keep
     const what = { poor: 'poor-prognosis genes', good: 'good-prognosis genes', both: 'survival-linked genes', all: 'genes ranked by Cox z' }[pick]
     return {
-      genes: sorted.map((g) => ({ gene: g.gene, value: g.z, note: `HR ${g.hr.toFixed(2)} (${g.lo.toFixed(2)}–${g.hi.toFixed(2)}) · q = ${fmt(g.q)}` })),
+      genes: sorted.map((g) => ({ gene: g.gene, value: g.z, q: g.q, note: `HR ${g.hr.toFixed(2)} (${g.lo.toFixed(2)}–${g.hi.toFixed(2)})` })), qLabel: 'q-value (BH-adjusted p)',
       organismTaxId: 9606, ranked: true, keepAll: pick === 'all', defaultTop: 500,
       valueLabel: 'Cox z-score (+ = shorter survival)', term: `Survival: ${what}`, source: 'survival analysis',
       citation: `${res.note} ${res.samples} samples, ${res.events} events${res.strataColumn ? `, stratified by ${res.strataColumn} (${res.strata} strata)` : ''}.`,

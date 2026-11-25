@@ -101,9 +101,16 @@ tcga_studies <- function() {
          link = link, citation = citation, total = length(genes)), extra)
 }
 
-.gene_records <- function(gene, name, value, note) {
-  lapply(seq_along(gene), function(i) list(gene = gene[i], name = name[i], value = value[i], note = note[i]))
+# q: Benjamini-Hochberg adjusted p-values, sent as numbers (the table sorts them; label TCGA_Q_LABEL).
+.gene_records <- function(gene, name, value, note = "", q = NULL) {
+  note <- rep_len(note, length(gene))
+  lapply(seq_along(gene), function(i) {
+    r <- list(gene = gene[i], name = name[i], value = value[i], note = note[i])
+    if (!is.null(q)) r$q <- signif(q[i], 3)
+    r
+  })
 }
+TCGA_Q_LABEL <- "q-value (BH-adjusted p)"
 
 #' Genes with somatic mutations, by share of the sequenced tumours.
 tcga_mutated_genes <- function(study, max = 3000L) {
@@ -156,9 +163,9 @@ tcga_coexpressed <- function(study, gene, direction = "positive", minCorrelation
   sym <- .symbols_of(co$entrez)
   co$gene <- sym$hugoGeneSymbol[match(co$entrez, sym$entrezGeneId)]
   co <- co[!is.na(co$gene), , drop = FALSE]
-  .tcga_result(st, .gene_records(co$gene, .gene_names(co$entrez), round(co$spearmansCorrelation, 3),
-                                 sprintf("q = %s", formatC(co$q, format = "g", digits = 2))),
-               paste("Spearman correlation with", g$symbol), paste("genes co-expressed with", g$symbol))
+  .tcga_result(st, .gene_records(co$gene, .gene_names(co$entrez), round(co$spearmansCorrelation, 3), q = co$q),
+               paste("Spearman correlation with", g$symbol), paste("genes co-expressed with", g$symbol),
+               list(qLabel = TCGA_Q_LABEL))
 }
 
 #' Clinical attributes with a few categories, to split the tumours into two groups.
@@ -252,10 +259,9 @@ tcga_de_genes <- function(study, groupA, groupB, direction = "both", minLog2FC =
     df <- df[order(df$p, -abs(df$fc)), , drop = FALSE]
   }
   what <- sprintf("%s vs %s", a$label, b$label)
-  .tcga_result(st, .gene_records(df$gene, .gene_names(df$entrez), round(df$fc, 3),
-                                 sprintf("q = %s", formatC(df$q, format = "g", digits = 2))),
+  .tcga_result(st, .gene_records(df$gene, .gene_names(df$entrez), round(df$fc, 3), q = df$q),
                sprintf("log2 fold change (%s vs %s)", a$label, b$label), paste("DE genes,", what),
-               list(groups = list(a = list(label = a$label, n = length(a$samples)), b = list(label = b$label, n = length(b$samples))),
+               list(qLabel = TCGA_Q_LABEL, groups = list(a = list(label = a$label, n = length(a$samples)), b = list(label = b$label, n = length(b$samples))),
                     keepAll = isTRUE(all)))
 }
 
@@ -293,10 +299,9 @@ tcga_tumor_normal <- function(study, direction = "both", minLog2FC = 1, maxQ = 0
     df <- df[keep, , drop = FALSE]
     df <- df[order(df$q, -abs(df$log2FC)), , drop = FALSE]
   }
-  .tcga_result(st, .gene_records(df$gene, .gene_names(df$entrez), df$log2FC,
-                                 sprintf("q = %s", formatC(df$q, format = "g", digits = 2))),
+  .tcga_result(st, .gene_records(df$gene, .gene_names(df$entrez), df$log2FC, q = df$q),
                "log2 fold change (tumour vs normal)", "tumour vs normal",
-               list(groups = list(a = list(label = "Primary tumour", n = d$n$tumour), b = list(label = "Adjacent normal", n = d$n$normal)),
+               list(qLabel = TCGA_Q_LABEL, groups = list(a = list(label = "Primary tumour", n = d$n$tumour), b = list(label = "Adjacent normal", n = d$n$normal)),
                     keepAll = isTRUE(all)),
                citation = paste0(TCGA_TN_CITATION, " Computed ", tn$meta$built %||% "", "."),
                link = sprintf("https://portal.gdc.cancer.gov/projects/TCGA-%s", d$projects[[1]]))

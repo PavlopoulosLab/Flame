@@ -50,6 +50,9 @@ test_that("TCGA tumour vs normal filters the precomputed table (online: study li
   v <- vapply(r$genes, `[[`, 0, "value")
   expect_true(all(v >= 2))
   expect_equal(r$groups$b$label, "Adjacent normal")
+  q <- vapply(r$genes, `[[`, 0, "q")                                    # q-values as numbers, for sorting
+  expect_true(all(q <= 0.01))
+  expect_equal(r$qLabel, "q-value (BH-adjusted p)")
   all <- tcga_genes("lihc_tcga_pan_can_atlas_2018", "normal", all = TRUE)
   expect_true(isTRUE(all$keepAll))
   expect_false(is.unsorted(rev(vapply(all$genes, `[[`, 0, "value"))))
