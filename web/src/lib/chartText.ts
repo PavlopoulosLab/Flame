@@ -7,7 +7,7 @@ import { useSyncExternalStore } from 'react'
  * leave a chart's own style.
  */
 export interface TextStyle { size: number; bold: boolean; italic: boolean }
-export type TextPart = 'title' | 'yTitle' | 'xTitle' | 'tick' | 'legend'
+export type TextPart = 'title' | 'yTitle' | 'xTitle' | 'yTick' | 'xTick' | 'legend'
 export interface ChartText extends Record<TextPart, TextStyle> {
   /** '' = the chart's own font. */
   family: string
@@ -18,11 +18,11 @@ export interface ChartText extends Record<TextPart, TextStyle> {
 const plain: TextStyle = { size: 0, bold: false, italic: false }
 export const DEFAULT_CHART_TEXT: ChartText = {
   family: '', tickAngle: 0,
-  title: { size: 0, bold: true, italic: false }, yTitle: plain, xTitle: plain, tick: plain, legend: plain,
+  title: { size: 0, bold: true, italic: false }, yTitle: plain, xTitle: plain, yTick: plain, xTick: plain, legend: plain,
 }
 export const TEXT_PARTS: { key: TextPart; label: string }[] = [
   { key: 'title', label: 'Plot title' }, { key: 'yTitle', label: 'Y axis title' }, { key: 'xTitle', label: 'X axis title' },
-  { key: 'tick', label: 'Tick labels' }, { key: 'legend', label: 'Legend' },
+  { key: 'yTick', label: 'Y tick labels' }, { key: 'xTick', label: 'X tick labels' }, { key: 'legend', label: 'Legend' },
 ]
 export const FONTS: [string, string][] = [['', 'Default'], ['Arial, Helvetica, sans-serif', 'Arial'], ['Helvetica, Arial, sans-serif', 'Helvetica'],
   ['Calibri, Carlito, sans-serif', 'Calibri'], ['Verdana, sans-serif', 'Verdana'], ['"Times New Roman", Times, serif', 'Times New Roman'],
@@ -37,7 +37,9 @@ const listeners = new Set<() => void>()
 export function sanitizeChartText(v: unknown): ChartText {
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
   const style = (k: TextPart): TextStyle => {
-    const s = (o[k] && typeof o[k] === 'object' ? o[k] : {}) as Record<string, unknown>
+    // Settings saved before the x and y tick labels were separate: one "tick" style for both.
+    const src = o[k] ?? ((k === 'xTick' || k === 'yTick') ? o.tick : undefined)
+    const s = (src && typeof src === 'object' ? src : {}) as Record<string, unknown>
     const d = DEFAULT_CHART_TEXT[k]
     return { size: typeof s.size === 'number' && s.size >= 0 && s.size <= 72 ? s.size : d.size,
       bold: typeof s.bold === 'boolean' ? s.bold : d.bold, italic: typeof s.italic === 'boolean' ? s.italic : d.italic }
@@ -45,7 +47,7 @@ export function sanitizeChartText(v: unknown): ChartText {
   return {
     family: typeof o.family === 'string' && FONTS.some(([f]) => f === o.family) ? o.family : '',
     tickAngle: typeof o.tickAngle === 'number' && TICK_ANGLES.some(([a]) => a === o.tickAngle) ? o.tickAngle : 0,
-    title: style('title'), yTitle: style('yTitle'), xTitle: style('xTitle'), tick: style('tick'), legend: style('legend'),
+    title: style('title'), yTitle: style('yTitle'), xTitle: style('xTitle'), yTick: style('yTick'), xTick: style('xTick'), legend: style('legend'),
   }
 }
 
@@ -71,6 +73,35 @@ function font(base: unknown, s: TextStyle, family: string): Obj {
   return { ...asObj(base), ...(s.size ? { size: s.size } : {}), ...(s.bold ? { weight: 'bold' } : {}), ...(s.italic ? { style: 'italic' } : {}), ...(family ? { family } : {}) }
 }
 
+/** Text written for one chart ('' = the chart's own). */
+export interface ChartLabels { title: string; yTitle: string; xTitle: string }
+export const NO_LABELS: ChartLabels = { title: '', yTitle: '', xTitle: '' }
+
+/** The chart's own title and axis titles (shown as placeholders where the user can write their own). */
+export function chartLabels(layout: Obj): ChartLabels {
+  const txt = (v: unknown) => String(asObj(v).text ?? '')
+  return { title: txt(layout.title), yTitle: txt(asObj(layout.yaxis).title), xTitle: txt(asObj(layout.xaxis).title) }
+}
+
+/** The layout with the user's title and axis titles for this chart (room is made above for a title). */
+export function applyChartLabels<L extends Obj>(layout: L, l: ChartLabels, t: ChartText): L {
+  const out: Obj = { ...layout }
+  const title = l.title.trim(), y = l.yTitle.trim(), x = l.xTitle.trim()
+  if (title) {
+    const size = t.title.size || 17
+    out.title = { ...asObj(out.title), text: title, x: 0.5, xanchor: 'center', y: 0.98, yanchor: 'top', font: font(asObj(asObj(out.title).font), { ...t.title, size }, t.family) }
+    const m = asObj(out.margin)
+    out.margin = { ...m, t: Math.max(Number(m.t ?? 20), size * 2 + 16) }
+  }
+  const axis = (k: 'xaxis' | 'yaxis', text: string, s: TextStyle) => {
+    if (!text) return
+    const ax = asObj(out[k]), ti = asObj(ax.title)
+    out[k] = { ...ax, title: { ...ti, text, font: font(ti.font, s, t.family) } }
+  }
+  axis('yaxis', y, t.yTitle); axis('xaxis', x, t.xTitle)
+  return out as L
+}
+
 /** The chart's Plotly layout with the text style applied to its title, every x / y axis and the legend. */
 export function applyChartText<L extends Obj>(layout: L, t: ChartText): L {
   const out: Obj = { ...layout }
@@ -79,7 +110,7 @@ export function applyChartText<L extends Obj>(layout: L, t: ChartText): L {
   for (const k of Object.keys(out).filter((x) => /^[xy]axis\d*$/.test(x))) {
     const ax = asObj(out[k]), x = k.startsWith('x')
     const ti = ax.title == null ? null : asObj(ax.title)
-    out[k] = { ...ax, tickfont: font(ax.tickfont, t.tick, t.family), ...(ti ? { title: { ...ti, font: font(ti.font, x ? t.xTitle : t.yTitle, t.family) } } : {}),
+    out[k] = { ...ax, tickfont: font(ax.tickfont, x ? t.xTick : t.yTick, t.family), ...(ti ? { title: { ...ti, font: font(ti.font, x ? t.xTitle : t.yTitle, t.family) } } : {}),
       ...(x && t.tickAngle ? { tickangle: -t.tickAngle, automargin: true } : {}) }
   }
   out.legend = { ...asObj(out.legend), font: font(asObj(out.legend).font, t.legend, t.family) }

@@ -8,7 +8,7 @@ import { BrushModes, pointInPolygon, useBrush, type BrushMode } from '../lib/bru
 import { categorical, usePaletteMode, type PaletteMode } from '../lib/palette'
 import { ExportImageButton } from './ExportImage'
 import { ChartTextButton } from './ChartTextControls'
-import { applyChartText, useChartText } from '../lib/chartText'
+import { applyChartLabels, applyChartText, chartLabels, NO_LABELS, useChartText, type ChartLabels } from '../lib/chartText'
 import { LIGHT, openImageExport, type ImageSource, type RenderOptions } from '../lib/imageExport'
 import { plotlySafeDeep } from '../lib/format'
 
@@ -117,6 +117,12 @@ export function Plot({
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const text = useChartText()
+  // Title and axis titles written for this chart (kept for the session for charts with their own export name).
+  const labelKey = exportName !== 'flame_plot' ? `flame-chart-labels:${exportName}` : null
+  const [labels, setLabelsState] = useState<ChartLabels>(() => {
+    try { const v = labelKey ? JSON.parse(sessionStorage.getItem(labelKey) ?? 'null') : null; return v ? { ...NO_LABELS, ...v } : NO_LABELS } catch { return NO_LABELS }
+  })
+  const setLabels = (l: ChartLabels) => { setLabelsState(l); try { if (labelKey) sessionStorage.setItem(labelKey, JSON.stringify(l)) } catch { /* storage unavailable */ } }
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
   const clickRef = useRef(onPointClick)
@@ -141,7 +147,7 @@ export function Plot({
     if (!el) return
     const base = themeLayout(cb)
     // The text style of all charts (font, title, axis, tick and legend text) over the chart's own.
-    const merged = applyChartText({
+    const styled = applyChartText({
       ...base,
       height,
       margin: { l: 60, r: 20, t: 20, b: 50 },
@@ -149,7 +155,8 @@ export function Plot({
       ...layout,
       xaxis: { ...base.xaxis, ...(layout?.xaxis ?? {}) },
       yaxis: { ...base.yaxis, ...(layout?.yaxis ?? {}) },
-    } as Record<string, unknown>, text) as Partial<Plotly.Layout>
+    } as Record<string, unknown>, text) as Record<string, unknown>
+    const merged = applyChartLabels(styled, labels, text) as Partial<Plotly.Layout>
     redrawing.current = true
     Promise.resolve(
       Plotly.react(el, plotlySafeDeep(data) as Plotly.Data[], plotlySafeDeep(merged), {
@@ -185,7 +192,7 @@ export function Plot({
     if (handleRef) {
       handleRef.current = { exportImage: (name) => openImageExport(plotSource(el, name ?? nameRef.current, !!selectRef.current)) }
     }
-  }, [data, layout, height, mode, handleRef, cb, tools, text])
+  }, [data, layout, height, mode, handleRef, cb, tools, text, labels])
 
   useEffect(() => {
     const el = ref.current
@@ -205,7 +212,7 @@ export function Plot({
             ))}
           </div>
         )}
-        {textButton && <ChartTextButton />}
+        {textButton && <ChartTextButton labels={labels} setLabels={setLabels} own={chartLabels((layout ?? {}) as Record<string, unknown>)} />}
         <ExportImageButton source={() => (ref.current ? plotSource(ref.current, exportName, !!onSelect) : null)} />
       </div>
       {/* reserve the plot height so following content never slides under the chart */}

@@ -48,18 +48,20 @@ export interface PlotOpts {
   legendPos: LegendPos; legendSize: number; legendBold: boolean; legendItalic: boolean
   /** The numbers and names along the axes: size (0 = automatic), bold, italic, and the angle of the x labels. */
   tickSize: number; tickBold: boolean; tickItalic: boolean; tickAngle: number
+  /** The y tick labels (the tick* fields above are the x tick labels). */
+  yTickSize: number; yTickBold: boolean; yTickItalic: boolean
 }
 export type LegendPos = 'bottom' | 'top' | 'right' | 'inside-tr' | 'inside-tl' | 'off'
 export const LEGEND_POS: [LegendPos, string][] = [['bottom', 'Below'], ['top', 'Above'], ['right', 'Right'],
   ['inside-tr', 'Inside, top right'], ['inside-tl', 'Inside, top left'], ['off', 'Hidden']]
-export type TextStyleKey = 'title' | 'yTitle' | 'xTitle' | 'legend' | 'tick'
+export type TextStyleKey = 'title' | 'yTitle' | 'xTitle' | 'legend' | 'tick' | 'yTick'
 export const DEFAULT_PLOT: PlotOpts = {
   kind: 'bar', errBar: 'sd', cap: 6, width: 0.8, points: true, shape: 'circle', shapePerGroup: false, hollow: false, pointSize: 8, jitter: 0.5,
   pvals: 'stars', hideNs: false, style: 'color', yTitle: '', xTitle: '', yMin: '', yMax: '', logY: false, font: 13,
   brk: 'off', brkFrom: '', brkTo: '', figW: 0, figH: 420, title: '',
   family: '', titleSize: 0, titleBold: true, titleItalic: false, yTitleSize: 0, yTitleBold: false, yTitleItalic: false, xTitleSize: 0, xTitleBold: false, xTitleItalic: false,
   legendPos: 'bottom', legendSize: 0, legendBold: false, legendItalic: false,
-  tickSize: 0, tickBold: false, tickItalic: false, tickAngle: 0,
+  tickSize: 0, tickBold: false, tickItalic: false, tickAngle: 0, yTickSize: 0, yTickBold: false, yTickItalic: false,
 }
 export const SHAPES: { value: Shape; label: string }[] = [
   { value: 'circle', label: '● Circle' }, { value: 'triangle-up', label: '▲ Triangle' }, { value: 'square', label: '■ Square' },
@@ -73,7 +75,8 @@ export function withChartText(o: PlotOpts, t: ChartText): PlotOpts {
     titleSize: t.title.size, titleBold: t.title.bold, titleItalic: t.title.italic,
     yTitleSize: t.yTitle.size, yTitleBold: t.yTitle.bold, yTitleItalic: t.yTitle.italic,
     xTitleSize: t.xTitle.size, xTitleBold: t.xTitle.bold, xTitleItalic: t.xTitle.italic,
-    tickSize: t.tick.size, tickBold: t.tick.bold, tickItalic: t.tick.italic,
+    tickSize: t.xTick.size, tickBold: t.xTick.bold, tickItalic: t.xTick.italic,
+    yTickSize: t.yTick.size, yTickBold: t.yTick.bold, yTickItalic: t.yTick.italic,
     legendSize: t.legend.size, legendBold: t.legend.bold, legendItalic: t.legend.italic }
 }
 
@@ -124,6 +127,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     tickfont: tfont('tick', o.font), automargin: true }
   // Slanted or vertical names under the x axis (long gene or group names).
   const xTicks = { tickangle: -o.tickAngle }
+  const yTicks = { tickfont: tfont('yTick', o.font) }
   const title = o.title.trim()
   const page = { font, ...(bw ? { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff' } : {}),
     ...(title ? { title: { text: title, x: 0.5, xanchor: 'center', y: 0.98, yanchor: 'top', font: tfont('title', o.font + 5) } } : {}) }
@@ -152,7 +156,7 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
     }))
     const yr = [num(o.yMin), num(o.yMax)]
     return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle, ...xTicks, title: { text: o.xTitle, font: tfont('xTitle', o.font) } },
-      yaxis: { ...axisStyle, title: { text: yTitle, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', ...(yr[0] != null && yr[1] != null ? { range: o.logY ? yr.map((v) => Math.log10(v!)) : yr } : { rangemode: 'tozero' }) },
+      yaxis: { ...axisStyle, ...yTicks, title: { text: yTitle, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', ...(yr[0] != null && yr[1] != null ? { range: o.logY ? yr.map((v) => Math.log10(v!)) : yr } : { rangemode: 'tozero' }) },
       legend, showlegend, margin: { l: 70, r: 10, t: topM, b: 80 } }, broken: null as [number, number] | null }
   }
 
@@ -299,10 +303,10 @@ export function benchFigure(res: FigInput, o: PlotOpts, colorOf: (group: string,
   const autoRange = o.logY ? [ymin - pad, ymax + pad] : [ymin < 0 ? ymin - pad : 0, ymax + pad]
   const mode = o.kind === 'box' ? { boxmode: 'overlay' } : o.kind === 'violin' ? { violinmode: 'overlay' } : { barmode: 'overlay', bargap: 0 }
   const layout = broken
-    ? { ...page, ...mode, xaxis, yaxis: { ...axisStyle, domain: [0, low], range: [autoRange[0], broken[0]] },
-        yaxis2: { ...axisStyle, domain: [high, 1], range: [broken[1], userRange?.[1] ?? upTop], anchor: 'x' },
+    ? { ...page, ...mode, xaxis, yaxis: { ...axisStyle, ...yTicks, domain: [0, low], range: [autoRange[0], broken[0]] },
+        yaxis2: { ...axisStyle, ...yTicks, domain: [high, 1], range: [broken[1], userRange?.[1] ?? upTop], anchor: 'x' },
         annotations, shapes, legend, showlegend, margin: { l: 75, r: 10, t: topM, b: 80 } }
-    : { ...page, ...mode, xaxis, yaxis: { ...axisStyle, title: { text: yTitleXY, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', range: userRange ?? autoRange },
+    : { ...page, ...mode, xaxis, yaxis: { ...axisStyle, ...yTicks, title: { text: yTitleXY, font: tfont('yTitle', o.font) }, type: o.logY ? 'log' : 'linear', range: userRange ?? autoRange },
         annotations, shapes, legend, showlegend, margin: { l: 70, r: 10, t: topM, b: 80 } }
   return { data: traces, layout, broken }
 }

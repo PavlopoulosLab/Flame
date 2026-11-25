@@ -145,10 +145,10 @@ describe('bench figures', () => {
 
   it('tick labels: their own size, bold, italic, and slanted x labels', () => {
     type A = { tickfont: { size: number; weight: string; style: string }; tickangle?: number }
-    const l = fig({ tickSize: 15, tickBold: true, tickAngle: 45 }).layout as unknown as { xaxis: A; yaxis: A }
+    const l = fig({ tickSize: 15, tickBold: true, tickAngle: 45, yTickSize: 11 }).layout as unknown as { xaxis: A; yaxis: A }
     expect(l.xaxis).toMatchObject({ tickangle: -45, tickfont: { size: 15, weight: 'bold', style: 'normal' } })
-    expect(l.yaxis.tickfont).toMatchObject({ size: 15, weight: 'bold' })
-    expect((fig({ tickItalic: true }).layout as unknown as { yaxis: A }).yaxis.tickfont).toMatchObject({ size: 13, style: 'italic', weight: 'normal' })
+    expect(l.yaxis.tickfont).toMatchObject({ size: 11, weight: 'normal' })                          // y ticks: their own style
+    expect((fig({ yTickItalic: true }).layout as unknown as { yaxis: A }).yaxis.tickfont).toMatchObject({ size: 13, style: 'italic', weight: 'normal' })
     expect((fig({ kind: 'stacked', tickAngle: 90 }).layout as unknown as { xaxis: A }).xaxis.tickangle).toBe(-90)
   })
 

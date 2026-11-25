@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { DEFAULT_CHART_TEXT, FONTS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type TextPart, type TextStyle } from '../lib/chartText'
+import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle } from '../lib/chartText'
 import { Field } from './ui'
 
 /** Bold, italic and size of one part of the chart text. */
@@ -60,7 +60,7 @@ export function ChartTextControls({ inputs = {}, parts = TEXT_PARTS.map((p) => p
           <span className="row" style={{ gap: 4 }}>
             {inputs[p.key]}
             <TextStyleButtons part={p.key} label={p.label} />
-            {p.key === 'tick' && <TickAngleSelect />}
+            {p.key === 'xTick' && <TickAngleSelect />}
           </span>
         </Field>
       ))}
@@ -70,8 +70,11 @@ export function ChartTextControls({ inputs = {}, parts = TEXT_PARTS.map((p) => p
   )
 }
 
-/** "Aa Text" next to a chart's Image button: the text style of all charts, in a small panel. */
-export function ChartTextButton() {
+/**
+ * "Aa Text" next to a chart's Image button: this chart's title and axis titles (written by the user; empty = the
+ * chart's own, shown greyed), and the font, size, bold and italic of titles, tick labels and legends of all charts.
+ */
+export function ChartTextButton({ labels, setLabels, own }: { labels: ChartLabels; setLabels: (l: ChartLabels) => void; own: ChartLabels }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   useEffect(() => {
@@ -81,15 +84,19 @@ export function ChartTextButton() {
     document.addEventListener('mousedown', close); document.addEventListener('keydown', esc)
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc) }
   }, [open])
+  const box = (k: keyof ChartLabels, label: string, fallback: string, width: number) => (
+    <input className="input input-sm" value={labels[k]} maxLength={160} aria-label={label} placeholder={own[k] || fallback} style={{ width }}
+      onChange={(e) => setLabels({ ...labels, [k]: e.target.value })} />
+  )
   return (
     <div className="chart-text-button" ref={ref}>
-      <button type="button" className="btn btn-ghost btn-sm" data-no-export="" aria-expanded={open} title="Font, size, bold and italic of titles, axes and legends (all charts)" onClick={() => setOpen((v) => !v)}>Aa Text</button>
+      <button type="button" className="btn btn-ghost btn-sm" data-no-export="" aria-expanded={open} title="Title, axis titles and the font, size, bold and italic of the text" onClick={() => setOpen((v) => !v)}>Aa Text</button>
       {open && (
-        <div className="chart-text-pop card stack-sm" role="dialog" aria-label="Text of all charts">
-          <strong className="small">Text of all charts</strong>
-          <ChartTextControls />
+        <div className="chart-text-pop card stack-sm" role="dialog" aria-label="Chart text">
+          <ChartTextControls inputs={{ title: box('title', 'Plot title', 'no title', 220), yTitle: box('yTitle', 'Y axis title', 'none', 170), xTitle: box('xTitle', 'X axis title', 'none', 170) }} />
           <div className="row">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChartText(DEFAULT_CHART_TEXT)}>Reset</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLabels(NO_LABELS)} disabled={!labels.title && !labels.xTitle && !labels.yTitle}>Clear titles</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setChartText(DEFAULT_CHART_TEXT)}>Reset style</button>
           </div>
         </div>
       )}

@@ -44,9 +44,14 @@ export function PlotControls({ o, set, hasComparisons, canStack }: { o: PlotOpts
         {titleBox('xTitle', 'X axis title', 'none', 130)}
         <FontSelect />
         {rng('font', 9, 22, 1, 'Text size', 'align-end')}
-        <Field label="Tick labels">
+        <Field label="Y tick labels">
           <span className="row bench-title-box" style={{ gap: 4 }}>
-            <TextStyleButtons part="tick" label="Tick labels" />
+            <TextStyleButtons part="yTick" label="Y tick labels" />
+          </span>
+        </Field>
+        <Field label="X tick labels">
+          <span className="row bench-title-box" style={{ gap: 4 }}>
+            <TextStyleButtons part="xTick" label="X tick labels" />
             <TickAngleSelect />
           </span>
         </Field>
