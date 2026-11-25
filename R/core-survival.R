@@ -288,6 +288,7 @@ survival_km <- function(x, clin, gene = NULL, by = c("gene", "column"), split = 
     cens <- k$time[k$ncens > 0]
     list(group = g, n = sum(s), events = sum(event[s]), median = r(k$median),
          time = r(k$time), surv = r(k$surv), lower = r(k$lower), upper = r(k$upper),
+         nrisk = as.integer(k$nrisk), nevent = as.integer(k$nevent), ncens = as.integer(k$ncens),
          censorTime = r(cens), censorSurv = r(k$surv[k$ncens > 0]),
          atRisk = vapply(ticks, function(t) sum(time[s] >= t), 0L))
   })

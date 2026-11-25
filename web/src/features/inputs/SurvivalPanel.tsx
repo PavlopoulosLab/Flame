@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { API_BASE, api } from '../../api/client'
+import { API_BASE, api, saveBlob } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { BusyBar, ErrorNote, Field, FileDrop, Note, Segmented } from '../../components/ui'
 import { categorical, roleColors, usePaletteMode } from '../../lib/palette'
 import { GenePicker, type GeneResult } from './FetchInput'
+import { kmDelimited, kmTables, kmXlsx } from './kmExport'
 
 export interface ClinicalTable { text: string; fileName: string }
 interface SurvGene { gene: string; z: number; hr: number; lo: number; hi: number; p: number; q: number }
@@ -14,9 +15,11 @@ interface SurvResult {
 }
 type Pick = 'poor' | 'good' | 'both' | 'all'
 
+const download = (data: Uint8Array | string, name: string, type: string) => saveBlob(new Blob([data as BlobPart], { type }), name)
 const fmt = (x: number) => (x < 0.001 ? x.toExponential(1) : x.toPrecision(2))
 
 interface KmGroup { group: string; n: number; events: number; median: number | null; time: number[]; surv: number[]; lower: (number | null)[]; upper: (number | null)[]
+  nrisk?: number[]; nevent?: number[]; ncens?: number[]
   censorTime: number[]; censorSurv: number[]; atRisk: number[] }
 interface KmResult { by: 'gene' | 'column'; gene?: string | null; column?: string | null; splitLabel?: string | null; cut?: number | null; samples: number; events: number
   groups: KmGroup[]; ticks: number[]; logrank: { chisq: number; df: number; p: number }; hr?: { hr: number; lo: number; hi: number; p: number; of: string; vs: string } | null; note?: string | null }
@@ -241,6 +244,22 @@ export function SurvivalPanel({ text, fileName, log, clinical, setClinical, onCr
                 {kmRes.hr && <>; <strong>hazard ratio</strong> {kmRes.hr.of} vs {kmRes.hr.vs} = {kmRes.hr.hr.toFixed(2)} (95% CI {kmRes.hr.lo.toFixed(2)}–{kmRes.hr.hi.toFixed(2)}), Cox {pIs(kmRes.hr.p)}</>}.
                 {' '}{kmRes.samples} samples, {kmRes.events} events{kmRes.by === 'gene' ? `; ${kmRes.gene} split ${kmRes.splitLabel === 'a percentile' ? `top ${percent}% vs the rest` : `at ${kmRes.splitLabel}`}${kmRes.cut != null ? ` (cut-off ${kmRes.cut})` : ''}` : ''}. Ticks: censored samples.</p>
               {kmRes.note && <Note kind="warning">{kmRes.note}</Note>}
+              <div className="row wrap small km-download" role="group" aria-label="Download the curves">
+                <strong>Download the curves as a table</strong>
+                {(() => {
+                  const base = `flame_km_${(kmRes.gene ?? kmRes.column ?? 'groups').replace(/[^\w.-]+/g, '_')}`
+                  const tables = () => kmTables(kmRes, `Time (${timeCol})`)
+                  return (<>
+                    <button type="button" className="btn btn-secondary btn-sm" title="One sheet each: curves (every time point), number at risk, summary and tests"
+                      onClick={() => download(kmXlsx(tables()), `${base}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}>Excel</button>
+                    <button type="button" className="btn btn-secondary btn-sm" title="The curves: group, time, at risk, events, censored, survival, 95% CI"
+                      onClick={() => download('\ufeff' + kmDelimited(tables()[0], ','), `${base}.csv`, 'text/csv;charset=utf-8')}>CSV</button>
+                    <button type="button" className="btn btn-secondary btn-sm" title="The curves: group, time, at risk, events, censored, survival, 95% CI"
+                      onClick={() => download(kmDelimited(tables()[0], '\t'), `${base}.tsv`, 'text/tab-separated-values;charset=utf-8')}>TSV</button>
+                  </>)
+                })()}
+                <span className="muted">Every time point of each curve (at risk, events, censored, survival, 95% CI); Excel adds the number at risk and the summary with the tests.</span>
+              </div>
             </>
           )}
         </div>

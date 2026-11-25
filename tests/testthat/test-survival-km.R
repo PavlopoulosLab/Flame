@@ -34,6 +34,9 @@ test_that("Kaplan-Meier curves by a gene's expression or a clinical column", {
   expect_equal(k$hr$of, "High")
   expect_gt(k$hr$hr, 1)                                         # proliferation: high CDK1, shorter survival
   expect_equal(k$groups[[1]]$atRisk[1], k$groups[[1]]$n)
+  g1 <- k$groups[[1]]
+  expect_equal(sum(g1$nevent) + sum(g1$ncens), g1$n)            # every sample is an event or censored, once
+  expect_equal(sum(g1$nevent), g1$events)
   t3 <- survival_km(x, clin, gene = "CDK1", split = "tertile")
   expect_lt(t3$samples, k$samples)                              # the middle third is left out
   expect_match(survival_km(x, clin, gene = "CDK1", split = "optimal")$note, "optimistic")
