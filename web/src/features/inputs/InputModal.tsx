@@ -1049,16 +1049,17 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
     <Modal title={title} size="xl" onClose={onClose}
       subtitle="One row per gene (first column: gene ID), one numeric column per sample. Counts or intensities are log2-transformed automatically.">
       <div className="stack">
-        {(!ov || replacing) && (
+        {(!ov || replacing) && view !== 'survival' && (
           <div className="row wrap">
             <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={20 * 1024 * 1024} onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
             <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); ex.load() }} disabled={ex.loading}>{ex.loading ? 'Loading…' : 'Load example'}</button>
             <button className="btn btn-ghost btn-sm" onClick={loadSurvivalExample} disabled={survEx.loading}>{survEx.loading ? 'Loading…' : 'Survival example'}</button>
+            {!ov && <button className="btn btn-secondary btn-sm" onClick={() => setView('survival')} title="Kaplan–Meier curves and Cox models: an expression table and a survival table, each in its own box">Survival analysis (two tables)</button>}
             <a className="btn btn-ghost btn-sm" href={`${API_BASE}/inputs/examples/expression/file`}>Example file</a>
             {ov && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
           </div>
         )}
-        {!text && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
+        {!text && view !== 'survival' && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
         <ExampleSource text={survEx.source ?? ex.source} loading={ex.loading || survEx.loading} />
         <ErrorNote error={err} />
         {busy && <BusyBar label="Analysing the matrix: clustering genes and computing the gene map" expect={12} />}
@@ -1068,7 +1069,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
               <span><span className="muted">Table:</span> <strong>{fileName || (ex.source ? 'example' : 'pasted table')}</strong> · <strong>{ov.totalGenes.toLocaleString()}</strong> genes × <strong>{ov.samples.length}</strong> samples{ov.dropped ? ` (${ov.dropped} rows skipped)` : ''} · {ov.logged ? 'log2(x + 1) transformed' : 'used as given'}</span>
               <label>Log2 <select className="input input-sm" value={logMode} onChange={(e) => setLogMode(e.target.value as 'auto' | 'yes' | 'no')}><option value="auto">auto</option><option value="yes">yes</option><option value="no">no</option></select></label>
               <span className="toolbar-spacer" />
-              {!replacing && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace table</button>}
+              {!replacing && view !== 'survival' && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace table</button>}
             </div>
             <Segmented label="View" value={view} onChange={setView}
               options={[{ value: 'clusters', label: 'Co-expression clusters' }, { value: 'map', label: 'Gene map (PCA)' }, { value: 'groups', label: 'Compare two groups' }, { value: 'correlation', label: 'Correlation' }, { value: 'boxplots', label: 'Boxplots' }, { value: 'activity', label: 'Pathway activity' }, { value: 'survival', label: 'Survival' }]} />
@@ -1135,7 +1136,6 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
             {view === 'boxplots' && <BoxplotsView text={text} fileName={fileName} log={log} samples={ov.samples}
               setup={box ?? initialBoxSetup(ov.samples, groups)} setSetup={(f) => setBox((b) => f(b ?? initialBoxSetup(ov.samples, groups)))} />}
             {view === 'activity' && <PathwayActivity text={text} fileName={fileName} log={log} organism={organism} />}
-            {view === 'survival' && <SurvivalPanel text={text} fileName={fileName} log={log} clinical={clinical} setClinical={setClinical} onCreated={onCreated} />}
             {(view === 'clusters' || view === 'map') && (
               <>
                 <SelectedGenes isVolcano={false} colorLabel="Cluster"
@@ -1151,6 +1151,14 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
                   idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'expression', view, clusters: pickedClusters }} onCreated={onCreated} />
               </>
             )}
+          </>
+        )}
+        {view === 'survival' && (
+          <>
+            {!ov && <div className="row"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setView('clusters')}>← Other analyses of an expression table</button></div>}
+            <SurvivalPanel text={text} fileName={fileName} log={log} clinical={clinical} setClinical={setClinical} onCreated={onCreated}
+              expression={ov ? { fileName: fileName || (survEx.source ? 'example' : ''), genes: ov.totalGenes, samples: ov.samples.length } : null}
+              setExpression={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} onExample={loadSurvivalExample} exampleLoading={survEx.loading} />
           </>
         )}
       </div>
