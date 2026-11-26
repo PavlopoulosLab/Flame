@@ -712,7 +712,10 @@ function ExamplesMenu({ onPick }: { onPick: (kind: string) => Promise<void> | vo
         <div className="example-list">
           {WORKSPACE_EXAMPLES.map((e) => (
             <button key={e.kind} type="button" role="menuitem" className="example-mini" disabled={!!busy}
-              onClick={async (ev) => { setBusy(e.kind); try { await onPick(e.kind) } finally { setBusy(null); (ev.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open') } }}>
+              onClick={async (ev) => {
+                // React clears ev.currentTarget once the handler yields: keep the menu before awaiting.
+                const menu = ev.currentTarget.closest('details') as HTMLDetailsElement | null
+                setBusy(e.kind); try { await onPick(e.kind) } finally { setBusy(null); menu?.removeAttribute('open') } }}>
               <ConceptIcon name={e.kind} />
               <span><strong>{busy === e.kind ? 'Loading…' : e.title}</strong><span className="muted small">{e.text}</span></span>
             </button>
