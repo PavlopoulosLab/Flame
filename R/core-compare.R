@@ -11,7 +11,8 @@
 #   inputIds, params, results, conversionTable, backgroundSize
 # =============================================================================
 
-COMPARISON_VIEWS <- c("overview", "bubble", "heatmap")
+COMPARISON_VIEWS <- c("overview", "bubble", "heatmap", "top")
+COMPARISON_SORTS <- c("Consensus", "Agreement", "Best rank", "-log10Pvalue", "Fold Enrichment")
 
 #' Tools write the same KEGG pathway as "hsa05210", "map05210", "ko05210" or
 #' "KEGG:05210". For matching terms across runs, KEGG rows use the
@@ -119,11 +120,65 @@ cmp_comb_pvalue <- function(cs, data, activeRunIds) {
   }, numeric(1), USE.NAMES = FALSE)
 }
 
-cmp_order <- function(cs, data, activeRunIds, sortBy) {
+# ---- Consensus ranking (Robust Rank Aggregation) ----------------------------
+# p-values are only comparable within one run: tools use different multiple-testing
+# corrections, backgrounds and annotation versions. A term a run did not report is
+# "above that run's threshold", not p = 1. So runs are combined by rank, not by p:
+#   normalised rank r = (rank of the term in the run's list, by p; ties share the best rank) / N,
+#   N = distinct terms under consideration (those passing the filters); not reported: r = 1.
+# This is the partial-list convention of the RobustRankAggreg package. Dividing by each
+# run's own list length instead would make a strict tool's few terms look weak.
+# web/src/lib/rankAgg.ts computes the same score for the Table and Ranks views: keep both in step.
+# RRA (Kolde et al. 2012, Bioinformatics 28:573) asks how unlikely the term's sorted
+# ranks are if every run ranked at random: rho = min_k Beta(k, M-k+1) CDF at r_(k),
+# Bonferroni-corrected over the M runs. It rewards terms ranked high by many runs and
+# does not assume the runs are independent tests of the same thing (Fisher does).
+
+#' Normalised ranks (terms x active runs) among the terms of `universe` (default: `ids`).
+cmp_rank_matrix <- function(cs, ids, activeRunIds, universe = ids) {
+  perRun <- cs$getPerRunData()
+  all <- unique(as.character(universe))
+  P <- vapply(activeRunIds, function(r) vapply(all, function(t) {
+    e <- perRun[[t]][[r]]
+    if (!is.null(e) && isTRUE(e$found) && is.finite(e$pvalue)) e$pvalue else NA_real_
+  }, numeric(1)), numeric(length(all)))
+  P <- matrix(P, nrow = length(all), dimnames = list(all, activeRunIds))
+  N <- max(1L, sum(rowSums(!is.na(P)) > 0))
+  R <- apply(P, 2, function(p) { r <- rep(NA_real_, length(p)); ok <- !is.na(p); r[ok] <- rank(p[ok], ties.method = "min"); r })
+  R <- matrix(R, nrow = length(all), dimnames = list(all, activeRunIds))
+  norm <- R / N
+  norm[is.na(norm)] <- 1
+  ids <- as.character(ids)
+  list(rank = R[ids, , drop = FALSE], norm = norm[ids, , drop = FALSE], N = N)
+}
+
+#' RRA score of one term from its normalised ranks (one per run).
+rra_score <- function(r) {
+  r <- sort(pmin(pmax(as.numeric(r), 0), 1)); M <- length(r)
+  if (!M) return(NA_real_)
+  min(1, M * min(stats::pbeta(r, seq_len(M), M - seq_len(M) + 1L)))
+}
+
+#' Per-term consensus metrics over the active runs.
+cmp_consensus <- function(cs, data, activeRunIds, universe = data$Term_ID_noLinks) {
+  rm <- cmp_rank_matrix(cs, data$Term_ID_noLinks, activeRunIds, universe)
+  list(score = apply(rm$norm, 1, rra_score), meanRank = rowMeans(rm$norm),
+       bestRank = apply(rm$norm, 1, min), rank = rm$rank, norm = rm$norm, N = rm$N)
+}
+
+cmp_order <- function(cs, data, activeRunIds, sortBy, universe = data$Term_ID_noLinks) {
+  key <- as.character(sortBy %||% "Consensus")
   p <- cmp_comb_pvalue(cs, data, activeRunIds); p[is.na(p)] <- Inf
-  switch(as.character(sortBy %||% "-log10Pvalue"),
+  if (key %in% c("Consensus", "Agreement", "Best rank")) {
+    cc <- cmp_consensus(cs, data, activeRunIds, universe)
+    ag <- cmp_agreement(cs, data, activeRunIds)
+    return(switch(key,
+      "Consensus" = order(cc$score, cc$meanRank, method = "radix"),
+      "Agreement" = order(-ag, cc$meanRank, method = "radix"),
+      "Best rank" = order(cc$bestRank, -ag, cc$meanRank, method = "radix")))
+  }
+  switch(key,
     "Fold Enrichment" = order(-cmp_fold_enrichment(cs, data, activeRunIds), p, method = "radix"),
-    "Agreement" = order(-cmp_agreement(cs, data, activeRunIds), p, method = "radix"),
     order(p, method = "radix"))
 }
 
@@ -208,13 +263,14 @@ comparison_runs_meta <- function(cs) {
     list(id = id, tool = m$toolName, displayNumber = m$displayNumber,
          label = paste0(m$toolName, " (", m$displayNumber %||% 1, ")"),
          paradigm = m$paradigm, organism = m$organism, listName = m$listName,
-         datasources = as.list(m$datasources), threshold = m$threshold, metric = m$metric)
+         datasources = as.list(m$datasources), threshold = m$threshold, metric = m$metric,
+         inputSize = m$inputSize, mappedSize = m$mappedSize)
   })
 }
 
 #' Build data for one comparison tab
 comparison_view <- function(cs, view, filters = list(), top = 20L,
-                            sortBy = "-log10Pvalue", settings = list()) {
+                            sortBy = "Consensus", settings = list()) {
   if (!view %in% COMPARISON_VIEWS) stop("Unknown comparison view: ", view)
   filters <- .with_default_runs(cs, filters)
   active <- filters[["runs"]]
@@ -240,6 +296,8 @@ comparison_view <- function(cs, view, filters = list(), top = 20L,
     return(c(meta, list(chart = cmp_overview_chart(cs, filtered, active), terms = terms)))
   }
 
+  if (view == "top") return(c(meta, cmp_top_panels(cs, filtered, active, top, sortBy, settings)))
+
   shown <- filtered[cmp_order(cs, filtered, active, sortBy), , drop = FALSE]
   shown <- shown[seq_len(.top_n(top, nrow(shown))), , drop = FALSE]
   terms <- .comparison_terms(shown, cs$getRunMembership())
@@ -264,6 +322,79 @@ comparison_view <- function(cs, view, filters = list(), top = 20L,
     cells[[length(cells) + 1]] <- list(term = t$id, run = rid, value = v)
   }
   c(meta, list(shownCount = length(terms), terms = terms, cells = cells))
+}
+
+#' "Top terms" view, optionally one panel per annotation source (settings$splitBySource):
+#' each panel ranks its own terms and keeps its own top `top`. `terms` lists all panels' terms.
+cmp_top_panels <- function(cs, filtered, active, top, sortBy, settings = list()) {
+  split <- isTRUE(as.logical(unlist(settings$splitBySource)[1]))
+  if (!split) {
+    p <- cmp_top_terms(cs, filtered, active, top, sortBy, settings)
+    return(c(p, list(panels = list(c(list(source = NULL), p)))))
+  }
+  src <- as.character(filtered$Source)
+  sources <- names(sort(table(src), decreasing = TRUE))
+  panels <- lapply(sources, function(x) c(list(source = x), cmp_top_terms(cs, filtered[src == x, , drop = FALSE], active, top, sortBy, settings)))
+  panels <- Filter(function(p) length(p$terms) > 0, panels)
+  sum_of <- function(k) sum(vapply(panels, function(p) as.numeric(p[[k]] %||% 0), numeric(1)))
+  list(minAgreement = if (length(panels)) panels[[1]]$minAgreement else NULL, sortBy = as.character(sortBy %||% "Consensus"),
+       eligibleCount = sum_of("eligibleCount"), collapsed = sum_of("collapsed"), shownCount = sum_of("shownCount"),
+       panels = panels, terms = unlist(lapply(panels, `[[`, "terms"), recursive = FALSE))
+}
+
+#' "Top terms" view: the best terms across runs for a dot plot and a bar plot.
+#' settings: minAgreement (found by at least this many active runs; default: a majority),
+#'           collapse (TRUE: merge terms of the same source sharing >= collapseCutoff of their genes).
+cmp_top_terms <- function(cs, filtered, active, top, sortBy, settings = list()) {
+  M <- length(active)
+  minAg <- suppressWarnings(as.integer(unlist(settings$minAgreement)[1] %||% NA))
+  if (is.na(minAg)) minAg <- ceiling(M / 2)
+  minAg <- max(1L, min(minAg, M))
+  ag <- cmp_agreement(cs, filtered, active)
+  d <- filtered[ag >= minAg, , drop = FALSE]
+  out <- list(minAgreement = minAg, sortBy = as.character(sortBy %||% "Consensus"), collapsed = 0L)
+  if (nrow(d) == 0) return(c(out, list(shownCount = 0L, eligibleCount = 0L, terms = list())))
+  universe <- filtered$Term_ID_noLinks           # ranks among all filtered terms, before the agreement cut
+  d <- d[cmp_order(cs, d, active, sortBy, universe), , drop = FALSE]
+  out$eligibleCount <- nrow(d)
+
+  if (isTRUE(as.logical(unlist(settings$collapse)[1]))) {
+    cut <- suppressWarnings(as.numeric(unlist(settings$collapseCutoff)[1] %||% NA))
+    if (!is.finite(cut)) cut <- 0.5
+    tmp <- data.frame(Source = d$Source, Term_ID_noLinks = d$Term_ID_noLinks, Function = d$Function,
+                      `P-value` = seq_len(nrow(d)), `Positive Hits` = d$Union_Hits,
+                      check.names = FALSE, stringsAsFactors = FALSE)
+    red <- reduce_redundancy(tmp, cutoff = cut, method = "genes")
+    keep <- match(red$Term_ID_noLinks, d$Term_ID_noLinks)
+    out$collapsed <- nrow(d) - length(keep)
+    d <- d[keep, , drop = FALSE]
+    d$Represents <- red$Represents; d$Merged <- red$Merged
+  }
+
+  d <- d[seq_len(.top_n(top, nrow(d))), , drop = FALSE]
+  cc <- cmp_consensus(cs, d, active, universe)
+  ag <- cmp_agreement(cs, d, active)
+  cp <- cmp_comb_pvalue(cs, d, active)
+  perRun <- cs$getPerRunData()
+  runMeta <- cs$getRunMetadata()
+  terms <- .comparison_terms(d, cs$getRunMembership())
+  for (i in seq_along(terms)) {
+    tid <- terms[[i]]$id
+    terms[[i]]$agreement <- ag[i]
+    terms[[i]]$consensusScore <- max(cc$score[i], 1e-300)
+    terms[[i]]$meanRank <- round(cc$meanRank[i], 4)
+    terms[[i]]$bestRank <- round(cc$bestRank[i], 4)
+    terms[[i]]$activeCombPvalue <- if (is.finite(cp[i])) cp[i] else NULL
+    if (!is.null(d$Represents)) { terms[[i]]$represents <- d$Represents[i]; terms[[i]]$merged <- d$Merged[i] }
+    terms[[i]]$cells <- lapply(stats::setNames(active, active), function(r) {
+      e <- perRun[[tid]][[r]]
+      if (is.null(e) || !isTRUE(e$found)) return(NULL)
+      list(p = e$pvalue, negLog10p = if (is.finite(e$pvalue) && e$pvalue > 0) -log10(e$pvalue) else NULL,
+           rank = cc$rank[i, r], normRank = round(cc$norm[i, r], 4), genes = e$geneCount,
+           geneRatio = { m <- runMeta[[r]]$mappedSize %||% 0; if (m > 0) round(e$geneCount / m, 4) else NULL })
+    })
+  }
+  c(out, list(shownCount = length(terms), rankedTerms = cc$N, terms = terms))
 }
 
 #' Term IDs behind an overview bubble (per run) or pin (across runs) click
@@ -347,6 +478,10 @@ comparison_statistics <- function(cs, filters = list(), catMax = 100L) {
     fa <- found[, a]; fb <- found[, b]; sh <- fa & fb
     nA <- sum(fa); nB <- sum(fb); nS <- sum(sh); nU <- sum(fa | fb)
     sp <- if (nS >= 3) .safe_test(stats::cor.test(L[sh, a], L[sh, b], method = "spearman", exact = FALSE)) else NULL
+    # Rank agreement over all terms either run found; a term a run did not report is its
+    # least significant (−log10 p = 0). Unlike `sp`, this does not condition on both finding it.
+    un <- fa | fb
+    spAll <- if (sum(un) >= 3) .safe_test(stats::cor.test(ifelse(fa[un], L[un, a], 0), ifelse(fb[un], L[un, b], 0), method = "spearman", exact = FALSE)) else NULL
     kd <- if (nS >= 3) .safe_test(stats::cor.test(L[sh, a], L[sh, b], method = "kendall", exact = FALSE)) else NULL
     wx <- if (nS >= 3) .safe_test(stats::wilcox.test(L[sh, a], L[sh, b], paired = TRUE, exact = FALSE)) else NULL
     mc <- if (nU >= 1 && (sum(fa & !fb) + sum(!fa & fb)) > 0) .safe_test(stats::mcnemar.test(table(factor(fa, c(TRUE, FALSE)), factor(fb, c(TRUE, FALSE))))) else NULL
@@ -362,6 +497,7 @@ comparison_statistics <- function(cs, filters = list(), catMax = 100L) {
       jaccard = if (nU) round(nS / nU, 3) else 0, overlapCoef = if (min(nA, nB)) round(nS / min(nA, nB), 3) else 0,
       geneJaccard = gj,
       spearman = if (!is.null(sp)) round(unname(sp$estimate), 3) else NULL, spearmanP = sp$p.value,
+      spearmanAll = if (!is.null(spAll) && is.finite(spAll$estimate)) round(unname(spAll$estimate), 3) else NULL, spearmanAllP = spAll$p.value,
       kendall = if (!is.null(kd)) round(unname(kd$estimate), 3) else NULL, kendallP = kd$p.value,
       medianDiff = if (nS) round(stats::median(L[sh, a] - L[sh, b]), 2) else NULL, wilcoxonP = wx$p.value,
       mcnemarP = mc$p.value)
@@ -376,7 +512,7 @@ comparison_statistics <- function(cs, filters = list(), catMax = 100L) {
     }
   }
   # Benjamini–Hochberg across pairs for each test.
-  for (key in c("spearmanP", "kendallP", "wilcoxonP", "mcnemarP")) {
+  for (key in c("spearmanP", "spearmanAllP", "kendallP", "wilcoxonP", "mcnemarP")) {
     p <- vapply(pairs, function(x) x[[key]] %||% NA_real_, numeric(1))
     adj <- stats::p.adjust(p, "BH")
     for (i in seq_along(pairs)) pairs[[i]][[paste0(key, "Adj")]] <- if (is.finite(adj[i])) adj[i] else NULL
@@ -413,5 +549,6 @@ comparison_statistics <- function(cs, filters = list(), catMax = 100L) {
 
   list(runs = runs, pairs = pairs, tests = tests, cat = cat, mds = mds, agreement = agreement, terms = terms,
        filteredCount = length(ids), activeRunIds = as.list(active),
-       note = "Terms are matched by identifier across runs. Tests use only terms found by at least one compared run; pairwise p-values are Benjamini–Hochberg adjusted across pairs.")
+       note = paste("Terms are matched by identifier across runs. Tests use only terms found by at least one compared run; pairwise p-values are Benjamini–Hochberg adjusted across pairs.",
+                    "p-values are not on one scale across tools (different corrections, backgrounds and annotation versions): compare runs by which terms they find and how they rank them, not by the size of their p-values."))
 }

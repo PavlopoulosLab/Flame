@@ -106,7 +106,9 @@ CombinationSession <- R6::R6Class(
           namespace = params$namespace,
           backgroundMode = params$backgroundMode,
           analyteType = if (!is.null(inputObj)) inputObj$analyteType else NULL,
-          listName = if (!is.null(inputObj)) inputObj$name else params$geneListName
+          listName = if (!is.null(inputObj)) inputObj$name else params$geneListName,
+          inputSize = private$inputSizes(s, inputObj)$input,
+          mappedSize = private$inputSizes(s, inputObj)$mapped
         )
 
         if (debugComparison) {
@@ -749,6 +751,21 @@ CombinationSession <- R6::R6Class(
     #' @param resultsList Named list of result DataFrames (one per session)
     #' @param allSessionIds Character vector of all session IDs with results
     #' @return Nested list: termId -> sessionId -> {pvalue, geneCount, genes, found}
+    #' Input genes of a run, and how many of them the tool recognised (the
+    #' conversion table's inputs with a target; all inputs when there is no table).
+    #' The gene ratio of a term is its genes / mapped.
+    inputSizes = function(s, inputObj) {
+      ids <- tryCatch(unique(as.character(inputObj$getIds())), error = function(e) character(0))
+      if (!length(ids)) ids <- tryCatch(unique(as.character(inputObj$ids)), error = function(e) character(0))
+      ct <- tryCatch(s$getConversionTable(), error = function(e) NULL)
+      mapped <- if (is.data.frame(ct) && nrow(ct) && all(c("input", "target") %in% names(ct))) {
+        ok <- !is.na(ct$target) & nzchar(as.character(ct$target))
+        m <- unique(as.character(ct$input[ok]))
+        length(if (length(ids)) intersect(m, ids) else m)
+      } else length(ids)
+      list(input = length(ids), mapped = if (mapped > 0) mapped else length(ids))
+    },
+
     buildPerRunData = function(resultsList, allSessionIds) {
       debugComparison <- isTRUE(getOption("flame.debug.comparison", FALSE))
 

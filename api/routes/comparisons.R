@@ -24,9 +24,10 @@
 }
 
 #* Data for a comparison tab.
-#* Body: { runIds:[...], view: overview|bubble|heatmap,
+#* Body: { runIds:[...], view: overview|bubble|heatmap|top,
 #*        filters:{ runs, runsMode: any|all, consensusMin/Max, sources, search, pvalueMax, termSizeMin/Max },
-#*        top, sortBy: -log10Pvalue|Fold Enrichment|Agreement, settings:{labels} }
+#*        top, sortBy: Consensus|Agreement|Best rank|-log10Pvalue|Fold Enrichment,
+#*        settings:{labels, minAgreement, collapse, collapseCutoff} }  (minAgreement/collapse: view "top")
 #* @post /
 #* @serializer flamejson
 function(req, res) {
@@ -38,7 +39,7 @@ function(req, res) {
     if (!view %in% COMPARISON_VIEWS) api_abort(400, "Unknown comparison view.")
     top <- b$top %||% 20L
     if (identical(top, "all")) top <- .Machine$integer.max
-    comparison_view(cs, view, b$filters %||% list(), top, b$sortBy %||% "-log10Pvalue", b$settings %||% list())
+    comparison_view(cs, view, b$filters %||% list(), top, b$sortBy %||% "Consensus", b$settings %||% list())
   })
 }
 

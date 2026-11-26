@@ -5,7 +5,7 @@ import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig, useWorkspace } from '../api/hooks'
 import type { ReduceMethod, ResultFilters, RunDetails, Term, ViewData } from '../api/types'
 import type { NetworkHandle, PlotHandle } from '../components/charts'
-import { CopyButton, ErrorNote, Field, LinkMenu, Modal, Note, OpenExternalButton, Spinner } from '../components/ui'
+import { CopyButton, ErrorNote, Field, LinkMenu, Modal, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { geneLinks } from '../lib/links'
 import { ToolLogo } from '../components/ToolLogo'
 import { ThemesView } from '../features/themes/Themes'
@@ -14,7 +14,7 @@ import { UndoRedoButtons } from '../components/Undo'
 import { useHistory } from '../lib/history'
 import { useNetworkStyle } from '../lib/networkStyle'
 import { LayoutSelect, NetworkOptions } from '../components/NetworkOptions'
-import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, defaultBarColor, type ViewSettings } from '../features/results/views'
+import { BarchartView, ChordView, CircosView, DotplotView, HeatmapView, HiveView, NetworkView, SankeyView, ScatterView, TABLE_COLUMNS, TableView, defaultBarColor, type ViewProps, type ViewSettings } from '../features/results/views'
 import { svgSource } from '../components/viz'
 import { openImageExport, usePlainSelection } from '../lib/imageExport'
 import { saveXlsx, sheetsByCategory, termSheetRows } from '../lib/xlsx'
@@ -80,6 +80,51 @@ function useDebounced<T>(value: T, ms = 300) {
   return v
 }
 
+/** Views that can be drawn as one standalone plot per annotation source. */
+const SPLITTABLE = new Set(['dotplot', 'barchart', 'scatter', 'heatmap-tg', 'heatmap-tt', 'heatmap-gg', 'sankey', 'network-tg', 'network-tt', 'network-gg', 'chord'])
+
+function PlotView({ view, props, svgRef }: { view: string; props: ViewProps; svgRef: { current: SVGSVGElement | null } }) {
+  if (view.startsWith('network')) return <NetworkView {...props} />
+  switch (view) {
+    case 'chord': return <ChordView {...props} svgRef={svgRef} />
+    case 'dotplot': return <DotplotView {...props} />
+    case 'barchart': return <BarchartView {...props} />
+    case 'scatter': return <ScatterView {...props} />
+    case 'sankey': return <SankeyView {...props} />
+    default: return <HeatmapView {...props} />
+  }
+}
+
+/**
+ * One annotation source as a standalone plot: its own query (so its own top N), title,
+ * axes, legend and image export.
+ */
+function SourcePlot({ src, runId, apiView, view, filters, top, sortBy, settings, viewSettings, base, networkRef }: {
+  src: string; runId: string; apiView: string; view: string; filters: ResultFilters; top: number | 'all'; sortBy: string
+  settings: Record<string, unknown>; viewSettings: Record<string, unknown> | null; base: Omit<ViewProps, 'data' | 'plotRef' | 'networkRef' | 'title' | 'exportName'> & { exportName: string }
+  /** This panel's network handle (the toolbar's network actions reach every panel through it). */
+  networkRef: { current: NetworkHandle | null }
+}) {
+  const ws = getWorkspaceId()!
+  const plotRef = useRef<PlotHandle | null>(null)
+  const svgRef = useRef<SVGSVGElement | null>(null)
+  const f = { ...filters, sources: [src] }
+  const q = useQuery({
+    queryKey: ['view', ws, runId, view, f, top, sortBy, viewSettings],
+    queryFn: () => api<ViewData>(`/runs/${encodeURIComponent(runId)}/view`, { body: { view: apiView, filters: f, top, sortBy, settings } }),
+    placeholderData: keepPreviousData,
+  })
+  if (q.error) return <ErrorNote error={q.error} />
+  if (!q.data) return <Spinner label={`Loading ${src}`} />
+  if (!q.data.shownCount) return null
+  return (
+    <section className="chart-card source-plot">
+      <p className="muted small">{src}: {q.data.shownCount === q.data.filteredCount ? `all ${q.data.filteredCount}` : `top ${q.data.shownCount} of ${q.data.filteredCount}`} terms. Use “Image” on the plot to save this source as its own figure.</p>
+      <PlotView view={view} svgRef={svgRef} props={{ ...base, data: q.data, plotRef, networkRef, title: src, exportName: `${base.exportName}_${slug(src)}` }} />
+    </section>
+  )
+}
+
 export default function ResultsPage() {
   return <PaletteScope id="results"><ResultsPageBody /></PaletteScope>
 }
@@ -118,6 +163,8 @@ function ResultsPageBody() {
   const [sortByView, setSortByView] = useState<Record<string, string>>({})
   const [settings, setSettings] = useState<ViewSettings>({ labels: 'name', xAxis: 'geneRatio', palette: 'OrRd', layout: 'force', similarityCutoff: 10, minShared: 3 })
   const [columns, setColumns] = useState<string[]>(['source', 'id', 'name', 'pvalue', 'intersection', 'coverage', 'genes'])
+  // Plots: all annotation sources in one plot, or one standalone plot per source.
+  const [splitSources, setSplitSources] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   // Drawn selection; empty while an image is exported without highlighting.
   const shownSelection = usePlainSelection(selected, EMPTY_SELECTION)
@@ -135,12 +182,13 @@ function ResultsPageBody() {
   const [moreOpen, setMoreOpen] = useState(false)
   const plotRef = useRef<PlotHandle | null>(null)
   const networkRef = useRef<NetworkHandle | null>(null)
+  const panelNetRefs = useRef(new Map<string, { current: NetworkHandle | null }>())
   const svgRef = useRef<SVGSVGElement | null>(null)
   // Undo/redo covers filters, ranking, view settings, table columns and the selection.
   const history = useHistory(
-    { filters, top, sortByView, settings, columns, selected: [...selected].sort() },
+    { filters, top, sortByView, settings, columns, splitSources, selected: [...selected].sort() },
     (snap) => {
-      setFilters(snap.filters); setTop(snap.top); setSortByView(snap.sortByView)
+      setFilters(snap.filters); setTop(snap.top); setSortByView(snap.sortByView); setSplitSources(snap.splitSources)
       setSettings(snap.settings); setColumns(snap.columns); setSelected(new Set(snap.selected))
     },
   )
@@ -194,6 +242,28 @@ function ResultsPageBody() {
   const exportRows = (terms: Term[]) => terms.map((t) => ({ ...t, pvalue: formatP(t.pvalue) }))
   const exportCols = TABLE_COLUMNS.map((c) => ({ key: c.key, label: c.label }))
   const baseName = slug(`${run.title}_${run.listName}`)
+  // Sources drawn as separate plots: those shown by the filters that have terms.
+  const splitList = (filters.sources ?? sources).filter((s) => (sourceCounts.get(s) ?? 0) > 0)
+  const canSplit = SPLITTABLE.has(view) && splitList.length > 1
+  const splitOn = splitSources && canSplit
+  // Split networks: one handle per panel; the toolbar's handle forwards to all of them.
+  const panelNetRef = (src: string) => {
+    let r = panelNetRefs.current.get(src)
+    if (!r) { r = { current: null }; panelNetRefs.current.set(src, r) }
+    return r
+  }
+  if (splitOn && isNetwork) {
+    const each = () => splitList.map((src) => panelNetRefs.current.get(src)?.current).filter((h): h is NetworkHandle => !!h)
+    networkRef.current = {
+      fit: () => each().forEach((h) => h.fit()),
+      toPng: (name) => each().forEach((h, i) => h.toPng(`${name}_${i + 1}`)),
+      clusterHubs: () => each().reduce((n, h) => n + h.clusterHubs(), 0),
+      clusterOutliers: () => each().reduce((n, h) => n + h.clusterOutliers(), 0),
+      openClusters: () => each().forEach((h) => h.openClusters()),
+      exportImage: () => undefined,
+      setPhysicsRunning: (on) => each().forEach((h) => h.setPhysicsRunning(on)),
+    }
+  }
 
   return (
     <div className="results">
@@ -209,7 +279,7 @@ function ResultsPageBody() {
                 {view !== 'table' && <PaletteSelect />}
                 <UndoRedoButtons h={history} />
                 <ExportMenu items={[
-                  ...(view !== 'table' && view !== 'themes' ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
+                  ...(view !== 'table' && view !== 'themes' && !splitOn ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
                     const name = `${baseName}_${view}`
                     if (isNetwork) networkRef.current?.exportImage(name)
                     else if (isSvg) { const src = svgSource(svgRef.current, name); if (src) openImageExport(src) }
@@ -445,12 +515,25 @@ function ResultsPageBody() {
                     onChange={(e) => setSettings({ ...settings, minShared: Number(e.target.value) })} /></label>
                 )}
                 {view === 'table' && <ColumnPicker columns={columns} setColumns={setColumns} />}
+                {canSplit && <Segmented label="Sources" value={splitSources ? 'split' : 'together'} onChange={(v) => setSplitSources(v === 'split')}
+                  options={[{ value: 'together', label: 'Together' }, { value: 'split', label: 'One plot per source' }]} />}
               </div>
               <p className="muted small view-help">{VIEW_HELP[view]}{isGsea ? ' For GSEA, positive NES = genes of the set sit at the top of your ranking; negative = at the bottom. "Genes found" are the leading-edge genes.' : ''}</p>
               <ErrorNote error={q.error} />
               {q.isLoading && <Spinner />}
               {q.data && q.data.shownCount === 0 && <Note kind="warning">No terms match the current filters.</Note>}
-              {q.data && q.data.shownCount > 0 && (() => {
+              {splitOn && q.data && q.data.shownCount > 0 && (
+                <div className="stack">
+                  <p className="muted small">One standalone plot per annotation source, each with its own top {top === 'all' ? 'terms' : top} by the chosen ranking.</p>
+                  {splitList.map((src) => (
+                    <SourcePlot key={src} src={src} runId={runId} apiView={EXTRA_TABS.find((t) => t.tabId === view)?.from ?? view} view={view}
+                      filters={debouncedFilters} top={top} sortBy={sortBy} settings={viewSettings} viewSettings={view.startsWith('network') ? viewSettings : null}
+                      networkRef={panelNetRef(src)}
+                      base={{ config, settings, selected: shownSelection, onSelect, networkStyle: netStyle.style, exportName: `${baseName}_${view}` }} />
+                  ))}
+                </div>
+              )}
+              {!splitOn && q.data && q.data.shownCount > 0 && (() => {
                 const props = { data: q.data, config, settings, selected: shownSelection, onSelect, plotRef, networkRef, networkStyle: netStyle.style, exportName: `${baseName}_${view}` }
                 switch (view) {
                   case 'dotplot': return <DotplotView {...props} />

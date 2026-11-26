@@ -97,6 +97,7 @@ export function Plot({
   exportName = 'flame_plot',
   tools = true,
   textButton = true,
+  title,
 }: {
   data: PlotData
   layout?: Partial<Plotly.Layout>
@@ -114,6 +115,8 @@ export function Plot({
   tools?: boolean
   /** false: no "Aa Text" button (the page has its own text controls); the text style still applies. */
   textButton?: boolean
+  /** Default title drawn in the figure (and its exported image); a title written under "Aa Text" replaces it. */
+  title?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const text = useChartText()
@@ -146,8 +149,7 @@ export function Plot({
     const el = ref.current
     if (!el) return
     const base = themeLayout(cb)
-    // The text style of all charts (font, title, axis, tick and legend text) over the chart's own.
-    const styled = applyChartText({
+    const own: Record<string, unknown> = {
       ...base,
       height,
       margin: { l: 60, r: 20, t: 20, b: 50 },
@@ -155,7 +157,16 @@ export function Plot({
       ...layout,
       xaxis: { ...base.xaxis, ...(layout?.xaxis ?? {}) },
       yaxis: { ...base.yaxis, ...(layout?.yaxis ?? {}) },
-    } as Record<string, unknown>, text) as Record<string, unknown>
+    }
+    if (title) {
+      // Extra room on top, so the plotting area keeps the size the view asked for.
+      const m = (own.margin ?? {}) as Plotly.Margin
+      own.margin = { ...m, t: (m.t ?? 20) + 36 }
+      own.height = height + 36
+      own.title = { text: title, x: 0, xref: 'container', xanchor: 'left', y: 1, yref: 'container', yanchor: 'top', pad: { t: 10, l: 12 }, font: { size: 15 } }
+    }
+    // The text style of all charts (font, title, axis, tick and legend text) over the chart's own.
+    const styled = applyChartText(own, text) as Record<string, unknown>
     const merged = applyChartLabels(styled, labels, text) as Partial<Plotly.Layout>
     redrawing.current = true
     Promise.resolve(
@@ -192,7 +203,7 @@ export function Plot({
     if (handleRef) {
       handleRef.current = { exportImage: (name) => openImageExport(plotSource(el, name ?? nameRef.current, !!selectRef.current)) }
     }
-  }, [data, layout, height, mode, handleRef, cb, tools, text, labels])
+  }, [data, layout, height, mode, handleRef, cb, tools, text, labels, title])
 
   useEffect(() => {
     const el = ref.current
@@ -243,7 +254,7 @@ interface VisEdge { id: string; from: VisNode; to: VisNode; selected?: boolean; 
 const LABEL_INSIDE = new Set(['box', 'circle', 'ellipse', 'database', 'text'])
 
 /** Rebuild a vis-network as SVG markup from its node and edge positions. */
-function networkSvg(net: Network, el: HTMLElement, o: RenderOptions, w: number, h: number) {
+function networkSvg(net: Network, el: HTMLElement, o: RenderOptions, w: number, h: number, title?: string) {
   const body = (net as unknown as { body: { nodes: Record<string, VisNode>; edges: Record<string, VisEdge>; nodeIndices: string[]; edgeIndices: string[] } }).body
   const nodes = body.nodeIndices.map((id) => body.nodes[id]).filter((n) => n && !n.options.hidden)
   const edges = body.edgeIndices.map((id) => body.edges[id]).filter((e) => e && !e.options.hidden && e.from && e.to)
@@ -265,9 +276,13 @@ function networkSvg(net: Network, el: HTMLElement, o: RenderOptions, w: number, 
     vb = { x: x0 - pad, y: y0 - pad, w: x1 - x0 + 2 * pad, h: y1 - y0 + 2 * pad }
   }
   const textColor = (c: string) => (o.light ? LIGHT.heading : c)
+  // Title: extra room above the network, in canvas units (k = canvas units per output pixel).
+  const k = Math.max(vb.w / w, vb.h / h)
+  if (title) { vb = { ...vb, y: vb.y - 40 * k, h: vb.h + 40 * k } }
   const out: string[] = []
   out.push(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="${vb.x} ${vb.y} ${vb.w} ${vb.h}" preserveAspectRatio="xMidYMid meet" font-family="Inter, system-ui, sans-serif">`)
   if (o.background) out.push(`<rect x="${vb.x - vb.w}" y="${vb.y - vb.h}" width="${vb.w * 3}" height="${vb.h * 3}" fill="${e2(o.background)}"/>`)
+  if (title) out.push(`<text x="${vb.x + 12 * k}" y="${vb.y + 26 * k}" font-size="${16 * k}" font-weight="700" fill="${e2(textColor(themeColors().fg))}">${e2(title)}</text>`)
   out.push('<g fill="none" stroke-linecap="round">')
   edges.forEach((e) => {
     const c = e.options.color
@@ -393,6 +408,7 @@ export function NetworkGraph({
   handleRef,
   style = DEFAULT_STYLE,
   exportName = 'flame_network',
+  title,
 }: {
   nodes: GraphNode[]
   edges: GraphEdge[]
@@ -403,8 +419,12 @@ export function NetworkGraph({
   style?: NetworkStyle
   /** Default file name when the network is saved as an image. */
   exportName?: string
+  /** Title shown above the network and drawn into its exported image. */
+  title?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
+  const titleRef = useRef(title)
+  titleRef.current = title
   const netRef = useRef<Network | null>(null)
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
@@ -437,7 +457,7 @@ export function NetworkGraph({
       name: name ?? nameRef.current,
       size: () => { const el = ref.current; return { w: el?.clientWidth ?? 0, h: el?.clientHeight ?? 0 } },
       features: { area: true, selection: !!selectRef.current },
-      svg: (o) => withExportState(o, (net, el) => networkSvg(net, el, o, el.clientWidth, el.clientHeight)),
+      svg: (o) => withExportState(o, (net, el) => networkSvg(net, el, o, el.clientWidth, el.clientHeight, titleRef.current)),
       raster: (o) => withExportState(o, (net, el) => {
         const W = el.clientWidth, H = el.clientHeight, k = o.scale
         const view = { position: net.getViewPosition(), scale: net.getScale() }
@@ -448,11 +468,18 @@ export function NetworkGraph({
         else net.moveTo({ position: view.position, scale: view.scale * k, animation: false })
         net.redraw()
         const out = document.createElement('canvas')
-        out.width = W * k; out.height = H * k
+        const tH = titleRef.current ? 40 * k : 0
+        out.width = W * k; out.height = H * k + tH
         const ctx = out.getContext('2d')!
         if (o.background) { ctx.fillStyle = o.background; ctx.fillRect(0, 0, out.width, out.height) }
         const c = el.querySelector('canvas')
-        if (c) ctx.drawImage(c, 0, 0, out.width, out.height)
+        if (c) ctx.drawImage(c, 0, tH, W * k, H * k)
+        if (titleRef.current) {
+          ctx.fillStyle = o.light ? LIGHT.heading : themeColors().fg
+          ctx.font = `700 ${16 * k}px Inter, system-ui, sans-serif`
+          ctx.textBaseline = 'alphabetic'
+          ctx.fillText(titleRef.current, 12 * k, 26 * k)
+        }
         el.style.width = prev.w; el.style.height = prev.h
         net.setSize(prev.w || '100%', prev.h || `${H}px`)
         net.moveTo({ position: view.position, scale: view.scale, animation: false })
@@ -571,6 +598,7 @@ export function NetworkGraph({
 
   return (
     <>
+      {title && <div className="figure-title">{title}</div>}
       <div className="plot-tools">
         {onSelect && <BrushModes mode={brushMode} onChange={setBrushMode} />}
         <ExportImageButton source={() => sourceRef.current()} />

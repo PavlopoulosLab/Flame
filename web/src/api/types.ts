@@ -230,7 +230,21 @@ export interface ComparisonTerm {
   agreement?: number
   activeCombPvalue?: number
   negLog10p?: number
+  /** "top" view: Robust Rank Aggregation score (lower = stronger consensus). */
+  consensusScore?: number
+  /** "top" view: mean / best normalised rank over the active runs (0 = top, 1 = not reported). */
+  meanRank?: number
+  bestRank?: number
+  /** "top" view with collapsing: how many terms this row stands for, and the absorbed ones. */
+  represents?: number
+  merged?: string
+  /** "top" view: the term in each active run (absent when the run did not report it). */
+  cells?: Record<string, ComparisonCell | null | Record<string, never>>
 }
+
+export interface ComparisonCell { p: number; negLog10p?: number; rank: number; normRank: number; genes: number; geneRatio?: number }
+
+export interface TopTermsPanel { source?: string | null; minAgreement?: number; eligibleCount?: number; collapsed?: number; shownCount?: number; rankedTerms?: number; terms: ComparisonTerm[] }
 
 export interface ComparisonRunMeta {
   id: string
@@ -243,6 +257,8 @@ export interface ComparisonRunMeta {
   datasources: string[]
   threshold: number
   metric: string
+  inputSize?: number
+  mappedSize?: number
 }
 
 export interface OverviewChart {
@@ -265,7 +281,7 @@ export interface OverviewChart {
 }
 
 export interface ComparisonData {
-  view: 'overview' | 'bubble' | 'heatmap'
+  view: 'overview' | 'bubble' | 'heatmap' | 'top'
   totalCount: number
   filteredCount: number
   shownCount?: number
@@ -275,6 +291,13 @@ export interface ComparisonData {
   terms: ComparisonTerm[]
   chart?: OverviewChart
   cells?: { term: string; run: string; value: number | null }[]
+  /** "top" view */
+  minAgreement?: number
+  eligibleCount?: number
+  collapsed?: number
+  rankedTerms?: number
+  sortBy?: string
+  panels?: TopTermsPanel[]
 }
 
 export interface ComparisonFilters {

@@ -1,14 +1,20 @@
 /**
  * Rank aggregation across runs (tools, lists or strategies).
  *
- * Each run ranks the terms it found by p-value (1 = most significant). A term
- * a run did not report gets that run's worst rank + 1. The consensus uses
- * Robust Rank Aggregation (Kolde et al. 2012, Bioinformatics 28:573): with
- * normalised ranks u (rank / (n + 1)) sorted ascending, the score is
+ * Each run ranks the terms it found by p-value (1 = most significant; ties share
+ * the best rank). The consensus uses Robust Rank Aggregation (Kolde et al. 2012,
+ * Bioinformatics 28:573): with normalised ranks u = rank / N (N = distinct terms
+ * considered, as in the RobustRankAggreg package; a run that did not report the
+ * term: u = 1) sorted ascending, the score is
  * rho = min_k P(Beta(k, m − k + 1) ≤ u_k), Bonferroni-corrected by m. Small
- * rho = ranked higher than expected by chance in several runs.
+ * rho = ranked higher than expected by chance in several runs. Ties on rho are
+ * broken by the mean of u. R/core-compare.R (cmp_consensus) computes the same
+ * score for the Top terms view: keep both in step.
+ *
+ * meanRank (shown in the table) is the mean raw rank, a missing term counting as
+ * that run's worst rank + 1.
  */
-export interface RankRow { termId: string; ranks: Record<string, number | null>; meanRank: number; rra: number; consensus: number; found: number }
+export interface RankRow { termId: string; ranks: Record<string, number | null>; meanRank: number; meanU: number; rra: number; consensus: number; found: number }
 
 /** P(Beta(k, m-k+1) <= x) = P(Binomial(m, x) >= k) */
 function betaCdfOrder(k: number, m: number, x: number): number {
@@ -46,6 +52,7 @@ export function aggregateRanks(
     found.forEach(([t, p], i) => { if (p !== prev) rank = i + 1; prev = p; m.set(t, rank) })
     ranks[r] = m; n[r] = found.length
   })
+  const N = Math.max(1, termIds.filter((t) => runIds.some((r) => ranks[r].has(t))).length)
   const rows = termIds.map((t) => {
     const rr: Record<string, number | null> = {}
     const u: number[] = []
@@ -56,11 +63,12 @@ export function aggregateRanks(
       const eff = k ?? n[r] + 1
       sum += eff
       if (k != null) found++
-      u.push(eff / (n[r] + 1))
+      u.push(k != null ? Math.min(1, k / N) : 1)
     })
-    return { termId: t, ranks: rr, meanRank: sum / Math.max(1, runIds.length), rra: rraScore(u), consensus: 0, found }
+    const meanU = u.reduce((a, b) => a + b, 0) / Math.max(1, u.length)
+    return { termId: t, ranks: rr, meanRank: sum / Math.max(1, runIds.length), meanU, rra: rraScore(u), consensus: 0, found }
   })
-  rows.sort((a, b) => a.rra - b.rra || a.meanRank - b.meanRank)
+  rows.sort((a, b) => a.rra - b.rra || a.meanU - b.meanU)
   rows.forEach((r, i) => { r.consensus = i + 1 })
   return new Map(rows.map((r) => [r.termId, r]))
 }

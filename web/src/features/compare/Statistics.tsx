@@ -12,7 +12,7 @@ interface Test { statistic?: number; df?: number; p: number; method: string }
 interface RunStat { id: string; label: string; tool: string; listName: string; paradigm: string; terms: number; unique: number; medianTermSize?: number; medianLog10p?: number; bySource: Record<string, number> }
 interface PairStat {
   a: string; b: string; nA: number; nB: number; shared: number; union: number; jaccard: number; overlapCoef: number; geneJaccard?: number
-  spearman?: number; spearmanP?: number; spearmanPAdj?: number; kendall?: number; kendallP?: number; kendallPAdj?: number
+  spearman?: number; spearmanP?: number; spearmanPAdj?: number; spearmanAll?: number; spearmanAllP?: number; spearmanAllPAdj?: number; kendall?: number; kendallP?: number; kendallPAdj?: number
   medianDiff?: number; wilcoxonP?: number; wilcoxonPAdj?: number; mcnemarP?: number; mcnemarPAdj?: number
 }
 interface StatTerm { id: string; name: string; source: string; termSize?: number; p: Record<string, number | null | Record<string, never>> }
@@ -24,13 +24,14 @@ export interface ComparisonStats {
 
 const pOf = (t: StatTerm, r: string): number | null => (typeof t.p[r] === 'number' ? (t.p[r] as number) : null)
 
-type Metric = 'jaccard' | 'overlapCoef' | 'geneJaccard' | 'spearman' | 'kendall'
+type Metric = 'jaccard' | 'overlapCoef' | 'geneJaccard' | 'spearmanAll' | 'spearman' | 'kendall'
 const METRICS: { value: Metric; label: string; hint: string }[] = [
   { value: 'jaccard', label: 'Jaccard (shared / all terms)', hint: 'How much the two term sets overlap: 1 = identical, 0 = nothing in common.' },
   { value: 'overlapCoef', label: 'Overlap coefficient', hint: 'Shared terms divided by the smaller set: 1 = the smaller run is contained in the larger.' },
   { value: 'geneJaccard', label: 'Gene agreement in shared terms', hint: 'For terms both runs found, how similar the genes they report are (mean Jaccard).' },
-  { value: 'spearman', label: 'Rank correlation (Spearman ρ)', hint: 'Do the runs rank the shared terms in the same order of significance?' },
-  { value: 'kendall', label: 'Rank correlation (Kendall τ)', hint: 'Like Spearman, more robust to ties and outliers.' },
+  { value: 'spearmanAll', label: 'Rank correlation, all terms (Spearman ρ)', hint: 'Do the runs rank terms in the same order? Uses every term either run found; a term a run did not report counts as its least significant.' },
+  { value: 'spearman', label: 'Rank correlation, shared terms only (Spearman ρ)', hint: 'Order of the terms both runs found. Ignores the terms only one run found, so it overstates agreement when the runs share few terms.' },
+  { value: 'kendall', label: 'Rank correlation, shared terms only (Kendall τ)', hint: 'Like Spearman on shared terms, more robust to ties and outliers.' },
 ]
 
 const fmt = (v: number | undefined | null, d = 2) => (v == null || !Number.isFinite(v) ? '—' : v.toFixed(d))
@@ -73,12 +74,12 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
   const scale = pm === 'flame' ? [[0, '#f5f3ff'], [0.5, '#a78bfa'], [1, '#4c1d95']] : sequentialScale(pm, 'Viridis')
   const heat = [{
     type: 'heatmap' as const, x: ids.map((r) => label.get(r)!), y: ids.map((r) => label.get(r)!), z,
-    zmin: metric === 'spearman' || metric === 'kendall' ? -1 : 0, zmax: 1,
+    zmin: metric === 'spearman' || metric === 'spearmanAll' || metric === 'kendall' ? -1 : 0, zmax: 1,
     colorscale: scale as never, reversescale: typeof scale === 'string' && reverseScale(scale),
     text: ids.map((a) => ids.map((b) => {
       const p = pairOf(a, b)
       if (a === b || !p) return label.get(a)!
-      return `${label.get(a)} vs ${label.get(b)}<br>shared ${p.shared} of ${p.union} terms<br>Jaccard ${fmt(p.jaccard)} · overlap ${fmt(p.overlapCoef)}<br>Spearman ρ ${fmt(p.spearman)} (adj. p ${formatP(p.spearmanPAdj)})<br>gene agreement ${fmt(p.geneJaccard)}`
+      return `${label.get(a)} vs ${label.get(b)}<br>shared ${p.shared} of ${p.union} terms<br>Jaccard ${fmt(p.jaccard)} · overlap ${fmt(p.overlapCoef)}<br>Spearman ρ all terms ${fmt(p.spearmanAll)} · shared only ${fmt(p.spearman)}<br>gene agreement ${fmt(p.geneJaccard)}`
     })),
     hoverinfo: 'text' as const, customdata: ids.map((a) => ids.map((b) => `${a}|${b}`)),
     texttemplate: '%{z:.2f}', showscale: true,
@@ -158,7 +159,7 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
 
   const pairRows = d.pairs.map((p) => ({
     runA: label.get(p.a), runB: label.get(p.b), termsA: p.nA, termsB: p.nB, shared: p.shared, jaccard: p.jaccard, overlap: p.overlapCoef,
-    geneAgreement: p.geneJaccard ?? '', spearman: p.spearman ?? '', spearmanPadj: p.spearmanPAdj ?? '', kendall: p.kendall ?? '', kendallPadj: p.kendallPAdj ?? '',
+    geneAgreement: p.geneJaccard ?? '', spearmanAllTerms: p.spearmanAll ?? '', spearmanAllTermsPadj: p.spearmanAllPAdj ?? '', spearman: p.spearman ?? '', spearmanPadj: p.spearmanPAdj ?? '', kendall: p.kendall ?? '', kendallPadj: p.kendallPAdj ?? '',
     medianLog10pDiff: p.medianDiff ?? '', wilcoxonPadj: p.wilcoxonPAdj ?? '', mcnemarPadj: p.mcnemarPAdj ?? '',
   }))
   const pairCols = Object.keys(pairRows[0] ?? {}).map((k) => ({ key: k, label: k }))
@@ -179,11 +180,27 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
           </table>
         </div>
         <ul className="stat-tests">
-          <li><strong>Detection.</strong> {interpret(d.tests.detection, 'terms found by at least one run', 'The runs differ in which terms they detect more than expected by chance.', 'No evidence that the runs detect different numbers of terms.')}</li>
+          <li><strong>Number of terms.</strong> {interpret(d.tests.detection, 'terms found by at least one run', 'Some runs report more terms than others, more than expected by chance.', 'No evidence that the runs report different numbers of terms.')}
+            <br /><span className="muted small">This compares how many terms each run reports, not which terms are right. For agreement on the terms themselves, see Concordance at the top and Pairwise similarity.</span></li>
           <li><strong>Term size.</strong> {interpret(d.tests.termSize, 'genes per term', 'The runs favour terms of different sizes (broad vs. specific).', 'The runs report terms of similar size.')}</li>
-          <li><strong>Significance.</strong> {interpret(d.tests.significance, '−log10 p of found terms', 'Some runs report systematically stronger p-values.', 'The runs report similar significance levels.')}</li>
+          <li><strong>Significance.</strong> {interpret(d.tests.significance, '−log10 p of found terms', 'Some runs report systematically smaller p-values.', 'The runs report similar significance levels.')}
+            <br /><span className="muted small">Tools compute and correct p-values differently, so a difference here describes how each tool reports, not which one is more reliable.</span></li>
         </ul>
       </section>
+
+      <div className="chart-grid">
+        <section className="chart-card">
+          <h3>Concordance at the top</h3>
+          <p className="muted small">Of each run's k most significant terms, the share that the other run also ranks in its top k. High curves mean the runs agree on what matters most. This is the most direct check that two tools agree: it uses each tool's own ranking, so it does not depend on how the tool computes p-values. Click a point to select the agreed terms.</p>
+          <Plot data={catTraces} height={360} onSelect={resolve}
+            layout={{ xaxis: { title: { text: 'Top k terms' } }, yaxis: { title: { text: 'Shared in top k' }, tickformat: '.0%', range: [0, 1.05] }, legend: { orientation: 'h', y: -0.3 }, margin: { l: 60, r: 20, t: 10, b: 100 } }} />
+        </section>
+        <section className="chart-card">
+          <h3>Agreement</h3>
+          <p className="muted small">How many terms were found by how many runs. Click a bar to select those terms.</p>
+          <Plot data={agreeBars} height={360} onSelect={resolve} layout={{ xaxis: { title: { text: 'Found by' } }, yaxis: { title: { text: 'Terms' } } }} />
+        </section>
+      </div>
 
       <div className="chart-grid">
         <section className="chart-card">
@@ -230,7 +247,7 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
           {pp && (
             <p className="small">
               {pp.shared} shared of {pp.union} terms (Jaccard {fmt(pp.jaccard)}).
-              {' '}Rank agreement on shared terms: Spearman ρ = {fmt(pp.spearman)} (adj. p {formatP(pp.spearmanPAdj)}), Kendall τ = {fmt(pp.kendall)} (adj. p {formatP(pp.kendallPAdj)}).
+              {' '}Rank agreement over all their terms: Spearman ρ = {fmt(pp.spearmanAll)} (adj. p {formatP(pp.spearmanAllPAdj)}); on the shared terms only: ρ = {fmt(pp.spearman)} (adj. p {formatP(pp.spearmanPAdj)}), Kendall τ = {fmt(pp.kendall)} (adj. p {formatP(pp.kendallPAdj)}).
               {' '}Median difference in −log10 p: {fmt(pp.medianDiff)} (paired Wilcoxon adj. p {formatP(pp.wilcoxonPAdj)}){pp.medianDiff != null && pp.wilcoxonPAdj != null && pp.wilcoxonPAdj < 0.05 ? ` — ${pp.medianDiff > 0 ? label.get(pp.a) : label.get(pp.b)} reports stronger p-values` : ''}.
               {' '}Gene agreement in shared terms: {fmt(pp.geneJaccard)}.
             </p>
@@ -239,20 +256,6 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
           <Plot data={scatter.traces} layout={scatter.layout} height={480} dragmode="lasso" onSelect={resolve} />
         </section>
       )}
-
-      <div className="chart-grid">
-        <section className="chart-card">
-          <h3>Concordance at the top</h3>
-          <p className="muted small">Of each run's k most significant terms, the share that the other run also ranks in its top k. High curves mean the runs agree on what matters most. Click a point to select the agreed terms.</p>
-          <Plot data={catTraces} height={360} onSelect={resolve}
-            layout={{ xaxis: { title: { text: 'Top k terms' } }, yaxis: { title: { text: 'Shared in top k' }, tickformat: '.0%', range: [0, 1.05] }, legend: { orientation: 'h', y: -0.3 }, margin: { l: 60, r: 20, t: 10, b: 100 } }} />
-        </section>
-        <section className="chart-card">
-          <h3>Agreement</h3>
-          <p className="muted small">How many terms were found by how many runs. Click a bar to select those terms.</p>
-          <Plot data={agreeBars} height={360} onSelect={resolve} layout={{ xaxis: { title: { text: 'Found by' } }, yaxis: { title: { text: 'Terms' } } }} />
-        </section>
-      </div>
 
       <div className="chart-grid">
         <section className="chart-card">
@@ -282,10 +285,11 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
         </div>
         <div className="table-scroll">
           <table className="table">
-            <thead><tr><th>Runs</th><th>Shared / all</th><th>Jaccard</th><th>Overlap</th><th>Gene agreement</th><th>Spearman ρ</th><th>Kendall τ</th><th>Δ median −log10 p</th><th>Detection (McNemar)</th></tr></thead>
+            <thead><tr><th>Runs</th><th>Shared / all</th><th>Jaccard</th><th>Overlap</th><th>Gene agreement</th><th title="Over every term either run found">Spearman ρ (all terms)</th><th title="Only terms both runs found">Spearman ρ (shared)</th><th title="Only terms both runs found">Kendall τ (shared)</th><th title="Positive: the first run reports smaller p-values. Tools compute p-values differently, so this describes reporting, not reliability.">Δ median −log10 p</th><th title="Do the two runs report different numbers of terms?">Number of terms (McNemar)</th></tr></thead>
             <tbody>{d.pairs.map((p) => (
               <tr key={`${p.a}|${p.b}`} className="clickable" onClick={() => { setPairSel([p.a, p.b]); onSelect(shared(p.a, p.b), false) }}>
                 <td>{label.get(p.a)} vs {label.get(p.b)}</td><td>{p.shared} / {p.union}</td><td>{fmt(p.jaccard)}</td><td>{fmt(p.overlapCoef)}</td><td>{fmt(p.geneJaccard)}</td>
+                <td>{fmt(p.spearmanAll)} <span className="muted small">({formatP(p.spearmanAllPAdj)})</span></td>
                 <td>{fmt(p.spearman)} <span className="muted small">({formatP(p.spearmanPAdj)})</span></td>
                 <td>{fmt(p.kendall)} <span className="muted small">({formatP(p.kendallPAdj)})</span></td>
                 <td>{fmt(p.medianDiff)} <span className="muted small">({formatP(p.wilcoxonPAdj)})</span></td>

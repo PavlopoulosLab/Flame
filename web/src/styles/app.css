@@ -782,6 +782,7 @@ html, body { overflow-x: clip; }
 .text-color-ch input { width: 58px; }
 .chart-text-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; width: min(720px, calc(100vw - 32px)); padding: 12px;
   background: var(--surface-color, #fff); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); text-align: left; }
+.figure-title { font-weight: 700; font-size: 15px; color: var(--heading-color); margin: 0 0 -24px; position: relative; z-index: 0; pointer-events: none; }
 @media (max-width: 560px) { .export-grid { grid-template-columns: 1fr; } }
 .figure { display: flex; flex-direction: column; gap: 6px; }
 .palette-select-wrap { display: inline-flex; align-items: center; gap: 4px; }

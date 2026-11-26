@@ -42,6 +42,8 @@ export interface ViewProps {
   networkRef: { current: NetworkHandle | null }
   /** Default file name for image exports. */
   exportName?: string
+  /** Figure title (one plot per annotation source). */
+  title?: string
 }
 
 const label = (t: Term, s: ViewSettings, max = 55) => {
@@ -102,7 +104,7 @@ function significanceScale(choice: 'OrRd' | 'Viridis' | 'Cividis' | 'Magma', cb:
 /** The default single bar colour: the palette's first colour. */
 export const defaultBarColor = (cb: ReturnType<typeof usePaletteMode>) => categoricalColor(cb, 'x', ['x'], '#f97316')
 
-export function DotplotView({ data, settings, selected, onSelect, plotRef, exportName }: ViewProps) {
+export function DotplotView({ data, settings, selected, onSelect, plotRef, exportName, title }: ViewProps) {
   const cb = usePaletteMode()
   const choice = settings.palette ?? 'OrRd'
   const dotScale = significanceScale(choice, cb)
@@ -139,7 +141,7 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef, expor
   if (xKey === 'foldEnrichment' && data.terms.every((t) => t.foldEnrichment == null)) {
     return <p className="muted">Fold enrichment needs the background size, which this tool does not report. Choose another x-axis.</p>
   }
-  return <Plot exportName={exportName} data={plot} height={height} handleRef={plotRef} onSelect={onSelect}
+  return <Plot title={title} exportName={exportName} data={plot} height={height} handleRef={plotRef} onSelect={onSelect}
     layout={{
       margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: xLabel } },
       yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) },
@@ -159,7 +161,7 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef, expor
     }} />
 }
 
-export function BarchartView({ data, config, settings, selected, onSelect, plotRef, exportName }: ViewProps) {
+export function BarchartView({ data, config, settings, selected, onSelect, plotRef, exportName, title }: ViewProps) {
   const cb = usePaletteMode()
   const colorOf = useSourceColor(config, data.availableSources)
   const metric = settings.barMetric ?? 'log10p'
@@ -183,12 +185,12 @@ export function BarchartView({ data, config, settings, selected, onSelect, plotR
     return [bar(terms, 'Terms', { color: terms.map((t) => t.log10p), colorscale: scale, reversescale: typeof scale === 'string' && reverseScale(scale),
       showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12, len: Math.min(1, 260 / Math.max(360, 24 * terms.length + 80)), y: 1, yanchor: 'top' } })]
   }, [terms, yLabel, metric, config, selected, colors, settings.barColor, cb]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <Plot exportName={exportName} data={plot as never} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
+  return <Plot title={title} exportName={exportName} data={plot as never} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
     layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: metric === 'log10p' ? '−log10 p-value' : metric === 'nes' ? 'NES (positive = top of ranking)' : 'Term coverage (%)' } },
-      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) }, legend: { orientation: 'h', y: -0.15 } }} />
+      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) }, legend: { orientation: 'h', y: -0.15 }, showlegend: new Set(terms.map((t) => t.source)).size > 1 }} />
 }
 
-export function ScatterView({ data, config, selected, onSelect, plotRef, exportName }: ViewProps) {
+export function ScatterView({ data, config, selected, onSelect, plotRef, exportName, title }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const plot = useMemo(() => [...bySource(data.terms)].map(([src, ts]) => ({
     type: 'scatter' as const, mode: 'markers' as const, name: src,
@@ -196,12 +198,12 @@ export function ScatterView({ data, config, selected, onSelect, plotRef, exportN
     text: ts.map(hover), hoverinfo: 'text' as const,
     marker: { size: 11, color: colorOf(src), opacity: selOpacity(ts.map((t) => t.id), selected, 0.85, data.terms.some((t) => selected.has(t.id))), line: selLine(ts.map((t) => t.id), selected) },
   })), [data.terms, config, selected])
-  return <Plot exportName={exportName} data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
-    layout={{ xaxis: { title: { text: '−log10 p-value' } }, yaxis: { title: { text: 'Term coverage (%)' } }, legend: { orientation: 'h', y: -0.2 } }} />
+  return <Plot title={title} exportName={exportName} data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
+    layout={{ xaxis: { title: { text: '−log10 p-value' } }, yaxis: { title: { text: 'Term coverage (%)' } }, legend: { orientation: 'h', y: -0.2 }, showlegend: new Set(data.terms.map((t) => t.source)).size > 1 }} />
 }
 
 /** Heatmaps: T×G presence, T×T similarity %, G×G shared terms. */
-export function HeatmapView({ data, settings, onSelect, plotRef, exportName }: ViewProps) {
+export function HeatmapView({ data, settings, onSelect, plotRef, exportName, title }: ViewProps) {
   const cb = usePaletteMode()
   const termById = new Map(data.terms.map((t) => [t.id, t]))
   const cells = data.cells ?? []
@@ -251,7 +253,7 @@ export function HeatmapView({ data, settings, onSelect, plotRef, exportName }: V
     if (genes.length) data.terms.filter((t) => genes.every((g) => splitGenes(t.genes).includes(g))).forEach((t) => out.add(t.id))
     onSelect([...out], additive)
   }
-  return <Plot exportName={exportName} data={plot} height={Math.max(420, 18 * n + 160)} handleRef={plotRef} onSelect={resolve}
+  return <Plot title={title} exportName={exportName} data={plot} height={Math.max(420, 18 * n + 160)} handleRef={plotRef} onSelect={resolve}
     layout={{ margin: { l: 260, r: 20, t: 10, b: 160 }, xaxis: { tickangle: -45, automargin: true }, yaxis: { automargin: true } }} />
 }
 
@@ -260,7 +262,7 @@ const SHAPES: Record<string, string> = {
   DO: 'triangleDown', DISGENET: 'triangleDown', OMIM: 'triangleDown', DRUGBANK: 'star', INTERPRO: 'star', PFAM: 'star', Gene: 'dot',
 }
 
-export function NetworkView({ data, config, settings, selected, onSelect, networkRef, networkStyle, exportName }: ViewProps) {
+export function NetworkView({ data, config, settings, selected, onSelect, networkRef, networkStyle, exportName, title }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const cb = usePaletteMode()
   const net = data.network
@@ -277,7 +279,7 @@ export function NetworkView({ data, config, settings, selected, onSelect, networ
     return <p className="muted">No edges pass the current cut-off. Lower the {data.view === 'network-tt' ? 'similarity' : 'shared-terms'} threshold or show more terms.</p>
   }
   return (
-    <NetworkGraph exportName={exportName} nodes={nodes} edges={edges} selected={selectedNodes} handleRef={networkRef} height={600} style={networkStyle}
+    <NetworkGraph title={title} exportName={exportName} nodes={nodes} edges={edges} selected={selectedNodes} handleRef={networkRef} height={600} style={networkStyle}
       onSelect={(ids, add) => {
         const terms = ids.filter((id) => termIds.has(id))
         const genes = ids.filter((id) => !termIds.has(id))
@@ -369,7 +371,7 @@ export function TableView({ data, config, selected, onSelect, columns, runId }: 
 // ---------------------------------------------------------------------------
 // Sankey: genes → terms → annotation sources
 // ---------------------------------------------------------------------------
-export function SankeyView({ data, config, settings, onSelect, plotRef, exportName }: ViewProps) {
+export function SankeyView({ data, config, settings, onSelect, plotRef, exportName, title }: ViewProps) {
   const colorOf = useSourceColor(config, data.availableSources)
   const pm = usePaletteMode()
   const plot = useMemo(() => {
@@ -402,14 +404,14 @@ export function SankeyView({ data, config, settings, onSelect, plotRef, exportNa
       link: { source: src, target: tgt, value: val, color: 'rgba(161,161,170,0.3)' },
     }]
   }, [data.terms, settings, config, colorOf, pm])
-  return <Plot exportName={exportName} data={plot as never} height={Math.max(480, Math.min(1100, data.terms.length * 34))} handleRef={plotRef}
+  return <Plot title={title} exportName={exportName} data={plot as never} height={Math.max(480, Math.min(1100, data.terms.length * 34))} handleRef={plotRef}
     onSelect={(ids, add) => onSelect(ids.filter(Boolean), add)} layout={{ margin: { l: 10, r: 10, t: 10, b: 10 } }} />
 }
 
 // ---------------------------------------------------------------------------
 // Chord: shared genes between the shown terms
 // ---------------------------------------------------------------------------
-export function ChordView({ data, config, settings, selected, onSelect, svgRef, exportName }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
+export function ChordView({ data, config, settings, selected, onSelect, svgRef, exportName, title }: ViewProps & { svgRef: { current: SVGSVGElement | null } }) {
   const colorOf = useSourceColor(config, data.availableSources)
   const ids = data.terms.map((t) => t.id)
   const matrix = useMemo(() => {
@@ -422,7 +424,7 @@ export function ChordView({ data, config, settings, selected, onSelect, svgRef, 
   }, [data.cells, ids.join('|')])  // eslint-disable-line react-hooks/exhaustive-deps
   if (matrix.every((row) => row.every((v) => v === 0))) return <p className="muted">These terms share no genes. Show more terms to see overlaps.</p>
   return (
-    <ChordDiagram exportName={exportName} names={data.terms.map((t) => label(t, settings, 40))} matrix={matrix} colors={data.terms.map((t) => colorOf(t.source))}
+    <ChordDiagram title={title} exportName={exportName} names={data.terms.map((t) => label(t, settings, 40))} matrix={matrix} colors={data.terms.map((t) => colorOf(t.source))}
       svgRef={svgRef} selected={new Set(ids.map((id, i) => (selected.has(id) ? i : -1)).filter((i) => i >= 0))}
       onSelect={(i, j) => onSelect(j === undefined ? [ids[i]] : [ids[i], ids[j]], true)} />
   )

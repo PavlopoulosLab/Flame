@@ -34,9 +34,11 @@ export function htmlSource(el: HTMLElement | null, name: string, selection = tru
 // ---------------------------------------------------------------------------
 // Chord diagram: arcs = items (terms or runs), ribbons = shared members.
 // ---------------------------------------------------------------------------
-export function ChordDiagram({ names, matrix, colors, onSelect, selected, size = 620, svgRef, unit = 'shared genes', exportName = 'flame_chord' }: {
+export function ChordDiagram({ names, matrix, colors, onSelect, selected, size = 620, svgRef, unit = 'shared genes', exportName = 'flame_chord', title }: {
   names: string[]; matrix: number[][]; colors: string[]; onSelect?: (i: number, j?: number) => void
   selected?: Set<number>; size?: number; svgRef?: { current: SVGSVGElement | null }; unit?: string; exportName?: string
+  /** Title drawn in the top-left corner of the diagram (and its exported image). */
+  title?: string
 }) {
   const own = useRef<SVGSVGElement | null>(null)
   const outer = size / 2 - 150
@@ -50,6 +52,7 @@ export function ChordDiagram({ names, matrix, colors, onSelect, selected, size =
     <div className="plot-tools"><ExportImageButton source={() => svgSource(own.current, exportName, { selection: !!onSelect })} /></div>
     <svg ref={(el) => { own.current = el; if (svgRef) svgRef.current = el }} viewBox={`${-size / 2} ${-size / 2} ${size} ${size}`} width="100%" style={{ maxWidth: size }} role="img"
       aria-label={`Chord diagram of ${names.length} items; ribbons show ${unit}`}>
+      {title && <text x={-size / 2 + 8} y={-size / 2 + 22} fontSize={16} fontWeight={700} fill="currentColor">{title}</text>}
       <g>
         {chords.map((c, k) => {
           const on = !anySel || selected!.has(c.source.index) || selected!.has(c.target.index)

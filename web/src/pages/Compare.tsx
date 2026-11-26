@@ -16,6 +16,7 @@ import { UndoRedoButtons } from '../components/Undo'
 import { ComparisonStatistics } from '../features/compare/Statistics'
 import { CompareTable } from '../features/compare/CompareTable'
 import { RankChart } from '../features/compare/RankChart'
+import { TopTerms, topTermsRows, type TopBarMode } from '../features/compare/TopTerms'
 import { saveXlsx, sheetsByCategory } from '../lib/xlsx'
 import { ThemesView } from '../features/themes/Themes'
 import { Arena3DIcon, NormaIcon } from '../components/ExternalIcons'
@@ -24,8 +25,14 @@ import { formatNum, formatP, plural, splitGenes, toCsv, toHtmlTable } from '../l
 import { categoricalColor, PaletteScope, reverseScale, roleColors, sequentialScale, usePaletteKey, usePaletteMode } from '../lib/palette'
 import { PaletteSelect } from '../components/PaletteSelect'
 
-type View = 'table' | 'ranks' | 'themes' | 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats' | 'network'
-const SORTS = [{ value: '-log10Pvalue', label: 'Combined significance' }, { value: 'Fold Enrichment', label: 'Fold enrichment' }, { value: 'Agreement', label: 'Agreement between runs' }]
+type View = 'table' | 'top' | 'ranks' | 'themes' | 'overview' | 'bubble' | 'heatmap' | 'upset' | 'chord' | 'circos' | 'stats' | 'network'
+const SORTS = [
+  { value: 'Consensus', label: 'Consensus (recommended)' },
+  { value: 'Agreement', label: 'Most shared' },
+  { value: 'Best rank', label: 'Strongest in any run' },
+  { value: '-log10Pvalue', label: 'Fisher combined p' },
+  { value: 'Fold Enrichment', label: 'Fold enrichment' },
+]
 
 function useDebounced<T>(v: T, ms = 300) {
   const [d, setD] = useState(v)
@@ -115,7 +122,13 @@ function ComparePageBody() {
   usePaletteKey(view)
   const [filters, setFilters] = useState<ComparisonFilters>({ runsMode: 'any' })
   const [top, setTop] = useState<number | 'all'>(20)
-  const [sortBy, setSortBy] = useState('-log10Pvalue')
+  const [sortBy, setSortBy] = useState('Consensus')
+  // Top terms view: found by at least this many active runs (null = a majority), and merging of similar terms.
+  const [minAgreement, setMinAgreement] = useState<number | null>(null)
+  const [collapse, setCollapse] = useState(true)
+  const [collapseCutoff, setCollapseCutoff] = useState(0.5)
+  const [splitBySource, setSplitBySource] = useState(true)
+  const [barMode, setBarMode] = useState<TopBarMode>('tools')
   const [labels, setLabels] = useState<'Function' | 'Term_ID'>('Function')
   const [showLabels, setShowLabels] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -130,14 +143,15 @@ function ComparePageBody() {
   const [exportTo, setExportTo] = useState<'arena3d' | 'norma' | null>(null)
   const pm = usePaletteMode()
   const history = useHistory(
-    { view, filters, top, sortBy, labels, selected: [...selected].sort() },
-    (s) => { setView(s.view); setFilters(s.filters); setTop(s.top); setSortBy(s.sortBy); setLabels(s.labels); setSelected(new Set(s.selected)) },
+    { view, filters, top, sortBy, labels, minAgreement, collapse, collapseCutoff, splitBySource, barMode, selected: [...selected].sort() },
+    (s) => { setView(s.view); setFilters(s.filters); setTop(s.top); setSortBy(s.sortBy); setLabels(s.labels); setMinAgreement(s.minAgreement); setCollapse(s.collapse); setCollapseCutoff(s.collapseCutoff); setSplitBySource(s.splitBySource); setBarMode(s.barMode); setSelected(new Set(s.selected)) },
   )
   const f = useDebounced(filters)
 
   const q = useQuery({
-    queryKey: ['compare', ws, runIds.join(','), view, f, top, sortBy],
-    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' || view === 'table' || view === 'ranks' || view === 'themes' ? 'overview' : view === 'network' ? 'bubble' : view, filters: f, top, sortBy, settings: { labels } } }),
+    queryKey: ['compare', ws, runIds.join(','), view, f, top, sortBy, ...(view === 'top' ? [minAgreement, collapse, collapseCutoff, splitBySource] : [])],
+    queryFn: () => api<ComparisonData>('/comparisons', { body: { runIds, view: view === 'upset' || view === 'chord' || view === 'circos' || view === 'stats' || view === 'table' || view === 'ranks' || view === 'themes' ? 'overview' : view === 'network' ? 'bubble' : view, filters: f, top, sortBy,
+      settings: { labels, ...(view === 'top' ? { minAgreement, collapse, collapseCutoff, splitBySource } : {}) } } }),
     enabled: runIds.length >= 2,
     placeholderData: keepPreviousData,
   })
@@ -194,7 +208,7 @@ function ComparePageBody() {
           </button>
         </span>
       </header>
-      <p className="muted small">Terms found by several runs get a combined p-value (Fisher's method). Agreement = how many of the active runs found a term.</p>
+      <p className="muted small">Agreement = how many of the active runs found a term. Runs are ranked together by consensus: each run's terms are ranked by its own p-values and the rankings are combined (Robust Rank Aggregation), because p-values from different tools are not on one scale. Fisher's combined p-value is still shown; it treats the runs as independent tests and ignores runs that did not report a term.</p>
 
       {exportTo && (
         <ExportNetworkDialog target={exportTo} onClose={() => setExportTo(null)} runIds={runIds} filters={f} sortBy={sortBy}
@@ -202,9 +216,9 @@ function ComparePageBody() {
           runLabels={runs.filter((r) => activeRuns.includes(r.id)).map((r) => r.label)} />
       )}
       <nav className="view-tabs" aria-label="Comparison views">
-        {(['table', 'ranks', 'themes', 'overview', 'stats', 'upset', 'network', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
+        {(['table', 'top', 'ranks', 'themes', 'overview', 'stats', 'upset', 'network', 'chord', 'circos', 'bubble', 'heatmap'] as View[]).map((v) => (
           <span key={v} className={`view-tab${v === view ? ' active' : ''}`}><button onClick={() => setView(v)}>{
-            { table: 'Table', ranks: 'Ranks', themes: 'Themes', overview: 'Overview', stats: 'Statistics', upset: 'Overlap (UpSet)', network: 'Network (runs–terms)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
+            { table: 'Table', top: 'Top terms', ranks: 'Ranks', themes: 'Themes', overview: 'Overview', stats: 'Statistics', upset: 'Overlap (UpSet)', network: 'Network (runs–terms)', chord: 'Chord (shared terms)', circos: 'Circos (bundled)', bubble: 'Bubble plot', heatmap: 'Heatmap' }[v]}</button></span>
         ))}
       </nav>
       {view === 'table' && allSources.length > 1 && (
@@ -349,17 +363,37 @@ function ComparePageBody() {
               <label>Show <select className="input input-sm" value={String(top)} onChange={(e) => setTop(e.target.value === 'all' ? 'all' : Number(e.target.value))}>
                 {[10, 20, 30, 50].map((n) => <option key={n} value={n}>top {n}</option>)}<option value="all">all</option></select></label>
               <label>by <select className="input input-sm" value={sortBy} onChange={(e) => setSortBy(e.target.value)}>{SORTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}</select></label>
+              {view === 'top' && (() => {
+                const M = activeRuns.length
+                const k = Math.min(minAgreement ?? Math.ceil(M / 2), M)
+                return <>
+                  <label title="Leave out terms found by fewer runs">Found by at least <select className="input input-sm" value={k} onChange={(e) => setMinAgreement(Number(e.target.value))}>
+                    {Array.from({ length: M }, (_, i) => i + 1).map((n) => <option key={n} value={n}>{n} of {M}{n === Math.ceil(M / 2) ? ' (majority)' : ''}</option>)}</select></label>
+                  <label className="check" title="Keep one term per group of terms of the same source that share most of their genes"><input type="checkbox" checked={collapse} onChange={(e) => setCollapse(e.target.checked)} /> Merge similar terms</label>
+                  {collapse && <label title="Share of genes (Jaccard) at or above which two terms are merged">at <select className="input input-sm" value={collapseCutoff} onChange={(e) => setCollapseCutoff(Number(e.target.value))}>
+                    {[0.3, 0.4, 0.5, 0.6, 0.7, 0.8].map((v) => <option key={v} value={v}>{Math.round(v * 100)}% shared genes</option>)}</select></label>}
+                  <label className="check" title="One panel per annotation source (GO:BP, KEGG, …), each ranked on its own and with its own top N"><input type="checkbox" checked={splitBySource} onChange={(e) => setSplitBySource(e.target.checked)} /> Split by source</label>
+                  <label title="What the bars on the right show">Bars <select className="input input-sm" value={barMode} onChange={(e) => setBarMode(e.target.value as TopBarMode)}>
+                    <option value="tools">tools that found the term</option><option value="score">consensus score</option></select></label>
+                </>
+              })()}
               {view === 'bubble' && <label className="check"><input type="checkbox" checked={showLabels} onChange={(e) => setShowLabels(e.target.checked)} /> Show labels</label>}
               <label>Labels <select className="input input-sm" value={labels} onChange={(e) => setLabels(e.target.value as 'Function' | 'Term_ID')}><option value="Function">Term names</option><option value="Term_ID">Term IDs</option></select></label>
               {view === 'network' && <label>Layout <LayoutSelect style={netStyle.style} onChange={netStyle.setStyle} /></label>}
               {view === 'network' && <NetworkOptions style={netStyle.style} onChange={netStyle.setStyle} onReset={netStyle.reset} handle={networkRef} />}
               <span className="toolbar-spacer" />
-              <ExportMenu items={[{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => (view === 'network' ? networkRef.current?.exportImage('flame_comparison_network') : plotRef.current?.exportImage(`flame_comparison_${view}`)) }]} />
+              <ExportMenu items={[
+                // Split Top terms: every plot has its own Image button.
+                ...(view === 'top' && splitBySource && (q.data?.panels?.length ?? 0) > 0 ? [] : [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => (view === 'network' ? networkRef.current?.exportImage('flame_comparison_network') : plotRef.current?.exportImage(view === 'top' ? 'flame_comparison_top_terms' : `flame_comparison_${view}`)) }]),
+                ...(view === 'top' && q.data?.terms.length ? [{ label: 'Table of these terms (CSV)', run: () => { const t = topTermsRows(q.data!); saveText(toCsv(t.rows, t.cols), 'flame_comparison_top_terms.csv', 'text/csv') } }] : [])]} />
             </div>
           )}
           <ErrorNote error={q.error} />
           {q.isLoading && <Spinner label="Combining runs" />}
-          {q.data && !q.data.terms.length && <Note kind="warning">No terms match the current filters.</Note>}
+          {q.data && !q.data.terms.length && view !== 'top' && <Note kind="warning">No terms match the current filters.</Note>}
+          {q.data && view === 'top' && q.data.view === 'top' && (
+            <TopTerms data={q.data} labels={labels} barMode={barMode} collapseCutoff={collapseCutoff} selected={shownSel} onSelect={onSelect} plotRef={plotRef} />
+          )}
           {q.data && q.data.terms.length > 0 && view === 'overview' && q.data.chart && (
             <Overview data={q.data} colors={roleColors(pm).series} onBubble={(metric, runId) => overviewClick('bubble', metric, runId)} onPin={(metric) => overviewClick('pin', metric)} plotRef={plotRef} />
           )}
