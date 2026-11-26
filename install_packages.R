@@ -32,6 +32,16 @@ flame_new_bioc <- setdiff(flame_bioc_packages, rownames(installed.packages()))
 if (length(flame_new_bioc)) {
   if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
   BiocManager::install(flame_new_bioc, update = FALSE, ask = FALSE, Ncpus = ncpus)
+  # progeny can be missing from the current Bioconductor release's package index for a platform
+  # (e.g. a Linux build failure, often cascading from one of its own dependencies) even though
+  # the rest of flame_bioc_packages install fine; fall back to the previous release for just
+  # that package rather than forcing everything onto an older, fully-downgraded Bioc version.
+  flame_still_missing <- setdiff(flame_new_bioc, rownames(installed.packages()))
+  if (length(flame_still_missing)) {
+    flame_prior_bioc <- sprintf("https://bioconductor.org/packages/%.2f/bioc",
+                                 as.numeric(as.character(BiocManager::version())) - 0.01)
+    install.packages(flame_still_missing, repos = c(flame_prior_bioc, BiocManager::repositories()), Ncpus = ncpus)
+  }
 }
 missing <- setdiff(c(flame_all_packages, flame_bioc_packages), rownames(installed.packages()))
 if (length(missing)) {
