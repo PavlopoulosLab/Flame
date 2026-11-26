@@ -29,27 +29,18 @@ export interface ExpressionInfo { fileName: string; genes: number; samples: numb
 /** "p = 0.012" or "p < 0.0001". */
 const pIs = (p: number | null | undefined) => (p == null || !Number.isFinite(p) ? 'p = —' : p < 0.0001 ? 'p < 0.0001' : `p = ${p < 0.01 ? p.toPrecision(2) : p.toFixed(3)}`)
 
-/** One input table: its drop box (and paste box), or the loaded file with Replace. */
+/** One input table: always its drop box and paste box, with the loaded file named above them. */
 function TableBox({ step, title, what, loaded, onText, placeholder, maxBytes }: {
   step: number; title: string; what: string; loaded: string | null; onText: (t: string, n: string) => void; placeholder: string; maxBytes: number
 }) {
-  const [replacing, setReplacing] = useState(false)
-  const show = !loaded || replacing
   return (
     <div className={`card stack-sm survival-box${loaded ? ' loaded' : ''}`}>
       <div><strong>{step}. {title}</strong> <span className="muted small">{what}</span></div>
-      {loaded && !replacing && (
-        <div className="row wrap small"><span className="survival-ok">✓</span> <span>{loaded}</span>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace</button></div>
-      )}
-      {show && (
-        <>
-          <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={maxBytes} onText={(t, n) => { onText(t, n); setReplacing(false) }} />
-          <textarea className="input mono" rows={3} placeholder={placeholder} aria-label={`Paste the ${title.toLowerCase()}`}
-            onChange={(e) => { if (e.target.value.trim()) { onText(e.target.value, ''); setReplacing(false) } }} />
-          {replacing && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep the current table</button>}
-        </>
-      )}
+      {loaded && <div className="row wrap small"><span className="survival-ok">✓</span> <span>{loaded}</span></div>}
+      <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={maxBytes} onText={(t, n) => onText(t, n)} />
+      <textarea className="input mono" rows={3} placeholder={placeholder} aria-label={`Paste the ${title.toLowerCase()}`}
+        onChange={(e) => { if (e.target.value.trim()) onText(e.target.value, '') }} />
+      {loaded && <span className="muted small">Drop or paste another table to replace it.</span>}
     </div>
   )
 }
