@@ -17,7 +17,7 @@ export const METHODS: { kind: InputKind; title: string; text: string; needsLists
   { kind: 'tcga', title: 'From TCGA', text: 'Cancer genes from TCGA (32 cancer types): most mutated, amplified or deleted, co-expressed with a gene, or different between tumour groups; or import a MAF file.' },
   { kind: 'clinvar', title: 'From ClinVar', text: 'A gene, a condition, rsIDs or ClinVar accessions → variants, their clinical significance and genes.' },
   { kind: 'variants', title: 'From variants or GWAS', text: 'Annotate rsIDs, VCF variants or GWAS results (consequence, frequency, ClinVar, traits), then save the affected genes as a list.' },
-  { kind: 'bench', title: 'From bench data', text: 'Paste a small table (qPCR Ct, western bands, FACS or any values per group): automatic test, figure, and the genes as a list.' },
+  { kind: 'bench', title: 'Experimental analysis', text: 'Small lab experiments (qPCR, ELISA, western, viability, reporter, flow cytometry): group the samples, test, plot (bars, dots, box, violin), save the genes.' },
   { kind: 'textmining', title: 'From text', text: 'Find gene and protein names in an abstract or any free text, or annotate a whole PDF (genes, chemicals, diseases, tissues…).' },
   { kind: 'upset', title: 'Combine lists', text: 'Intersections, unique parts and unions of your lists (UpSet plot).', needsLists: 2 },
 ]

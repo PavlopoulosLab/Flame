@@ -392,7 +392,10 @@ export default function WorkspacePage() {
         <InputModal key={`${dialog.kind}-${dialog.fileName ?? ''}`} kind={dialog.kind} example={dialog.example} lists={lists} onClose={() => setDialog(null)}
           initialText={dialog.text} initialFileName={dialog.fileName} initialView={dialog.view} initialListIds={dialog.listIds}
           onOpenVolcano={(text, fileName) => setDialog({ type: 'input', kind: 'volcano', text, fileName })}
-          onCreated={(list) => { setDialog(null); setSection('input'); setSavedList(list) }} />
+          onCreated={(list, opts) => {
+            if (opts?.enrich) { setSection('enrich'); setDialog({ type: 'newRun', listId: list.id }); return }
+            setDialog(null); setSection('input'); setSavedList(list)
+          }} />
       )}
       {dialog?.type === 'quick' && (
         <QuickActionModal action={dialog.action} lists={lists} initialListId={dialog.listId} onClose={() => setDialog(null)} />
@@ -691,7 +694,7 @@ export const WORKSPACE_EXAMPLES: { kind: string; title: string; text: string }[]
   { kind: 'pubmed', title: 'PubMed genes', text: 'Genes of articles on glucocorticoids in airway muscle' },
   { kind: 'geo', title: 'GEO signature', text: 'GSE52778: dexamethasone vs untreated airway cells' },
   { kind: 'clinvar', title: 'ClinVar variants', text: 'Pathogenic cystic fibrosis variants and their genes' },
-  { kind: 'bench', title: 'Bench data (qPCR)', text: 'Ct values → ΔΔCt, test and figure' },
+  { kind: 'bench', title: 'Experimental analysis (qPCR)', text: 'Ct values → ΔΔCt, test and figure' },
   { kind: 'nutrition', title: 'Nutrient genes', text: 'Curcumin: CTD interactions, ChEMBL targets, UniProt' },
   { kind: 'tcga', title: 'TCGA tumour groups', text: 'Breast cancer: basal-like vs luminal A tumours' },
   { kind: 'survival', title: 'Survival genes', text: 'Liver cancer (TCGA): genes linked to overall survival' },
@@ -709,7 +712,10 @@ function ExamplesMenu({ onPick }: { onPick: (kind: string) => Promise<void> | vo
         <div className="example-list">
           {WORKSPACE_EXAMPLES.map((e) => (
             <button key={e.kind} type="button" role="menuitem" className="example-mini" disabled={!!busy}
-              onClick={async (ev) => { setBusy(e.kind); try { await onPick(e.kind) } finally { setBusy(null); (ev.currentTarget.closest('details') as HTMLDetailsElement | null)?.removeAttribute('open') } }}>
+              onClick={async (ev) => {
+                // React clears ev.currentTarget once the handler yields: keep the menu before awaiting.
+                const menu = ev.currentTarget.closest('details') as HTMLDetailsElement | null
+                setBusy(e.kind); try { await onPick(e.kind) } finally { setBusy(null); menu?.removeAttribute('open') } }}>
               <ConceptIcon name={e.kind} />
               <span><strong>{busy === e.kind ? 'Loading…' : e.title}</strong><span className="muted small">{e.text}</span></span>
             </button>

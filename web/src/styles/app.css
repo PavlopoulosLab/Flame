@@ -331,7 +331,7 @@ a:hover { color: var(--link-hover); }
 .brand-version { background: var(--brand-gradient); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .tabs-nav a.active { background: var(--select-bg); color: var(--link-color); box-shadow: inset 0 -2px 0 var(--brand-violet); }
 
-.step-num, .progress-steps li.current span { background: var(--brand-gradient); }
+.step-num, .progress-steps li.current span { background: var(--accent-color); background-image: var(--brand-gradient); }   /* classic theme: no gradient */
 .progress-steps li.current { background: var(--select-bg); color: var(--link-color); }
 .badge { background: var(--brand-crimson); }
 .example-card.featured { border-color: var(--brand-violet); background: var(--select-bg); }
@@ -762,6 +762,27 @@ html, body { overflow-x: clip; }
 .export-name { display: flex; align-items: center; gap: 6px; }
 .export-name .input { flex: 1; }
 .plot-tools { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.chart-text-button { position: relative; }
+.text-color-wrap { position: relative; display: inline-flex; }
+.text-color { width: 26px; height: 26px; padding: 0; border: 2px solid var(--surface-color); outline: 1px solid var(--border-color); border-radius: 50%; cursor: pointer; flex: none; }
+.text-color-pop { position: absolute; top: calc(100% + 4px); left: 0; z-index: 60; display: flex; flex-direction: column; gap: 8px; padding: 10px; width: 260px;
+  background: var(--surface-color); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); }
+.text-color-presets { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; justify-items: center; }
+.text-color-swatch { width: 26px; height: 26px; border-radius: 50%; border: 2px solid var(--surface-color); outline: 1px solid var(--border-color); cursor: pointer; padding: 0; }
+.text-color-swatch.on { outline: 2px solid var(--accent-color); }
+.text-color-multi { background: conic-gradient(red, yellow, lime, cyan, blue, magenta, red); }
+.spectrum { display: flex; flex-direction: column; gap: 8px; }
+.spectrum-area { position: relative; height: 130px; border-radius: 8px; cursor: crosshair; touch-action: none; outline-offset: 2px; }
+.spectrum-dot { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5); pointer-events: none; }
+.spectrum-hue { -webkit-appearance: none; appearance: none; width: 100%; height: 12px; border-radius: 6px; cursor: pointer;
+  background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00); }
+.spectrum-hue::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #fff; border: 2px solid #555; }
+.spectrum-hue::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 2px solid #555; }
+.text-color-ch { display: inline-flex; align-items: center; gap: 3px; }
+.text-color-ch input { width: 58px; }
+.chart-text-pop { position: absolute; right: 0; top: calc(100% + 4px); z-index: 50; width: min(720px, calc(100vw - 32px)); padding: 12px;
+  background: var(--surface-color, #fff); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15); text-align: left; }
+.figure-title { font-weight: 700; font-size: 15px; color: var(--heading-color); margin: 0 0 -24px; position: relative; z-index: 0; pointer-events: none; }
 @media (max-width: 560px) { .export-grid { grid-template-columns: 1fr; } }
 .figure { display: flex; flex-direction: column; gap: 6px; }
 .palette-select-wrap { display: inline-flex; align-items: center; gap: 4px; }
@@ -809,3 +830,9 @@ html, body { overflow-x: clip; }
 .bench-options { align-items: flex-end; gap: 10px 18px; }
 .bench-sentence { margin: 0; }
 .bench-genes > summary { cursor: pointer; padding: 4px 0; }
+
+/* Survival: the two input tables side by side, the Kaplan-Meier risk table */
+.survival-boxes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+.survival-box.loaded { border-color: var(--color-success, #16a34a); }
+.survival-ok { color: var(--color-success, #16a34a); font-weight: 700; }
+.km-swatch { display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 1px; }

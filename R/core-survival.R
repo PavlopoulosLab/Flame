@@ -55,7 +55,7 @@ parse_survival_table <- function(text, fileName = "", timeColumn = NULL, eventCo
     strata <- trimws(as.character(df[[strataColumn]]))
     strata[!nzchar(strata) | toupper(strata) %in% c("NA", "[NOT AVAILABLE]", "UNKNOWN")] <- NA
   }
-  list(samples = trimws(as.character(df[[1]])), time = time, event = event, strata = strata,
+  list(samples = trimws(as.character(df[[1]])), time = time, event = event, strata = strata, table = df,
        columns = as.list(cols), timeColumn = timeColumn, eventColumn = eventColumn,
        strataColumn = if (nzchar(strataColumn)) strataColumn else NULL)
 }
@@ -166,4 +166,135 @@ survival_table_columns <- function(text, fileName = "") {
   list(columns = as.list(cols), samples = nrow(df),
        timeColumn = .guess_column(cols, c("^OS[_ .]?(months|time|days)", "PFI?[_ .]?(months|time|days)", "(months|time|days|survival|follow)")),
        eventColumn = .guess_column(cols, c("^OS[_ .]?(status|event)", "PFI?[_ .]?(status|event)", "(status|event|dead|death|vital|censor)")))
+}
+
+# ---- Kaplan-Meier curves --------------------------------------------------------------------------
+# Survival curves of groups of samples: split by a gene's expression (high vs low at the median, the top vs
+# bottom third or quarter, a chosen percentile, or the cut-off with the largest log-rank statistic) or by a
+# clinical column (e.g. stage). Kaplan-Meier estimates with log-log 95% CIs (Greenwood), censoring marks,
+# numbers at risk, median survival, the log-rank test and, for two groups, the Cox hazard ratio (high vs low).
+# Base R only; the results equal survival::survfit / survdiff / coxph.
+
+#' Kaplan-Meier estimate of one group: a step at every distinct time.
+km_fit <- function(time, event) {
+  o <- order(time); time <- time[o]; event <- event[o]
+  ut <- unique(time)
+  d <- as.numeric(tapply(event, factor(time, levels = ut), sum))
+  cens <- as.numeric(tapply(1 - event, factor(time, levels = ut), sum))
+  nrisk <- length(time) - c(0, cumsum((d + cens)[-length(ut)]))
+  s <- cumprod(1 - d / nrisk)
+  gw <- cumsum(ifelse(nrisk > d, d / (nrisk * (nrisk - d)), Inf))  # Greenwood
+  se <- sqrt(gw) / abs(log(s))                                       # log-log scale
+  lo <- s^exp(1.959964 * se); hi <- s^exp(-1.959964 * se)
+  lo[!is.finite(lo) | s <= 0] <- NA; hi[!is.finite(hi) | s <= 0] <- NA
+  lo[s == 1] <- 1; hi[s == 1] <- 1
+  med <- if (any(s <= 0.5)) ut[which(s <= 0.5)[1]] else NA_real_
+  list(time = ut, surv = s, lower = lo, upper = hi, nrisk = nrisk, nevent = d, ncens = cens, median = med)
+}
+
+#' Log-rank test of k groups: chi-square with k - 1 degrees of freedom.
+logrank_test <- function(time, event, group) {
+  g <- factor(group); k <- nlevels(g)
+  if (k < 2) return(list(chisq = NA_real_, df = 0L, p = NA_real_, observed = NA, expected = NA))
+  et <- sort(unique(time[event == 1]))
+  O <- E <- numeric(k); V <- matrix(0, k, k)
+  for (t in et) {
+    atRisk <- time >= t
+    n_j <- tabulate(as.integer(g)[atRisk], k); d_j <- tabulate(as.integer(g)[time == t & event == 1], k)
+    n <- sum(n_j); d <- sum(d_j)
+    O <- O + d_j; E <- E + d * n_j / n
+    if (n > 1) V <- V + d * (n - d) / (n - 1) * (diag(n_j / n) - outer(n_j, n_j) / n^2)
+  }
+  u <- (O - E)[-k]; Vs <- V[-k, -k, drop = FALSE]
+  chisq <- tryCatch(as.numeric(t(u) %*% solve(Vs, u)), error = function(e) NA_real_)
+  list(chisq = chisq, df = k - 1L, p = stats::pchisq(chisq, k - 1L, lower.tail = FALSE),
+       observed = stats::setNames(as.list(O), levels(g)), expected = stats::setNames(as.list(E), levels(g)))
+}
+
+KM_SPLITS <- c(median = "median", tertile = "top vs bottom third", quartile = "top vs bottom quarter", percentile = "a percentile", optimal = "the best cut-off")
+
+#' Kaplan-Meier curves for a gene's expression groups or a clinical column.
+#' split: median | tertile | quartile | percentile (with `percent`, the share of samples called high) | optimal.
+survival_km <- function(x, clin, gene = NULL, by = c("gene", "column"), split = "median", percent = 50, column = NULL) {
+  by <- match.arg(by)
+  m <- x$matrix
+  i <- .match_samples(colnames(m), clin$samples)
+  keep <- !is.na(i)
+  if (!any(keep)) stop("No sample of the clinical table matches a column of the expression table. The first column of the clinical table must hold the sample names.")
+  samples <- colnames(m)[keep]
+  time <- clin$time[i[keep]]; event <- clin$event[i[keep]]
+  ok <- is.finite(time) & time >= 0 & !is.na(event)
+  note <- NULL; cut <- NULL; geneName <- NULL; levelsOrder <- NULL
+  if (by == "gene") {
+    gene <- trimws(as.character(gene %||% ""))[1]
+    if (!nzchar(gene)) stop("Type a gene to split the samples by its expression.")
+    r <- match(toupper(gene), toupper(rownames(m)))
+    if (is.na(r)) {
+      near <- head(rownames(m)[startsWith(toupper(rownames(m)), toupper(substr(gene, 1, 3)))], 5)
+      stop(sprintf("%s is not in the expression table.%s", gene, if (length(near)) paste0(" Similar: ", paste(near, collapse = ", "), ".") else ""))
+    }
+    geneName <- rownames(m)[r]
+    v <- as.numeric(m[r, samples])
+    ok <- ok & is.finite(v)
+    v <- v[ok]
+    split <- if (split %in% names(KM_SPLITS)) split else "median"
+    q <- function(p) stats::quantile(v, p, names = FALSE, type = 7)
+    grp <- switch(split,
+      median = ifelse(v > q(0.5), "High", "Low"),
+      tertile = ifelse(v >= q(2 / 3), "High", ifelse(v <= q(1 / 3), "Low", NA)),
+      quartile = ifelse(v >= q(0.75), "High", ifelse(v <= q(0.25), "Low", NA)),
+      percentile = { p <- min(max(as.numeric(percent %||% 50), 5), 95) / 100; ifelse(v > q(1 - p), "High", "Low") },
+      optimal = {
+        # Maximally selected log-rank statistic over cut-offs leaving at least 20% of the samples on each side.
+        cand <- unique(stats::quantile(v, seq(0.2, 0.8, by = 0.01), names = FALSE, type = 7))
+        stat <- vapply(cand, function(cv) { g <- ifelse(v > cv, "High", "Low"); if (length(unique(g)) < 2) NA_real_ else logrank_test(time[ok], event[ok], g)$chisq }, 0)
+        best <- cand[which.max(stat)]
+        note <- "The best cut-off was chosen to give the smallest p-value, so the p-value is optimistic (not corrected for trying many cut-offs)."
+        ifelse(v > best, "High", "Low")
+      })
+    cut <- switch(split, median = q(0.5), percentile = q(1 - min(max(as.numeric(percent %||% 50), 5), 95) / 100),
+                  optimal = best, NULL)
+    levelsOrder <- c("Low", "High")
+  } else {
+    column <- as.character(column %||% "")[1]
+    if (!nzchar(column)) stop("Choose the clinical column to group the samples by.")
+    df <- clin$table
+    if (!column %in% names(df)[-1]) stop("Unknown clinical column: ", column)
+    grp <- trimws(as.character(df[[column]]))[i[keep]]
+    grp[!nzchar(grp) | toupper(grp) %in% c("NA", "[NOT AVAILABLE]", "[UNKNOWN]", "UNKNOWN", "[DISCREPANCY]", "[NOT EVALUATED]")] <- NA
+    grp <- grp[ok]
+    if (length(unique(stats::na.omit(grp))) > 12) stop(sprintf("%s has %d different values; choose a column with at most 12 groups (e.g. stage or sex).", column, length(unique(stats::na.omit(grp)))))
+    levelsOrder <- sort(unique(stats::na.omit(grp)))
+  }
+  time <- time[ok]; event <- event[ok]; samples <- samples[ok]
+  use <- !is.na(grp)
+  time <- time[use]; event <- event[use]; grp <- grp[use]; samples <- samples[use]
+  levelsOrder <- levelsOrder[levelsOrder %in% grp]
+  if (length(levelsOrder) < 2) stop("The samples fall into fewer than two groups.")
+  if (length(time) < 6) stop(sprintf("Only %d samples have a usable time and event.", length(time)))
+  lr <- logrank_test(time, event, factor(grp, levels = levelsOrder))
+  hr <- NULL
+  if (length(levelsOrder) == 2) {
+    ind <- matrix(as.numeric(grp == levelsOrder[2]), 1)
+    f <- cox_by_gene(ind, time, event)
+    if (is.finite(f$beta)) hr <- list(hr = signif(exp(f$beta), 4), lo = signif(exp(f$beta - 1.959964 * f$se), 4), hi = signif(exp(f$beta + 1.959964 * f$se), 4),
+                                      p = signif(f$p, 4), of = levelsOrder[2], vs = levelsOrder[1])
+  }
+  ticks <- pretty(c(0, max(time)), n = 6); ticks <- ticks[ticks <= max(time)]
+  r <- function(v, d = 4) signif(v, d)
+  groups <- lapply(levelsOrder, function(g) {
+    s <- grp == g
+    k <- km_fit(time[s], event[s])
+    cens <- k$time[k$ncens > 0]
+    list(group = g, n = sum(s), events = sum(event[s]), median = r(k$median),
+         time = r(k$time), surv = r(k$surv), lower = r(k$lower), upper = r(k$upper),
+         nrisk = as.integer(k$nrisk), nevent = as.integer(k$nevent), ncens = as.integer(k$ncens),
+         censorTime = r(cens), censorSurv = r(k$surv[k$ncens > 0]),
+         atRisk = vapply(ticks, function(t) sum(time[s] >= t), 0L))
+  })
+  list(by = by, gene = geneName, column = if (by == "column") column else NULL, split = if (by == "gene") split else NULL,
+       splitLabel = if (by == "gene") KM_SPLITS[[split]] else NULL, cut = if (is.null(cut)) NULL else r(cut),
+       samples = length(time), events = sum(event), groups = groups, ticks = ticks,
+       logrank = list(chisq = r(lr$chisq), df = lr$df, p = r(lr$p)), hr = hr, note = note,
+       timeColumn = clin$timeColumn, eventColumn = clin$eventColumn)
 }

@@ -5,9 +5,9 @@ import { BusyBar, ErrorNote, Field, Modal, Note, Segmented } from '../../compone
 import { GenePicker, type GeneResult } from './FetchInput'
 import { parseMaf } from '../../lib/maf'
 
-interface Study { id: string; code: string; name: string; samples: number }
+interface Study { id: string; code: string; name: string; samples: number; /** Adjacent normal tissue samples in the tumour-vs-normal table (0: not available). */ normals?: number }
 interface Attribute { id: string; name: string; patient: boolean; values: { value: string; count: number }[] }
-type Query = 'mutated' | 'cna' | 'coexpression' | 'de' | 'maf'
+type Query = 'mutated' | 'cna' | 'coexpression' | 'de' | 'normal' | 'maf'
 interface Group { type: 'clinical' | 'mutation'; attribute: string; values: string[]; gene: string; status: 'mutant' | 'wildtype' }
 
 const QUERIES: { value: Query; label: string }[] = [
@@ -15,6 +15,7 @@ const QUERIES: { value: Query; label: string }[] = [
   { value: 'cna', label: 'Copy-number changes' },
   { value: 'coexpression', label: 'Co-expressed with a gene' },
   { value: 'de', label: 'Compare two groups' },
+  { value: 'normal', label: 'Tumour vs normal' },
   { value: 'maf', label: 'Import a MAF file' },
 ]
 
@@ -66,6 +67,11 @@ export function TcgaInput({ title, example, onClose, onCreated }: { title: strin
     }) // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [study, query])
   useEffect(() => { setResult(null) }, [study, query])
+  // Tumour vs normal exists only for the cancer types with enough normal tissue samples.
+  const normalStudies = studies?.filter((s) => (s.normals ?? 0) > 0) ?? []
+  useEffect(() => {
+    if (query === 'normal' && normalStudies.length && !normalStudies.some((s) => s.id === study)) setStudy(normalStudies[0].id) // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, studies])
 
   const st = studies?.find((s) => s.id === study)
   const run = async () => {
@@ -80,7 +86,9 @@ export function TcgaInput({ title, example, onClose, onCreated }: { title: strin
       r = await call<GeneResult>('Comparing the expression of every gene between the two groups', '/inputs/tcga/genes',
         { ...base, query, groupA: g(groupA), groupB: g(groupB), direction: deDir, minLog2FC: minFC, maxQ, all: deAll })
     }
-    if (r) setResult({ ...r, defaultTop: query === 'coexpression' || query === 'de' ? 500 : 200 })
+    if (query === 'normal') r = await call<GeneResult>(`Loading tumour vs normal genes for TCGA ${st?.code ?? ''}`, '/inputs/tcga/genes',
+      { ...base, query, direction: deDir, minLog2FC: minFC, maxQ, all: deAll })
+    if (r) setResult({ ...r, defaultTop: query === 'coexpression' || query === 'de' || query === 'normal' ? 500 : 200 })
   }
   useEffect(() => { if (example && query === 'de' && attrs && !result && !busy) run() // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attrs])
@@ -95,8 +103,8 @@ export function TcgaInput({ title, example, onClose, onCreated }: { title: strin
         {query !== 'maf' && (
           <Field label="Cancer type">
             <select className="input" value={study} onChange={(e) => setStudy(e.target.value)} disabled={!studies}>
-              {(studies ?? [{ id: study, code: 'BRCA', name: 'Breast Invasive Carcinoma', samples: 0 }]).map((s) => (
-                <option key={s.id} value={s.id}>{s.name} ({s.code}){s.samples ? ` · ${s.samples.toLocaleString()} samples` : ''}</option>
+              {(query === 'normal' && normalStudies.length ? normalStudies : studies ?? [{ id: study, code: 'BRCA', name: 'Breast Invasive Carcinoma', samples: 0 }]).map((s) => (
+                <option key={s.id} value={s.id}>{s.name} ({s.code}){query === 'normal' && s.normals ? ` · ${s.normals} normal samples` : s.samples ? ` · ${s.samples.toLocaleString()} samples` : ''}</option>
               ))}
             </select>
           </Field>
@@ -145,6 +153,26 @@ export function TcgaInput({ title, example, onClose, onCreated }: { title: strin
               </div>
             )}
             <p className="muted small">Mean log2 RNA-seq expression of group A minus group B; p-values from cBioPortal (t-test), q-values by Benjamini–Hochberg. Tumours in both groups are left out.</p>
+          </>
+        )}
+        {query === 'normal' && (
+          <>
+            <div className="row wrap">
+              <label className="check small"><input type="checkbox" checked={deAll} onChange={(e) => setDeAll(e.target.checked)} /> Every gene, ranked by fold change (a ranked list for GSEA)</label>
+            </div>
+            {!deAll && (
+              <div className="row wrap">
+                <Field label="Direction">
+                  <select className="input" value={deDir} onChange={(e) => setDeDir(e.target.value as typeof deDir)}>
+                    <option value="both">Up and down</option><option value="up">Higher in tumours</option><option value="down">Lower in tumours</option>
+                  </select>
+                </Field>
+                <Field label="|log2 fold change| at least"><input className="input input-narrow" type="number" min={0} step={0.25} value={minFC} onChange={(e) => setMinFC(Number(e.target.value))} /></Field>
+                <Field label="q-value at most"><input className="input input-narrow" type="number" min={0} max={1} step={0.01} value={maxQ} onChange={(e) => setMaxQ(Number(e.target.value))} /></Field>
+              </div>
+            )}
+            <p className="muted small">Primary tumours vs adjacent normal tissue from the same TCGA project (GDC STAR counts, limma-voom, Benjamini–Hochberg q-values), precomputed.
+              Only the {normalStudies.length || 16} cancer types with at least 9 normal samples are listed; the others have (almost) none in TCGA.</p>
           </>
         )}
         {query === 'maf' ? <MafImport onResult={setResult} setErr={setErr} /> : (
