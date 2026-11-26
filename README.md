@@ -28,8 +28,8 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
   targets; **TCGA** tumours through cBioPortal (most mutated, amplified or deleted genes, genes co-expressed with a
   gene, genes that differ between two groups of tumours, or your own MAF file); **nutrients and foods** (ChEMBL
   targets, UniProt proteins through ChEBI, GWAS Catalog diet and nutrient traits; CTD when it accepts automated
-  queries); **bench data** (qPCR Ct, western blot band intensities, flow cytometry percentages or any values per
-  group, with an automatic test, Dunnett or Tukey post hoc tests, fold changes with confidence intervals and
+  queries); **experimental analysis** of small lab experiments (qPCR Ct, ELISA, western blot band intensities, viability,
+  reporter assays, flow cytometry percentages or any values per group, with an automatic test, Dunnett or Tukey post hoc tests, fold changes with confidence intervals and
   publication-style figures in colour or black and white, with axis breaks); UpSet set
   operations (intersection, union, XOR and more, with selectable bars); and **fetch gene lists** from a disease
   (choose among Open Targets, DisGeNET, OMIM, Orphanet, ClinVar, Jensen DISEASES and GWAS Catalog; merge several

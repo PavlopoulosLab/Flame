@@ -30,7 +30,8 @@ function(res, kind) {
              textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
              reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt", metabolites = "flame_example_metabolites.txt",
              survival = "flame_example_survival_expression.tsv", survival_clinical = "flame_example_survival_clinical.tsv",
-             bench_qpcr = "flame_example_bench_qpcr.tsv", bench_western = "flame_example_bench_western.tsv", bench_facs = "flame_example_bench_facs.tsv", bench_column = "flame_example_bench_column.tsv")
+             bench_qpcr = "flame_example_bench_qpcr.tsv", bench_western = "flame_example_bench_western.tsv", bench_facs = "flame_example_bench_facs.tsv", bench_column = "flame_example_bench_column.tsv",
+             bench_viability = "flame_example_bench_viability.tsv", bench_elisa = "flame_example_bench_elisa.tsv", bench_luciferase = "flame_example_bench_luciferase.tsv", bench_qpcr_fold = "flame_example_bench_qpcr_fold.tsv")
   if (!kind %in% names(files)) { res$status <- 404; return("Unknown example") }
   res$setHeader("Content-Disposition", sprintf("attachment; filename=\"%s\"", files[[kind]]))
   if (kind == "survival_clinical") return(example_input("survival")$clinical)
@@ -476,15 +477,41 @@ function(req, res) {
   .fetch(res, list(traits = nutrition_traits(as.character(b$term %||% ""))))
 }
 
+#* Bench data, step 1: the sample columns of a pasted table and a guess of their groups from the
+#* column names, so the user can group them before any test. Body: { text, fileName?, layout? }
+#* @post /bench/samples
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch_here(res, bench_samples(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto")))
+}
+
+#* Experimental analysis, "which test?": GraphPad Prism's normality tests per group (and row), equal-SD
+#* checks, QQ-plot points and a recommended test. Body: { text, fileName?, layout?, groups?, log?, matched? }
+#* @post /bench/normality
+#* @serializer flamejson
+function(req, res) {
+  b <- body_of(req)
+  .fetch_here(res, bench_normality(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
+                                   sampleGroups = b$groups, log = isTRUE(b$log), matched = isTRUE(b$matched)))
+}
+
 #* Bench data: a small pasted table (column or grouped layout) analysed with a sensible default test,
 #* optional helpers for qPCR (delta-delta Ct), westerns (band / loading control) and FACS phases.
 #* Body: { text, fileName?, layout?: auto|column|grouped, helper?: none|qpcr|western|facs, refs?: [genes] (qPCR),
-#*        loading? (western), control?, paired?, nonparametric?, allPairs?, log? }
+#*        loading? (western), control?, paired?, nonparametric?, allPairs?, log?,
+#*        groups?: { <group name>: [sample columns] } (grouped tables: replaces the groups guessed from column names),
+#*        test?: auto | t_unpaired | t_welch | t_paired | t_ratio | mann_whitney | ks | wilcoxon | anova | welch_anova | bf_anova |
+#*               rm_anova | kruskal | friedman | twoway | one_sample_t | one_sample_wilcoxon,
+#*        posthoc?: auto | dunnett | tukey | sidak | bonferroni | holm_sidak | fisher | games_howell | dunnett_t3 | dunn,
+#*        across?: holm | bh | none (several rows), hypothetical? (one-sample tests; default 1 on a log scale, else 0) }
 #* @post /bench/analyse
 #* @serializer flamejson
 function(req, res) {
   b <- body_of(req)
   .fetch_here(res, bench_analyse(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto"),
                             as.character(b$helper %||% "none"), b$refs, b$loading, b$control,
-                            isTRUE(b$paired), isTRUE(b$nonparametric), isTRUE(b$allPairs), isTRUE(b$log)))
+                            isTRUE(b$paired), isTRUE(b$nonparametric), isTRUE(b$allPairs), isTRUE(b$log),
+                            sampleGroups = b$groups, test = as.character(b$test %||% "auto"), posthoc = as.character(b$posthoc %||% "auto"),
+                            across = as.character(b$across %||% "holm"), hypothetical = b$hypothetical))
 }

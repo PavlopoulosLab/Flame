@@ -22,6 +22,9 @@ export interface ViewSettings {
   palette?: 'OrRd' | 'Viridis' | 'Cividis' | 'Magma'
   heatScale?: string
   barMetric?: 'log10p' | 'coverage' | 'nes'
+  /** Bar colours: by source (default), by significance with a colour scale, or one colour (barColor). */
+  barColors?: 'source' | 'OrRd' | 'Viridis' | 'Cividis' | 'Magma' | 'single'
+  barColor?: string
   orientation?: 'terms-rows' | 'genes-rows'
   layout?: string
   similarityCutoff?: number
@@ -92,12 +95,17 @@ const ORRD: [number, string][] = [[0, '#fee8c8'], [0.5, '#fc8d59'], [1, '#b30000
 // Dotplot row spacing and dot diameters (px).
 const ROW = 28, DOT_MIN = 7, DOT_MAX = 22
 
+/** The significance colour scale of the dot plot and the bar chart. */
+function significanceScale(choice: 'OrRd' | 'Viridis' | 'Cividis' | 'Magma', cb: ReturnType<typeof usePaletteMode>): string | [number, string][] {
+  return choice === 'OrRd' ? (cb === 'flame' ? ORRD : sequentialScale(cb, 'OrRd')) : choice === 'Magma' ? 'Hot' : choice
+}
+/** The default single bar colour: the palette's first colour. */
+export const defaultBarColor = (cb: ReturnType<typeof usePaletteMode>) => categoricalColor(cb, 'x', ['x'], '#f97316')
+
 export function DotplotView({ data, settings, selected, onSelect, plotRef, exportName }: ViewProps) {
   const cb = usePaletteMode()
   const choice = settings.palette ?? 'OrRd'
-  const dotScale: string | [number, string][] = choice === 'OrRd'
-    ? (cb === 'flame' ? ORRD : sequentialScale(cb, 'OrRd'))
-    : choice === 'Magma' ? 'Hot' : choice
+  const dotScale = significanceScale(choice, cb)
   const xKey = settings.xAxis ?? 'geneRatio'
   // Rows follow the x axis (largest at the top); Plotly draws the first category at the bottom.
   const terms = [...data.terms].sort((a, b) => (a[xKey] ?? 0) - (b[xKey] ?? 0))
@@ -152,19 +160,30 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef, expor
 }
 
 export function BarchartView({ data, config, settings, selected, onSelect, plotRef, exportName }: ViewProps) {
+  const cb = usePaletteMode()
   const colorOf = useSourceColor(config, data.availableSources)
   const metric = settings.barMetric ?? 'log10p'
+  const colors = settings.barColors ?? 'source'
   const value = (t: Term) => (metric === 'log10p' ? t.log10p : metric === 'nes' ? t.nes ?? 0 : t.coverage)
   // Bars follow their length (longest at the top); Plotly draws the first category at the bottom.
   const terms = [...data.terms].sort((a, b) => value(a) - value(b))
   const yLabel = axisLabels(terms, settings)
-  const plot = useMemo(() => [...bySource(terms)].map(([src, ts]) => ({
-    type: 'bar' as const, orientation: 'h' as const, name: src,
-    x: ts.map(value), y: ts.map((t) => yLabel.get(t.id)!),
-    customdata: ts.map((t) => t.id), text: ts.map(hover), hoverinfo: 'text' as const, textposition: 'none' as const,
-    marker: { color: colorOf(src), line: selLine(ts.map((t) => t.id), selected), opacity: selOpacity(ts.map((t) => t.id), selected, 1, terms.some((t) => selected.has(t.id))) },
-  })), [terms, yLabel, metric, config, selected])
-  return <Plot exportName={exportName} data={plot} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
+  const anySel = terms.some((t) => selected.has(t.id))
+  const plot = useMemo(() => {
+    const bar = (ts: Term[], name: string, marker: Record<string, unknown>) => ({
+      type: 'bar' as const, orientation: 'h' as const, name, showlegend: colors === 'source',
+      x: ts.map(value), y: ts.map((t) => yLabel.get(t.id)!),
+      customdata: ts.map((t) => t.id), text: ts.map(hover), hoverinfo: 'text' as const, textposition: 'none' as const,
+      marker: { ...marker, line: selLine(ts.map((t) => t.id), selected), opacity: selOpacity(ts.map((t) => t.id), selected, 1, anySel) },
+    })
+    if (colors === 'source') return [...bySource(terms)].map(([src, ts]) => bar(ts, src, { color: colorOf(src) }))
+    if (colors === 'single') return [bar(terms, 'Terms', { color: settings.barColor || defaultBarColor(cb) })]
+    // Shaded by significance (−log10 p), whatever the bar length shows, with a colour bar as in the dot plot.
+    const scale = significanceScale(colors, cb)
+    return [bar(terms, 'Terms', { color: terms.map((t) => t.log10p), colorscale: scale, reversescale: typeof scale === 'string' && reverseScale(scale),
+      showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12, len: Math.min(1, 260 / Math.max(360, 24 * terms.length + 80)), y: 1, yanchor: 'top' } })]
+  }, [terms, yLabel, metric, config, selected, colors, settings.barColor, cb]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <Plot exportName={exportName} data={plot as never} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
     layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: metric === 'log10p' ? '−log10 p-value' : metric === 'nes' ? 'NES (positive = top of ranking)' : 'Term coverage (%)' } },
       yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) }, legend: { orientation: 'h', y: -0.15 } }} />
 }

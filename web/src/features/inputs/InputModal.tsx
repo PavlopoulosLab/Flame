@@ -1482,7 +1482,7 @@ function CorrelationView({ text, fileName, log, groups, organism, setOrganism, i
  * Assign samples to groups: tick rows (Shift-click for a range) or select by name, then send the
  * ticked samples to a group in one go; each row also has its own group menu.
  */
-function SampleGroupPicker({ samples, names, colors, groupOf, onAssign, children }: {
+export function SampleGroupPicker({ samples, names, colors, groupOf, onAssign, children }: {
   samples: string[]; names: string[]; colors: string[]
   /** Group index of a sample (-1 = not used). */
   groupOf: (s: string) => number

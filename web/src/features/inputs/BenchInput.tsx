@@ -1,42 +1,80 @@
 import { useEffect, useMemo, useState } from 'react'
-import { api } from '../../api/client'
+import { api, API_BASE } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
-import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note } from '../../components/ui'
-import { categorical } from '../../lib/palette'
-import { saveXlsx } from '../../lib/xlsx'
-import { SaveList } from './InputModal'
-import { autoBreak, nice } from '../../lib/axisBreak'
+import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, Modal, Note, Segmented } from '../../components/ui'
+import { roleColors, usePaletteMode } from '../../lib/palette'
+import { PaletteSelect } from '../../components/PaletteSelect'
+import { autoFigWidth, benchFigure, DEFAULT_PLOT, withChartText, type PlotOpts } from './benchPlot'
+import { useChartText } from '../../lib/chartText'
+import { PlotControls } from './BenchPlotControls'
+import { BenchTestControls } from './BenchTestControls'
+import { BenchNormality, type Recommendation } from './BenchNormality'
+import { BenchExport, TableView } from './BenchExport'
+import { DEFAULT_STAT, resolvePosthoc, resolveTest, type StatOpts } from './benchTests'
+import { SampleGroupPicker, SaveList } from './InputModal'
+import { plural } from '../../lib/format'
 
 type Helper = 'none' | 'qpcr' | 'western' | 'facs'
 interface Comparison { a: string; b: string; diff: number; lo: number | null; hi: number | null; p: number; stars: string; fold?: number }
 interface Target {
-  target: string; error?: string
+  target: string; error?: string; notes?: string[]
   values: { group: string; sample: string; pair: number; value: number }[]
   summary: { group: string; n: number; mean: number; sd: number | null; sem: number | null }[]
-  omnibus?: { name: string; p: number; pAcross?: number }
+  omnibus?: { name: string; p: number; pAcross?: number; detail?: string }
+  assumptions?: { normality: { group: string; n: number; p: number | null }[]; equalSD?: { name: string; p: number } | null }
   posthoc?: string | null
   comparisons?: Comparison[]
 }
 interface Result {
-  layout: 'column' | 'grouped'; helper: Helper; groups: string[]; control: string; paired: boolean; logScale: boolean; shownAs: string
+  layout: 'column' | 'grouped'; helper: Helper; groups: string[]; control: string; paired: boolean; allPairs?: boolean; logScale: boolean; shownAs: string
+  test?: string; posthoc?: string | null; across?: 'holm' | 'bh' | 'none'; hypothetical?: number; anova2?: { effect: string; F: number; df1: number; df2: number; p: number }[] | null
   targets: Target[]; sentence: string; methods: string; warnings: string[]; rowNames: string[]
+  /** Grouped tables: the sample columns and the group of each ('' = not used). */
+  samples?: string[]; sampleGroups?: string[]; customGroups?: boolean
+  /** The column names give no usable groups: the user has to group the samples first. */
+  needsGroups?: boolean
+}
+/** Sample groups set by the user: group names, and each sample column's group index (-1 = not used). */
+interface GroupSetup { names: string[]; assign: Record<string, number>; /** Colour picked per group; empty = from the palette. */ colors?: string[] }
+/** Step 1 (/inputs/bench/samples): the table's sample columns and the groups guessed from their names. */
+interface Parsed { layout: 'column' | 'grouped'; samples: string[]; guess: string[]; rowNames: string[]; maxGroups: number }
+/** Groups guessed from the column names; two empty groups when the names give none. */
+const setupFrom = (p: Parsed): GroupSetup => {
+  const found = [...new Set(p.guess.filter(Boolean))]
+  const names = found.length ? found : ['Group A', 'Group B']
+  return { names, assign: Object.fromEntries(p.samples.map((smp, i) => [smp, names.indexOf(p.guess[i] ?? '')])) }
 }
 
-const EXAMPLES: { kind: string; label: string; helper: Helper; refs?: string[]; loading?: string; paired?: boolean }[] = [
-  { kind: 'bench_qpcr', label: 'qPCR (Ct)', helper: 'qpcr', refs: ['GAPDH', 'ACTB'], paired: true },
-  { kind: 'bench_western', label: 'Western bands', helper: 'western', loading: 'ACTB' },
-  { kind: 'bench_facs', label: 'FACS cell cycle', helper: 'facs' },
-  { kind: 'bench_column', label: 'Simple table', helper: 'none' },
+type Analysis = 'generic' | 'ddct'
+/** Example experiments: each loads its table and the settings that suit it. */
+// The control when none is chosen: a group named like one (control, vehicle, untreated, WT, DMSO...), else the first (as in R).
+const CONTROL_RE = /^(control|ctrl|ctl|con|vehicle|veh|untreated|untr|unstim|mock|wt|wild[ _-]?type|dmso|pbs|saline|naive|baseline|nt|non[ _-]?target|scr|scramble|sh[ _-]?(ctrl|scr|nt)|si[ _-]?(ctrl|scr|nt)|neg|negative)\b/i
+const defaultControl = (groups: string[]) => groups.find((g) => CONTROL_RE.test(g)) ?? groups[0] ?? ''
+
+const EXAMPLES: { kind: string; analysis: Analysis; label: string; what: string; refs?: string[]; loading?: string; log?: boolean; stat?: Partial<StatOpts>; plot?: Partial<PlotOpts> }[] = [
+  { kind: 'bench_qpcr_fold', analysis: 'generic', label: 'qPCR: glucocorticoid target genes in airway cells, fold changes from Excel (dexamethasone ± RU486)', log: true, stat: { test: 'rm_anova' },
+    what: '2^−ΔΔCt fold changes already calculated per sample; tested on a log2 scale, paired by experiment.', plot: { kind: 'bar' } },
+  { kind: 'bench_western', analysis: 'generic', label: 'Western blot: AKT phosphorylation and apoptosis after a drug ± PI3K inhibitor', loading: 'ACTB',
+    what: 'Raw band intensities (e.g. from ImageJ), normalised here to the β-actin row (optional step).', plot: { kind: 'bar' } },
+  { kind: 'bench_facs', analysis: 'generic', label: 'Flow cytometry: cell-cycle arrest in G2/M after nocodazole',
+    what: '% of cells in G0/G1, S and G2/M, shown as stacked bars.', plot: { kind: 'stacked' } },
+  { kind: 'bench_viability', analysis: 'generic', label: 'MTT assay: cancer cell viability across cisplatin doses',
+    what: 'Viability (% of vehicle) at 4 doses, each dose against the vehicle (Dunnett).', plot: { kind: 'bar' } },
+  { kind: 'bench_elisa', analysis: 'generic', label: 'ELISA: cytokines secreted by macrophages after LPS ± dexamethasone', log: true,
+    what: 'IL-6, TNF and IL-1β in pg/mL, tested as log2 ratios, on a log axis.', plot: { kind: 'dots', logY: true } },
+  { kind: 'bench_luciferase', analysis: 'generic', label: 'Luciferase reporter: NF-κB activity after TNF ± IKK inhibitor', loading: 'Renilla luciferase (control)',
+    what: 'Firefly reporter, normalised here to the Renilla row (dual-luciferase).', plot: { kind: 'bar' } },
+  { kind: 'bench_qpcr', analysis: 'ddct', label: 'qPCR: glucocorticoid target genes in airway cells, raw Ct values (dexamethasone ± RU486)', refs: ['GAPDH', 'ACTB'], stat: { test: 'rm_anova' },
+    what: 'Ct values of 6 genes and 2 reference genes → ΔCt → ΔΔCt → fold change, paired by experiment (repeated-measures ANOVA).', plot: { kind: 'bar' } },
 ]
 const REF_GENES = ['GAPDH', 'ACTB', 'B2M', 'HPRT1', 'RPLP0', 'TBP', '18S', 'RN18S1', 'PPIA', 'YWHAZ', 'UBC', 'GUSB', 'TUBB', 'Gapdh', 'Actb']
-const LOADING = /^(ACTB|GAPDH|TUBB|TUBA1A|VCL|vinculin|tubulin|actin|β-actin|beta-actin|total protein|HSP90|LMNB1|lamin)/i
 const PHASES = /^(G0\/G1|G1|S|G2\/M|G2|M|sub-?G1)$/i
 const fmtP = (p: number | null | undefined) => (p == null || !Number.isFinite(p) ? '' : p < 0.0001 ? p.toExponential(1) : p < 0.01 ? p.toPrecision(2) : p.toFixed(3))
 const num = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '' : x.toFixed(d))
 
 /**
- * Bench data: paste a small table (qPCR Ct, band intensities, FACS percentages or any measurements
+ * Experimental analysis (bench data): paste a small table (qPCR Ct, band intensities, FACS percentages or any measurements
  * per group), get a sensible test and a clean figure, and send the genes to Flame. A quick, generic
  * tool, not a replacement for Prism, qbase+ or FlowJo.
  */
@@ -49,170 +87,324 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [loading, setLoading] = useState('')
   const [log, setLog] = useState(false)
   const [control, setControl] = useState('')
-  const [paired, setPaired] = useState(false)
-  const [nonpar, setNonpar] = useState(false)
-  const [allPairs, setAllPairs] = useState(false)
+  const [stat, setStat] = useState<StatOpts>(DEFAULT_STAT)
+  // Which tool: "which test?" (normality), the experimental analysis, or qPCR ΔΔCt (helper 'qpcr').
+  const [mode, setMode] = useState<'normality' | 'generic' | 'ddct'>(example ? 'generic' : 'normality')
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
   const [res, setRes] = useState<Result | null>(null)
-  const [errBar, setErrBar] = useState<'sd' | 'sem'>('sd')
-  const [figStyle, setFigStyle] = useState<FigStyle>('color')
-  const [brk, setBrk] = useState<BreakMode>('off')
-  const [brkFrom, setBrkFrom] = useState('')
-  const [brkTo, setBrkTo] = useState('')
+  const [plot, setPlot] = useState<PlotOpts>(DEFAULT_PLOT)
+  const [exampleKind, setExampleKind] = useState('')
   const [organism, setOrganism] = useState(9606)
+  // Step 1 -> 2: the sample columns, read as soon as a table is pasted or uploaded.
+  const [parsed, setParsed] = useState<Parsed | null>(null)
+  // Step 2: which samples form each group (grouped tables). Step 3 starts once the user confirms.
+  const [groupSetup, setGroupSetup] = useState<GroupSetup | null>(null)
+  const [confirmed, setConfirmed] = useState(false)
+  const grouped = parsed?.layout === 'grouped'
+  const groupNamesOk = !groupSetup || (groupSetup.names.every((n) => n.trim()) && new Set(groupSetup.names.map((n) => n.trim())).size === groupSetup.names.length)
+  const groupSizes = groupSetup ? groupSetup.names.map((_, i) => Object.values(groupSetup.assign).filter((g) => g === i).length) : []
+  const groupsReady = !grouped || (!!groupSetup && groupNamesOk && groupSizes.filter((n) => n > 0).length >= 2)
+  const groupsBody = useMemo(() => (!grouped || !groupSetup || !groupNamesOk ? null : JSON.stringify(Object.fromEntries(groupSetup.names.map((n, i) => [n.trim(),
+    Object.keys(groupSetup.assign).filter((smp) => groupSetup.assign[smp] === i)]).filter(([, m]) => (m as string[]).length)))), [grouped, groupSetup, groupNamesOk])
+  // Groups as they will be tested (grouped tables: the editor's groups with samples; column tables: the columns).
+  const groupNames = useMemo(() => (grouped && groupSetup ? groupSetup.names.map((n) => n.trim()).filter((_, i) => groupSizes[i] > 0)
+    : [...new Set(parsed?.guess ?? [])]), [grouped, groupSetup, parsed, groupSizes.join(',')]) // eslint-disable-line react-hooks/exhaustive-deps
+  const effControl = groupNames.includes(control) ? control : defaultControl(groupNames)
+  // Rows that are tested: all but the reference genes (ΔΔCt) or the row everything is normalised to.
+  const testRows = (parsed?.rowNames ?? []).filter((r) => !(helper === 'qpcr' && refs.includes(r)) && !(helper === 'western' && r === loading)).length || (parsed?.layout === 'column' ? 1 : 0)
 
+  // The options as set; the tests and the figure follow them automatically (see "applied" below).
+  const pmode = usePaletteMode()
+  const palette = useMemo(() => roleColors(pmode).series, [pmode])
+  const groupColors = useMemo(() => (groupSetup ? groupSetup.names.map((_, i) => groupSetup.colors?.[i] || palette[i % palette.length]) : palette), [groupSetup, palette])
+  const draft = useMemo(() => ({
+    helper, refs, loading, log, control: effControl, stat, groupsBody, plot,
+    order: grouped && groupSetup ? groupSetup.names.map((n) => n.trim()) : groupNames,
+    k: groupNames.length,
+    colors: groupColors,
+  }), [helper, refs, loading, log, effControl, stat, groupsBody, plot, grouped, groupSetup, groupNames, groupColors])
+  type Applied = typeof draft
+  const [applied, setApplied] = useState<Applied | null>(null)
+  const optionsReady = mode !== 'normality' && !!parsed && confirmed && groupsReady && groupNames.length >= 2
+    && !(helper === 'qpcr' && !refs.length) && !(helper === 'western' && !loading)
+  // Every change applies itself shortly after (typing in a box does not test at each key). While an option is
+  // missing there is no figure at all, rather than an old one that no longer matches the options.
+  useEffect(() => {
+    const t = setTimeout(() => setApplied(optionsReady ? draft : null), optionsReady ? 350 : 0)
+    return () => clearTimeout(t)
+  }, [optionsReady, draft])
+
+  // Your own table after an example: drop the settings that came with the example (log scale, normalising
+  // row, test, chart), keeping the analysis (generic / ΔΔCt) and the plot style.
+  const ownTable = () => {
+    if (source) { setLog(false); setLoading(''); if (helper === 'western') setHelper('none'); setStat(DEFAULT_STAT); setRefs([]); setPlot((p) => ({ ...p, kind: 'bar', logY: false })) }
+    setSource(null); setExampleKind('')
+  }
+  // "Analyse with this test" from the normality step: the experimental analysis, with that test, drawn at once.
+  const useRecommendation = (r: Recommendation) => {
+    setMode('generic'); setHelper('none'); setLoading(''); setLog(r.log); setStat({ ...DEFAULT_STAT, test: r.test }); setApplied(null)
+  }
   const loadExample = async (ex: (typeof EXAMPLES)[number]) => {
     try {
       const r = await api<{ text: string; fileName: string; source: string }>(`/inputs/examples/${ex.kind}`)
-      setRes(null); setControl(''); setHelper(ex.helper); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setPaired(!!ex.paired)
-      setNonpar(false); setAllPairs(false); setLog(false); setFileName(r.fileName); setSource(r.source); setText(r.text)
+      setRes(null); setApplied(null); setControl(''); setHelper(ex.analysis === 'ddct' ? 'qpcr' : ex.loading ? 'western' : 'none'); setRefs(ex.refs ?? []); setLoading(ex.loading ?? ''); setStat({ ...DEFAULT_STAT, ...ex.stat })
+      setLog(!!ex.log); setFileName(r.fileName); setSource(r.source); setText(r.text); setExampleKind(ex.kind)
+      setMode((m) => (m === 'normality' ? m : ex.analysis))
+      setPlot((p) => ({ ...p, kind: 'bar', logY: false, ...ex.plot }))
     } catch (e) { setErr(e) }
   }
   useEffect(() => { if (example) loadExample(EXAMPLES[0]) // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Guess the helper from the row names the first time a table is analysed.
-  const guess = (rows: string[]) => {
-    if (rows.some((r) => PHASES.test(r)) && rows.length <= 5) return { helper: 'facs' as Helper }
-    const refRows = rows.filter((r) => REF_GENES.includes(r))
-    const lc = rows.find((r) => LOADING.test(r))
-    return refRows.length ? { helper: 'qpcr' as Helper, refs: refRows } : lc ? { helper: 'western' as Helper, loading: lc } : null
-  }
-
+  // Step 1: read the sample columns of a new table (no statistics yet).
   useEffect(() => {
-    if (!text.trim()) { setRes(null); return }
-    if (helper === 'qpcr' && !refs.length) return
-    if (helper === 'western' && !loading) return
+    setParsed(null); setGroupSetup(null); setConfirmed(false); setRes(null); setApplied(null)
+    if (!text.trim()) return
     const t = setTimeout(() => {
       setBusy(true); setErr(null)
-      api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper, refs, loading, control: control || null, paired, nonparametric: nonpar, allPairs, log } })
-        .then((r) => {
-          setRes(r)
-          if (!control) setControl(r.control)
-          if (helper === 'none' && !source && r.layout === 'grouped') {
-            const g = guess(r.rowNames)
-            if (g) { setHelper(g.helper); if (g.refs) setRefs(g.refs); if (g.loading) setLoading(g.loading) }
+      api<Parsed>('/inputs/bench/samples', { body: { text, fileName } })
+        .then((p) => {
+          setParsed(p)
+          setGroupSetup(p.layout === 'grouped' ? setupFrom(p) : null)
+          setConfirmed(p.layout === 'column' || !!source)            // column tables: each column is a group; examples are ready
+          // Own tables: never switch the analysis; only pre-tick reference genes (ΔΔCt) or suggest stacked bars (cell-cycle phases).
+          if (!source && p.layout === 'grouped') {
+            if (helper === 'qpcr' && !refs.length) setRefs(p.rowNames.filter((r) => REF_GENES.includes(r)))
+            if (helper !== 'qpcr' && p.rowNames.some((r) => PHASES.test(r)) && p.rowNames.length <= 5) setPlot((x) => ({ ...x, kind: 'stacked' }))
           }
         })
-        .catch((e) => { setErr(e); setRes(null) })
+        .catch((e) => setErr(e))
         .finally(() => setBusy(false))
     }, 250)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, fileName, helper, refs, loading, control, paired, nonpar, allPairs, log])
+  }, [text, fileName])
 
-  const colors = categorical('flame')
-  const figure = useMemo(() => (res ? benchFigure(res, { errBar, style: figStyle, brk, from: brkFrom ? Number(brkFrom) : undefined, to: brkTo ? Number(brkTo) : undefined }, colors) : null),
-    [res, errBar, figStyle, brk, brkFrom, brkTo, colors])
-  const tested = res?.targets.filter((t) => t.comparisons?.length) ?? []
+  // Step 3: the tests, run with the applied options (plot-only changes redraw without testing again).
+  const testKey = applied ? JSON.stringify({ ...applied, plot: undefined, colors: undefined, order: undefined }) : ''
+  useEffect(() => {
+    if (!applied || !parsed) { setRes(null); return }
+    const a = applied
+    setBusy(true); setErr(null)
+    const k = a.k
+    api<Result>('/inputs/bench/analyse', { body: { text, fileName, helper: a.helper, refs: a.refs, loading: a.loading, control: a.control || null, log: a.log,
+      test: resolveTest(a.stat.test, k), posthoc: resolvePosthoc(a.stat, k) ?? 'auto', allPairs: a.stat.compare === 'all', across: a.stat.across,
+      ...(a.stat.hypo.trim() !== '' ? { hypothetical: Number(a.stat.hypo) } : {}), ...(a.groupsBody ? { groups: JSON.parse(a.groupsBody) } : {}) } })
+      .then(setRes)
+      .catch((e) => { setErr(e); setRes(null) })
+      .finally(() => setBusy(false))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [testKey])
+
+  // The figure: applied plot options, the editor's group order and colours (the tests put the control first).
+  const colorOf = (g: string, i: number) => {
+    const at = applied ? applied.order.indexOf(g) : -1
+    return at >= 0 ? applied!.colors[at % applied!.colors.length] : palette[i % palette.length]
+  }
+  const plotGroups = useMemo(() => (!res ? [] : applied ? [...res.groups].sort((a, b) => applied.order.indexOf(a) - applied.order.indexOf(b)) : res.groups), [res, applied])
+  // Stacked bars that add up to ~100 in every group (e.g. cell-cycle phases) are percentages.
+  // One gene / readout at a time ('' = all): the figure, the tables and the exports follow it.
+  const [focus, setFocus] = useState('')
+  const focusOk = !!res && res.targets.some((t) => t.target === focus)
+  const shown = useMemo(() => (res && focusOk ? { ...res, targets: res.targets.filter((t) => t.target === focus) } : res), [res, focus, focusOk])
+  const sumsTo100 = !!res && res.groups.every((g) => Math.abs(res.targets.reduce((a, t) => a + (t.summary.find((x) => x.group === g)?.mean ?? 0), 0) - 100) < 5)
+  const defaultYTitle = !res || !applied ? '' : res.logScale ? `Fold change vs ${res.control}` : applied.helper === 'western' ? `Ratio to ${applied.loading}` : applied.plot.kind === 'stacked' && sumsTo100 ? 'Percentage' : 'Value'
+  const chartText = useChartText()
+  const figure = useMemo(() => (shown && applied ? benchFigure({ ...shown, groups: plotGroups }, withChartText(applied.plot, chartText), colorOf, defaultYTitle) : null),
+    [shown, plotGroups, applied, defaultYTitle, chartText]) // eslint-disable-line react-hooks/exhaustive-deps
+  const smallViolin = !!shown && applied?.plot.kind === 'violin' && shown.targets.some((t) => t.summary.some((x) => x.n > 0 && x.n < 5))
+  const tested = shown?.targets.filter((t) => t.comparisons?.length) ?? []
+  const acrossCol = tested.some((t) => t.omnibus?.pAcross != null)
+  const acrossLabel = res?.across === 'bh' ? 'q (BH FDR, all rows)' : 'p (Holm, all rows)'
   const genesLike = !!res && res.layout === 'grouped' && res.helper !== 'facs'
 
   return (
     <Modal title={title} size="xl" onClose={onClose}
-      subtitle="Paste a small table (qPCR Ct, band intensities, FACS percentages or any values per group): Flame picks a test and draws the figure. For a full analysis use Prism, qbase+ or FlowJo.">
+      subtitle="Statistics and figures for small lab experiments (qPCR, ELISA, westerns, viability, reporter assays, flow cytometry): upload a table with samples in columns and genes or readouts in rows, group the samples, choose the test and the plot.">
       <div className="stack">
+        <Segmented label="Analysis" value={mode}
+          onChange={(v) => {
+            setMode(v); setApplied(null)
+            if (v === 'ddct') { setExampleKind(''); setHelper('qpcr'); setLog(false); setLoading(''); if (!refs.length && parsed) setRefs(parsed.rowNames.filter((r) => REF_GENES.includes(r))) }
+            else if (helper === 'qpcr') { setExampleKind(''); setHelper('none') }
+          }}
+          options={[{ value: 'normality', label: 'Which test? (normality)' }, { value: 'generic', label: 'Experimental analysis (values ready)' }, { value: 'ddct', label: 'qPCR ΔΔCt (raw Ct values)' }]} />
+        <p className="muted small">{mode === 'normality'
+          ? 'Not sure which test to use? Upload your values and group the samples: GraphPad Prism\'s normality tests (D\'Agostino–Pearson, Anderson–Darling, Shapiro–Wilk, Kolmogorov–Smirnov) and an equal-SD check suggest a t test, ANOVA or non-parametric test, which you can then run here.'
+          : mode === 'ddct'
+            ? 'Raw Ct values, genes in rows and samples in columns, including one or more reference genes: Flame computes ΔCt, ΔΔCt and the fold changes (2^−ΔΔCt).'
+            : 'Values you already have, e.g. processed in Excel: fold changes (including qPCR 2^−ΔΔCt), normalised band intensities, % viability, pg/mL, reporter ratios, % of cells. Samples in columns, genes or readouts in rows. Normalising to a row is optional.'}</p>
         <div className="row wrap">
-          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { setSource(null); setRes(null); setControl(''); setHelper('none'); setText(t); setFileName(n) }} />
-          <span className="muted small">Examples:</span>
-          {EXAMPLES.map((ex) => <button key={ex.kind} className="btn btn-ghost btn-sm" onClick={() => loadExample(ex)}>{ex.label}</button>)}
+          <FileDrop accept=".txt,.csv,.tsv,.tab" onText={(t, n) => { ownTable(); setRes(null); setControl(''); setText(t); setFileName(n) }} />
+          <Field label="Or try an example experiment">
+            <select className="input input-sm" aria-label="Example experiment" value={exampleKind} style={{ maxWidth: 560 }}
+              onChange={(e) => { const ex = EXAMPLES.find((x) => x.kind === e.target.value); if (ex) loadExample(ex) }}>
+              <option value="">Choose an experiment…</option>
+              {EXAMPLES.filter((ex) => ex.analysis === (mode === 'ddct' ? 'ddct' : 'generic')).map((ex) => <option key={ex.kind} value={ex.kind}>{ex.label}</option>)}
+            </select>
+          </Field>
         </div>
         <textarea className="input mono" rows={5} value={text} aria-label="Table"
-          placeholder={'Column table — one column per group:\nControl\tDrug A\tDrug B\n100\t71.4\t95.2\n96.8\t65.9\t101.3\n\nGrouped table — genes in rows, replicates under each group:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'}
-          onChange={(e) => { setSource(null); setText(e.target.value); setFileName('') }} />
-        {source && <p className="example-source"><strong>Example data:</strong> {source}</p>}
-        {res && (
+          placeholder={helper === 'qpcr'
+            ? 'Raw Ct values: genes in rows (with a reference gene), one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'
+            : 'Values ready to compare: genes or readouts in rows, one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nFKBP5\t1.00\t0.95\t11.7\t12.6\nIL6\t1.00\t0.96\t0.31\t0.33\n\nOr one column per group, one row per replicate:\nVehicle\tCisplatin\n100\t49.8\n96.8\t45.2'}
+          onChange={(e) => { ownTable(); setText(e.target.value); setFileName('') }} />
+        {source && (() => { const ex = EXAMPLES.find((x) => x.kind === exampleKind); return (
+          <p className="example-source"><strong>Example data:</strong> {source}{ex ? <> <em>{ex.what}</em></> : null}{' '}
+            {ex && <a href={`${API_BASE}/inputs/examples/${ex.kind}/file`} download>Download the table</a>} to see the layout.</p>
+        ) })()}
+        {parsed && (
+          <ol className="progress-steps" aria-label="Steps">
+            <li className="done"><span>1</span> Table: {plural(parsed.samples.length, grouped ? 'sample' : 'group')}{grouped ? `, ${plural(parsed.rowNames.length, 'row')}` : ''}</li>
+            <li className={!grouped || confirmed ? 'done' : 'current'}><span>2</span> {grouped ? 'Group the samples' : 'Groups: one per column'}</li>
+            <li className={confirmed ? 'current' : ''}><span>3</span> Tests and figure</li>
+          </ol>
+        )}
+        {grouped && groupSetup && parsed && (
+          <BenchGroups samples={parsed.samples} setup={groupSetup} setSetup={setGroupSetup} initial={setupFrom(parsed)} maxGroups={parsed.maxGroups}
+            helper={helper} colors={groupColors} palette={palette} />
+        )}
+        {grouped && !groupNamesOk && <Note kind="warning">Give each group a different, non-empty name.</Note>}
+        {grouped && groupNamesOk && !groupsReady && <Note kind="info">Put samples in at least two groups.</Note>}
+        {grouped && groupsReady && groupSizes.some((n) => n === 1) && <Note kind="info">A group with one sample has no spread: put 2 or more samples in each group to test it.</Note>}
+        {grouped && !confirmed && (
+          <div className="row">
+            <button className="btn btn-primary" disabled={!groupsReady} onClick={() => setConfirmed(true)}>
+              {mode === 'normality' ? 'Next: check normality' : 'Next: test and plot options'} ({plural(groupSizes.filter((n) => n > 0).length, 'group')})</button>
+            <span className="muted small">You can still change the groups afterwards.</span>
+          </div>
+        )}
+        {parsed && confirmed && mode === 'normality' && (
+          <BenchNormality text={text} fileName={fileName} groupsBody={groupsBody} auto={!!source} colors={(g, i) => {
+            const at = groupSetup ? groupSetup.names.map((n) => n.trim()).indexOf(g) : -1
+            return at >= 0 ? groupColors[at] : palette[i % palette.length]
+          }} onUse={useRecommendation} />
+        )}
+        {parsed && confirmed && mode !== 'normality' && (
+          <div className="card stack-sm bench-setup">
+          <h3 className="small">Test</h3>
           <div className="row wrap bench-options">
-            <Field label="Helper">
-              <select className="input input-sm" value={helper} onChange={(e) => setHelper(e.target.value as Helper)}>
-                <option value="none">None: values as given</option>
-                <option value="qpcr" disabled={res.layout !== 'grouped'}>qPCR: Ct → ΔΔCt, fold change</option>
-                <option value="western" disabled={res.layout !== 'grouped'}>Western: band ÷ loading control</option>
-                <option value="facs">FACS: phase percentages</option>
-              </select>
-            </Field>
-            {helper === 'qpcr' && (
+            {helper === 'qpcr' ? (
               <Field label="Reference gene(s)">
-                <div className="row wrap">{res.rowNames.map((r) => (
+                <div className="row wrap">{parsed.rowNames.map((r) => (
                   <label key={r} className="check small"><input type="checkbox" checked={refs.includes(r)}
                     onChange={(e) => setRefs((cur) => (e.target.checked ? [...cur, r] : cur.filter((x) => x !== r)))} /> {r}</label>
                 ))}</div>
               </Field>
+            ) : (
+              <>
+                <Field label="Normalise to a row (optional)">
+                  <select className="input input-sm" value={helper === 'western' ? loading : ''} disabled={!grouped}
+                    onChange={(e) => { const r = e.target.value; setLoading(r); setHelper(r ? 'western' : 'none') }}>
+                    <option value="">No: values are ready</option>
+                    {parsed.rowNames.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </Field>
+                <label className="check small align-end" title="Fold changes and ratios are compared on a log2 scale, so that 2× up and 2× down are equally far from 1">
+                  <input type="checkbox" checked={helper === 'western' || log} disabled={helper === 'western'} onChange={(e) => setLog(e.target.checked)} /> Values are ratios or fold changes: test on log2 scale</label>
+              </>
             )}
-            {helper === 'western' && (
-              <Field label="Loading control">
-                <select className="input input-sm" value={loading} onChange={(e) => setLoading(e.target.value)}>
-                  <option value="">choose…</option>{res.rowNames.map((r) => <option key={r}>{r}</option>)}
-                </select>
-              </Field>
-            )}
-            {helper === 'none' && <label className="check small"><input type="checkbox" checked={log} onChange={(e) => setLog(e.target.checked)} /> Ratios: test on log2 scale</label>}
             <Field label="Control group">
-              <select className="input input-sm" value={control} onChange={(e) => setControl(e.target.value)}>
-                {res.groups.map((g) => <option key={g}>{g}</option>)}
+              <select className="input input-sm" aria-label="Control group" value={effControl} onChange={(e) => setControl(e.target.value)}>
+                {groupNames.map((g) => <option key={g}>{g}</option>)}
               </select>
             </Field>
-            <label className="check small" title="Each replicate (row, or replicate number) is the same experiment, blot or donor in every group"><input type="checkbox" checked={paired} onChange={(e) => setPaired(e.target.checked)} /> Rows are paired</label>
-            <label className="check small"><input type="checkbox" checked={nonpar} onChange={(e) => setNonpar(e.target.checked)} /> Non-parametric</label>
-            {res.groups.length > 2 && <label className="check small"><input type="checkbox" checked={allPairs} onChange={(e) => setAllPairs(e.target.checked)} /> All pairs (not only vs control)</label>}
+          </div>
+          <BenchTestControls s={stat} set={setStat} k={groupNames.length} rows={testRows}
+            canRatio={helper === 'none' && !log} foldScale={helper !== 'none' || log} autoHypo={res?.test?.startsWith('one_sample') && stat.hypo.trim() === '' ? res.hypothetical ?? null : null} />
+          {helper === 'qpcr' && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
+          {helper === 'qpcr' && !grouped && <Note kind="warning">ΔΔCt needs genes in rows (including a reference gene) and samples in columns.</Note>}
+          <h3 className="small">Plot</h3>
+          <PlotControls o={plot} set={setPlot} hasComparisons canStack={parsed.rowNames.filter((r) => !(helper === 'qpcr' && refs.includes(r)) && r !== loading).length > 1} />
+          <div className="toolbar">
+            <span className="small muted">Colours</span>
+            <PaletteSelect />
+            {grouped && <span className="small muted">or pick one per group in the group editor above</span>}
+          </div>
+          {!optionsReady && confirmed && <Note kind="info">{!groupsReady || groupNames.length < 2 ? 'Put samples in at least two groups to get the tests and the figure.' : 'Complete the options above: the tests and the figure appear as soon as they are set.'}</Note>}
+          {optionsReady && <p className="muted small">The tests and the figure update as you change any option.</p>}
           </div>
         )}
-        {helper === 'qpcr' && res && !refs.length && <Note kind="info">Tick the reference gene(s) to compute ΔΔCt.</Note>}
-        {helper === 'western' && res && !loading && <Note kind="info">Choose the loading control row.</Note>}
-        {busy && <BusyBar label="Testing" expect={2} />}
+        {busy && <BusyBar label={applied ? 'Testing and drawing' : 'Reading the table'} expect={2} />}
         <ErrorNote error={err} />
-        {res && (
+        {res && !res.needsGroups && (
           <>
             <p className="bench-sentence"><strong>Test:</strong> {res.sentence}</p>
             {res.warnings.map((w) => <Note key={w} kind="warning">{w}</Note>)}
-            {figure && (
-              <div className="stack-sm">
-                <div className="row wrap small">
-                  {res.helper !== 'facs' && <><span className="muted">Error bars</span>
-                    <select className="input input-sm" value={errBar} onChange={(e) => setErrBar(e.target.value as 'sd' | 'sem')} aria-label="Error bars">
-                      <option value="sd">mean ± SD</option><option value="sem">mean ± SEM</option></select></>}
-                  <span className="muted">Style</span>
-                  <select className="input input-sm" value={figStyle} onChange={(e) => setFigStyle(e.target.value as FigStyle)} aria-label="Figure style">
-                    <option value="color">Colour</option><option value="bw">Black &amp; white</option></select>
-                  {res.helper !== 'facs' && <><span className="muted">Axis break</span>
-                    <select className="input input-sm" value={brk} onChange={(e) => setBrk(e.target.value as BreakMode)} aria-label="Axis break">
-                      <option value="off">None</option><option value="auto">Automatic</option><option value="custom">From … to …</option></select>
-                    {brk === 'custom' && <>
-                      <input className="input input-sm input-narrow" type="number" step="any" min={0} value={brkFrom} placeholder="from" aria-label="Break from" onChange={(e) => setBrkFrom(e.target.value)} />
-                      <input className="input input-sm input-narrow" type="number" step="any" min={0} value={brkTo} placeholder="to" aria-label="Break to" onChange={(e) => setBrkTo(e.target.value)} />
-                    </>}
-                    {brk !== 'off' && !figure.broken && <span className="muted">{brk === 'auto' ? 'no break needed: the bars are of similar height' : 'set from < to, both below the tallest bar'}</span>}
-                    {figure.broken && <span className="muted">axis broken from {figure.broken[0]} to {figure.broken[1]}</span>}
-                  </>}
-                </div>
-                <div className="row wrap small">
-                  <span className="muted">Dots = replicates; stars vs {res.control}: * p &lt; 0.05, ** &lt; 0.01, *** &lt; 0.001.</span>
-                </div>
-                <Plot data={figure.data as never} layout={figure.layout as never} height={figure.height} tools={false} exportName={`flame_bench_${res.helper}`} />
+            {res.targets.length > 1 && (
+              <div className="bench-genes-pick row wrap" role="group" aria-label="Show one gene or readout">
+                <strong className="small">Show:</strong>
+                {res.targets.map((t) => {
+                  const best = Math.min(...(t.comparisons ?? []).map((c) => c.p).filter(Number.isFinite))
+                  const star = !Number.isFinite(best) ? '' : best < 0.001 ? ' ***' : best < 0.01 ? ' **' : best < 0.05 ? ' *' : ''
+                  return <button key={t.target} type="button" className={`btn btn-sm ${focus === t.target ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={focus === t.target}
+                    title={t.error ?? `${t.target}: smallest p = ${Number.isFinite(best) ? fmtP(best) : 'none'}`} onClick={() => setFocus(t.target)}>{t.target}{star}</button>
+                })}
+                <button type="button" className={`btn btn-sm ${!focusOk ? 'btn-primary' : 'btn-secondary'}`} aria-pressed={!focusOk} onClick={() => setFocus('')}>All {res.layout === 'grouped' ? 'genes / readouts' : 'rows'} ({res.targets.length})</button>
+                <span className="muted small">One at a time: its own figure, comparisons, statistics and exports (stars: its smallest p).</span>
               </div>
             )}
+            {figure && applied && (() => { const ap = withChartText(applied.plot, chartText), w = ap.figW || autoFigWidth(shown!.targets.filter((t) => t.values.length).length, plotGroups.length, ap); return (
+              <div className="stack-sm bench-figure">
+                {smallViolin && <Note kind="info">Some groups have fewer than 5 values: a violin then shows the smoothing more than the data. A scatter dot plot or box plot is clearer for small n.</Note>}
+                {ap.brk !== 'off' && !figure.broken && ap.kind !== 'stacked' && <p className="small muted">{ap.brk === 'auto' ? 'No axis break needed: the values are of similar height.' : 'Axis break: set from < to, both below the top of the axis.'}</p>}
+                {figure.broken && <p className="small muted">Axis broken from {figure.broken[0]} to {figure.broken[1]}.</p>}
+                <div style={w ? { width: w, maxWidth: '100%' } : undefined}>
+                  <Plot data={figure.data as never} layout={figure.layout as never} height={ap.figH} tools={false} textButton={false} exportName={`flame_bench_${ap.kind}`} />
+                </div>
+                <p className="muted small">{ap.points && ap.kind !== 'stacked' ? 'Points = replicates. ' : ''}{tested.length > 0 && ap.pvals !== 'off'
+                  ? `${res.test?.startsWith('one_sample') ? `Stars: each group vs ${res.hypothetical}` : ap.kind === 'stacked' ? `P-values in each segment: vs ${res.control}` : `Brackets: ${res.allPairs ? 'all pairs of groups' : `each group vs ${res.control}`}`}${ap.pvals === 'stars' ? `; * p < 0.05, ** < 0.01, *** < 0.001${ap.hideNs ? '' : ', ns = not significant'}` : ''}${tested[0]?.posthoc ? ` (${tested[0].posthoc})` : ''}.` : ''}</p>
+              </div>
+            ) })()}
             <div className="table-scroll fetch-table"><table className="table compact">
-              <thead><tr><th>{res.layout === 'grouped' ? (res.helper === 'facs' ? 'Phase' : 'Gene / target') : 'Target'}</th><th>Comparison</th>
+              <thead><tr><th>{res.layout === 'grouped' ? 'Gene / target' : 'Target'}</th><th>Comparison</th>
                 <th className="num">{res.logScale ? 'Fold change' : 'Difference'}</th>{res.logScale && <th className="num">log2 FC</th>}<th className="num">95% CI</th>
-                <th className="num">p</th>{tested.length > 1 && <th className="num">p (Holm, all targets)</th>}<th /></tr></thead>
+                <th className="num">p</th>{acrossCol && <th className="num">{acrossLabel}</th>}<th /></tr></thead>
               <tbody>{tested.flatMap((t) => t.comparisons!.map((c, i) => (
                 <tr key={`${t.target}-${c.a}-${c.b}`}>
-                  <td>{i === 0 ? <strong>{t.target}</strong> : ''}</td><td className="small">{c.a} vs {c.b}</td>
+                  <td>{i === 0 ? <><strong>{t.target}</strong>{t.omnibus?.detail && t.comparisons!.length > 1 && <div className="muted small">{t.omnibus.name}: {t.omnibus.detail}, p = {fmtP(t.omnibus.p)}</div>}
+                    {t.omnibus?.detail && t.comparisons!.length === 1 && <div className="muted small">{t.omnibus.detail}</div>}</> : ''}</td>
+                  <td className="small">{c.a} vs {c.b === 'value' ? res.hypothetical : c.b}</td>
                   <td className="num">{res.logScale ? num(c.fold) : num(c.diff)}</td>{res.logScale && <td className="num">{num(c.diff)}</td>}
                   <td className="num small">{c.lo != null && Number.isFinite(c.lo) ? (res.logScale ? `${num(2 ** c.lo)} to ${num(2 ** c.hi!)}` : `${num(c.lo)} to ${num(c.hi)}`) : '—'}</td>
-                  <td className="num">{fmtP(c.p)}</td>{tested.length > 1 && <td className="num">{i === 0 ? fmtP(t.omnibus?.pAcross) : ''}</td>}<td><strong>{c.stars}</strong></td>
+                  <td className="num">{fmtP(c.p)}</td>{acrossCol && <td className="num">{i === 0 ? fmtP(t.omnibus?.pAcross) : ''}</td>}<td><strong>{c.stars}</strong></td>
                 </tr>
               )))}</tbody>
             </table></div>
-            {res.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="info">{t.target}: {t.error}</Note>)}
+            {shown!.targets.filter((t) => t.error).map((t) => <Note key={t.target} kind="warning">{t.target} was not tested: {t.error}</Note>)}
+            {shown!.targets.filter((t) => !t.error && t.notes?.length).map((t) => <Note key={t.target} kind="info">{shown!.targets.length > 1 ? `${t.target}: ` : ''}{t.notes!.join(' ')}</Note>)}
+            {res.anova2 && (
+              <div className="table-scroll"><table className="table compact">
+                <thead><tr><th>Two-way ANOVA</th><th className="num">F</th><th className="num">DFn, DFd</th><th className="num">p</th><th /></tr></thead>
+                <tbody>{res.anova2.map((r) => <tr key={r.effect}><td>{r.effect}</td><td className="num">{num(r.F)}</td><td className="num">{r.df1}, {r.df2}</td><td className="num">{fmtP(r.p)}</td>
+                  <td><strong>{r.p < 0.001 ? '***' : r.p < 0.01 ? '**' : r.p < 0.05 ? '*' : 'ns'}</strong></td></tr>)}</tbody>
+              </table></div>
+            )}
+            {shown!.targets.some((t) => t.assumptions) && (
+              <details className="small">
+                <summary>Assumptions: normality and equal SDs</summary>
+                <div className="table-scroll"><table className="table compact">
+                  <thead><tr><th>Gene / target</th>{res.groups.map((g) => <th key={g} className="num">Shapiro–Wilk p, {g}</th>)}<th className="num">Equal SDs p</th></tr></thead>
+                  <tbody>{shown!.targets.filter((t) => t.assumptions).map((t) => (
+                    <tr key={t.target}><td>{t.target}</td>
+                      {res.groups.map((g) => { const nm = t.assumptions!.normality.find((x) => x.group === g); return <td key={g} className="num">{nm?.p != null ? fmtP(nm.p) : 'n < 3'}</td> })}
+                      <td className="num">{t.assumptions!.equalSD ? `${fmtP(t.assumptions!.equalSD.p)} (${t.assumptions!.equalSD.name})` : '—'}</td></tr>
+                  ))}</tbody>
+                </table></div>
+                <p className="muted">Small p-values (&lt; 0.05) suggest the data are not Gaussian (Shapiro–Wilk) or the SDs differ (then prefer Welch / Brown–Forsythe ANOVA, or a non-parametric test). With 3–4 values per group these checks have little power: a large p does not prove the assumption.</p>
+              </details>
+            )}
             <div className="row wrap">
               <span className="small"><strong>Methods:</strong> {res.methods}</span>
               <CopyButton label="Copy methods" text={res.methods} />
-              <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: 'Results', rows: tested.flatMap((t) => t.comparisons!.map((c) => ({
-                Target: t.target, Comparison: `${c.a} vs ${c.b}`, ...(res.logScale ? { 'Fold change': c.fold, log2FC: c.diff } : { Difference: c.diff }),
-                'CI low': c.lo, 'CI high': c.hi, p: c.p, 'p (Holm, all targets)': t.omnibus?.pAcross ?? '', Test: `${t.omnibus?.name ?? ''}${t.posthoc ? `; ${t.posthoc}` : ''}` }))) },
-                { name: 'Values', rows: res.targets.flatMap((t) => t.values.map((v) => ({ Target: t.target, Group: v.group, Sample: v.sample, [res.shownAs]: v.value }))) }], 'flame_bench_results.xlsx')}>Excel</button>
+
             </div>
+            <details className="small" open>
+              <summary><strong>Descriptive statistics</strong> (n, mean, SD, SEM, 95% CI, median, range)</summary>
+              <TableView res={shown!} id="descriptive" />
+            </details>
+            <BenchExport res={shown!} name={focusOk ? focus : ''} />
             {genesLike && tested.length > 0 && <BenchGenes res={res} tested={tested} organism={organism} setOrganism={setOrganism} onCreated={onCreated} />}
           </>
         )}
@@ -244,85 +436,50 @@ function BenchGenes({ res, tested, organism, setOrganism, onCreated }: { res: Re
   )
 }
 
-type FigStyle = 'color' | 'bw'
-type BreakMode = 'off' | 'auto' | 'custom'
-interface FigOpts { errBar: 'sd' | 'sem'; style: FigStyle; brk: BreakMode; from?: number; to?: number }
-const BW_FILLS = ['#ffffff', '#bdbdbd', '#636363', '#000000', '#e6e6e6', '#8c8c8c', '#404040', '#d0d0d0']
-/** Dot-and-bar figure (or stacked bars for FACS phases), Prism style, in colour or black & white, with an optional axis break. */
-function benchFigure(res: Result, o: FigOpts, colors: string[]) {
-  const ts = res.targets.filter((t) => !t.error)
-  const groups = res.groups
-  const bw = o.style === 'bw'
-  const ink = '#000000'
-  const fill = (i: number) => (bw ? BW_FILLS[i % BW_FILLS.length] : colors[i % colors.length])
-  const darkFill = (i: number) => bw && ['#636363', '#000000', '#404040', '#8c8c8c'].includes(fill(i))
-  const yTitle = res.logScale ? `Fold change vs ${res.control}` : res.helper === 'facs' ? '% of cells' : 'Value'
-  const axisStyle = bw ? { showline: true, linecolor: ink, linewidth: 1.2, ticks: 'outside', tickcolor: ink, showgrid: false, zeroline: false, color: ink } : {}
-  const page = bw ? { paper_bgcolor: '#ffffff', plot_bgcolor: '#ffffff', font: { color: ink, family: 'Arial, Helvetica, sans-serif' } } : {}
-  if (res.helper === 'facs') {
-    const data = ts.map((t, i) => ({
-      type: 'bar', name: t.target, x: groups, y: groups.map((g) => t.summary.find((s) => s.group === g)?.mean ?? null),
-      marker: { color: fill(i), line: bw ? { color: ink, width: 1.2 } : undefined }, hovertemplate: `${t.target}: %{y:.1f}%<extra>%{x}</extra>`,
-      text: groups.map((g) => { const c = t.comparisons?.find((x) => x.a === g && x.b === res.control); return c && c.stars !== 'ns' ? c.stars : '' }), textposition: 'inside',
-      textfont: { color: bw ? (darkFill(i) ? '#ffffff' : ink) : '#ffffff' },
-    }))
-    return { data, layout: { ...page, barmode: 'stack', xaxis: { ...axisStyle }, yaxis: { ...axisStyle, title: { text: yTitle }, range: [0, 100] }, legend: { orientation: 'h', y: -0.15 }, margin: { l: 60, r: 10, t: 10, b: 70 } }, height: 380, broken: null }
-  }
-  const k = groups.length, w = Math.min(0.8 / k, 0.28)
-  const pos = (ti: number, gi: number) => ti + (gi - (k - 1) / 2) * w
-  const err = (t: Target, g: string) => { const s = t.summary.find((x) => x.group === g); return (o.errBar === 'sd' ? s?.sd : s?.sem) ?? 0 }
-  const mean = (t: Target, g: string) => t.summary.find((x) => x.group === g)?.mean ?? NaN
-  const vals = (t: Target, g: string) => t.values.filter((v) => v.group === g).map((v) => v.value)
-  const top = (t: Target, g: string) => Math.max(mean(t, g) + err(t, g), ...vals(t, g))
-  const bottom = (t: Target, g: string) => Math.min(mean(t, g) - err(t, g), ...vals(t, g))
-  const ymax = Math.max(...ts.flatMap((t) => groups.map((g) => top(t, g))), res.logScale ? 1 : 0)
-  // Axis break: automatic or set by the user; null = one continuous axis.
-  let broken: [number, number] | null = null
-  if (o.brk === 'auto') broken = autoBreak(ts.flatMap((t) => groups.map((g) => ({ top: top(t, g), bottom: bottom(t, g) }))))
-  if (o.brk === 'custom' && o.from != null && o.to != null && o.from > 0 && o.to > o.from && o.to < ymax) broken = [o.from, o.to]
-  const upTop = nice(ymax * 1.12)
-  const axes = broken ? ['y', 'y2'] : ['y']
-  const traces = axes.flatMap((ax, ai) => [
-    ...groups.map((g, gi) => ({
-      type: 'bar', name: g, showlegend: ai === 0, legendgroup: g, yaxis: ax, x: ts.map((_, ti) => pos(ti, gi)), width: w * 0.85,
-      y: ts.map((t) => mean(t, g)),
-      error_y: { type: 'data', array: ts.map((t) => err(t, g)), visible: true, color: bw ? ink : '#374151', thickness: 1.2, width: 4 },
-      marker: bw ? { color: fill(gi), line: { color: ink, width: 1.2 } } : { color: fill(gi), opacity: 0.35, line: { color: fill(gi), width: 1.5 } },
-      hovertemplate: `${g}: %{y:.3g}<extra></extra>`,
-    })),
-    ...groups.map((g, gi) => {
-      const jitter = (s: string) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) >>> 0; return ((h % 1000) / 1000 - 0.5) * w * 0.45 }
-      const pts = ts.flatMap((t, ti) => t.values.filter((v) => v.group === g).map((v) => ({ x: pos(ti, gi) + jitter(v.sample), y: v.value, s: v.sample })))
-      return { type: 'scatter', mode: 'markers', name: `${g} (replicates)`, showlegend: false, legendgroup: g, yaxis: ax, x: pts.map((p) => p.x), y: pts.map((p) => p.y), text: pts.map((p) => p.s),
-        marker: bw ? { color: darkFill(gi) ? '#ffffff' : ink, size: 7, line: { color: darkFill(gi) ? ink : '#ffffff', width: 1 } } : { color: fill(gi), size: 8, line: { color: '#fff', width: 1 } },
-        hovertemplate: '%{text}: %{y:.3g}<extra></extra>' }
-    }),
-  ])
-  const lowTop = broken ? broken[0] : ymax * 1.18
-  const span = (y: number) => (broken && y > broken[0] ? upTop - broken[1] : lowTop)
-  const annotations: Record<string, unknown>[] = ts.flatMap((t, ti) => groups.map((g, gi) => {
-    const c = t.comparisons?.find((x) => (x.a === g && x.b === res.control) || (x.b === g && x.a === res.control))
-    if (!c || g === res.control) return null
-    const y0 = top(t, g)
-    let y = y0 + span(y0) * 0.04, yref = broken && y0 > broken[0] ? 'y2' : 'y'
-    // a bar ending just below the break, or inside it, would have its stars cut off: show them at the foot of the upper axis
-    if (broken && yref === 'y' && y > broken[0] * 0.97) { y = broken[1]; yref = 'y2' }
-    if (broken && yref === 'y2' && y < broken[1]) y = broken[1]
-    return { x: pos(ti, gi), y, yref, text: c.stars, showarrow: false, font: { size: c.stars === 'ns' ? 10 : 15, color: bw ? ink : undefined }, yanchor: 'bottom' }
-  }).filter((a): a is NonNullable<typeof a> => !!a))
-  const shapes: Record<string, unknown>[] = res.logScale ? [{ type: 'line', xref: 'paper', yref: 'y', x0: 0, x1: 1, y0: 1, y1: 1, line: { color: bw ? '#7a7a7a' : '#9ca3af', width: 1, dash: 'dot' } }] : []
-  const low = 0.6, high = 0.68                                         // paper heights where the lower axis ends and the upper one starts
-  if (broken) {
-    for (const y of [low, high]) shapes.push({ type: 'line', xref: 'paper', yref: 'paper', x0: -0.012, x1: 0.012, y0: y - 0.014, y1: y + 0.014, line: { color: bw ? ink : '#6b7280', width: 1.5 } })
-    annotations.push({ xref: 'paper', yref: 'paper', x: -0.075, y: 0.5, text: yTitle, textangle: -90, showarrow: false, font: { size: 13, color: bw ? ink : undefined } })
-  }
-  const xaxis = { ...axisStyle, tickvals: ts.map((_, i) => i), ticktext: ts.map((t) => t.target), range: [-0.6, ts.length - 0.4], zeroline: false, showgrid: false, anchor: 'y' }
-  const layout = broken
-    ? { ...page, barmode: 'overlay', bargap: 0, xaxis,
-        yaxis: { ...axisStyle, domain: [0, low], range: [0, broken[0]] },
-        yaxis2: { ...axisStyle, domain: [high, 1], range: [broken[1], upTop], anchor: 'x' },
-        annotations, shapes, legend: { orientation: 'h', y: -0.15 }, margin: { l: 70, r: 10, t: 10, b: 70 } }
-    : { ...page, barmode: 'overlay', bargap: 0, xaxis, yaxis: { ...axisStyle, title: { text: yTitle }, rangemode: 'tozero', range: [0, ymax * 1.18] },
-        annotations, shapes, legend: { orientation: 'h', y: -0.15 }, margin: { l: 60, r: 10, t: 10, b: 70 } }
-  return { data: traces, layout, height: broken ? 440 : 400, broken }
+/**
+ * Step 2: which sample columns form each group, set as in the expression boxplots: the number of groups,
+ * a name and colour per group, then tick samples and send them to a group. Starts from the groups
+ * guessed from the column names; columns in no group are left out of the tests.
+ */
+function BenchGroups({ samples, setup, setSetup, initial, maxGroups, helper, colors, palette }: {
+  samples: string[]; setup: GroupSetup; setSetup: (s: GroupSetup) => void; initial: GroupSetup; maxGroups: number; helper: Helper; colors: string[]; palette: string[]
+}) {
+  const edit = (f: (v: GroupSetup) => GroupSetup) => setSetup(f(setup))
+  const letter = (i: number) => (i < 26 ? String.fromCharCode(65 + i) : String(i + 1))
+  // More groups: add "Group C", "Group D"...; fewer: the last groups go and their samples become unused.
+  const setCount = (n: number) => edit((v) => {
+    const names = v.names.slice(0, n)
+    for (let i = names.length; i < n; i++) { let nm = `Group ${letter(i)}`, k = i; while (names.includes(nm)) nm = `Group ${letter(++k)}`; names.push(nm) }
+    return { names, colors: (v.colors ?? []).slice(0, n), assign: Object.fromEntries(Object.entries(v.assign).map(([smp, g]) => [smp, g < n ? g : -1])) }
+  })
+  const changed = JSON.stringify({ ...setup, colors: undefined }) !== JSON.stringify({ ...initial, colors: undefined })
+  const custom = (setup.colors ?? []).some(Boolean)
+  return (
+    <SampleGroupPicker samples={samples} names={setup.names} colors={colors}
+      groupOf={(smp) => setup.assign[smp] ?? -1}
+      onAssign={(ss, g) => edit((v) => ({ ...v, assign: { ...v.assign, ...Object.fromEntries(ss.map((x) => [x, g])) } }))}>
+      <div className="row wrap">
+        <Field label="Groups">
+          <select className="input input-sm" aria-label="Number of groups" value={setup.names.length} onChange={(e) => setCount(Number(e.target.value))}>
+            {Array.from({ length: maxGroups - 1 }, (_, i) => i + 2).map((n) => <option key={n} value={n}>{n} groups</option>)}
+          </select>
+        </Field>
+        {changed && <button type="button" className="btn btn-ghost btn-sm align-end" title="Group the samples by their column names again" onClick={() => setSetup({ ...initial, colors: setup.colors })}>Reset to column names</button>}
+        {custom && <button type="button" className="btn btn-ghost btn-sm align-end" title="Drop the colours picked per group and use the palette again" onClick={() => edit((v) => ({ ...v, colors: [] }))}>Reset to palette</button>}
+      </div>
+      <div className="row wrap">
+        {setup.names.map((n, i) => (
+          <Field key={i} label={`Group ${i + 1}: name and colour`}>
+            <span className="row">
+              <input className="input input-sm" value={n} maxLength={60} aria-label={`Name of group ${i + 1}`}
+                onChange={(e) => edit((v) => ({ ...v, names: v.names.map((x, j) => (j === i ? e.target.value : x)) }))} />
+              <input type="color" aria-label={`Colour of ${n}`} value={colors[i] ?? palette[i % palette.length]} style={{ width: 32, height: 28, padding: 0, border: 'none', background: 'none', cursor: 'pointer' }}
+                onChange={(e) => { const c = e.target.value; edit((v) => { const cs = [...(v.colors ?? [])]; cs[i] = c; return { ...v, colors: cs } }) }} />
+            </span>
+          </Field>
+        ))}
+      </div>
+      <p className="muted small">Up to {maxGroups} groups. Samples in no group are left out of the tests{helper === 'qpcr' ? ' (they are still normalised to the reference genes)' : ''}. With a paired test (paired t, ratio paired t, Wilcoxon, repeated-measures ANOVA, Friedman), the first sample of each group is paired with the first of the others, and so on, in table order.</p>
+    </SampleGroupPicker>
+  )
 }
