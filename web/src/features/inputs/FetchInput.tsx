@@ -7,13 +7,16 @@ import { BusyBar, CopyButton, ErrorNote, Field, GeneCardsLink, GeneChips, Modal,
 import { formatP, plural } from '../../lib/format'
 import { SaveList } from './InputModal'
 import { saveXlsx } from '../../lib/xlsx'
+import { useCreateList } from '../../api/hooks'
 
 export type FetchMode = 'disease' | 'pubmed' | 'geo' | 'clinvar'
 
-export interface FGene { gene: string; name?: string; /** Generic value (its label is the result's valueLabel). */ value?: number; /** Short detail shown in its own column. */ note?: string; score?: number; articles?: number; variants?: number; sources?: number; from?: string[]; bestScore?: number; pmids?: string[]; evidence?: Record<string, number> }
+export interface FGene { gene: string; name?: string; /** Generic value (its label is the result's valueLabel). */ value?: number; /** Short detail shown in its own column. */ note?: string; /** Significance (p or adjusted p; its label is the result's qLabel), shown in its own sortable column. */ q?: number; score?: number; articles?: number; variants?: number; sources?: number; from?: string[]; bestScore?: number; pmids?: string[]; evidence?: Record<string, number> }
 export interface GeneResult { genes: FGene[]; organismTaxId: number; ranked?: boolean; citation?: string; source?: string; disease?: string; term?: string; link?: string; total?: number
   /** Label of FGene.value; how many genes to keep at first (default 200–500); keep them all (e.g. a ranked list for GSEA). */
-  valueLabel?: string; defaultTop?: number; keepAll?: boolean; note?: string }
+  valueLabel?: string; defaultTop?: number; keepAll?: boolean; note?: string
+  /** Label of FGene.q, e.g. "q-value (BH-adjusted p)" or "p-value". */
+  qLabel?: string }
 
 const EXAMPLES: Record<FetchMode, string> = {
   disease: 'asthma',
@@ -368,37 +371,68 @@ function ClinvarVariants({ data }: { data: { searched?: { query: string; term: s
 }
 
 /** Ranked genes of the fetched source; choose how many and save them as a list. */
-export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode | 'tcga' | 'maf' | 'survival' | 'nutrition'; onCreated: (l: AnalyteList) => void }) {
+export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchMode | 'tcga' | 'maf' | 'survival' | 'nutrition'; onCreated: (l: AnalyteList, opts?: { enrich?: boolean }) => void }) {
+  const quickSave = useCreateList()
   const value = (g: FGene) => g.value ?? g.sources ?? g.score ?? g.articles ?? g.variants ?? null
   const valueLabel = r.valueLabel ? r.valueLabel : r.genes.some((g) => g.sources != null) ? 'selected results listing the gene' : r.genes.some((g) => g.score != null) ? 'association score' : r.genes.some((g) => g.articles != null) ? 'articles' : r.genes.some((g) => g.variants != null) ? 'variants' : null
+  // Labels such as "% of tumours mutated" hold percentages: show them as 72.5%, not 72.470.
+  const isPct = !!valueLabel?.startsWith('%')
+  const showValue = (v: number | null) => (typeof v !== 'number' ? v : isPct ? `${v.toFixed(1)}%` : Number.isInteger(v) ? v : v.toFixed(3))
   const firstTop = () => (r.keepAll ? r.genes.length : Math.min(r.genes.length, r.defaultTop ?? (valueLabel === 'association score' ? 200 : 500)))
   const [top, setTop] = useState(firstTop)
   const [withScores, setWithScores] = useState(!!r.keepAll)
   const [organism, setOrganism] = useState(r.organismTaxId)
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const [sel, setSel] = useState<string[]>([])
-  useEffect(() => { setTop(firstTop()); setOrganism(r.organismTaxId); setSel([]); setWithScores(!!r.keepAll) // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Table order: the source's ranking, or sorted by the value or the q-value. "Keep the top N" follows it.
+  const [sort, setSort] = useState<{ key: 'rank' | 'value' | 'q'; dir: 1 | -1 }>({ key: 'rank', dir: 1 })
+  useEffect(() => { setTop(firstTop()); setOrganism(r.organismTaxId); setSel([]); setWithScores(!!r.keepAll); setSort({ key: 'rank', dir: 1 }) // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [r, valueLabel])
+  const hasQ = r.genes.some((g) => g.q != null)
+  const qLabel = r.qLabel ?? 'q-value'
+  const genes = useMemo(() => {
+    if (sort.key === 'rank') return r.genes
+    const v = (g: FGene) => (sort.key === 'q' ? g.q : value(g)) ?? null
+    return r.genes.map((g, i) => ({ g, i })).sort((a, b) => {
+      const x = v(a.g), y = v(b.g)
+      if (x == null || y == null) return x == null && y == null ? a.i - b.i : x == null ? 1 : -1     // missing values last
+      return x === y ? a.i - b.i : (x < y ? -1 : 1) * sort.dir
+    }).map((x) => x.g)
+  }, [r, sort]) // eslint-disable-line react-hooks/exhaustive-deps
+  const sortBy = (key: 'rank' | 'value' | 'q') => setSort((s) => (s.key === key ? (key === 'rank' ? s : { key, dir: (s.dir * -1) as 1 | -1 })
+    : { key, dir: key === 'value' ? -1 : 1 }))                                    // value: largest first; q: smallest first
+  const sortTh = (key: 'rank' | 'value' | 'q', label: string, title: string) => (
+    <th className="num" aria-sort={sort.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : 'none'}>
+      <button type="button" className="th-btn" title={title} onClick={() => sortBy(key)}>{label}{sort.key === key && key !== 'rank' ? (sort.dir === 1 ? ' ▲' : ' ▼') : ''}</button>
+    </th>
+  )
+  const sortName = sort.key === 'rank' ? null : `${sort.key === 'q' ? qLabel : valueLabel}, ${sort.dir === 1 ? 'smallest' : 'largest'} first`
   // Two ways to choose: the top N genes (slider), or hand-picked bars. Hand-picked genes win while there are any.
   const selSet = useMemo(() => new Set(sel), [sel])
-  const chosen = useMemo(() => (sel.length ? r.genes.filter((g) => selSet.has(g.gene)) : r.genes.slice(0, top)), [r, top, sel, selSet])
+  const chosen = useMemo(() => (sel.length ? genes.filter((g) => selSet.has(g.gene)) : genes.slice(0, top)), [genes, top, sel, selSet])
   const allPicked = r.genes.length > 0 && sel.length === r.genes.length
   const pickAll = () => setSel(r.genes.map((g) => g.gene))
   const chosenSet = useMemo(() => new Set(chosen.map((g) => g.gene)), [chosen])
-  const shown = r.genes.slice(0, 40)
+  const shown = genes.slice(0, 40)
   const TABLE_ROWS = 500
   const hasFrom = r.genes.some((g) => g.from?.length)
   const toggleGene = (gene: string) => setSel((c) => (c.includes(gene) ? c.filter((x) => x !== gene) : [...c, gene]))
   const minTop = Math.min(5, r.genes.length)
   const name = { disease: r.disease ?? r.term ?? 'Disease genes', pubmed: 'PubMed genes', geo: r.term ?? 'GEO signature', clinvar: 'ClinVar variant genes', tcga: r.term ?? 'TCGA genes', maf: r.term ?? 'Mutated genes (MAF)', survival: r.term ?? 'Survival genes', nutrition: r.term ?? 'Nutrition genes' }[mode]
   const hasNote = r.genes.some((g) => g.note)
+  const meta = { method: `fetch-${mode}`, source: r.source ?? mode, query: r.disease ?? r.term ?? '' }
+  const scores = withScores && valueLabel ? chosen.map((g) => value(g) ?? 0) : undefined
+  // One-click save from the top of the results (the full form with name, organism and ID type is at the bottom).
+  const saveNow = (enrich: boolean) => quickSave.mutate(
+    { name: name.slice(0, 70), ids: chosen.map((g) => g.gene), scores, organismTaxId: organism, idFormat, meta, uniqueName: false },
+    { onSuccess: (l) => onCreated(l, { enrich }) })
   return (
     <div className="stack-sm fetch-genes">
       <div className="row between wrap">
         <h3>{plural(r.genes.length, 'gene')}{r.source ? ` · ${r.source}` : ''}{r.total && r.total > r.genes.length ? ` (top ${r.genes.length} of ${r.total.toLocaleString()})` : ''}</h3>
         <span className="row"><CopyButton label="Copy genes" text={chosen.map((g) => g.gene).join('\n')} />
           <button className="btn btn-ghost btn-sm" onClick={() => saveXlsx([{ name: (r.source ?? mode).slice(0, 31), rows: r.genes.map((g, i) => ({ Rank: i + 1, Gene: g.gene, Name: g.name ?? '',
-            ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}), ...(g.from ? { 'Listed by': g.from.join('; ') } : {}),
+            ...(valueLabel ? { [valueLabel]: value(g) ?? '' } : {}), ...(hasQ ? { [qLabel]: g.q ?? '' } : {}), ...(g.pmids ? { PMIDs: g.pmids.join(', ') } : {}), ...(g.from ? { 'Listed by': g.from.join('; ') } : {}),
             ...(g.evidence ? Object.fromEntries(Object.entries(g.evidence).map(([k, v]) => [`Evidence: ${k}`, v])) : {}) })) }], `flame_${mode}_genes.xlsx`)}>Excel</button>{r.link && <a className="btn btn-ghost btn-sm" href={r.link} target="_blank" rel="noopener noreferrer">Source ↗</a>}</span>
       </div>
       {r.genes.length > 1 && (
@@ -409,6 +443,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           <span className="small">of {r.genes.length.toLocaleString()} genes</span>
           <input id="keep-top-range" type="range" min={minTop} max={r.genes.length} step={1} value={Math.max(minTop, top)} disabled={sel.length > 0}
             onChange={(e) => setTop(Number(e.target.value))} />
+          <button className="btn btn-ghost btn-sm" disabled={sel.length > 0 || top === r.genes.length} onClick={() => setTop(r.genes.length)}>All</button>
           {sel.length > 0 && <span className="small"><strong>{plural(sel.length, 'hand-picked gene')}</strong> used instead <button className="btn btn-ghost btn-sm" onClick={() => setSel([])}>Back to top {top}</button></span>}
         </div>
       )}
@@ -418,19 +453,31 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           <button className="btn btn-ghost btn-sm" onClick={() => setSel([])} disabled={!sel.length}>None</button>
         </div>
       )}
+      {chosen.length > 0 && (
+        <div className="row wrap">
+          <button className="btn btn-primary btn-sm" disabled={quickSave.isPending} title={`Save the ${plural(chosen.length, 'gene')} below as "${name.slice(0, 70)}"`} onClick={() => saveNow(false)}>
+            {quickSave.isPending ? 'Saving…' : sel.length ? `Save ${plural(chosen.length, 'hand-picked gene')} as list` : chosen.length === r.genes.length ? `Save all ${plural(chosen.length, 'gene')} as list` : `Save the top ${plural(chosen.length, 'gene')} as list`}</button>
+          <button className="btn btn-secondary btn-sm" disabled={quickSave.isPending} onClick={() => saveNow(true)}>Save &amp; run enrichment</button>
+          <span className="muted small">Change the number above, or tick genes in the table. Name, organism and ID type: form at the bottom.</span>
+        </div>
+      )}
+      <ErrorNote error={quickSave.error} />
       <div className="table-scroll fetch-table gene-table"><table className="table compact">
-        <thead><tr><th><input type="checkbox" checked={allPicked} aria-label="Select all genes" title={allPicked ? 'Clear the selection' : 'Select all genes'} onChange={() => (allPicked ? setSel([]) : pickAll())} /></th><th className="num">#</th><th>Gene</th><th>Name</th>{valueLabel && <th className="num">{valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1)}</th>}{hasFrom && <th>Listed by</th>}{hasNote && <th>Details</th>}</tr></thead>
-        <tbody>{r.genes.slice(0, TABLE_ROWS).map((g, i) => (
+        <thead><tr><th><input type="checkbox" checked={allPicked} aria-label="Select all genes" title={allPicked ? 'Clear the selection' : 'Select all genes'} onChange={() => (allPicked ? setSel([]) : pickAll())} /></th>{sortTh('rank', '#', 'Back to the original order')}<th>Gene</th><th>Name</th>
+          {valueLabel && sortTh('value', valueLabel === 'selected results listing the gene' ? 'Results' : valueLabel[0].toUpperCase() + valueLabel.slice(1), 'Sort by this column')}
+          {hasQ && sortTh('q', qLabel[0].toUpperCase() + qLabel.slice(1), 'Sort by this column')}{hasFrom && <th>Listed by</th>}{hasNote && <th>Details</th>}</tr></thead>
+        <tbody>{genes.slice(0, TABLE_ROWS).map((g, i) => (
           <tr key={g.gene} className={chosenSet.has(g.gene) ? 'selected' : ''}>
             <td><input type="checkbox" checked={selSet.has(g.gene)} aria-label={`Hand-pick ${g.gene}`} onChange={() => toggleGene(g.gene)} /></td>
             <td className="num muted">{i + 1}</td><td><GeneCardsLink gene={g.gene} /></td><td className="small">{g.name}</td>
-            {valueLabel && <td className="num">{typeof value(g) === 'number' && !Number.isInteger(value(g)) ? (value(g) as number).toFixed(3) : value(g)}</td>}
+            {valueLabel && <td className="num">{showValue(value(g))}</td>}
+            {hasQ && <td className="num">{g.q == null ? '' : formatP(g.q)}</td>}
             {hasFrom && <td className="small muted">{(g.from ?? []).join('; ')}</td>}
             {hasNote && <td className="small muted">{g.note}</td>}
           </tr>
         ))}</tbody>
       </table></div>
-      <p className="muted small">Highlighted rows are the genes that will be saved{r.genes.length > TABLE_ROWS ? ` (the table shows the first ${TABLE_ROWS} of ${r.genes.length.toLocaleString()})` : ''}. Tick genes to hand-pick them instead of taking the top ones.</p>
+      <p className="muted small">Highlighted rows are the genes that will be saved{r.genes.length > TABLE_ROWS ? ` (the table shows the first ${TABLE_ROWS} of ${r.genes.length.toLocaleString()})` : ''}. Tick genes to hand-pick them instead of taking the top ones.{valueLabel || hasQ ? ' Click a column header to sort; the top genes follow the order shown.' : ''}</p>
       {valueLabel && (
         <details className="gene-chart" open={mode !== 'disease'}>
           <summary className="small">Bar chart of the first {shown.length} genes</summary>
@@ -439,19 +486,19 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
           type: 'bar', orientation: 'h', y: shown.map((g) => g.gene), x: shown.map((g) => value(g) ?? 0), customdata: shown.map((g) => g.gene),
           text: shown.map((g) => g.name ?? ''), textposition: 'none',
           marker: { color: shown.map((g) => (!chosenSet.has(g.gene) ? '#c7ccd3' : sel.length ? '#e11d48' : '#8b5cf6')) },
-          hovertemplate: `%{y}: %{x} ${valueLabel}<br>%{text}<extra></extra>`,
+          hovertemplate: `${isPct ? `%{y}: %{x:.1f}% ${valueLabel.replace(/^%\s*/, '')}` : `%{y}: %{x} ${valueLabel}`}<br>%{text}<extra></extra>`,
         } as never]} layout={{ yaxis: { autorange: 'reversed', automargin: true }, xaxis: { title: { text: valueLabel } }, margin: { l: 80, r: 10, t: 10, b: 45 } }} />
           <p className="muted small">Coloured bars are the genes that will be saved; click a bar to hand-pick or remove that gene.</p>
         </details>
       )}
       {!valueLabel && <GeneChips genes={r.genes.map((g) => g.gene)} taxid={r.organismTaxId} max={80} />}
-      <p className="small"><strong>{plural(chosen.length, 'gene')}</strong> will be saved{sel.length ? ' (hand-picked)' : r.genes.length > 1 ? ` (the top ${chosen.length} by ${valueLabel ?? 'rank'})` : ''}.</p>
+      <p className="small"><strong>{plural(chosen.length, 'gene')}</strong> will be saved{sel.length ? ' (hand-picked)' : r.genes.length > 1 ? ` (the top ${chosen.length} by ${sortName ?? valueLabel ?? 'rank'})` : ''}.</p>
       {valueLabel && <details className="small"><summary>Genes that will be saved ({chosen.length}) — click a gene for GeneCards</summary><GeneChips genes={chosen.map((g) => g.gene)} taxid={r.organismTaxId} max={200} /></details>}
       {r.citation && <p className="muted small">{r.citation}</p>}
       {chosen.length > 0 && (
-        <SaveList ids={chosen.map((g) => g.gene)} scores={withScores && valueLabel ? chosen.map((g) => value(g) ?? 0) : undefined}
+        <SaveList ids={chosen.map((g) => g.gene)} scores={scores}
           defaultName={name.slice(0, 70)} organism={organism} setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat}
-          meta={{ method: `fetch-${mode}`, source: r.source ?? mode, query: r.disease ?? r.term ?? '' }} onCreated={onCreated}
+          meta={meta} onCreated={onCreated}
           extra={valueLabel ? <label className="check small"><input type="checkbox" checked={withScores} onChange={(e) => setWithScores(e.target.checked)} /> Keep {valueLabel} as scores (ranked list for GSEA)</label> : undefined} />
       )}
       {r.genes.length === 0 && <Note kind="info">No genes for this selection.</Note>}

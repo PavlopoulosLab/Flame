@@ -26,7 +26,8 @@ interface Props {
   example?: boolean
   lists: AnalyteList[]
   onClose: () => void
-  onCreated: (list: AnalyteList) => void
+  /** opts.enrich: the user asked to go straight to an enrichment run with the new list. */
+  onCreated: (list: AnalyteList, opts?: { enrich?: boolean }) => void
   /** Pre-filled table (e.g. a two-group comparison handed to the volcano selector). */
   initialText?: string
   initialFileName?: string

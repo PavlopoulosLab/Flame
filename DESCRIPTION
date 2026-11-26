@@ -52,6 +52,7 @@ Imports:
     mime
 Suggests:
     progeny,
+    org.Hs.eg.db,
     pkgload,
     testthat (>= 3.0.0),
     httptest2,

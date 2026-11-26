@@ -21,7 +21,8 @@ if (!identical(Sys.getenv("FLAME_RUNTIME_ONLY"), "1"))
   flame_all_packages <- c(flame_all_packages, "testthat", "httptest2", "callr")
 
 # Bioconductor packages (clusterProfiler ORA/GSEA, PROGENy pathway activity; msigdbr itself is on CRAN)
-flame_bioc_packages <- c("clusterProfiler", "fgsea", "progeny")
+# (org.Hs.eg.db: human gene names in the TCGA gene lists)
+flame_bioc_packages <- c("clusterProfiler", "fgsea", "progeny", "org.Hs.eg.db")
 flame_all_packages <- c(flame_all_packages, "msigdbr")
 
 ncpus <- max(1L, parallel::detectCores() - 1L)

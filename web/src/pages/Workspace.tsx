@@ -392,7 +392,10 @@ export default function WorkspacePage() {
         <InputModal key={`${dialog.kind}-${dialog.fileName ?? ''}`} kind={dialog.kind} example={dialog.example} lists={lists} onClose={() => setDialog(null)}
           initialText={dialog.text} initialFileName={dialog.fileName} initialView={dialog.view} initialListIds={dialog.listIds}
           onOpenVolcano={(text, fileName) => setDialog({ type: 'input', kind: 'volcano', text, fileName })}
-          onCreated={(list) => { setDialog(null); setSection('input'); setSavedList(list) }} />
+          onCreated={(list, opts) => {
+            if (opts?.enrich) { setSection('enrich'); setDialog({ type: 'newRun', listId: list.id }); return }
+            setDialog(null); setSection('input'); setSavedList(list)
+          }} />
       )}
       {dialog?.type === 'quick' && (
         <QuickActionModal action={dialog.action} lists={lists} initialListId={dialog.listId} onClose={() => setDialog(null)} />
