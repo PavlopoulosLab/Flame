@@ -6,6 +6,7 @@ import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
 import type { AnalyteList, CustomSource } from '../api/types'
 import { BusyBar, ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
 import { ToolLogo } from '../components/ToolLogo'
+import { SplitUpDown } from './UpDownRunPanel'
 
 const METRIC_HELP: Record<string, string> = {
   gSCS: 'g:SCS — g:Profiler’s own correction, accounts for the GO structure',
@@ -30,7 +31,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const start = useStartRuns()
   const invalidateWs = useInvalidateWorkspace()
   const [loadingExample, setLoadingExample] = useState(false)
-  // Up/down lists saved together from a volcano table are analysed together: ticking one ticks its partner.
+  // Up/down lists saved together (from a volcano table, or split from a ranked list) are analysed together: ticking one ticks its partner.
   const withPartners = (ids: string[]) => {
     const pairs = new Set(lists.filter((l) => ids.includes(l.id) && l.meta?.direction && l.meta?.pairId).map((l) => String(l.meta.pairId)))
     return [...new Set([...ids, ...lists.filter((l) => l.meta?.direction && pairs.has(String(l.meta.pairId))).map((l) => l.id)])]
@@ -46,6 +47,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const mixedOrganisms = new Set(picked.map((l) => l.organismTaxId)).size > 1
   const [progress, setProgress] = useState<string | null>(null)
   const [showGmt, setShowGmt] = useState(false)
+  const [showSplit, setShowSplit] = useState(false)
   const [showSignature, setShowSignature] = useState(false)
   const [tools, setTools] = useState<string[]>(preset === 'celltypes' ? ['enrichr', 'clusterprofiler'] : preset === 'literature' ? ['string', 'enrichr'] : initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
   const shownParadigm = useRef(paradigm)
@@ -163,13 +165,23 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
               )}
               {picked.length === 0 && <span className="muted small">Tick at least one list.</span>}
               {(() => {
-                const pairId = picked.find((l) => l.meta?.direction && l.meta?.pairId)?.meta.pairId
+                const half = picked.find((l) => l.meta?.direction && l.meta?.pairId)
+                const pairId = half?.meta.pairId
                 return pairId && onUpDown && paradigm === 'ORA' ? (
-                  <Note kind="info">These are the <strong>up- and down-regulated</strong> genes of one volcano plot.{' '}
+                  <Note kind="info">These are the <strong>up- and down-regulated</strong> genes {half?.meta.method === 'ranked-split' ? 'of one list with scores' : 'of one volcano plot'}.{' '}
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => onUpDown(String(pairId))}>Open the up &amp; down GO enrichment step →</button>
                     {' '}runs your chosen tools on both and opens their results together.</Note>
                 ) : null
               })()}
+              {picked.length === 1 && picked[0].ranked && !picked[0].meta?.direction && onUpDown && (
+                <div className="note note-info">
+                  <div className="row between wrap">
+                    <span><strong>Up &amp; down:</strong> this list has scores. Enrich its up-regulated (positive score) and down-regulated (negative score) genes separately and see both in one figure.</span>
+                    {!showSplit && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowSplit(true)}>Up &amp; down enrichment…</button>}
+                  </div>
+                  {showSplit && <SplitUpDown key={picked[0].id} list={picked[0]} lists={lists} onPair={onUpDown} />}
+                </div>
+              )}
               {mixedOrganisms && <Note kind="warning">The selected lists are from different organisms. Tool availability below is shown for {list?.organismName.replace(/ \[NCBI.*$/, '')}; a tool that does not support another list's organism is skipped for that list and reported.</Note>}
             </Field>
           )}

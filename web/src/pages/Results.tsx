@@ -216,7 +216,7 @@ function ResultsPageBody() {
     queryFn: () => api<ViewData>(`/runs/${encodeURIComponent(runId)}/view`, { body: { view: 'table', top: 'all' } }),
     enabled: run?.status === 'complete',
   })
-  // Up/down pair: this run's list was saved with a partner list (the other direction) from one volcano table.
+  // Up/down pair: this run's list was saved with a partner list (the other direction) from one volcano table or one ranked list.
   // The partner run is the latest finished run of the same tool and annotation sources on that list.
   const pair = useMemo(() => {
     if (!summary || !run || run.paradigm !== 'ORA') return null
