@@ -187,7 +187,7 @@ export function TopTerms({ data, labels, barMode, collapseCutoff, selected, onSe
       </p>
       {figs.map((fig, i) => (
         <section key={fig.key} className={standalone ? 'chart-card' : undefined}>
-          <Plot handleRef={i === 0 ? plotRef : undefined} exportName={`flame_comparison_top_terms${fig.title ? `_${fig.title.replace(/[^A-Za-z0-9]+/g, '_')}` : ''}`}
+          <Plot handleRef={i === 0 ? plotRef : undefined} colorKey="flame_comparison_top_terms" exportName={`flame_comparison_top_terms${fig.title ? `_${fig.title.replace(/[^A-Za-z0-9]+/g, '_')}` : ''}`}
             title={fig.title} height={fig.height} onSelect={onSelect} data={fig.traces as never} layout={fig.layout as never} />
         </section>
       ))}

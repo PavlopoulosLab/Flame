@@ -1,5 +1,5 @@
 import Plotly from 'plotly.js-dist-min'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { DataSet } from 'vis-data/peer'
 import { Network } from 'vis-network/peer'
 import 'vis-network/styles/vis-network.css'
@@ -8,6 +8,8 @@ import { BrushModes, pointInPolygon, useBrush, type BrushMode } from '../lib/bru
 import { categorical, usePaletteMode, type PaletteMode } from '../lib/palette'
 import { ExportImageButton } from './ExportImage'
 import { ChartTextButton } from './ChartTextControls'
+import { ChartColorButton } from './ChartColorControls'
+import { applyChartColours, colourRoles, setChartColours, useChartColours, type ChartColours } from '../lib/chartColors'
 import { applyChartLabels, applyChartText, chartLabels, NO_LABELS, useChartText, type ChartLabels } from '../lib/chartText'
 import { LIGHT, openImageExport, type ImageSource, type RenderOptions } from '../lib/imageExport'
 import { plotlySafeDeep } from '../lib/format'
@@ -97,6 +99,8 @@ export function Plot({
   exportName = 'flame_plot',
   tools = true,
   textButton = true,
+  colorButton = true,
+  colorKey,
   title,
 }: {
   data: PlotData
@@ -117,6 +121,10 @@ export function Plot({
   textButton?: boolean
   /** Default title drawn in the figure (and its exported image); a title written under "Aa Text" replaces it. */
   title?: string
+  /** false: no "Colours" button (the colours of every series and colour scale, chosen by the user). */
+  colorButton?: boolean
+  /** Where the chosen colours are kept (default: the export name), e.g. one key for the plots of every gene. */
+  colorKey?: string
 }) {
   const ref = useRef<HTMLDivElement>(null)
   const text = useChartText()
@@ -126,6 +134,12 @@ export function Plot({
     try { const v = labelKey ? JSON.parse(sessionStorage.getItem(labelKey) ?? 'null') : null; return v ? { ...NO_LABELS, ...v } : NO_LABELS } catch { return NO_LABELS }
   })
   const setLabels = (l: ChartLabels) => { setLabelsState(l); try { if (labelKey) sessionStorage.setItem(labelKey, JSON.stringify(l)) } catch { /* storage unavailable */ } }
+  // Colours chosen for this chart (kept in this browser for charts with their own export name).
+  const colourKey = colorKey ?? (exportName !== 'flame_plot' ? exportName : '')
+  const kept = useChartColours(colourKey)
+  const [ownColours, setOwnColours] = useState<ChartColours>({})
+  const colours = colourKey ? kept : ownColours
+  const setColours = (c: ChartColours) => (colourKey ? setChartColours(colourKey, c) : setOwnColours(c))
   const selectRef = useRef(onSelect)
   selectRef.current = onSelect
   const clickRef = useRef(onPointClick)
@@ -144,17 +158,21 @@ export function Plot({
   // drag-selection and emits an empty "selected" event; ignore events we cause.
   const redrawing = useRef(false)
   const cb = usePaletteMode()
+  const roles = useMemo(() => colourRoles(data as Record<string, unknown>[],
+    ((layout as { colorway?: string[] } | undefined)?.colorway ?? categorical(cb)) as string[]), [data, layout, cb])
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
     const base = themeLayout(cb)
+    const colorway = ((layout as { colorway?: string[] } | undefined)?.colorway ?? base.colorway) as string[]
+    const recoloured = applyChartColours(data as Record<string, unknown>[], (layout ?? {}) as Record<string, unknown>, colours, colorway)
     const own: Record<string, unknown> = {
       ...base,
       height,
       margin: { l: 60, r: 20, t: 20, b: 50 },
       dragmode: tools ? mode : false,
-      ...layout,
+      ...recoloured.layout,
       xaxis: { ...base.xaxis, ...(layout?.xaxis ?? {}) },
       yaxis: { ...base.yaxis, ...(layout?.yaxis ?? {}) },
     }
@@ -170,7 +188,7 @@ export function Plot({
     const merged = applyChartLabels(styled, labels, text) as Partial<Plotly.Layout>
     redrawing.current = true
     Promise.resolve(
-      Plotly.react(el, plotlySafeDeep(data) as Plotly.Data[], plotlySafeDeep(merged), {
+      Plotly.react(el, plotlySafeDeep(recoloured.data) as Plotly.Data[], plotlySafeDeep(merged), {
         responsive: true,
         displaylogo: false,
         ...(tools ? {} : { displayModeBar: false }),
@@ -203,7 +221,7 @@ export function Plot({
     if (handleRef) {
       handleRef.current = { exportImage: (name) => openImageExport(plotSource(el, name ?? nameRef.current, !!selectRef.current)) }
     }
-  }, [data, layout, height, mode, handleRef, cb, tools, text, labels, title])
+  }, [data, layout, height, mode, handleRef, cb, tools, text, labels, title, colours])
 
   useEffect(() => {
     const el = ref.current
@@ -223,6 +241,7 @@ export function Plot({
             ))}
           </div>
         )}
+        {colorButton && <ChartColorButton roles={roles} colours={colours} setColours={setColours} />}
         {textButton && <ChartTextButton labels={labels} setLabels={setLabels} own={chartLabels((layout ?? {}) as Record<string, unknown>)} />}
         <ExportImageButton source={() => (ref.current ? plotSource(ref.current, exportName, !!onSelect) : null)} />
       </div>

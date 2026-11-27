@@ -660,7 +660,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
             </div>
           )}
           {!isVolcano && <div className="row"><button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear selection</button></div>}
-          <Plot data={isVolcano ? [...plotData, { type: 'scatter' as const, mode: 'markers' as const, x: [0], y: [0], yaxis: 'y2', showlegend: false, hoverinfo: 'skip' as const, marker: { opacity: 0 } }] as never : plotData} height={420} dragmode="select"
+          <Plot colorKey={isVolcano ? 'flame_volcano' : 'flame_reduction'} data={isVolcano ? [...plotData, { type: 'scatter' as const, mode: 'markers' as const, x: [0], y: [0], yaxis: 'y2', showlegend: false, hoverinfo: 'skip' as const, marker: { opacity: 0 } }] as never : plotData} height={420} dragmode="select"
             onShapesMoved={isVolcano ? (u) => {
               const y = u['shapes[0].y0'] ?? u['shapes[0].y1']
               if (y !== undefined && y > 0) setPText(fmtP(Math.min(1, 10 ** -y)))
@@ -1198,7 +1198,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
             )}
             {view === 'clusters' && (
               <div className="expr-clusters">
-                <Plot height={Math.min(560, 120 + ov.heatmap.genes.length * 0.5)} data={[{
+                <Plot colorKey="flame_expression_heatmap" height={Math.min(560, 120 + ov.heatmap.genes.length * 0.5)} data={[{
                   type: 'heatmap', z: ov.heatmap.z, x: ov.samples, y: ov.heatmap.genes, colorscale: 'RdBu', reversescale: true, zmid: 0, zmin: -2.5, zmax: 2.5,
                   customdata: ov.heatmap.genes.map((_, i) => ov.samples.map(() => `c${ov.heatmap.clusters[i]}`)) as never,
                   hovertemplate: '%{y} · %{x}<br>z = %{z}<extra></extra>', colorbar: { title: { text: 'z-score' } },
@@ -1225,7 +1225,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
               </div>
             )}
             {view === 'map' && (
-              <Plot height={460} dragmode="lasso" onSelect={(ids, add) => setSel((cur) => (add ? new Set([...cur, ...ids]) : new Set(ids)))}
+              <Plot colorKey="flame_expression_scatter" height={460} dragmode="lasso" onSelect={(ids, add) => setSel((cur) => (add ? new Set([...cur, ...ids]) : new Set(ids)))}
                 data={Object.keys(ov.clusterSizes).map((c) => {
                   const g = ov.genes.filter((x) => x.cluster === Number(c))
                   return { type: 'scatter', mode: 'markers', name: `Cluster ${c}`, x: g.map((p) => p.x), y: g.map((p) => p.y), customdata: g.map((p) => p.id), text: g.map((p) => p.id),
@@ -1374,7 +1374,7 @@ function PairPlot({ text, fileName, log, geneA, geneB, methods, groups, fdr }: {
                 <td className="num">{fmtP(s.p)}</td>{fdr && <td className="num">{fmtP(fdr[s.method])}</td>}</tr>
             ))}</tbody>
           </table>
-          <Plot height={420} exportName={`flame_correlation_${res.geneA}_${res.geneB}`} data={traces as never}
+          <Plot height={420} exportName={`flame_correlation_${res.geneA}_${res.geneB}`} colorKey="flame_correlation_pair" data={traces as never}
             layout={{ xaxis: { title: { text: `${res.geneA} (${unit})` } }, yaxis: { title: { text: `${res.geneB} (${unit})` } }, legend: { orientation: 'h', y: -0.2 } }} />
           <p className="muted small">Each point is a sample. p-values from <code>cor.test</code> for this pair (exact for Spearman and Kendall in small samples without ties); 95% CI for Pearson only.{fdr ? ' The FDR column comes from testing this gene against every gene.' : ''} {res.note}</p>
         </>
@@ -1534,7 +1534,7 @@ function CorrelationView({ text, fileName, log, groups, organism, setOrganism, i
                 <button className="btn btn-ghost btn-sm" onClick={() => pick('both')}>Both</button>
                 <button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear</button>
               </div>
-              <Plot height={420} dragmode="select" exportName={`flame_correlation_${res.gene}`} data={plotData as never}
+              <Plot height={420} dragmode="select" exportName={`flame_correlation_${res.gene}`} colorKey="flame_correlation_gene" data={plotData as never}
                 onSelect={(sid, add) => setSel((cur) => (add ? new Set([...cur, ...sid]) : new Set(sid)))}
                 onPointClick={showPartner}
                 layout={{ xaxis: { title: { text: `${CORR_LABEL[plotMethod]} with ${res.gene}` }, range: [-1.05, 1.05] }, yaxis: { title: { text: '−log10 FDR' } }, legend: { orientation: 'h', y: -0.2 },
@@ -1806,7 +1806,7 @@ function BoxplotsView({ text, fileName, log, samples, setup, setSetup }: {
             {custom && <button type="button" className="btn btn-ghost btn-sm" title="Drop the colours picked per group and use the palette again" onClick={() => setSetup((st) => ({ ...st, colors: [] }))}>Reset to palette</button>}
             <span className="muted small">or pick a colour per group under <em>Samples in groups</em></span>
           </div>
-          <Plot height={400} exportName={`flame_boxplots_${vals.genes.map((g) => g.gene).slice(0, 3).join('_')}`} data={boxData as never}
+          <Plot height={400} exportName={`flame_boxplots_${vals.genes.map((g) => g.gene).slice(0, 3).join('_')}`} colorKey="flame_boxplots" data={boxData as never}
             layout={{ boxmode: 'group', yaxis: { title: { text: unit } }, legend: { orientation: 'h', y: -0.15 }, margin: { l: 60, r: 20, t: vals.testName ? 30 : 10, b: 60 }, annotations: annotations as never }} />
           {vals.testName && <p className="muted small">p above each gene: {shownGroups.length > 2 ? (vals.test === 'rank' ? 'Kruskal–Wallis test' : 'Welch one-way ANOVA') : vals.testName} ({shownGroups.join(' vs ')}), not adjusted across genes.{members.some((m) => m.length < 4) && vals.test === 'rank' ? ' With so few samples per group, rank tests cannot reach small p-values (3 vs 3: p ≥ 0.1).' : ''}</p>}
           {vals.testName && (
@@ -1893,7 +1893,7 @@ function PathwayActivity({ text, fileName, log, organism }: { text: string; file
               `flame_pathway_activity_${res.method}.xlsx`)}>Excel</button>
             <button className="btn btn-ghost btn-sm" onClick={() => saveText(tsv, `flame_pathway_activity_${res.method}.tsv`, 'text/tab-separated-values')}>TSV</button>
           </div>
-          <Plot height={Math.max(320, res.pathways.length * 16 + 120)} data={[{
+          <Plot colorKey="flame_pathway_activity" height={Math.max(320, res.pathways.length * 16 + 120)} data={[{
             type: 'heatmap', x: res.samples, y: res.pathways.map((p) => (p.length > 48 ? `${p.slice(0, 47)}…` : p)), z,
             customdata: res.pathways.map((p) => res.samples.map(() => p)) as never, colorscale: 'RdBu', reversescale: true, zmid: 0,
             hovertemplate: '%{customdata}<br>%{x}: %{z}<extra></extra>', colorbar: { title: { text: scale ? 'z-score' : 'score' } },
@@ -1967,7 +1967,7 @@ function MirnaInput({ example, onClose, onCreated, title }: P) {
             <div className="chart-grid">
               <div className="chart-card">
                 <h3>Targets per microRNA</h3>
-                <Plot height={Math.max(200, 26 * res.mirnas.length + 60)}
+                <Plot colorKey="flame_mirna_targets" height={Math.max(200, 26 * res.mirnas.length + 60)}
                   data={[{ type: 'bar', orientation: 'h', y: [...res.mirnas].reverse().map((m) => m.input), x: [...res.mirnas].reverse().map((m) => m.targets),
                     customdata: [...res.mirnas].reverse().map((m) => m.input), marker: { color: [...res.mirnas].reverse().map((m) => (m.input === only ? '#e11d48' : roleColors(pm).accent)) },
                     hovertemplate: '%{y}: %{x} targets — click to use only its targets<extra></extra>' }]}
@@ -1976,7 +1976,7 @@ function MirnaInput({ example, onClose, onCreated, title }: P) {
               </div>
               <div className="chart-card">
                 <h3>Targeted by how many of your microRNAs</h3>
-                <Plot height={260} data={[{ type: 'bar', x: Array.from({ length: maxCount }, (_, i) => i + 1), y: Array.from({ length: maxCount }, (_, i) => res.genes.filter((g) => g.count === i + 1).length),
+                <Plot colorKey="flame_mirna_shared" height={260} data={[{ type: 'bar', x: Array.from({ length: maxCount }, (_, i) => i + 1), y: Array.from({ length: maxCount }, (_, i) => res.genes.filter((g) => g.count === i + 1).length),
                   customdata: Array.from({ length: maxCount }, (_, i) => String(i + 1)), marker: { color: Array.from({ length: maxCount }, (_, i) => (i + 1 >= minMirnas && !only ? '#8b5cf6' : '#d4d4d8')) },
                   hovertemplate: '%{y} genes targeted by %{x} microRNAs — click to keep genes hit at least this often<extra></extra>' }]}
                   layout={{ xaxis: { title: { text: 'microRNAs targeting the gene' }, dtick: 1 }, yaxis: { title: { text: 'Genes' }, type: 'log' } }}

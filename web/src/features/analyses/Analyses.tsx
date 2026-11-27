@@ -243,7 +243,7 @@ function RegulatorsView({ r, onDone }: { r: RegulatorResult; onDone: () => void 
           Genes: x.overlap.join(', '), 'Evidence libraries': x.libraries.map((l) => `${l.library} (${l.rank})`).join('; ') })) }], `flame_${r.tool.toLowerCase()}.xlsx`)}>Excel</button>
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(rows, cols), `flame_${r.tool.toLowerCase()}.csv`, 'text/csv')}>CSV</button>
       </div>
-      <Plot height={Math.max(300, top.length * 20 + 80)} onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
+      <Plot colorKey="flame_analysis_top" height={Math.max(300, top.length * 20 + 80)} onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
         type: 'bar', orientation: 'h', y: top.map((x) => x.name), x: top.map((x) => x.overlap.length), customdata: top.map((x) => x.name),
         marker: { color: top.map((x) => (selV.includes(x.name) ? '#e11d48' : x.score)), colorscale: 'Viridis', reversescale: true, showscale: !selV.length, colorbar: { title: { text: 'mean rank' } } },
         text: top.map((x) => `#${x.rank}`), textposition: 'outside',
@@ -300,7 +300,7 @@ function DrugsView({ r }: { r: DrugResult }) {
         <button className="btn btn-ghost btn-sm" onClick={() => saveText(toCsv(exp, Object.keys(exp[0] ?? {}).map((k) => ({ key: k, label: k }))), `flame_lincs_${dir}.csv`, 'text/csv')}>CSV</button>
       </div>
       {rows.length === 0 ? <Note kind="info">No signature {dir === 'reverse' ? 'reverses' : 'mimics'} this response significantly.</Note> : (
-        <Plot height={Math.max(300, rows.length * 20 + 80)} onSelect={(ids) => setSel(ids[0] ?? null)} data={[{
+        <Plot colorKey="flame_analysis_rows" height={Math.max(300, rows.length * 20 + 80)} onSelect={(ids) => setSel(ids[0] ?? null)} data={[{
           type: 'bar', orientation: 'h', y: rows.map((x) => x.agent), x: rows.map((x) => x[dir]), customdata: rows.map((x) => x.agent),
           marker: { color: rows.map((x) => (x.agent === selV ? '#f97316' : dir === 'reverse' ? '#2563eb' : '#e11d48')) },
           hovertemplate: '%{y}<br>score %{x}<extra></extra>',
@@ -417,7 +417,7 @@ function RobustnessView({ r }: { r: RobustnessResult }) {
       <div className="two-col-tight">
         <div className="chart-card">
           <h3>Stability of each term</h3>
-          <Plot height={360} dragmode="lasso" onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
+          <Plot colorKey="flame_stability_terms" height={360} dragmode="lasso" onSelect={(ids, add) => setSel((c) => (add ? [...new Set([...c, ...ids])] : ids))} data={[{
             type: 'scatter', mode: 'markers', x: r.terms.map((t) => t.stability), y: r.terms.map((t) => -Math.log10(Math.max(t.padj, 1e-300))),
             customdata: r.terms.map((t) => t.id), text: r.terms.map((t) => `${t.name} (${t.source})`),
             marker: { size: r.terms.map((t) => (selV.includes(t.id) ? 11 : 7)), color: r.terms.map((t) => t.randomRate), colorscale: [[0, '#16a34a'], [0.2, '#f59e0b'], [1, '#e11d48']], cmin: 0, cmax: 0.5, colorbar: { title: { text: 'random rate' } }, line: { width: r.terms.map((t) => (selV.includes(t.id) ? 1.5 : 0)), color: '#111827' } },
@@ -427,7 +427,7 @@ function RobustnessView({ r }: { r: RobustnessResult }) {
         </div>
         <div className="chart-card">
           <h3>Your list vs random lists</h3>
-          <Plot height={360} data={[{ type: 'histogram', x: r.randomSignificant, name: 'random lists', marker: { color: '#a1a1aa' }, hovertemplate: '%{x} terms: %{y} lists<extra></extra>' } as never]}
+          <Plot colorKey="flame_stability_random" height={360} data={[{ type: 'histogram', x: r.randomSignificant, name: 'random lists', marker: { color: '#a1a1aa' }, hovertemplate: '%{x} terms: %{y} lists<extra></extra>' } as never]}
             layout={{ xaxis: { title: { text: 'significant terms' }, range: [0, Math.max(r.significant, ...r.randomSignificant) * 1.1 + 1] }, yaxis: { title: { text: 'random lists' } }, showlegend: false,
               shapes: [{ type: 'line', x0: r.significant, x1: r.significant, yref: 'paper', y0: 0, y1: 1, line: { color: '#e11d48', width: 3 } }],
               annotations: [{ x: r.significant, yref: 'paper', y: 1, text: 'your list', showarrow: false, font: { color: '#e11d48' }, yanchor: 'bottom' }] }} />

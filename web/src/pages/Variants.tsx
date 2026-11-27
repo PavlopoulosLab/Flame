@@ -231,7 +231,7 @@ function BarCard({ title, rows, vertical, color = '#f97316', onPick }: { title: 
   return (
     <div className="chart-card">
       <h3>{title}</h3>
-      <Plot data={data} height={vertical ? 220 : Math.max(160, 26 * rows.length + 50)}
+      <Plot colorKey={`flame_variants_${title}`} data={data} height={vertical ? 220 : Math.max(160, 26 * rows.length + 50)}
         onSelect={onPick ? (keys, add) => keys.forEach((k, i) => onPick(k, add || i > 0)) : undefined}
         layout={{ margin: { l: vertical ? 40 : 170, r: 10, t: 6, b: vertical ? 40 : 30 }, yaxis: { automargin: true } }} />
     </div>
@@ -260,7 +260,7 @@ function Manhattan({ variants, selected, onSelect }: { variants: VariantRow[]; s
   return (
     <div className="chart-card">
       <h3>Manhattan plot</h3>
-      <Plot data={data} height={300} dragmode="lasso" onSelect={onSelect} layout={{
+      <Plot colorKey="flame_manhattan" data={data} height={300} dragmode="lasso" onSelect={onSelect} layout={{
         xaxis: { tickvals: ticks.map((c) => offsets.get(c)! + 1), ticktext: ticks, title: { text: 'Chromosome' }, showgrid: false },
         yaxis: { title: { text: '−log10 p' } }, margin: { l: 50, r: 10, t: 10, b: 50 },
         shapes: [{ type: 'line', xref: 'paper', x0: 0, x1: 1, y0: -Math.log10(5e-8), y1: -Math.log10(5e-8), line: { color: '#dc2626', dash: 'dot', width: 1 } }],

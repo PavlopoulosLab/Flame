@@ -36,7 +36,7 @@ export function RankChart({ terms, runs, selected, onSelect, labels }: {
         <span className="toolbar-spacer" />
         <CopyButton label="Copy ranked names" text={top.map((r) => `${r.consensus}\t${name(r.termId)}`).join('\n')} />
       </div>
-      <Plot height={Math.max(420, 22 * n + 120)} dragmode="zoom"
+      <Plot colorKey="flame_rank_chart" height={Math.max(420, 22 * n + 120)} dragmode="zoom"
         onSelect={(keys, add) => keys.length && onSelect([keys[0]], add)}
         data={top.map((r, i) => {
           const t = byId.get(r.termId)
