@@ -79,7 +79,7 @@ function MappingTable({ rows, targetKey, chosen, setChosen }: { rows: MapRow[]; 
                 <td><input type="checkbox" disabled={!r[targetKey]} checked={chosen.has(r.rowId)} aria-label={`Use ${r[targetKey] ?? r.original}`}
                   onChange={() => { const n = new Set(chosen); if (n.has(r.rowId)) n.delete(r.rowId); else n.add(r.rowId); setChosen(n) }} /></td>
                 <td>{r.original}</td>
-                <td>{r[targetKey] || '—'}</td>
+                <td>{r[targetKey] || (targetKey === 'ortholog' ? <span title="No ortholog found in the target organism">N/A</span> : '—')}</td>
                 <td>{targetKey === 'converted' ? r.symbol : r.orthologEnsg}</td>
                 <td className="truncate" title={r.description}>{r.description}</td>
               </tr>

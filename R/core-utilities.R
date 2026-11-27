@@ -18,7 +18,8 @@
 
 .clean_chr <- function(x) {
   x <- trimws(as.character(x %||% character(0)))
-  x[is.na(x) | x %in% c("nan", "None", "NA")] <- ""
+  # g:Convert / g:Orth report a missing match as "N/A" (or "None"): treat it as no value.
+  x[is.na(x) | toupper(x) %in% c("NAN", "NONE", "NA", "N/A")] <- ""
   x
 }
 

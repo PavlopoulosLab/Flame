@@ -97,3 +97,14 @@ test_that("custom GMT sources: parsing and hypergeometric ORA", {
   expect_equal(out$results$`Intersection Size`[1], 4)
   expect_true(out$results$`P-value`[1] < 1e-5)
 })
+
+test_that("orthologs: g:Orth's N/A means no ortholog (unticked, not counted)", {
+  expect_equal(.clean_chr(c("Trp53", "N/A", "n/a", "None", "NA", NA, " Brca1 ")), c("Trp53", "", "", "", "", "", "Brca1"))
+  local_mocked_bindings(gorth_ids = function(...) data.frame(
+    input = c("TP53", "XIST"), input_ensg = c("ENSG00000141510", "ENSG00000229807"),
+    ortholog_name = c("Trp53", "N/A"), ortholog_ensg = c("ENSMUSG00000059552", "N/A"), description = c("tumor protein p53", "N/A")))
+  out <- find_orthologs(c("TP53", "XIST"), 9606, 10090)
+  expect_equal(out$rows$ortholog, c("Trp53", ""))
+  expect_equal(out$rows$orthologEnsg, c("ENSMUSG00000059552", ""))
+  expect_equal(out$stats$mappedInputs, 1L)
+})
