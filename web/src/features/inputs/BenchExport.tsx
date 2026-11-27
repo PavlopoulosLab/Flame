@@ -33,7 +33,7 @@ export function BenchExport({ res, name = '' }: { res: ExportResult; /** One gen
   const save = async (f: Format) => {
     setBusy(f)
     try {
-      const base = `flame_experimental_${name ? `${name.replace(/[^\w.-]+/g, '_').slice(0, 40)}_` : ''}${which}`
+      const base = `flame_bench_data_${name ? `${name.replace(/[^\w.-]+/g, '_').slice(0, 40)}_` : ''}${which}`
       if (f === 'xlsx') download(xlsxBytes(res, chosen), `${base}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       else if (f === 'csv' || f === 'tsv') {
         const sep = f === 'csv' ? ',' : '\t'

@@ -3,7 +3,7 @@ import { useSyncExternalStore } from 'react'
 /**
  * Text style of every chart in Flame: the font, and the size, bold and italic of the plot title, the axis titles,
  * the tick labels and the legend (plus the angle of the x tick labels). Set once (from any chart's "Aa Text"
- * button or the experimental-analysis figure) and kept in this browser; a size of 0 (Auto) or bold / italic off
+ * button or the Bench Data figure) and kept in this browser; a size of 0 (Auto) or bold / italic off
  * leave a chart's own style.
  */
 /** color: '' = the chart's own (grey, or the theme's text colour). */

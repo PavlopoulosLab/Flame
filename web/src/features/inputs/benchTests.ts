@@ -1,4 +1,4 @@
-// The statistical tests of the experimental analysis (GraphPad Prism's set); the R side is core-bench-stats.R.
+// The statistical tests of Bench Data (GraphPad Prism's set); the R side is core-bench-stats.R.
 
 export type TestId = 'auto' | 't_unpaired' | 't_welch' | 't_paired' | 't_ratio' | 'mann_whitney' | 'ks' | 'wilcoxon'
   | 'anova' | 'welch_anova' | 'bf_anova' | 'rm_anova' | 'kruskal' | 'friedman' | 'twoway' | 'one_sample_t' | 'one_sample_wilcoxon'

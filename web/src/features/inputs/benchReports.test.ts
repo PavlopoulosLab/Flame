@@ -15,7 +15,7 @@ const res: ExportResult = {
   ],
 }
 
-describe('experimental analysis export', () => {
+describe('Bench Data export', () => {
   const tables = resultTables(res)
   it('builds comparisons, descriptive statistics and values tables', () => {
     expect(tables.map((t) => t.id)).toEqual(['comparisons', 'descriptive', 'values'])

@@ -74,7 +74,7 @@ const fmtP = (p: number | null | undefined) => (p == null || !Number.isFinite(p)
 const num = (x: number | null | undefined, d = 2) => (x == null || !Number.isFinite(x) ? '' : x.toFixed(d))
 
 /**
- * Experimental analysis (bench data): paste a small table (qPCR Ct, band intensities, FACS percentages or any measurements
+ * Bench Data: paste a small table (qPCR Ct, band intensities, FACS percentages or any measurements
  * per group), get a sensible test and a clean figure, and send the genes to Flame. A quick, generic
  * tool, not a replacement for Prism, qbase+ or FlowJo.
  */
@@ -88,7 +88,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
   const [log, setLog] = useState(false)
   const [control, setControl] = useState('')
   const [stat, setStat] = useState<StatOpts>(DEFAULT_STAT)
-  // Which tool: "which test?" (normality), the experimental analysis, or qPCR ΔΔCt (helper 'qpcr').
+  // Which tool: "which test?" (normality), the Bench Data analysis, or qPCR ΔΔCt (helper 'qpcr').
   const [mode, setMode] = useState<'normality' | 'generic' | 'ddct'>(example ? 'generic' : 'normality')
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
@@ -141,7 +141,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
     if (source) { setLog(false); setLoading(''); if (helper === 'western') setHelper('none'); setStat(DEFAULT_STAT); setRefs([]); setPlot((p) => ({ ...p, kind: 'bar', logY: false })) }
     setSource(null); setExampleKind('')
   }
-  // "Analyse with this test" from the normality step: the experimental analysis, with that test, drawn at once.
+  // "Analyse with this test" from the normality step: the Bench Data analysis, with that test, drawn at once.
   const useRecommendation = (r: Recommendation) => {
     setMode('generic'); setHelper('none'); setLoading(''); setLog(r.log); setStat({ ...DEFAULT_STAT, test: r.test }); setApplied(null)
   }
@@ -229,7 +229,7 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             if (v === 'ddct') { setExampleKind(''); setHelper('qpcr'); setLog(false); setLoading(''); if (!refs.length && parsed) setRefs(parsed.rowNames.filter((r) => REF_GENES.includes(r))) }
             else if (helper === 'qpcr') { setExampleKind(''); setHelper('none') }
           }}
-          options={[{ value: 'normality', label: 'Which test? (normality)' }, { value: 'generic', label: 'Experimental analysis (values ready)' }, { value: 'ddct', label: 'qPCR ΔΔCt (raw Ct values)' }]} />
+          options={[{ value: 'normality', label: 'Which test? (normality)' }, { value: 'generic', label: 'Bench Data (values ready)' }, { value: 'ddct', label: 'qPCR ΔΔCt (raw Ct values)' }]} />
         <p className="muted small">{mode === 'normality'
           ? 'Not sure which test to use? Upload your values and group the samples: GraphPad Prism\'s normality tests (D\'Agostino–Pearson, Anderson–Darling, Shapiro–Wilk, Kolmogorov–Smirnov) and an equal-SD check suggest a t test, ANOVA or non-parametric test, which you can then run here.'
           : mode === 'ddct'

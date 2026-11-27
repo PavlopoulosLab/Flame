@@ -31,7 +31,7 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
   gene, genes that differ between two groups of tumours, genes higher or lower in tumours than in adjacent normal
   tissue for 16 cancer types, or your own MAF file); **nutrients and foods** (ChEMBL
   targets, UniProt proteins through ChEBI, GWAS Catalog diet and nutrient traits; CTD when it accepts automated
-  queries); **experimental analysis** of small lab experiments (qPCR Ct, ELISA, western blot band intensities, viability,
+  queries); **Bench Data**: analysis of small lab experiments (qPCR Ct, ELISA, western blot band intensities, viability,
   reporter assays, flow cytometry percentages or any values per group, with an automatic test, Dunnett or Tukey post hoc tests, fold changes with confidence intervals and
   publication-style figures in colour or black and white, with axis breaks); UpSet set
   operations (intersection, union, XOR and more, with selectable bars); and **fetch gene lists** from a disease

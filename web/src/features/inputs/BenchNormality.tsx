@@ -20,7 +20,7 @@ const pass = (p: number | null | undefined) => (p == null || !Number.isFinite(p)
 
 /**
  * "Which test?": GraphPad Prism's normality tests for every group (and row), the equal-SD check, QQ plots,
- * and the test they point to, which the user can then run in the experimental analysis.
+ * and the test they point to, which the user can then run in Bench Data.
  */
 export function BenchNormality({ text, fileName, groupsBody, colors, auto, onUse }: {
   text: string; fileName: string; groupsBody: string | null; colors: (g: string, i: number) => string; auto: boolean
@@ -80,7 +80,7 @@ export function BenchNormality({ text, fileName, groupsBody, colors, auto, onUse
             <div><strong>Suggested test: {res.recommendation.label}{res.recommendation.log ? ', on a log2 scale' : ''}.</strong></div>
             {res.recommendation.why.map((w) => <div key={w} className="small">{w}</div>)}
             <div className="row"><button className="btn btn-primary btn-sm" onClick={() => onUse({ test: res.recommendation.test, log: res.recommendation.log || res.log })}>Analyse with this test</button>
-              <span className="small muted">Opens the experimental analysis with this test; you can still pick another.</span></div>
+              <span className="small muted">Opens Bench Data with this test; you can still pick another.</span></div>
           </div>
           {res.warnings.map((w) => <Note key={w} kind="warning">{w}</Note>)}
           <div className="table-scroll"><table className="table compact">

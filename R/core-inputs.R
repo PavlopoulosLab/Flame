@@ -309,7 +309,7 @@ example_input <- function(kind = EXAMPLE_KINDS) {
       list(up = as.list(de$gene[sig & de$log2FC >= 1]), down = as.list(de$gene[sig & de$log2FC <= -1]),
            thresholds = list(log2FC = 1, padj = 0.05), source = EXAMPLE_SOURCES$airway)
     },
-    # Experimental analysis: small illustrative tables (made-up numbers in realistic ranges, not measured data).
+    # Bench Data: small illustrative tables (made-up numbers in realistic ranges, not measured data).
     bench_qpcr = , bench_western = , bench_facs = , bench_column = , bench_viability = , bench_elisa = , bench_luciferase = , bench_qpcr_fold = {
       f <- paste0(kind, ".tsv")
       list(text = paste(readLines(getExamplesPath(f), warn = FALSE), collapse = "\n"), fileName = paste0("flame_example_", f),
