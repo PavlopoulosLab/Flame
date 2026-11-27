@@ -39,9 +39,10 @@ function SpectrumPicker({ label, color, onChange }: { label: string; color: stri
   )
 }
 
-export function ColorPicker({ label, value, onChange, fallback = DEFAULT_TEXT_COLOR, defaultName = 'Default grey' }: {
+export function ColorPicker({ label, value, onChange, fallback = DEFAULT_TEXT_COLOR, defaultName = 'Default grey', presets = PRESETS }: {
   label: string; value: string; onChange: (c: string) => void
   /** The colour used while none is chosen (value ''), and the name of that default. */ fallback?: string; defaultName?: string
+  /** Colours offered as one-click swatches. */ presets?: string[]
 }) {
   const [open, setOpen] = useState(false)
   const [spectrum, setSpectrum] = useState(false)
@@ -63,7 +64,7 @@ export function ColorPicker({ label, value, onChange, fallback = DEFAULT_TEXT_CO
       {open && (
         <span className="text-color-pop card" role="dialog" aria-label={`${label} colour`}>
           <span className="text-color-presets">
-            {PRESETS.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === fallback ? defaultName : c}
+            {presets.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === fallback ? defaultName : c}
               title={c === fallback ? defaultName : c} onClick={() => pick(c)} />)}
             <button type="button" className={`text-color-swatch text-color-multi${spectrum ? ' on' : ''}`} aria-label="More colours" aria-pressed={spectrum} title="Any colour"
               onClick={() => setSpectrum((v) => !v)} />

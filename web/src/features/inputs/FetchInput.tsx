@@ -481,7 +481,7 @@ export function GenePicker({ r, mode, onCreated }: { r: GeneResult; mode: FetchM
       {valueLabel && (
         <details className="gene-chart" open={mode !== 'disease'}>
           <summary className="small">Bar chart of the first {shown.length} genes</summary>
-        <Plot tools={false} height={Math.max(260, shown.length * 15 + 70)}
+        <Plot colorKey="flame_fetch_values" tools={false} height={Math.max(260, shown.length * 15 + 70)}
           onSelect={(ids) => ids.forEach(toggleGene)} data={[{
           type: 'bar', orientation: 'h', y: shown.map((g) => g.gene), x: shown.map((g) => value(g) ?? 0), customdata: shown.map((g) => g.gene),
           text: shown.map((g) => g.name ?? ''), textposition: 'none',

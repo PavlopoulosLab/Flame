@@ -99,7 +99,7 @@ function GseaPlot({ term, data, exportName }: { term: GseaPlotTerm; data: GseaPl
   }
   return (
     <section className="chart-card">
-      <Plot data={traces} layout={layout} height={520} title={term.source && term.source !== term.name ? `${term.name} (${term.source})` : term.name} exportName={exportName} tools={false} />
+      <Plot data={traces} layout={layout} height={520} title={term.source && term.source !== term.name ? `${term.name} (${term.source})` : term.name} exportName={exportName} colorKey="flame_gsea_plot" tools={false} />
       <details>
         <summary className="small">Leading-edge genes ({term.leadingEdge.length}): the genes before the peak that drive the enrichment</summary>
         <p className="mono small">{term.leadingEdge.join(', ')}</p>

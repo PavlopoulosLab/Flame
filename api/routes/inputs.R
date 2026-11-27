@@ -486,7 +486,7 @@ function(req, res) {
   .fetch_here(res, bench_samples(.text_arg(b), as.character(b$fileName %||% ""), as.character(b$layout %||% "auto")))
 }
 
-#* Experimental analysis, "which test?": GraphPad Prism's normality tests per group (and row), equal-SD
+#* Bench Data, "which test?": GraphPad Prism's normality tests per group (and row), equal-SD
 #* checks, QQ-plot points and a recommended test. Body: { text, fileName?, layout?, groups?, log?, matched? }
 #* @post /bench/normality
 #* @serializer flamejson

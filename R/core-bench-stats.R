@@ -1,5 +1,5 @@
 # =============================================================================
-# FLAME core: experimental analysis, the statistical tests (GraphPad Prism's set)
+# FLAME core: Bench Data, the statistical tests (GraphPad Prism's set)
 # =============================================================================
 #   Two groups      unpaired t (Student), Welch t, paired t, ratio paired t,
 #                   Mann-Whitney, Kolmogorov-Smirnov, Wilcoxon matched pairs

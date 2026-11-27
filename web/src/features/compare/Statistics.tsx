@@ -192,13 +192,13 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
         <section className="chart-card">
           <h3>Concordance at the top</h3>
           <p className="muted small">Of each run's k most significant terms, the share that the other run also ranks in its top k. High curves mean the runs agree on what matters most. This is the most direct check that two tools agree: it uses each tool's own ranking, so it does not depend on how the tool computes p-values. Click a point to select the agreed terms.</p>
-          <Plot data={catTraces} height={360} onSelect={resolve}
+          <Plot colorKey="flame_stats_concordance" data={catTraces} height={360} onSelect={resolve}
             layout={{ xaxis: { title: { text: 'Top k terms' } }, yaxis: { title: { text: 'Shared in top k' }, tickformat: '.0%', range: [0, 1.05] }, legend: { orientation: 'h', y: -0.3 }, margin: { l: 60, r: 20, t: 10, b: 100 } }} />
         </section>
         <section className="chart-card">
           <h3>Agreement</h3>
           <p className="muted small">How many terms were found by how many runs. Click a bar to select those terms.</p>
-          <Plot data={agreeBars} height={360} onSelect={resolve} layout={{ xaxis: { title: { text: 'Found by' } }, yaxis: { title: { text: 'Terms' } } }} />
+          <Plot colorKey="flame_stats_agreement" data={agreeBars} height={360} onSelect={resolve} layout={{ xaxis: { title: { text: 'Found by' } }, yaxis: { title: { text: 'Terms' } } }} />
         </section>
       </div>
 
@@ -211,7 +211,7 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
             </select>
           </div>
           <p className="muted small">{METRICS.find((m) => m.value === metric)?.hint} Click a cell to compare that pair below and select their shared terms.</p>
-          <Plot data={heat as never} height={Math.max(300, 70 * runs.length + 140)} layout={{ margin: { l: 140, r: 20, t: 10, b: 120 }, xaxis: { tickangle: -30 } }}
+          <Plot colorKey="flame_stats_similarity" data={heat as never} height={Math.max(300, 70 * runs.length + 140)} layout={{ margin: { l: 140, r: 20, t: 10, b: 120 }, xaxis: { tickangle: -30 } }}
             onSelect={(keys) => {
               const [a, b] = (keys[0] ?? '').split('|')
               if (a && b && a !== b) { setPairSel([a, b]); onSelect(shared(a, b), false) }
@@ -222,7 +222,7 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
           <section className="chart-card">
             <h3>Map of runs (MDS)</h3>
             <p className="muted small">Runs close together report similar terms (distance = 1 − Jaccard). Click a run to select its terms.</p>
-            <Plot height={360} data={[{
+            <Plot colorKey="flame_stats_mds" height={360} data={[{
               type: 'scatter', mode: 'text+markers', x: d.mds.map((m) => m.x), y: d.mds.map((m) => m.y), text: d.mds.map((m) => label.get(m.id)!), textposition: 'top center',
               marker: { size: 16, color: d.mds.map((m) => colors[m.id]) }, customdata: d.mds.map((m) => `run|${m.id}`), hoverinfo: 'text',
             }]} layout={{ xaxis: { zeroline: false, showticklabels: false, title: { text: 'MDS 1' } }, yaxis: { zeroline: false, showticklabels: false, title: { text: 'MDS 2' } } }}
@@ -253,7 +253,7 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
             </p>
           )}
           <p className="muted small">Points on the diagonal are equally significant in both runs; points on an axis were found by only one run. Drag a box or lasso to select terms.</p>
-          <Plot data={scatter.traces} layout={scatter.layout} height={480} dragmode="lasso" onSelect={resolve} />
+          <Plot colorKey="flame_stats_pvalues" data={scatter.traces} layout={scatter.layout} height={480} dragmode="lasso" onSelect={resolve} />
         </section>
       )}
 
@@ -261,12 +261,12 @@ export function ComparisonStatistics({ runIds, filters, colors, onSelect }: {
         <section className="chart-card">
           <h3>Terms per annotation source</h3>
           <p className="muted small">Which databases each run's findings come from. Click a segment to select those terms.</p>
-          <Plot data={srcBars} height={380} onSelect={resolve} layout={{ barmode: 'stack', legend: { orientation: 'h', y: -0.3 }, yaxis: { title: { text: 'Terms' } }, margin: { l: 60, r: 20, t: 10, b: 110 } }} />
+          <Plot colorKey="flame_stats_sources" data={srcBars} height={380} onSelect={resolve} layout={{ barmode: 'stack', legend: { orientation: 'h', y: -0.3 }, yaxis: { title: { text: 'Terms' } }, margin: { l: 60, r: 20, t: 10, b: 110 } }} />
         </section>
         <section className="chart-card">
           <h3>Term size</h3>
           <p className="muted small">Genes per term for each run: lower = more specific terms. Box or lasso-select points to select terms.</p>
-          <Plot data={boxes} height={380} dragmode="select" onSelect={resolve} layout={{ yaxis: { title: { text: 'Term size (genes)' }, type: 'log' }, showlegend: false }} />
+          <Plot colorKey="flame_stats_sizes" data={boxes} height={380} dragmode="select" onSelect={resolve} layout={{ yaxis: { title: { text: 'Term size (genes)' }, type: 'log' }, showlegend: false }} />
         </section>
       </div>
 

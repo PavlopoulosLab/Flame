@@ -1,4 +1,4 @@
-// Experimental analysis: the result tables and their export (Excel, CSV, TSV, TXT, Markdown, HTML, PDF, JSON).
+// Bench Data: the result tables and their export (Excel, CSV, TSV, TXT, Markdown, HTML, PDF, JSON).
 import { strToU8, zipSync } from 'fflate'
 import { buildXlsx } from '../../lib/xlsx'
 
@@ -119,7 +119,7 @@ export function textTable(t: Table): string {
 }
 
 export function textReport(res: ExportResult, tables: Table[]): string {
-  return [`Experimental analysis (Flame), ${new Date().toISOString().slice(0, 10)}`, '', `Test: ${res.sentence}`, '', `Methods: ${res.methods}`, '',
+  return [`Bench Data (Flame), ${new Date().toISOString().slice(0, 10)}`, '', `Test: ${res.sentence}`, '', `Methods: ${res.methods}`, '',
     ...tables.flatMap((t) => [t.title.toUpperCase(), textTable(t), ''])].join('\n')
 }
 
@@ -127,18 +127,18 @@ const mdCell = (s: string) => s.replace(/\|/g, '\\|')
 export function markdownReport(res: ExportResult, tables: Table[]): string {
   const md = (t: Table) => [`| ${t.cols.map((c) => mdCell(c.label)).join(' | ')} |`, `| ${t.cols.map((c) => (c.kind === 'text' ? '---' : '---:')).join(' | ')} |`,
     ...t.rows.map((r) => `| ${t.cols.map((c) => mdCell(fmtCell(r[c.key], c.kind))).join(' | ')} |`)].join('\n')
-  return [`# Experimental analysis`, '', `**Test:** ${res.sentence}`, '', `**Methods:** ${res.methods}`, '', ...tables.flatMap((t) => [`## ${t.title}`, '', md(t), ''])].join('\n')
+  return [`# Bench Data`, '', `**Test:** ${res.sentence}`, '', `**Methods:** ${res.methods}`, '', ...tables.flatMap((t) => [`## ${t.title}`, '', md(t), ''])].join('\n')
 }
 
 const h = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 export function htmlReport(res: ExportResult, tables: Table[], figurePng?: string | null): string {
   const tbl = (t: Table) => `<h2>${h(t.title)}</h2><table><thead><tr>${t.cols.map((c) => `<th class="${c.kind === 'text' ? '' : 'n'}">${h(c.label)}</th>`).join('')}</tr></thead><tbody>${
     t.rows.map((r) => `<tr>${t.cols.map((c) => `<td class="${c.kind === 'text' ? '' : 'n'}">${h(fmtCell(r[c.key], c.kind))}</td>`).join('')}</tr>`).join('')}</tbody></table>`
-  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Experimental analysis</title><style>
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Bench Data</title><style>
 body{font-family:Arial,Helvetica,sans-serif;margin:24px;color:#111}h1{font-size:20px}h2{font-size:15px;margin-top:24px}
 table{border-collapse:collapse;font-size:12px}th,td{border-bottom:1px solid #ddd;padding:4px 8px;text-align:left}th{background:#f3f4f6}.n{text-align:right}
 img{max-width:100%;border:1px solid #eee}p{max-width:900px;font-size:13px}</style></head><body>
-<h1>Experimental analysis</h1><p class="muted">Flame, ${new Date().toISOString().slice(0, 10)}</p><p><b>Test:</b> ${h(res.sentence)}</p><p><b>Methods:</b> ${h(res.methods)}</p>
+<h1>Bench Data</h1><p class="muted">Flame, ${new Date().toISOString().slice(0, 10)}</p><p><b>Test:</b> ${h(res.sentence)}</p><p><b>Methods:</b> ${h(res.methods)}</p>
 ${figurePng ? `<img alt="Figure" src="${figurePng}">` : ''}${tables.map(tbl).join('')}</body></html>`
 }
 
@@ -179,7 +179,7 @@ export async function pdfReport(res: ExportResult, tables: Table[], figurePng?: 
     if (cur) lines.push(cur); return lines
   }
   const para = (label: string, s: string) => { for (const [i, l] of wrap(`${label} ${s}`, 9.5, W - 2 * M).entries()) { need(13); text(l, 9.5, i === 0 ? font : font); y -= 13 } y -= 4 }
-  text('Experimental analysis', 16, bold); y -= 16; text(`Flame, ${new Date().toISOString().slice(0, 10)}`, 9); y -= 18
+  text('Bench Data', 16, bold); y -= 16; text(`Flame, ${new Date().toISOString().slice(0, 10)}`, 9); y -= 18
   para('Test:', res.sentence); para('Methods:', res.methods)
   if (figurePng) {
     const img = await doc.embedPng(figurePng)

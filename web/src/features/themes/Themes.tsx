@@ -75,7 +75,7 @@ export function ThemesView({ path, body, terms, onSelect, colorOf, baseName }: {
           </label>
           <p className="muted small">Lower = fewer, broader themes; higher = more, tighter themes. {d.method}</p>
           {runs.length > 0 && (
-            <Plot exportName={`${baseName}_themes`} height={Math.max(220, 26 * Math.min(d.themes.length, 20) + 90)} data={[{
+            <Plot exportName={`${baseName}_themes`} colorKey="flame_themes" height={Math.max(220, 26 * Math.min(d.themes.length, 20) + 90)} data={[{
               type: 'heatmap', x: runs.map((r) => r.label), y: d.themes.slice(0, 20).map((t) => (t.label.length > 40 ? `${t.label.slice(0, 39)}…` : t.label)),
               z: d.themes.slice(0, 20).map((t) => runs.map((r) => t.runs?.[r.id]?.terms ?? 0)),
               customdata: d.themes.slice(0, 20).map((t) => runs.map(() => t.id)), colorscale: [[0, '#f5f3ff'], [1, '#6d28d9']],

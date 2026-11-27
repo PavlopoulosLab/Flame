@@ -197,7 +197,7 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef, expor
   if (xKey === 'foldEnrichment' && data.terms.every((t) => t.foldEnrichment == null)) {
     return <p className="muted">Fold enrichment needs the background size, which this tool does not report. Choose another x-axis.</p>
   }
-  return <Plot title={title} exportName={exportName} data={plot as never} height={height} handleRef={plotRef} onSelect={onSelect}
+  return <Plot title={title} exportName={exportName} colorKey="flame_results_dotplot" data={plot as never} height={height} handleRef={plotRef} onSelect={onSelect}
     layout={{
       margin: { l: 320, r: 20, t: 10, b: 50 },
       xaxis: ud ? ud.xaxis : { title: { text: xLabel } },
@@ -254,7 +254,7 @@ export function BarchartView({ data, config, settings, selected, onSelect, plotR
     return [bar(terms, 'Terms', { color: terms.map((t) => t.log10p), colorscale: scale, reversescale: typeof scale === 'string' && reverseScale(scale),
       showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12, len: Math.min(1, 260 / Math.max(360, 24 * terms.length + 80)), y: 1, yanchor: 'top' } })]
   }, [terms, yLabel, metric, config, selected, colors, settings.barColor, cb]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <Plot title={title} exportName={exportName} data={plot as never} height={Math.max(360, 24 * rows.length + 80)} handleRef={plotRef} onSelect={onSelect}
+  return <Plot title={title} exportName={exportName} colorKey="flame_results_barchart" data={plot as never} height={Math.max(360, 24 * rows.length + 80)} handleRef={plotRef} onSelect={onSelect}
     layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 },
       xaxis: ud ? ud.xaxis : { title: { text: metricLabel } }, shapes: (ud?.shapes ?? []) as never,
       yaxis: { automargin: true, categoryorder: 'array', categoryarray: rows }, legend: { orientation: 'h', y: -0.15 },
@@ -269,7 +269,7 @@ export function ScatterView({ data, config, selected, onSelect, plotRef, exportN
     text: ts.map(hover), hoverinfo: 'text' as const,
     marker: { size: 11, color: colorOf(src), opacity: selOpacity(ts.map((t) => t.id), selected, 0.85, data.terms.some((t) => selected.has(t.id))), line: selLine(ts.map((t) => t.id), selected) },
   })), [data.terms, config, selected])
-  return <Plot title={title} exportName={exportName} data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
+  return <Plot title={title} exportName={exportName} colorKey="flame_results_scatter" data={plot} height={480} handleRef={plotRef} onSelect={onSelect}
     layout={{ xaxis: { title: { text: '−log10 p-value' } }, yaxis: { title: { text: 'Term coverage (%)' } }, legend: { orientation: 'h', y: -0.2 }, showlegend: new Set(data.terms.map((t) => t.source)).size > 1 }} />
 }
 
@@ -324,7 +324,7 @@ export function HeatmapView({ data, settings, onSelect, plotRef, exportName, tit
     if (genes.length) data.terms.filter((t) => genes.every((g) => splitGenes(t.genes).includes(g))).forEach((t) => out.add(t.id))
     onSelect([...out], additive)
   }
-  return <Plot title={title} exportName={exportName} data={plot} height={Math.max(420, 18 * n + 160)} handleRef={plotRef} onSelect={resolve}
+  return <Plot title={title} exportName={exportName} colorKey={`flame_results_${data.view}`} data={plot} height={Math.max(420, 18 * n + 160)} handleRef={plotRef} onSelect={resolve}
     layout={{ margin: { l: 260, r: 20, t: 10, b: 160 }, xaxis: { tickangle: -45, automargin: true }, yaxis: { automargin: true } }} />
 }
 
@@ -475,7 +475,7 @@ export function SankeyView({ data, config, settings, onSelect, plotRef, exportNa
       link: { source: src, target: tgt, value: val, color: 'rgba(161,161,170,0.3)' },
     }]
   }, [data.terms, settings, config, colorOf, pm])
-  return <Plot title={title} exportName={exportName} data={plot as never} height={Math.max(480, Math.min(1100, data.terms.length * 34))} handleRef={plotRef}
+  return <Plot title={title} exportName={exportName} colorKey="flame_results_sankey" data={plot as never} height={Math.max(480, Math.min(1100, data.terms.length * 34))} handleRef={plotRef}
     onSelect={(ids, add) => onSelect(ids.filter(Boolean), add)} layout={{ margin: { l: 10, r: 10, t: 10, b: 10 } }} />
 }
 

@@ -222,7 +222,7 @@ export function SurvivalPanel({ text, fileName, log, clinical, setClinical, onCr
           <ErrorNote error={kmErr} />
           {kmRes && kmFig && (
             <>
-              <Plot tools={false} height={400} data={kmFig.data as never} layout={kmFig.layout as never} exportName={`flame_km_${kmRes.gene ?? kmRes.column ?? 'groups'}`} />
+              <Plot tools={false} height={400} data={kmFig.data as never} layout={kmFig.layout as never} exportName={`flame_km_${kmRes.gene ?? kmRes.column ?? 'groups'}`} colorKey="flame_km" />
               <div className="table-scroll"><table className="table compact km-risk">
                 <thead><tr><th>Number at risk</th>{kmRes.ticks.map((t) => <th key={t} className="num">{t}</th>)}</tr></thead>
                 <tbody>{kmRes.groups.map((g, i) => <tr key={g.group}><td><span className="km-swatch" style={{ background: kmFig.color(g.group, i) }} />{g.group}</td>{g.atRisk.map((n, j) => <td key={j} className="num">{n}</td>)}</tr>)}</tbody>
@@ -271,7 +271,7 @@ export function SurvivalPanel({ text, fileName, log, clinical, setClinical, onCr
           <p className="muted small">Click a gene in the plot to see its Kaplan–Meier curves above.</p>
           <p className="small"><strong>{res.samples}</strong> samples with <strong>{res.events}</strong> events (median follow-up {res.medianTime.toFixed(1)}){res.excluded ? `, ${res.excluded} left out (no usable time or event${res.strataColumn ? ' or stratum' : ''})` : ''}{res.unmatched ? `, ${res.unmatched} expression columns not in the clinical table` : ''}. <strong>{res.significant.toLocaleString()}</strong> of {res.tested.toLocaleString()} genes with q ≤ 0.05{res.strataColumn ? `; stratified by ${res.strataColumn} (${res.strata} strata)` : ''}.</p>
           {volcano && (
-            <Plot tools={false} height={320} data={volcano as never} onPointClick={(g) => { setKmBy('gene'); setKmGene(g) }}
+            <Plot colorKey="flame_tcga_volcano" tools={false} height={320} data={volcano as never} onPointClick={(g) => { setKmBy('gene'); setKmGene(g) }}
               layout={{ xaxis: { title: { text: 'log2 hazard ratio per SD (→ shorter survival)' }, zeroline: true }, yaxis: { title: { text: '−log10 p' } }, margin: { l: 55, r: 10, t: 10, b: 45 } }} />
           )}
           <div className="row wrap">
