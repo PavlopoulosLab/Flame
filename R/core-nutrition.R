@@ -17,7 +17,7 @@ CTD_BATCH_URL <- "https://ctdbase.org/tools/batchQuery.go"
 CHEMBL_API <- "https://www.ebi.ac.uk/chembl/api/data"
 UNIPROT_API <- "https://rest.uniprot.org/uniprotkb/search"
 OLS_API <- "https://www.ebi.ac.uk/ols4/api/search"
-NUTRITION_SOURCES <- c("ctd", "chembl", "uniprot")
+NUTRITION_SOURCES <- c("ctd", "chembl", "uniprot", "geo", "lincs")
 
 .nutri_cache <- new.env()
 .nutri_cached <- function(key, expr) {
@@ -216,6 +216,110 @@ nutrition_uniprot <- function(term, taxid = 9606L) {
        citation = sprintf("Reviewed UniProtKB proteins (UniProt Consortium 2025, Nucleic Acids Res 53:D609) whose catalytic activity, cofactor or binding-site annotations name %s (%s, ChEBI).", chebi$label, chebi$obo_id))
 }
 
+# ---- GEO studies of the compound (RummaGEO) -----------------------------------------
+
+#' Genes that GEO studies of the compound change, as a consensus across studies. RummaGEO
+#' signatures whose series title names the compound are oriented with their sample-group titles
+#' (the group that names the compound, or the one that is not a control, is the treated one);
+#' contrasts that cannot be oriented are left out. Each study counts once per gene, and only when
+#' its contrasts agree on the direction.
+#' `organisms`: "human" (default) or "all" (adds mouse studies, genes under their human-style symbol).
+nutrition_geo <- function(term, organisms = "human", maxSignatures = 60L) {
+  term <- .nutri_term(term)
+  nodes <- .nutri_cached(paste("geo-search", tolower(term)), .gql(RUMMAGEO_API,
+    "query($t:[String]!,$n:Int!){ geneSetTermSearch(terms:$t, first:$n){ nodes { id term gse title sampleGroups geneSetById { species } } } }",
+    list(t = list(term), n = 300L))$geneSetTermSearch$nodes)
+  nodes <- Filter(function(x) grepl(term, x$title %||% "", ignore.case = TRUE, fixed = TRUE), nodes %||% list())
+  if (!length(nodes)) stop(sprintf("No GEO study in RummaGEO has '%s' in its title.", term))
+  species <- vapply(nodes, function(x) x$geneSetById$species %||% "", "")
+  keep <- if (identical(organisms, "all")) species %in% c("human", "mouse") else species == "human"
+  if (!any(keep)) stop(sprintf("RummaGEO has GEO studies of '%s' only in mouse. Include mouse to see them.", term))
+  nodes <- nodes[keep]
+  control <- "\\b(control|ctrl|untreated|vehicle|dmso|mock|placebo|baseline|sham|pbs|etoh|ethanol|normal diet|chow|standard diet|basal)\\b"
+  # +1: the second group of the contrast is the treated one ("up" = induced); -1: the first; NA: unknown
+  orient <- vapply(nodes, function(x) {
+    g <- if (is.character(x$sampleGroups)) tryCatch(jsonlite::fromJSON(x$sampleGroups, simplifyVector = FALSE), error = function(e) NULL) else x$sampleGroups
+    m <- regmatches(x$term, regexec("-([0-9]+)-vs-([0-9]+)-", x$term))[[1]]
+    if (length(m) != 3 || is.null(g$titles)) return(NA_real_)
+    ta <- tolower(g$titles[[m[2]]] %||% ""); tb <- tolower(g$titles[[m[3]]] %||% "")
+    hasA <- grepl(tolower(term), ta, fixed = TRUE); hasB <- grepl(tolower(term), tb, fixed = TRUE)
+    if (hasB && !hasA) return(1); if (hasA && !hasB) return(-1)
+    ca <- grepl(control, ta, perl = TRUE); cb <- grepl(control, tb, perl = TRUE)
+    if (ca && !cb) return(1); if (cb && !ca) return(-1)
+    NA_real_
+  }, 0)
+  sp <- species[keep][!is.na(orient)]
+  nodes <- nodes[!is.na(orient)]; orient <- orient[!is.na(orient)]
+  if (!length(nodes)) stop(sprintf("The GEO studies of '%s' have no contrast of treated against control samples that Flame can tell apart.", term))
+  nodes <- utils::head(nodes, maxSignatures); orient <- utils::head(orient, maxSignatures); sp <- utils::head(sp, maxSignatures)
+  dir <- ifelse(grepl(" up$", vapply(nodes, `[[`, "", "term")), 1, -1) * orient       # +1 induced, -1 repressed
+  gse <- vapply(nodes, function(x) as.character(x$gse %||% ""), "")
+  votes <- list()                                              # study -> gene -> sum of directions
+  for (i in seq_along(nodes)) {
+    g <- tryCatch(.nutri_cached(paste("geo-set", nodes[[i]]$id), vapply(geo_genes(nodes[[i]]$id)$genes, `[[`, "", "gene")), error = function(e) character(0))
+    if (sp[i] == "mouse") g <- toupper(g)                       # mouse genes under their human-style symbol
+    for (x in unique(g)) votes[[gse[i]]][[x]] <- (votes[[gse[i]]][[x]] %||% 0) + dir[i]
+  }
+  studies <- names(votes)
+  genes <- unique(unlist(lapply(votes, names)))
+  raw <- vapply(studies, function(st) { v <- unlist(votes[[st]])[genes]; ifelse(is.na(v), 0, v) }, numeric(length(genes)))
+  raw <- matrix(raw, nrow = length(genes), dimnames = list(genes, studies))   # net contrasts per study (+ induced)
+  single <- length(studies) == 1L
+  if (single) {
+    # one study: count its contrasts instead, and ask for two that agree when it has several
+    nContrasts <- sum(gse == studies)
+    nu <- pmax(raw[, 1], 0); nd <- pmax(-raw[, 1], 0)
+    need <- if (nContrasts >= 2) 2L else 1L
+  } else {
+    nu <- rowSums(raw > 0); nd <- rowSums(raw < 0)
+    need <- 2L                                                 # with several studies, a gene must recur
+  }
+  n <- pmax(nu, nd)
+  keepG <- n >= need & nu != nd
+  if (!any(keepG)) stop(sprintf("No gene of the GEO studies of '%s' changes consistently enough to be kept.", term))
+  strength <- rowSums(abs(raw))                                # contrasts agreeing, to break ties
+  o <- order(-n[keepG], -strength[keepG], genes[keepG])
+  gs <- genes[keepG][o]; nu <- nu[keepG][o]; nd <- nd[keepG][o]; n <- n[keepG][o]
+  list(source = "GEO studies (RummaGEO)", term = term, organismTaxId = 9606L, ranked = TRUE, valueLabel = if (single) "contrasts" else "GEO studies", total = length(gs),
+       genes = lapply(seq_along(gs), function(i) list(gene = gs[[i]], value = unname(n[[i]]),
+         direction = if (nu[[i]] > nd[[i]]) "up" else "down",
+         note = sprintf("%s in %d of %d %s%s", if (nu[[i]] > nd[[i]]) "↑" else "↓", n[[i]], if (single) nContrasts else length(studies), if (single) "contrasts" else "studies",
+                        if (min(nu[[i]], nd[[i]]) > 0) sprintf(" (opposite in %d)", min(nu[[i]], nd[[i]])) else ""))),
+       studies = lapply(studies, function(g) list(gse = g, title = nodes[[match(g, gse)]]$title)),
+       link = paste0("https://rummageo.com/term-search?page=1&q=", utils::URLencode(term, reserved = TRUE)),
+       citation = sprintf("Consensus of %d RummaGEO signatures (treated vs control) from %d GEO studies whose title names %s (Marino et al. 2024, Patterns 5:101072); genes ranked by the number of studies that change them in the same direction%s.",
+                          length(nodes), length(studies), term, if (identical(organisms, "all")) "; mouse genes under their human-style symbols" else ""))
+}
+
+# ---- LINCS L1000 signature of the compound -----------------------------------------------
+
+# Common nutrient names and the compound LINCS profiled under another name.
+LINCS_SYNONYMS <- c("vitamin d" = "Calcitriol", "vitamin d3" = "Calcitriol", "cholecalciferol" = "Calcitriol",
+                    "vitamin a" = "Tretinoin", "retinoic acid" = "Tretinoin", "folate" = "Folic-Acid",
+                    "vitamin b9" = "Folic-Acid", "egcg" = "Epigallocatechin-Gallate", "green tea" = "Epigallocatechin-Gallate")
+
+#' Genes up- and down-regulated by the compound in the LINCS L1000 consensus signatures (via Enrichr).
+nutrition_lincs <- function(term) {
+  term <- .nutri_term(term)
+  sets <- .enrichr_library(DRUG_LIBRARIES[["chemical"]])
+  base <- unique(sub(" (Up|Down)$", "", names(sets)))
+  key <- function(x) gsub("[^a-z0-9]", "", tolower(x))
+  syn <- unname(LINCS_SYNONYMS[tolower(term)])
+  want <- c(term, syn[!is.na(syn)])
+  hit <- base[key(base) %in% key(want)]
+  if (!length(hit)) {
+    near <- utils::head(base[grepl(key(term), key(base), fixed = TRUE)], 5)
+    stop(sprintf("LINCS L1000 has no signature named '%s'.%s", term, if (length(near)) paste0(" Similar names: ", paste(near, collapse = ", "), ".") else ""))
+  }
+  name <- hit[1]
+  up <- sets[[paste(name, "Up")]] %||% character(0); dn <- sets[[paste(name, "Down")]] %||% character(0)
+  rows <- c(lapply(up, function(g) list(gene = g, direction = "up", note = "↑ in the L1000 consensus signature")),
+            lapply(setdiff(dn, up), function(g) list(gene = g, direction = "down", note = "↓ in the L1000 consensus signature")))
+  list(source = "LINCS L1000", term = name, matched = if (!identical(key(name), key(term))) name else NULL, organismTaxId = 9606L, ranked = FALSE,
+       genes = rows, total = length(rows), up = length(up), down = length(dn),
+       citation = sprintf("Consensus signature of %s across LINCS L1000 cell lines (Subramanian et al. 2017, Cell 171:1437), via Enrichr: %d genes up, %d down.", name, length(up), length(dn)))
+}
+
 #' One entry point for the API.
 nutrition_genes <- function(term, source, ...) {
   a <- list(...)
@@ -223,6 +327,8 @@ nutrition_genes <- function(term, source, ...) {
     ctd = nutrition_ctd(term, a$organisms %||% "human"),
     chembl = nutrition_chembl(term, a$minPchembl %||% 5),
     uniprot = nutrition_uniprot(term, a$taxid %||% 9606L),
+    geo = nutrition_geo(term, a$organisms %||% "human"),
+    lincs = nutrition_lincs(term),
     stop("Unknown source."))
 }
 

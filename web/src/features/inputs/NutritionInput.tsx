@@ -4,27 +4,32 @@ import type { AnalyteList } from '../../api/types'
 import { BusyBar, ErrorNote, Field, Modal, Note, Segmented } from '../../components/ui'
 import { GenePicker, type FGene, type GeneResult } from './FetchInput'
 
-type Source = 'ctd' | 'chembl' | 'uniprot' | 'gwas'
+type Source = 'ctd' | 'chembl' | 'uniprot' | 'geo' | 'lincs' | 'gwas'
 interface NGene extends FGene { direction?: 'up' | 'down' | 'both' | 'other' }
-interface NResult extends GeneResult { genes: NGene[]; matched?: string | null; chebi?: string }
+interface NResult extends GeneResult { genes: NGene[]; matched?: string | null; chebi?: string; studies?: { gse: string; title: string }[]; up?: number; down?: number }
 interface Trait { id: string; name: string; description: string }
 
 const SOURCES: { id: Source; label: string; what: string }[] = [
   { id: 'ctd', label: 'CTD', what: 'curated interactions: genes whose expression, activity or binding the compound or food changes (CTD now asks for a human check, so it may not answer automated searches)' },
   { id: 'chembl', label: 'ChEMBL', what: 'human protein targets with measured activity of the compound' },
   { id: 'uniprot', label: 'UniProt', what: 'enzymes, transporters and binding proteins annotated with the compound (via ChEBI)' },
+  { id: 'geo', label: 'GEO studies', what: 'genes changed in GEO experiments that treated cells, tissues or animals with it (RummaGEO; consensus across studies)' },
+  { id: 'lincs', label: 'LINCS L1000', what: 'genes it raises or lowers in human cell lines (L1000 consensus signature)' },
   { id: 'gwas', label: 'GWAS traits', what: 'diet and nutrient traits (intake, blood levels) and their GWAS Catalog genes' },
 ]
+/** Sources that say whether the compound raises or lowers a gene's expression. */
+const DIRECTED: Source[] = ['ctd', 'geo', 'lincs']
 const EXAMPLES = ['curcumin', 'vitamin D', 'folic acid', 'quercetin', 'green tea', 'olive oil', 'omega-3 fatty acids', 'sulforaphane', 'genistein', 'coffee']
 
 /**
  * Genes of a nutrient, food compound or food, from live APIs only: CTD (curated chemical–gene
  * interactions, also whole foods), ChEMBL (bioactivity), UniProt (enzymes and transporters via
- * ChEBI) and diet/nutrient traits of the GWAS Catalog (via Open Targets).
+ * ChEBI), GEO studies of the compound (RummaGEO consensus), its LINCS L1000 signature and
+ * diet/nutrient traits of the GWAS Catalog (via Open Targets).
  */
 export function NutritionInput({ title, example, onClose, onCreated }: { title: string; example?: boolean; onClose: () => void; onCreated: (l: AnalyteList) => void }) {
   const [term, setTerm] = useState(example ? 'curcumin' : '')
-  const [sources, setSources] = useState<Set<Source>>(new Set(['chembl', 'uniprot', 'gwas']))   // CTD off by default: it now blocks automated requests
+  const [sources, setSources] = useState<Set<Source>>(new Set(['chembl', 'uniprot', 'geo', 'lincs', 'gwas']))   // CTD off by default: it now blocks automated requests
   const [organisms, setOrganisms] = useState<'human' | 'all'>('human')
   const [minP, setMinP] = useState(5)
   const [results, setResults] = useState<Partial<Record<Source, NResult | { error: string }>>>({})
@@ -73,7 +78,7 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
   const ok = (s: Source) => { const r = results[s]; return r && !('error' in r) ? r : null }
   // Genes found by several sources first (the more independent evidence, the higher).
   const combined: NResult | null = useMemo(() => {
-    const parts = (['ctd', 'chembl', 'uniprot'] as Source[]).map((s) => [s, ok(s)] as const).filter(([, r]) => r && r.genes.length)
+    const parts = (['ctd', 'chembl', 'uniprot', 'geo', 'lincs'] as Source[]).map((s) => [s, ok(s)] as const).filter(([, r]) => r && r.genes.length)
     if (trait) parts.push(['gwas', trait.r])
     if (parts.length < 2) return null
     const m = new Map<string, { gene: string; name?: string; from: string[] }>()
@@ -96,11 +101,12 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
     if (s === 'gwas') return trait?.r ?? null
     const r = ok(s)
     if (!r) return null
-    if (s === 'ctd' && dir !== 'any') {
+    const label = { ctd: 'CTD', chembl: 'ChEMBL targets', uniprot: 'UniProt', geo: 'GEO studies', lincs: 'LINCS L1000', gwas: 'GWAS' }[s]
+    if (DIRECTED.includes(s) && dir !== 'any') {
       const genes = r.genes.filter((g) => g.direction === dir || g.direction === 'both')
-      return { ...r, genes, term: `${r.term} (${dir === 'up' ? 'raises' : 'lowers'} expression)` }
+      return { ...r, genes, term: `${r.term} (${label}, ${dir === 'up' ? 'raises' : 'lowers'} expression)` }
     }
-    return { ...r, term: `${r.term} (${s === 'ctd' ? 'CTD' : s === 'chembl' ? 'ChEMBL targets' : 'UniProt'})` }
+    return { ...r, term: `${r.term} (${label})` }
   }
   const count = (s: Source) => (s === 'gwas' ? (trait ? trait.r.genes.length : traits ? `${traits.length} traits` : null) : ok(s)?.genes.length ?? (results[s] ? '—' : null))
   const anything = Object.keys(results).length > 0 || traits !== null
@@ -109,7 +115,7 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
 
   return (
     <Modal title={title} size="xl" onClose={onClose}
-      subtitle="Genes linked to a nutrient, food compound or food, from live databases: ChEMBL, UniProt, the GWAS Catalog and CTD.">
+      subtitle="Genes linked to a nutrient, food compound or food, from live databases: ChEMBL, UniProt, GEO studies, LINCS L1000, the GWAS Catalog and CTD.">
       <div className="stack">
         <div className="row">
           <input className="input" value={term} placeholder="A nutrient, food compound or food — e.g. curcumin, vitamin D, green tea" aria-label="Nutrient, compound or food"
@@ -128,11 +134,11 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
           ))}
         </div>
         <div className="row wrap">
-          {sources.has('ctd') && <Field label="CTD genes of"><select className="input input-sm" value={organisms} onChange={(e) => setOrganisms(e.target.value as 'human' | 'all')}>
-            <option value="human">human</option><option value="all">human, mouse and rat</option></select></Field>}
+          {(sources.has('ctd') || sources.has('geo')) && <Field label="GEO and CTD genes of"><select className="input input-sm" value={organisms} onChange={(e) => setOrganisms(e.target.value as 'human' | 'all')}>
+            <option value="human">human</option><option value="all">human and animal studies (mouse; rat for CTD)</option></select></Field>}
           {sources.has('chembl') && <Field label="ChEMBL: pChEMBL at least"><input className="input input-sm input-narrow" type="number" min={4} max={10} step={0.5} value={minP} onChange={(e) => setMinP(Number(e.target.value))} /></Field>}
         </div>
-        {busy && <BusyBar label={busy} expect={25} />}
+        {busy && <BusyBar label={busy} expect={40} />}
         <ErrorNote error={err} />
         {anything && !busy && (
           <>
@@ -143,12 +149,17 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
               ))}
             </nav>
             {tab !== 'all' && tab !== 'gwas' && errOf(tab) && <Note kind="info">{errOf(tab)}</Note>}
-            {tab === 'ctd' && ok('ctd') && (
+            {DIRECTED.includes(tab as Source) && ok(tab as Source) && (
               <div className="row wrap small">
-                {ok('ctd')!.matched && <span className="muted">Matched in CTD as <strong>{ok('ctd')!.matched}</strong>.</span>}
+                {ok(tab as Source)!.matched && <span className="muted">Matched as <strong>{ok(tab as Source)!.matched}</strong>.</span>}
                 <Segmented label="Effect on expression" value={dir} onChange={setDir}
                   options={[{ value: 'any', label: 'Any interaction' }, { value: 'up', label: 'Raises expression' }, { value: 'down', label: 'Lowers expression' }]} />
               </div>
+            )}
+            {tab === 'geo' && ok('geo')?.studies && (
+              <details className="small"><summary>{ok('geo')!.studies!.length} GEO {ok('geo')!.studies!.length === 1 ? 'study' : 'studies'} used</summary>
+                <ul>{ok('geo')!.studies!.map((x) => <li key={x.gse}><a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${encodeURIComponent(x.gse.split(',')[0])}`} target="_blank" rel="noopener noreferrer">{x.gse}</a> {x.title}</li>)}</ul>
+              </details>
             )}
             {tab === 'uniprot' && ok('uniprot') && <p className="small muted">ChEBI entry: <strong>{ok('uniprot')!.term}</strong> ({ok('uniprot')!.chebi}).</p>}
             {tab === 'gwas' && (
@@ -170,7 +181,7 @@ export function NutritionInput({ title, example, onClose, onCreated }: { title: 
             )}
             {cur && cur.genes.length > 0 && <GenePicker r={cur} mode="nutrition" onCreated={onCreated} />}
             {cur && cur.genes.length === 0 && <Note kind="info">No genes for this selection.</Note>}
-            <p className="muted small">Sources: CTD (Davis et al. 2025), ChEMBL (Zdrazil et al. 2024), UniProt (2025), GWAS Catalog (Cerezo et al. 2025) via Open Targets. CTD's interactions come from cell, animal and human studies; links are not proof of a dietary effect at normal intake.</p>
+            <p className="muted small">Sources: ChEMBL (Zdrazil et al. 2024), UniProt (2025), GEO studies through RummaGEO (Marino et al. 2024), LINCS L1000 (Subramanian et al. 2017) through Enrichr, GWAS Catalog (Cerezo et al. 2025) through Open Targets, and CTD (Davis et al. 2025). GEO, L1000 and CTD results come from cell, animal and human experiments, often at high doses; they are not proof of a dietary effect at normal intake.</p>
           </>
         )}
       </div>
