@@ -6,6 +6,7 @@ import type { NetworkStyle } from '../../lib/networkStyle'
 import { ChordDiagram, CircosBundle, HivePlot } from '../../components/viz'
 import { formatNum, formatP, isHttpUrl, splitGenes } from '../../lib/format'
 import { GeneList } from '../../components/ui'
+import { absTicks } from '../../lib/axisTicks'
 import { categoricalColor, reverseScale, roleColors, sequentialScale, usePaletteMode } from '../../lib/palette'
 
 /** Source colours: configured colours, or Okabe–Ito in colour-blind safe mode. */
@@ -71,13 +72,6 @@ const rowOrder = (terms: Term[], labels: Map<string, string>) => [...new Set(ter
 /** Up & down figure: up-regulated values to the right, down-regulated always to the left. */
 const dirSign = (t: Term) => (t.direction === 'down' ? -1 : 1)
 const DIR_LABEL = { up: 'Up-regulated genes', down: 'Down-regulated genes' }
-/** Axis ticks for a mirrored axis, labelled with absolute values (|−3| shown as 3). */
-const absTicks = (max: number) => {
-  const raw = max / 4, mag = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 5, 10].map((k) => k * mag).find((k) => k >= raw) ?? raw
-  const vals: number[] = []
-  for (let v = -Math.floor(max / step) * step; v <= max + 1e-9; v += step) vals.push(Number(v.toPrecision(10)))
-  return { tickvals: vals, ticktext: vals.map((v) => String(Number(Math.abs(v).toPrecision(4)))) }
-}
 
 /** Up & down figure, top-down: up-regulated terms (strongest first), terms enriched in both lists,
  *  then down-regulated terms (strongest last, at the bottom). */
