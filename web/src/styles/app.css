@@ -846,3 +846,20 @@ html, body { overflow-x: clip; }
 .survival-box.loaded { border-color: var(--color-success, #16a34a); }
 .survival-ok { color: var(--color-success, #16a34a); font-weight: 700; }
 .km-swatch { display: inline-block; width: 12px; height: 3px; margin-right: 6px; vertical-align: middle; border-radius: 1px; }
+
+/* Text boxes for tables: the "show as a table" offer and the editable grid */
+.segmented-sm button { padding: 3px 10px; font-size: 0.78rem; }
+.table-text-offer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; font-size: 0.85rem;
+  border-left: 3px solid var(--accent-color); background: var(--select-bg); border-radius: 0 6px 6px 0; }
+.table-text-scroll { overflow: auto; max-height: 360px; max-width: 100%; border: 1px solid var(--border-color); border-radius: 6px; }
+.table-text-grid { width: max-content; border-collapse: collapse; font-family: var(--font-mono, ui-monospace, monospace); font-size: 12px; }
+.table-text-grid td, .table-text-grid th { border: 1px solid var(--border-color); padding: 0; }
+.table-text-grid thead th { position: sticky; top: 0; z-index: 1; background: var(--surface-color, var(--card-bg)); height: 18px; }
+.table-text-grid tbody th { position: sticky; left: 0; background: var(--surface-color, var(--card-bg)); width: 22px; }
+.table-text-grid input { border: 0; background: transparent; color: var(--default-color); font: inherit; padding: 4px 6px; width: auto; }
+.table-text-grid input:focus { outline: 2px solid var(--accent-color); outline-offset: -2px; background: var(--card-bg); }
+.table-text-grid .table-text-head input { font-weight: 600; color: var(--heading-color); }
+.table-text-grid .table-text-head td { background: var(--select-bg); }
+.table-text-del { width: 100%; height: 100%; min-height: 18px; color: var(--muted-color); font-size: 12px; line-height: 1; opacity: 0.55; }
+.table-text-del:hover:not(:disabled) { color: var(--danger-color); opacity: 1; }
+.table-text-del:disabled { opacity: 0.2; cursor: default; }

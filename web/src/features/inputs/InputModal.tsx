@@ -1,3 +1,4 @@
+import { StagedTableText, TableTextArea } from '../../components/TableTextArea'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api, saveText } from '../../api/client'
 import { useCreateList } from '../../api/hooks'
@@ -527,16 +528,6 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
   }, [points, isVolcano, p, lfc])
   const maxY = useMemo(() => (isVolcano && points ? Math.max(1, ...(points.points as VolcanoPoint[]).map((x) => x.negLog10p)) : 1), [points, isVolcano])
   const yTop = Math.max(maxY, -Math.log10(p)) * 1.06
-  // p-value ticks for the right axis: decades (thinned on tall plots) plus the current cut-off.
-  const pTicks = useMemo(() => {
-    const step = Math.max(1, Math.ceil(yTop / 8))
-    const ticks: { y: number; label: string }[] = []
-    for (let k = 0; k <= yTop; k += step) ticks.push({ y: k, label: k === 0 ? '1' : k <= 3 ? String(10 ** -k) : `1e-${k}` })
-    const cut = -Math.log10(p)
-    if (!ticks.some((t) => Math.abs(t.y - cut) < yTop / 30)) ticks.push({ y: cut, label: fmtP(p) })
-    return ticks
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [yTop, p])
   const selectedIds = [...new Set([...sel].map((pid) => byId.get(pid)?.id).filter((x): x is string => !!x))]
 
   const plotData = useMemo(() => {
@@ -606,7 +597,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
           <FileDrop accept=".csv,.tsv,.txt" onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
           <details>
             <summary className="small">…or paste the table</summary>
-            <textarea className="input mono" rows={6} value={text} onChange={(e) => { setText(e.target.value); setFileName('') }} aria-label="Table" />
+            <TableTextArea rows={6} value={text} onChange={(t) => { setText(t); setFileName('') }} ariaLabel="Table" />
           </details>
         </>
       )}
@@ -660,7 +651,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
             </div>
           )}
           {!isVolcano && <div className="row"><button className="btn btn-ghost btn-sm" onClick={() => setSel(new Set())}>Clear selection</button></div>}
-          <Plot colorKey={isVolcano ? 'flame_volcano' : 'flame_reduction'} data={isVolcano ? [...plotData, { type: 'scatter' as const, mode: 'markers' as const, x: [0], y: [0], yaxis: 'y2', showlegend: false, hoverinfo: 'skip' as const, marker: { opacity: 0 } }] as never : plotData} height={420} dragmode="select"
+          <Plot colorKey={isVolcano ? 'flame_volcano' : 'flame_reduction'} data={plotData} height={420} dragmode="select"
             onShapesMoved={isVolcano ? (u) => {
               const y = u['shapes[0].y0'] ?? u['shapes[0].y1']
               if (y !== undefined && y > 0) setPText(fmtP(Math.min(1, 10 ** -y)))
@@ -669,12 +660,6 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
             } : undefined}
             layout={{ xaxis: { title: { text: isVolcano ? 'log2 fold change' : mapping.x } },
               yaxis: { title: { text: isVolcano ? '−log10 p-value' : mapping.y }, ...(isVolcano ? { range: [0, yTop] } : {}) },
-              ...(isVolcano ? {
-                // Right-hand axis: the same scale labelled with the original p-values.
-                yaxis2: { overlaying: 'y', side: 'right', matches: 'y', range: [0, yTop], showgrid: false, zeroline: false,
-                  tickvals: pTicks.map((t) => t.y), ticktext: pTicks.map((t) => t.label), title: { text: 'p-value' } },
-                margin: { l: 60, r: 70, t: 20, b: 50 },
-              } : {}),
               shapes: isVolcano ? [
                 { type: 'line', xref: 'paper', x0: 0, x1: 1, y0: -Math.log10(p), y1: -Math.log10(p), line: { color: '#dc2626', dash: 'dot', width: 1 } },
                 { type: 'line', yref: 'paper', y0: 0, y1: 1, x0: lfc, x1: lfc, line: { color: '#dc2626', dash: 'dot', width: 1 } },
@@ -1097,6 +1082,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
   const selV = usePlainSelection(sel, NO_SET) // none while an image is exported without highlighting
   const [groups, setGroups] = useState<Record<string, 'A' | 'B' | ''>>({})
   const [box, setBox] = useState<BoxSetup | null>(null)
+  const [editing, setEditing] = useState(false)   // the loaded table open as editable cells
   const [replacing, setReplacing] = useState(false)
   usePaletteKey(`expression-${view}`) // each tab keeps its own palette
   const [busy, setBusy] = useState(false)
@@ -1176,7 +1162,12 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
             {ov && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
           </div>
         )}
-        {!text && view !== 'survival' && <textarea className="input mono" rows={5} placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'} onChange={(e) => setText(e.target.value)} />}
+        {(!text || editing) && view !== 'survival' && (
+          <StagedTableText current={text} rows={5} ariaLabel="Expression table" defaultView={text ? 'table' : 'text'}
+            applyLabel={text ? 'Use the edited table' : 'Analyse this table'}
+            placeholder={'gene\tcontrol_1\tcontrol_2\ttreated_1\ttreated_2\nTP53\t812\t790\t1530\t1610'}
+            onApply={(t) => { setText(t); setEditing(false); setReplacing(false) }} />
+        )}
         <ExampleSource text={survEx.source ?? ex.source} loading={ex.loading || survEx.loading} />
         <ErrorNote error={err} />
         {busy && <BusyBar label="Analysing the matrix: clustering genes and computing the gene map" expect={12} />}
@@ -1186,6 +1177,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
               <span><span className="muted">Table:</span> <strong>{fileName || (ex.source ? 'example' : 'pasted table')}</strong> · <strong>{ov.totalGenes.toLocaleString()}</strong> genes × <strong>{ov.samples.length}</strong> samples{ov.dropped ? ` (${ov.dropped} rows skipped)` : ''} · {ov.logged ? 'log2(x + 1) transformed' : 'used as given'}</span>
               <label>Log2 <select className="input input-sm" value={logMode} onChange={(e) => setLogMode(e.target.value as 'auto' | 'yes' | 'no')}><option value="auto">auto</option><option value="yes">yes</option><option value="no">no</option></select></label>
               <span className="toolbar-spacer" />
+              {!replacing && view !== 'survival' && <button className="btn btn-ghost btn-sm" aria-pressed={editing} onClick={() => setEditing((e) => !e)}>{editing ? 'Close the table editor' : 'Edit table'}</button>}
               {!replacing && view !== 'survival' && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(true)}>Replace table</button>}
             </div>
             <Segmented label="View" value={view} onChange={setView}

@@ -1,3 +1,4 @@
+import { TableTextArea } from '../components/TableTextArea'
 import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api } from '../api/client'
@@ -403,7 +404,7 @@ function GmtModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (so
       </div>
       <label className="field"><span className="field-label">GMT file</span>
         <input type="file" accept=".gmt,.txt,.tsv" onChange={(e) => e.target.files?.[0]?.text().then(setText)} /></label>
-      <textarea className="input mono" rows={9} wrap="off" value={text} onChange={(e) => setText(e.target.value)} placeholder={'HALLMARK_APOPTOSIS\tapoptosis\tCASP3\tCASP8\tBAX\tBCL2L11\tFAS\t…\nHALLMARK_HYPOXIA\thypoxia\tVEGFA\tSLC2A1\tPGK1\tLDHA\tADM\t…\nHALLMARK_GLYCOLYSIS\tglycolysis\tHK2\tPFKP\tALDOA\tENO1\tPKM\tLDHA\t…\nHALLMARK_P53_PATHWAY\tp53 pathway\tCDKN1A\tMDM2\tBAX\tGADD45A\tSESN1\t…\nHALLMARK_TNFA_SIGNALING_VIA_NFKB\tTNF-alpha signaling via NF-kB\tNFKBIA\tTNFAIP3\tJUN\tFOS\tIL6\t…\nHALLMARK_INTERFERON_GAMMA_RESPONSE\tinterferon gamma response\tSTAT1\tIRF1\tCXCL10\tIDO1\t…\nHALLMARK_MYC_TARGETS_V1\tMYC targets v1\tNPM1\tCDK4\tLDHA\tHSPD1\tEIF4A1\t…'} aria-label="GMT content" />
+      <TableTextArea rows={9} value={text} onChange={setText} maxCols={250} header={false} placeholder={'HALLMARK_APOPTOSIS\tapoptosis\tCASP3\tCASP8\tBAX\tBCL2L11\tFAS\t…\nHALLMARK_HYPOXIA\thypoxia\tVEGFA\tSLC2A1\tPGK1\tLDHA\tADM\t…\nHALLMARK_GLYCOLYSIS\tglycolysis\tHK2\tPFKP\tALDOA\tENO1\tPKM\tLDHA\t…\nHALLMARK_P53_PATHWAY\tp53 pathway\tCDKN1A\tMDM2\tBAX\tGADD45A\tSESN1\t…\nHALLMARK_TNFA_SIGNALING_VIA_NFKB\tTNF-alpha signaling via NF-kB\tNFKBIA\tTNFAIP3\tJUN\tFOS\tIL6\t…\nHALLMARK_INTERFERON_GAMMA_RESPONSE\tinterferon gamma response\tSTAT1\tIRF1\tCXCL10\tIDO1\t…\nHALLMARK_MYC_TARGETS_V1\tMYC targets v1\tNPM1\tCDK4\tLDHA\tHSPD1\tEIF4A1\t…'} ariaLabel="GMT content" />
       <ErrorNote error={err} />
     </Modal>
   )

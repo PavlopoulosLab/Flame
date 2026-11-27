@@ -1,3 +1,4 @@
+import { StagedTableText } from '../../components/TableTextArea'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api, saveBlob } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
@@ -30,17 +31,28 @@ export interface ExpressionInfo { fileName: string; genes: number; samples: numb
 const pIs = (p: number | null | undefined) => (p == null || !Number.isFinite(p) ? 'p = —' : p < 0.0001 ? 'p < 0.0001' : `p = ${p < 0.01 ? p.toPrecision(2) : p.toFixed(3)}`)
 
 /** One input table: always its drop box and paste box, with the loaded file named above them. */
-function TableBox({ step, title, what, loaded, onText, placeholder, maxBytes }: {
-  step: number; title: string; what: string; loaded: string | null; onText: (t: string, n: string) => void; placeholder: string; maxBytes: number
+function TableBox({ step, title, what, loaded, current, onText, placeholder, maxBytes }: {
+  step: number; title: string; what: string; loaded: string | null; current: string; onText: (t: string, n: string) => void; placeholder: string; maxBytes: number
 }) {
+  const [editing, setEditing] = useState(false)
   return (
     <div className={`card stack-sm survival-box${loaded ? ' loaded' : ''}`}>
       <div><strong>{step}. {title}</strong> <span className="muted small">{what}</span></div>
-      {loaded && <div className="row wrap small"><span className="survival-ok">✓</span> <span>{loaded}</span></div>}
-      <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={maxBytes} onText={(t, n) => onText(t, n)} />
-      <textarea className="input mono" rows={3} placeholder={placeholder} aria-label={`Paste the ${title.toLowerCase()}`}
-        onChange={(e) => { if (e.target.value.trim()) onText(e.target.value, '') }} />
-      {loaded && <span className="muted small">Drop or paste another table to replace it.</span>}
+      {loaded && (
+        <div className="row wrap small"><span className="survival-ok">✓</span> <span>{loaded}</span>
+          {current && <button type="button" className="btn btn-ghost btn-sm" aria-pressed={editing} onClick={() => setEditing((e) => !e)}>{editing ? 'Close the editor' : 'Edit table'}</button>}</div>
+      )}
+      {editing && current ? (
+        <StagedTableText current={current} rows={3} ariaLabel={`Edit the ${title.toLowerCase()}`} defaultView="table" applyLabel="Use the edited table"
+          onApply={(t) => { onText(t, ''); setEditing(false) }} />
+      ) : (
+        <>
+          <FileDrop accept=".txt,.csv,.tsv,.tab" maxBytes={maxBytes} onText={(t, n) => onText(t, n)} />
+          <StagedTableText current="" rows={3} placeholder={placeholder} ariaLabel={`Paste the ${title.toLowerCase()}`}
+            onApply={(t) => onText(t, '')} />
+          {loaded && <span className="muted small">Drop or paste another table to replace it.</span>}
+        </>
+      )}
     </div>
   )
 }
@@ -173,10 +185,10 @@ export function SurvivalPanel({ text, fileName, log, clinical, setClinical, onCr
     <div className="stack-sm">
       <p className="muted small">Survival analysis needs two tables. Drop each in its own box: the <strong>expression table</strong> (genes in rows, samples in columns) and the <strong>survival table</strong> (samples in rows, with the same sample names as the expression columns, then a follow-up time column, e.g. months, an event column, 1/0, dead/alive or 1:DECEASED, and any other clinical columns such as stage).</p>
       <div className="survival-boxes">
-        <TableBox step={1} title="Expression table" what="genes × samples" maxBytes={20 * 1024 * 1024} onText={setExpression}
+        <TableBox step={1} title="Expression table" what="genes × samples" maxBytes={20 * 1024 * 1024} onText={setExpression} current={text}
           loaded={expression ? `${expression.fileName || 'pasted table'}: ${expression.genes.toLocaleString()} genes × ${expression.samples} samples` : text ? 'reading…' : null}
           placeholder={'gene\tT1\tT2\tT3\nCDK1\t5.2\t7.9\t6.1\nALB\t14.1\t12.3\t13.8'} />
-        <TableBox step={2} title="Survival table" what="samples × time, event (and clinical columns)" maxBytes={2 * 1024 * 1024} onText={(t, n) => setClinical({ text: t, fileName: n })}
+        <TableBox step={2} title="Survival table" what="samples × time, event (and clinical columns)" maxBytes={2 * 1024 * 1024} onText={(t, n) => setClinical({ text: t, fileName: n })} current={clinical?.text ?? ''}
           loaded={clinical ? `${clinical.fileName || 'pasted table'}${cols ? `: ${cols.samples} samples, ${cols.columns.length} columns` : ''}` : null}
           placeholder={'sample\tOS_MONTHS\tOS_STATUS\tSTAGE\nT1\t23.8\t1:DECEASED\tIV\nT2\t53.4\t0:LIVING\tI'} />
       </div>

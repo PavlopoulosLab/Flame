@@ -1,3 +1,4 @@
+import { TableTextArea } from '../../components/TableTextArea'
 import { useEffect, useMemo, useState } from 'react'
 import { api, API_BASE } from '../../api/client'
 import type { AnalyteList } from '../../api/types'
@@ -245,11 +246,11 @@ export function BenchInput({ title, example, onClose, onCreated }: { title: stri
             </select>
           </Field>
         </div>
-        <textarea className="input mono" rows={5} value={text} aria-label="Table"
+        <TableTextArea rows={5} value={text} ariaLabel="Table"
           placeholder={helper === 'qpcr'
             ? 'Raw Ct values: genes in rows (with a reference gene), one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nGAPDH\t18.1\t18.3\t18.2\t18.0\nFKBP5\t27.1\t27.4\t23.6\t23.4'
             : 'Values ready to compare: genes or readouts in rows, one column per sample:\nGene\tControl 1\tControl 2\tDex 1\tDex 2\nFKBP5\t1.00\t0.95\t11.7\t12.6\nIL6\t1.00\t0.96\t0.31\t0.33\n\nOr one column per group, one row per replicate:\nVehicle\tCisplatin\n100\t49.8\n96.8\t45.2'}
-          onChange={(e) => { ownTable(); setText(e.target.value); setFileName('') }} />
+          onChange={(t) => { ownTable(); setText(t); setFileName('') }} />
         {source && (() => { const ex = EXAMPLES.find((x) => x.kind === exampleKind); return (
           <p className="example-source"><strong>Example data:</strong> {source}{ex ? <> <em>{ex.what}</em></> : null}{' '}
             {ex && <a href={`${API_BASE}/inputs/examples/${ex.kind}/file`} download>Download the table</a>} to see the layout.</p>
