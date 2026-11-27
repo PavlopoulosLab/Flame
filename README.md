@@ -19,14 +19,17 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
 
 ## Features
 
-* **Inputs**: paste/upload IDs (19 formats) or ranked lists with scores; select genes on a volcano plot (draggable
-  thresholds), a 2D plot (UMAP/t-SNE/PCA) or an expression matrix (co-expression clusters, gene map, two-group test,
+* **Inputs**: paste/upload IDs (19 formats) or ranked lists with scores; select genes on a volcano plot (preview of
+  the table, draggable thresholds; save the up- and down-regulated genes as two linked lists and go straight to their
+  GO enrichment), a 2D plot (UMAP/t-SNE/PCA) or an expression matrix (co-expression clusters, gene map, two-group test,
   correlation with a gene of interest by Pearson, Spearman and Kendall, boxplots of 2–3 sample groups with tests,
-  pathway activity per sample, survival analysis with a univariate Cox model per gene and optional strata); map SNPs
+  pathway activity per sample, survival analysis with Kaplan–Meier curves and a univariate Cox model per gene with
+  optional strata); map SNPs
   to genes; find genes, chemicals, diseases and seven other entity types in text or in **PDF documents** (EXTRACT;
   the PDFs stay in the browser, several open in tabs, and an annotated PDF can be downloaded); microRNAs → miRDB
   targets; **TCGA** tumours through cBioPortal (most mutated, amplified or deleted genes, genes co-expressed with a
-  gene, genes that differ between two groups of tumours, or your own MAF file); **nutrients and foods** (ChEMBL
+  gene, genes that differ between two groups of tumours, genes higher or lower in tumours than in adjacent normal
+  tissue for 16 cancer types, or your own MAF file); **nutrients and foods** (ChEMBL
   targets, UniProt proteins through ChEBI, GWAS Catalog diet and nutrient traits; CTD when it accepts automated
   queries); **experimental analysis** of small lab experiments (qPCR Ct, ELISA, western blot band intensities, viability,
   reporter assays, flow cytometry percentages or any values per group, with an automatic test, Dunnett or Tukey post hoc tests, fold changes with confidence intervals and
@@ -41,20 +44,29 @@ The workspace has four tabs: **Input** (every way to add a gene list), **Enrichm
 * **Gene tools**: annotate a list (current symbol, name, gene type, chromosome location, Ensembl and Entrez IDs;
   Excel/TSV export), check and clean it (unrecognised IDs, outdated symbols, duplicates), filter it (by gene type or
   chromosome, drop placeholder names), convert IDs and find orthologs. Annotation uses MyGene.info.
-* **Enrichment**: eight tools across 14,000+ organisms; over-representation (ORA) and, with clusterProfiler/fgsea on
-  MSigDB, gene set enrichment (GSEA) of ranked lists; literature enrichment (PubMed, GeneSigDB, Rummagene); cell types;
-  your own pathway sets (GMT, uploaded in the New run panel; ORA only), custom backgrounds (one of your lists, chosen
-  per tool), per-tool settings. Up to 20 runs per workspace can be queued or running at once.
+* **Enrichment**: eight tools across 14,000+ organisms; over-representation (ORA) and, with clusterProfiler/fgsea,
+  gene set enrichment (GSEA) of ranked lists on every MSigDB collection (H, C1–C9, grouped as on the MSigDB website)
+  with the classic GSEA enrichment plot; literature enrichment (PubMed, GeneSigDB, Rummagene); cell types; your own
+  pathway sets or a pasted signature (GMT, uploaded in the New run panel; ORA, or GSEA with a ranked list), custom
+  backgrounds (one of your lists, chosen per tool), per-tool settings. Up to 20 runs per workspace can be queued or
+  running at once.
+* **Up- and down-regulated genes**: a dedicated step runs GO enrichment (and optionally KEGG, Reactome,
+  WikiPathways) of both halves of a volcano selection with several tools at once; the results show them in one
+  figure (up-regulated terms to the right, terms enriched in both on both sides, down-regulated terms to the left)
+  or as two panels.
 * **Beyond term lists**: transcription factors (ChEA3) and kinases (KEA3), drug and CRISPR signatures that mimic or
   reverse a response (LINCS L1000), the STRING protein network with module detection and per-module enrichment,
   and robustness checks (bootstrap stability, random-list control, FDR thresholds).
 * **Redundancy reduction**: one representative term per group of similar terms, by shared genes (any source), by GO
   semantic similarity (Wang measure, as in GOSemSim) or through the REVIGO web service.
-* **Results**: all annotation sources together or one tab per source (GO:BP, GO:CC, KEGG…); table, dot plot, bar chart, scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge bundling)
-  views; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
-  browser links, and KEGG maps with the user's genes coloured; undo/redo; image export of every figure (PNG, SVG, PDF, JPEG, WebP) and CSV/HTML exports.
+* **Results**: all annotation sources together or one tab per source (GO:BP, GO:CC, KEGG…); table, dot plot, bar chart
+  (coloured by source, significance or one colour), scatter, heatmaps, networks, Sankey, chord, hive and Circos (edge
+  bundling) views; GSEA enrichment plots; functional **themes** and word clouds; a selection panel with ranked, clickable genes, GeneCards and genome
+  browser links, and KEGG maps with the user's genes coloured; undo/redo; chart text styling (font, titles, axis titles, tick labels, legend; *Aa Text*); image export of every
+  figure (PNG, SVG, PDF, JPEG, WebP) and CSV/HTML exports.
 * **Comparison**: compare tools, lists or strategies with Fisher's combined p-value, a **consensus rank** (Robust Rank
-  Aggregation) and a rank chart, a table of which run found what, agreement statistics (Jaccard, rank correlation,
+  Aggregation), a **Top terms** figure (terms most runs agree on, similar terms merged, optionally one panel per
+  annotation source) and a rank chart, a table of which run found what, agreement statistics (Jaccard, rank correlation,
   McNemar / Cochran's Q, concordance at the top, MDS), UpSet, chord, Circos, bubble plot and heatmap.
 * **Variants and GWAS** (an input option): rsIDs, VCF lines, HGVS or GWAS summary statistics annotated with Ensembl
   VEP (consequence, impact, gnomAD frequency, ClinVar) and trait associations; Manhattan and genome Circos plots;
