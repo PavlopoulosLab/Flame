@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react'
+import { usePopoverPlacement } from './usePopoverPlacement'
 import { DEFAULT_CHART_TEXT, FONTS, NO_LABELS, TEXT_PARTS, TEXT_SIZES, TICK_ANGLES, setChartText, useChartText, type ChartLabels, type TextPart, type TextStyle, hex2, hexToHsv, hsvToHex, parseColor, toRgb } from '../lib/chartText'
 import { Field } from './ui'
 
@@ -48,6 +49,8 @@ export function ColorPicker({ label, value, onChange, fallback = DEFAULT_TEXT_CO
   const [spectrum, setSpectrum] = useState(false)
   const [hexText, setHexText] = useState('')
   const ref = useRef<HTMLSpanElement>(null)
+  const popRef = useRef<HTMLSpanElement>(null)
+  usePopoverPlacement(ref, popRef, open, 'left')
   const shown = value || fallback
   const rgb = toRgb(shown)
   useEffect(() => {
@@ -62,7 +65,7 @@ export function ColorPicker({ label, value, onChange, fallback = DEFAULT_TEXT_CO
       <button type="button" className="text-color" aria-label={`${label}: colour`} aria-expanded={open} title={value ? `Colour ${value}` : `Colour (${defaultName.toLowerCase()})`}
         style={{ background: shown }} onClick={() => setOpen((v) => !v)} />
       {open && (
-        <span className="text-color-pop card" role="dialog" aria-label={`${label} colour`}>
+        <span ref={popRef} className="text-color-pop card" role="dialog" aria-label={`${label} colour`}>
           <span className="text-color-presets">
             {presets.map((c) => <button key={c} type="button" className={`text-color-swatch${shown === c ? ' on' : ''}`} style={{ background: c }} aria-label={c === fallback ? defaultName : c}
               title={c === fallback ? defaultName : c} onClick={() => pick(c)} />)}
@@ -165,6 +168,8 @@ export function ChartTextControls({ inputs = {}, parts = TEXT_PARTS.map((p) => p
 export function ChartTextButton({ labels, setLabels, own }: { labels: ChartLabels; setLabels: (l: ChartLabels) => void; own: ChartLabels }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  usePopoverPlacement(ref, popRef, open)
   useEffect(() => {
     if (!open) return
     const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
@@ -180,7 +185,7 @@ export function ChartTextButton({ labels, setLabels, own }: { labels: ChartLabel
     <div className="chart-text-button" ref={ref}>
       <button type="button" className="btn btn-ghost btn-sm" data-no-export="" aria-expanded={open} title="Title, axis titles and the font, size, bold and italic of the text" onClick={() => setOpen((v) => !v)}>Aa Text</button>
       {open && (
-        <div className="chart-text-pop card stack-sm" role="dialog" aria-label="Chart text">
+        <div ref={popRef} className="chart-text-pop card stack-sm" role="dialog" aria-label="Chart text">
           <ChartTextControls inputs={{ title: box('title', 'Plot title', 'no title', 220), yTitle: box('yTitle', 'Y axis title', 'none', 170), xTitle: box('xTitle', 'X axis title', 'none', 170) }} />
           <div className="row">
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setLabels(NO_LABELS)} disabled={!labels.title && !labels.xTitle && !labels.yTitle}>Clear titles</button>

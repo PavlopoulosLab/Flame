@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChartColours, ColourRole } from '../lib/chartColors'
 import { ColorPicker } from './ChartTextControls'
+import { usePopoverPlacement } from './usePopoverPlacement'
 
 /** One-click colours for chart series: Flame's, the Okabe–Ito colour-blind safe set, greys and black. */
 const SERIES_PRESETS = ['#dc2626', '#2563eb', '#16a34a', '#f97316', '#8b5cf6', '#0891b2', '#db2777', '#eab308', '#D55E00', '#0072B2', '#009E73', '#a1a1aa', '#525252']
@@ -13,6 +14,8 @@ const SERIES_PRESETS = ['#dc2626', '#2563eb', '#16a34a', '#f97316', '#8b5cf6', '
 export function ChartColorButton({ roles, colours, setColours }: { roles: ColourRole[]; colours: ChartColours; setColours: (c: ChartColours) => void }) {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const popRef = useRef<HTMLDivElement>(null)
+  usePopoverPlacement(ref, popRef, open)
   useEffect(() => {
     if (!open) return
     const close = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
@@ -46,7 +49,7 @@ export function ChartColorButton({ roles, colours, setColours }: { roles: Colour
         Colours
       </button>
       {open && (
-        <div className="chart-text-pop chart-colors-pop card stack-sm" role="dialog" aria-label="Chart colours">
+        <div ref={popRef} className="chart-text-pop chart-colors-pop card stack-sm" role="dialog" aria-label="Chart colours">
           <div className="chart-colors-list">
             {rows.map((row) => {
               if (!Array.isArray(row)) return (
