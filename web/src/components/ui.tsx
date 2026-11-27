@@ -246,13 +246,15 @@ export function IdFormatSelect({ value, onChange, label = 'ID format' }: { value
 }
 
 /** Read a text file in the browser (size-checked before reading). */
+const fmtSize = (bytes: number) => (bytes >= 1024 * 1024 ? `${+(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.round(bytes / 1024)} KB`)
+
 export function FileDrop({ accept, onText, maxBytes = 1024 * 1024 }: { accept: string; onText: (text: string, name: string) => void; maxBytes?: number }) {
   const [error, setError] = useState<string | null>(null)
   const [drag, setDrag] = useState(false)
   const read = (file: File | undefined) => {
     if (!file) return
     if (file.size > maxBytes) {
-      setError(`This file is ${(file.size / 1024 / 1024).toFixed(1)} MB; the limit is ${Math.round(maxBytes / 1024)} KB. Upload a smaller file: for a gene list, only the column of IDs is needed.`)
+      setError(`This file is ${(file.size / 1024 / 1024).toFixed(1)} MB; the limit is ${fmtSize(maxBytes)}. Upload a smaller file: for a gene list, only the column of IDs is needed.`)
       return
     }
     setError(null)
@@ -277,7 +279,7 @@ export function FileDrop({ accept, onText, maxBytes = 1024 * 1024 }: { accept: s
         browse
         <input type="file" accept={accept} hidden onChange={(e) => read(e.target.files?.[0])} />
       </label>
-      <span className="muted"> ({accept}, up to {Math.round(maxBytes / 1024)} KB)</span>
+      <span className="muted"> ({accept}, up to {fmtSize(maxBytes)})</span>
       {error && <div className="note note-error">{error}</div>}
     </div>
   )

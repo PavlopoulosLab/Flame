@@ -239,6 +239,14 @@ export default function WorkspacePage() {
 
   const step = lists.length === 0 ? 1 : runs.length === 0 ? 2 : 3
 
+  // "+ Add list" always shows the ways to add a list: switch to Input, scroll to the top and
+  // flash the options (on the Input tab, or scrolled down, switching tab alone changed nothing visible).
+  const [addPulse, setAddPulse] = useState(0)
+  useEffect(() => {
+    if (!addPulse) return
+    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' })
+  }, [addPulse])
   if (isLoading) return <div className="page-center"><Spinner label="Opening workspace" /></div>
   if (error) {
     return (
@@ -254,6 +262,7 @@ export default function WorkspacePage() {
   // A workspace with no lists yet opens on the Input tab; otherwise on Enrichment.
   const section = (params.get('tab') === 'variants' ? 'input' : (params.get('tab') as WorkspaceSection)) || (data && lists.length === 0 ? 'input' : 'enrich') // old ?tab=variants links open Input
   const setSection = (t: WorkspaceSection) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', t); return n }, { replace: true })
+  const addList = () => { setSection('input'); setAddPulse((n) => n + 1) }
   const maxLists = config?.limits.maxLists ?? 10
   const listsFull = maxLists > 0 && lists.length >= maxLists
   const loadExample = (k: string) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))
@@ -270,7 +279,7 @@ export default function WorkspacePage() {
       <div className="workspace">
         <aside className="rail sec-data" aria-label="Your data">
           <div className="sec-label"><ConceptIcon name="upload" size={18} /> Your data</div>
-          <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={() => setSection('input')} onCompare={(ids) => setDialog({ type: 'input', kind: 'upset', listIds: ids })} onRunMany={(ids) => { setSection('enrich'); setDialog({ type: 'newRun', listIds: ids }) }}
+          <ListsSection lists={lists} max={config?.limits.maxLists ?? 10} onAdd={addList} onCompare={(ids) => setDialog({ type: 'input', kind: 'upset', listIds: ids })} onRunMany={(ids) => { setSection('enrich'); setDialog({ type: 'newRun', listIds: ids }) }}
             onRun={(id) => setDialog({ type: 'newRun', listId: id })} onQuick={(action, id) => setDialog({ type: 'quick', action, listId: id })} />
         </aside>
 
@@ -298,7 +307,9 @@ export default function WorkspacePage() {
                 </div>
               )}
               {listsFull && <p className="note note-warning">This workspace already has the maximum of {maxLists} lists. Delete one to add another.</p>}
-              <MethodGrid lists={lists} disabledAll={listsFull} onPick={(kind) => (kind === 'variants' ? navigate(`/w/${ws}/variants`) : setDialog({ type: 'input', kind }))} />
+              <div key={addPulse} className={addPulse ? 'flash-once' : undefined}>
+                <MethodGrid lists={lists} disabledAll={listsFull} onPick={(kind) => (kind === 'variants' ? navigate(`/w/${ws}/variants`) : setDialog({ type: 'input', kind }))} />
+              </div>
               <VariantsPanel ws={ws} />
             </section>
           )}
@@ -332,7 +343,7 @@ export default function WorkspacePage() {
                 <EmptyState title="Start by adding a gene list">
                   <p>Paste IDs, upload a file, or pick genes from a plot. Not sure? Load an example and see how it works.</p>
                   <div className="row center">
-                    <button className="btn btn-primary" onClick={() => setSection('input')}>Add a list</button>
+                    <button className="btn btn-primary" onClick={addList}>Add a list</button>
                     <button className="btn btn-secondary" onClick={() => setDialog({ type: 'input', kind: 'upload', example: true })}>Use example genes</button>
                   </div>
                 </EmptyState>
@@ -376,7 +387,7 @@ export default function WorkspacePage() {
 
 
           {section === 'regulators' && (
-            <AnalysesPanel lists={lists} onAddList={() => setSection('input')} open={openTask} setOpen={setOpenTask}
+            <AnalysesPanel lists={lists} onAddList={addList} open={openTask} setOpen={setOpenTask}
               onExample={(k) => runExample(k).catch((e) => setExampleNote(`The example could not be loaded: ${e.message}`))}
               onPpi={() => setDialog({ type: 'quick', action: 'ppi' })} />
           )}

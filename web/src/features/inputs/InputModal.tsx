@@ -167,6 +167,10 @@ export function SaveList({
 // ---- Paste / upload ---------------------------------------------------------
 
 const MAX_PASTE_CHARS = 1024 * 1024
+/** Volcano / 2D tables (full DE results): same as the server's FLAME_MAX_TABLE_MB default. */
+const TABLE_MAX_BYTES = 20 * 1024 * 1024
+/** Above this many points the plots draw with WebGL, which stays fast with tens of thousands of genes. */
+const WEBGL_POINTS = 5000
 
 function UploadPaste({ example, onClose, onCreated, title }: P) {
   const [text, setText] = useState('')
@@ -532,6 +536,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
 
   const plotData = useMemo(() => {
     if (!points) return []
+    const big = points.points.length > WEBGL_POINTS
     if (isVolcano) {
       const groups: Record<string, { name: string; color: string }> = {
         up: { name: 'Up-regulated', color: rc.up }, down: { name: 'Down-regulated', color: rc.down }, ns: { name: 'Not significant', color: rc.ns },
@@ -539,7 +544,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
       return Object.entries(groups).map(([k, g]) => {
         const pts = (points.points as VolcanoPoint[]).filter((x) => statusOf(x) === k)
         return {
-          type: 'scatter' as const, mode: 'markers' as const, name: g.name,
+          type: (big ? 'scattergl' : 'scatter') as 'scatter', mode: 'markers' as const, name: g.name,
           x: pts.map((x) => x.logfc), y: pts.map((x) => x.negLog10p), customdata: pts.map((x) => x.pointId),
           text: pts.map((x) => `${x.id}<br>log2FC ${x.logfc.toFixed(2)}<br>p ${x.pvalue.toExponential(2)}`),
           hoverinfo: 'text' as const,
@@ -552,7 +557,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
     return cats.map((c) => {
       const sub = points.colorType === 'categorical' ? pts.filter((x) => String(x.color) === c) : pts
       return {
-        type: 'scatter' as const, mode: 'markers' as const, name: points.colorType === 'categorical' ? c : 'points',
+        type: (big ? 'scattergl' : 'scatter') as 'scatter', mode: 'markers' as const, name: points.colorType === 'categorical' ? c : 'points',
         x: sub.map((x) => x.x), y: sub.map((x) => x.y), customdata: sub.map((x) => x.pointId),
         text: sub.map((x) => `${x.id}${x.color != null ? `<br>${mapping.color}: ${x.color}` : ''}`), hoverinfo: 'text' as const,
         marker: {
@@ -594,7 +599,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
               {prep && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
             </span>
           </div>
-          <FileDrop accept=".csv,.tsv,.txt" onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
+          <FileDrop accept=".csv,.tsv,.txt" maxBytes={TABLE_MAX_BYTES} onText={(t, n) => { setText(t); setFileName(n); setReplacing(false) }} />
           <details>
             <summary className="small">…or paste the table</summary>
             <TableTextArea rows={6} value={text} onChange={(t) => { setText(t); setFileName('') }} ariaLabel="Table" />
