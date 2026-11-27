@@ -109,7 +109,8 @@ function(req, res, id) {
           newIds <- newIds[keep]; newScores <- newScores[keep]
         }
         if (length(newIds) < 15) api_abort(400, "A ranked list needs at least 15 IDs with numeric scores.")
-        if (length(newIds) > 30000) api_abort(400, "A ranked list can contain at most 30,000 IDs.")
+        if (length(newIds) > FLAME_LIMITS$maxRankedIds)
+          api_abort(400, sprintf("A ranked list can contain at most %s IDs.", format(FLAME_LIMITS$maxRankedIds, big.mark = ",")))
       } else {
         newIds <- clean_ids(if (!is.null(text)) parse_id_text(text)$ids else b$ids)
       }

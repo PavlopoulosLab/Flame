@@ -111,7 +111,7 @@ AnalyteList <- R6::R6Class(
   ),
 
   private = list(
-    # Maximum identifiers allowed per analyte list
-    .maxIds = 3000
+    # Maximum identifiers allowed per analyte list (FLAME_MAX_IDS; ranked lists: FLAME_MAX_RANKED_IDS)
+    .maxIds = MAX_LIST_IDS
   )
 )

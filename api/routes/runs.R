@@ -60,6 +60,13 @@ function(req, res) {
         skipped[[length(skipped) + 1]] <- list(tool = key, reason = sprintf("%s does not offer %s.", toolId, paradigm))
         next
       }
+      toolMax <- TOOLS[[toolId]]$maxIds
+      nIds <- length(from_json(lstRow$ids_json))
+      if (!is.null(toolMax) && nIds > toolMax) {
+        skipped[[length(skipped) + 1]] <- list(tool = key, reason = sprintf("%s takes lists of up to %s IDs; this list has %s.",
+          toolId, format(toolMax, big.mark = ","), format(nIds, big.mark = ",")))
+        next
+      }
       cfg <- perTool[[key]] %||% list()
       if (paradigm == ParadigmId$GSEA) {
         params <- build_run_params(toolId, lst, b$datasources, cfg$threshold %||% b$threshold %||% 0.05, cfg$correction, NULL)

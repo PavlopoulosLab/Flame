@@ -16,6 +16,7 @@
       defaultMetricBackground = cfg$defaultMetricBackground,
       supportsBackground = isTRUE(cfg$supportsBackground),
       organismCount = length(unlist(TOOL_ORGANISMS[[t$toolId]] %||% list())),
+      maxIds = cfg$maxIds,
       color = paste0("var(--color-", t$key, ")")
     )
   })
@@ -51,7 +52,7 @@
       list(label = "Benjamini-Hochberg FDR", value = "BH"),
       list(label = "Bonferroni", value = "bonferroni"),
       list(label = "None (p-value)", value = "none"))),
-    limits = list(maxLists = FLAME_LIMITS$maxLists, maxIdsPerList = FLAME_LIMITS$maxIdsPerList,
+    limits = list(maxLists = FLAME_LIMITS$maxLists, maxIdsPerList = FLAME_LIMITS$maxIdsPerList, maxRankedIds = FLAME_LIMITS$maxRankedIds,
                   maxTextBytes = FLAME_LIMITS$maxTextBytes, retentionDays = FLAME_LIMITS$retentionDays,
                   stringMaxIds = 500L),
     emailNotifications = nzchar(Sys.getenv("FLAME_SMTP_URL", ""))

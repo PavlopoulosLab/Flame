@@ -12,6 +12,8 @@ export interface ToolConfig {
   defaultMetricBackground: string
   supportsBackground: boolean
   organismCount: number
+  /** Longest list the tool takes (PANTHER); larger lists are not sent to it. */
+  maxIds?: number | null
   color: string
 }
 
@@ -56,7 +58,7 @@ export interface AppConfig {
   resultTabs: ResultTabConfig[]
   networkLayouts: string[]
   customSourceTool: { key: string; label: string; metrics: { label: string; value: string }[] }
-  limits: { maxLists: number; maxIdsPerList: number; maxTextBytes: number; retentionDays: number; stringMaxIds: number }
+  limits: { maxLists: number; maxIdsPerList: number; maxRankedIds?: number; maxTextBytes: number; retentionDays: number; stringMaxIds: number }
   emailNotifications: boolean
 }
 

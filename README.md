@@ -159,6 +159,7 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_RATE_LIMIT` | `600` | API requests per minute per client address (0 = no limit, e.g. for local testing) |
 | `FLAME_TRUST_PROXY` | – | `1` to take the client address from `X-Forwarded-For` when the reverse proxy runs on another machine |
 | `FLAME_MAX_EXPRESSION_MB`, `FLAME_MAX_SESSION_MB` | `20`, `25` | Largest expression table and session file accepted |
+| `FLAME_MAX_IDS`, `FLAME_MAX_RANKED_IDS` | `20000`, `60000` | Most IDs in a list, and in a list with scores (ranked list, for GSEA) |
 | `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and ClinVar inputs (10 instead of 3 requests per second; recommended for public servers) |
 | `FLAME_HTTP_PORT` | `8000` | Compose only: host port mapped to `FLAME_PORT` inside the container |
 

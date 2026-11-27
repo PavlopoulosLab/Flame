@@ -154,7 +154,7 @@ const TOPICS: Topic[] = [
         </ul>
         <p>Steps that take a while — fetching from public databases, mapping, saving — show a progress bar with the elapsed time. These are single requests, so the bar shows that work is in progress, not a percentage; enrichment runs and variant analyses report real progress.</p>
         <h3>Paste or upload IDs</h3>
-        <p>One identifier per line, or separated by commas, tabs or semicolons. Duplicates are removed (case-insensitive) and entries with unusual characters are skipped and reported. Choose the organism and the ID type; "Gene symbol" works for most tools. A list holds up to 3,000 IDs, and a workspace up to 10 lists. <Example kind="upload">Example</Example></p>
+        <p>One identifier per line, or separated by commas, tabs or semicolons. Duplicates are removed (case-insensitive) and entries with unusual characters are skipped and reported. Choose the organism and the ID type; "Gene symbol" works for most tools. A list holds up to 20,000 IDs (60,000 with scores), and a workspace up to 10 lists. <Example kind="upload">Example</Example></p>
         <h3>IDs with scores (ranked list)</h3>
         <p>For gene set enrichment analysis, choose <em>IDs with scores (ranked list, for GSEA)</em> in the upload dialog and give two columns: the ID and a score (e.g. log2 fold change, signed −log10 p, or a t-statistic). Include all measured genes, not only the significant ones. A header row can be skipped. Ranked lists are marked <em>ranked</em> in the list rail; they can also be used for ordinary (ORA) runs, which ignore the scores.</p>
         <h3>From a volcano plot</h3>
@@ -280,7 +280,7 @@ const TOPICS: Topic[] = [
           <li><strong>This list only</strong> — the usual single-list view.</li>
         </ul>
         <p>If the other half has no finished run yet, a note links to the up &amp; down GO enrichment step, which runs the chosen tools on both lists at once.</p>
-        <p><strong>From a list with scores.</strong> You do not need a volcano plot: upload <em>IDs with scores</em> (e.g. log2 fold changes) in Paste or upload, then open <strong>New run</strong> with that list and press <strong>Up &amp; down enrichment…</strong>. Genes with a score above the cut-off (default 0) form the up list and those below its negative the down list, strongest first and at most 3,000 each; they are saved as a linked ▲ up / ▼ down pair and the up &amp; down step opens.</p>
+        <p><strong>From a list with scores.</strong> You do not need a volcano plot: upload <em>IDs with scores</em> (e.g. log2 fold changes) in Paste or upload, then open <strong>New run</strong> with that list and press <strong>Up &amp; down enrichment…</strong>. Genes with a score above the cut-off (default 0) form the up list and those below its negative the down list, strongest first and at most 20,000 each; they are saved as a linked ▲ up / ▼ down pair and the up &amp; down step opens.</p>
         <h3>Network layouts and style</h3>
         <p>The <em>Layout</em> menu offers two kinds of layout. <strong>Static</strong> layouts (force-directed, Kamada–Kawai, GraphOpt, MDS, tree, star, circle, grid) are computed once on the server; drag nodes to adjust them. <strong>Interactive</strong> layouts run in your browser with vis-network: three physics solvers (Barnes–Hut, Force Atlas 2, repulsion), hierarchical repulsion, and a <em>hierarchical (layered)</em> layout that puts the most connected nodes first.</p>
         <p><em>Network style</em> sets, without re-running anything:</p>

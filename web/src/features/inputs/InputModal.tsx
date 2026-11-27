@@ -1,7 +1,7 @@
 import { StagedTableText, TableTextArea } from '../../components/TableTextArea'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api, saveText } from '../../api/client'
-import { useCreateList } from '../../api/hooks'
+import { useCreateList, useListLimits } from '../../api/hooks'
 import type { AnalyteList } from '../../api/types'
 import { Plot } from '../../components/charts'
 import { BusyBar, CopyButton, ErrorNote, Field, FileDrop, IdFormatSelect, Modal, ModalPaletteContext, Note, OrganismPicker, Segmented, Spinner } from '../../components/ui'
@@ -133,6 +133,10 @@ export function SaveList({
   const [name, setName] = useState(defaultName)
   const create = useCreateList()
   useEffect(() => setName(defaultName), [defaultName])
+  // A selection larger than a list may hold keeps its first IDs (in the caller's order), and says so.
+  const { maxIds } = useListLimits()
+  const over = !scores && ids.length > maxIds
+  if (over) ids = ids.slice(0, maxIds)
   return (
     <div className="save-list">
       <div className="save-list-fields">
@@ -146,7 +150,7 @@ export function SaveList({
       <ErrorNote error={create.error} />
       {create.isPending && <BusyBar label="Saving the list and checking its IDs" expect={8} />}
       <div className="row end">
-        <span className="muted small">{plural(ids.length, 'ID')}{scores ? ' with scores (ranked list, for GSEA)' : ''} will be saved</span>
+        <span className="muted small">{plural(ids.length, 'ID')}{scores ? ' with scores (ranked list, for GSEA)' : ''} will be saved{over ? ` (a list holds at most ${maxIds.toLocaleString()})` : ''}</span>
         <button
           className="btn btn-primary"
           disabled={!ids.length || !name.trim() || create.isPending}
@@ -173,6 +177,7 @@ const TABLE_MAX_BYTES = 20 * 1024 * 1024
 const WEBGL_POINTS = 5000
 
 function UploadPaste({ example, onClose, onCreated, title }: P) {
+  const { maxIds, maxRankedIds } = useListLimits()
   const [text, setText] = useState('')
   const [skip, setSkip] = useState(false)
   const [ranked, setRanked] = useState(false)
@@ -192,7 +197,7 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
     // Larger than the server accepts: say so here, with what to do, instead of sending it.
     if (text.length > MAX_PASTE_CHARS) {
       setParsed(null)
-      setErr(new Error(`This is ${(text.length / 1024 / 1024).toFixed(1)} MB of text; the limit is 1 MB. A list holds up to 3,000 IDs (30,000 with scores), so paste only the column of gene IDs. For a full expression table use “From expression data”, and for differential-expression results “From a volcano plot”.`))
+      setErr(new Error(`This is ${(text.length / 1024 / 1024).toFixed(1)} MB of text; the limit is 1 MB. A list holds up to ${maxIds.toLocaleString()} IDs (${maxRankedIds.toLocaleString()} with scores), so paste only the column of gene IDs. For a full expression table use “From expression data”, and for differential-expression results “From a volcano plot”.`))
       return
     }
     setErr(null)
@@ -677,7 +682,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
             onRemove={(geneId) => setSel((cur) => new Set([...cur].filter((pid) => byId.get(pid)?.id !== geneId)))}
             onClear={() => setSel(new Set())} />
           <h3 className="save-heading">Save the selected genes as a list</h3>
-          <SaveList ids={selectedIds.slice(0, 3000)} defaultName={isVolcano ? 'Volcano selection' : 'Cluster selection'} organism={organism}
+          <SaveList ids={selectedIds} defaultName={isVolcano ? 'Volcano selection' : 'Cluster selection'} organism={organism}
             setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: kind }} onCreated={onCreated} />
           {isVolcano && <UpDownFromVolcano points={points.points as VolcanoPoint[]} p={p} lfc={lfc} organism={organism} idFormat={idFormat} onCreated={onCreated} />}
           {isVolcano && <RankedFromVolcano points={points.points as VolcanoPoint[]} organism={organism} idFormat={idFormat} onCreated={onCreated} />}
@@ -769,7 +774,8 @@ function UpDownFromVolcano({ points, p, lfc, organism, idFormat, onCreated }: {
       ranked: rows.map((x) => ({ id: x.id, score: Math.sign(x.logfc) * x.negLog10p })),
     }
   }, [points, p, lfc])
-  const tooMany = up.length > 3000 || down.length > 3000
+  const { maxIds } = useListLimits()
+  const tooMany = up.length > maxIds || down.length > maxIds
   const save = async (updown: boolean) => {
     setBusy(true)
     try {
@@ -796,7 +802,7 @@ function UpDownFromVolcano({ points, p, lfc, organism, idFormat, onCreated }: {
         <label className="check"><input type="checkbox" checked={withRanked} onChange={(e) => setWithRanked(e.target.checked)} /> Also save the whole table as a ranked list (GSEA)</label>
       </div>
       {(!up.length || !down.length) && <p className="muted small">Both directions need at least one gene at these cut-offs.</p>}
-      {tooMany && <p className="muted small">A list holds at most 3,000 IDs; tighten the cut-offs.</p>}
+      {tooMany && <p className="muted small">A list holds at most {maxIds.toLocaleString()} IDs; tighten the cut-offs.</p>}
       <div className="row end">
         <button className="btn btn-secondary btn-sm" disabled={disabled} onClick={() => save(false)}>{busy ? 'Saving…' : 'Save up & down lists'}</button>
         <button className="btn btn-primary btn-sm" disabled={disabled} onClick={() => save(true)}>Save and continue to GO enrichment →</button>
@@ -1036,7 +1042,7 @@ function Upset({ lists, onClose, onCreated, title, initialListIds }: P) {
             </div>
           )}
           <h3 className="save-heading">Save the selected IDs as a new list</h3>
-          <SaveList ids={genes.map((g) => g.id).slice(0, 3000)} defaultName={defaultName} organism={res.organismTaxId} idFormat={res.idFormat}
+          <SaveList ids={genes.map((g) => g.id)} defaultName={defaultName} organism={res.organismTaxId} idFormat={res.idFormat}
             showOrganism={false} showFormat={false}
             meta={{ method: 'upset', mode: res.mode, sourceLists: [...new Set(chosen.flatMap((c) => c.sourceNames))] }} onCreated={onCreated} />
         </section>
@@ -1258,7 +1264,7 @@ function ExpressionInput({ example, onClose, onCreated, title, onOpenVolcano, in
                   onRemove={(id) => setSel((cur) => { const next = new Set(cur); next.delete(id); return next })}
                   onClear={() => setSel(new Set())} />
                 <h3 className="save-heading">Save the selected genes as a list</h3>
-                <SaveList ids={[...sel].slice(0, 3000)}
+                <SaveList ids={[...sel]}
                   defaultName={pickedClusters.length && pickedClusters.reduce((n, c) => n + ov.clusterSizes[String(c)], 0) === sel.size
                     ? `Expression cluster${pickedClusters.length > 1 ? 's' : ''} ${pickedClusters.join('+')}` : 'Expression selection'}
                   organism={organism} setOrganism={setOrganism}
@@ -1571,7 +1577,7 @@ function CorrelationView({ text, fileName, log, groups, organism, setOrganism, i
                 </table>
               </div>
               <h3 className="save-heading">Save the selected genes as a list</h3>
-              <SaveList ids={[...sel].slice(0, 3000)} defaultName={`Co-expressed with ${res.gene}`} organism={organism} setOrganism={setOrganism}
+              <SaveList ids={[...sel]} defaultName={`Co-expressed with ${res.gene}`} organism={organism} setOrganism={setOrganism}
                 idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'expression-correlation', gene: res.gene, methods: res.methods, minR, maxQ }} onCreated={onCreated} />
               <div className="note note-info">
                 <strong>Use every gene instead of a selection?</strong> Save all genes ranked by their {CORR_LABEL[plotMethod]} with {res.gene} and run GSEA on it — no cut-offs needed.
@@ -1996,7 +2002,7 @@ function MirnaInput({ example, onClose, onCreated, title }: P) {
               </table>
             </div>
             {chosen.length > 0 && (
-              <SaveList ids={chosen.slice(0, 3000).map((g) => g.gene)} defaultName={only ? `${only} targets` : `miRNA targets (≥${minMirnas} miRNAs)`}
+              <SaveList ids={chosen.map((g) => g.gene)} defaultName={only ? `${only} targets` : `miRNA targets (≥${minMirnas} miRNAs)`}
                 organism={res.organismTaxId} idFormat="USERINPUT" showOrganism={false} showFormat={false}
                 meta={{ method: 'mirna', mirnas: res.mirnas.map((m) => m.input), minMirnas: only ? null : minMirnas, only, source: res.source }} onCreated={onCreated} />
             )}

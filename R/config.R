@@ -100,6 +100,11 @@ ParadigmId <- list(
 
 #' Tool Identifier
 #' @description Available enrichment tools
+# Most IDs one list may hold: plain lists (a gene set, e.g. the up-regulated genes of an
+# experiment) and ranked lists (IDs with scores, often every measured gene, for GSEA).
+MAX_LIST_IDS <- as.integer(Sys.getenv("FLAME_MAX_IDS", "20000"))
+MAX_RANKED_IDS <- as.integer(Sys.getenv("FLAME_MAX_RANKED_IDS", "60000"))
+
 ToolId <- list(
   GPROFILER = "gProfiler",
   STRING = "STRING",
@@ -682,7 +687,9 @@ TOOLS[[ToolId$PANTHER]] <- list(
 
   defaultMetricGenome = "FDR",
   defaultMetricBackground = "NONE",
-  supportsBackground = TRUE
+  supportsBackground = TRUE,
+  # PANTHER's gene lookup refuses long lists: larger lists are not sent to PANTHER.
+  maxIds = 3000L
 )
 
 # -----------------------------------------------------------------------------

@@ -1,5 +1,6 @@
-/** Most IDs one list can hold (the server's maxIdsPerList). */
-export const MAX_LIST_IDS = 3000
+/** Defaults of the server's list limits (FLAME_MAX_IDS / FLAME_MAX_RANKED_IDS); the live values come from /config (useListLimits). */
+export const MAX_LIST_IDS = 20000
+export const MAX_RANKED_IDS = 60000
 
 export interface ScoreSplit {
   /** Up genes (score > cut-off), strongest first, at most `maxPerDirection`. */
