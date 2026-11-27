@@ -40,6 +40,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     FLAME_HOST=0.0.0.0 \
     FLAME_PORT=8000 \
     FLAME_DB=/data/flame.sqlite \
+    FLAME_CACHE_DIR=/data/cache \
     FLAME_WORKERS=4 \
     FLAME_RETENTION_DAYS=30
 

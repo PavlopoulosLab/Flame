@@ -60,9 +60,9 @@ RankedAnalyteList <- R6::R6Class(
         stop("ids and scores must have the same length")
       }
 
-      if (length(ids) > private$.maxIds) {
+      if (length(ids) > MAX_RANKED_IDS) {
         stop(sprintf("Too many items (%d). Maximum allowed is %d.",
-                     length(ids), private$.maxIds))
+                     length(ids), MAX_RANKED_IDS))
       }
 
       private$.ids <- as.character(ids)

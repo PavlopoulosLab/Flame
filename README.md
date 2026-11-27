@@ -120,8 +120,11 @@ Dockerfile, docker-compose.yml
 Requirements: R ≥ 4.4 and Node.js ≥ 20. If R packages are built from source (e.g. Homebrew R or Linux),
 `WebGestaltR` needs a Rust toolchain (`brew install rust`) and `plumber` needs libsodium (`brew install libsodium`).
 `install_packages.R` installs the CRAN packages and, through BiocManager, the Bioconductor packages `clusterProfiler`,
-`fgsea` (used with `msigdbr` for MSigDB ORA and GSEA) and `progeny` (pathway activity). MSigDB gene sets are downloaded on the first
-clusterProfiler run for each organism and cached in memory, so that first run takes longer.
+`fgsea` (used with `msigdbr` for MSigDB ORA and GSEA), `progeny` (pathway activity) and the `org.*.db` annotation packages
+of 13 organisms (about 1.9 GB; current GO for `enrichGO` / `gseGO`). MSigDB gene sets are downloaded on the first
+clusterProfiler run for each organism and cached in memory, so that first run takes longer. KEGG pathways (`enrichKEGG` /
+`gseKEGG`) are downloaded from the KEGG REST API by clusterProfiler and kept in `FLAME_CACHE_DIR` for a week; if KEGG
+cannot be reached, the last saved copy is used. KEGG is free for academic use; see kegg.jp for commercial licensing.
 
 ```bash
 git clone https://github.com/PavlopoulosLab/Flame.git
@@ -147,6 +150,8 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_FETCH_WORKERS` | `2` | Workers for requests to external services (TCGA, nutrients, diseases, EXTRACT, REVIGO, Arena3D, NORMA); at most four times as many such requests wait at once |
 | `FLAME_MAX_ACTIVE_JOBS` | `20` | Enrichment runs and analyses a workspace may have queued or running at once; `FLAME_WORKERS` of them run at the same time, the rest wait their turn |
 | `FLAME_RETENTION_DAYS` | `30` | Delete workspaces after this many days without use |
+| `FLAME_CACHE_DIR` | R's user cache dir | Where downloaded KEGG pathways and the KEGG/Reactome name lists are kept |
+| `FLAME_KEGG_CACHE_DAYS` | `7` | Days before KEGG pathways (and the name lists) are downloaded again |
 | `FLAME_MAX_LISTS` | `10` | Lists per workspace (0 = unlimited) |
 | `FLAME_PUBLIC_URL` | – | Public base URL (used in links and emails) |
 | `FLAME_SMTP_URL`, `FLAME_SMTP_FROM` | – | Optional "results ready" emails |
@@ -154,6 +159,7 @@ For front-end development with hot reload, run `Rscript api/run.R` and `npm --pr
 | `FLAME_RATE_LIMIT` | `600` | API requests per minute per client address (0 = no limit, e.g. for local testing) |
 | `FLAME_TRUST_PROXY` | – | `1` to take the client address from `X-Forwarded-For` when the reverse proxy runs on another machine |
 | `FLAME_MAX_EXPRESSION_MB`, `FLAME_MAX_SESSION_MB` | `20`, `25` | Largest expression table and session file accepted |
+| `FLAME_MAX_IDS`, `FLAME_MAX_RANKED_IDS` | `20000`, `60000` | Most IDs in a list, and in a list with scores (ranked list, for GSEA) |
 | `FLAME_NCBI_API_KEY` | – | NCBI E-utilities key for the PubMed and ClinVar inputs (10 instead of 3 requests per second; recommended for public servers) |
 | `FLAME_HTTP_PORT` | `8000` | Compose only: host port mapped to `FLAME_PORT` inside the container |
 

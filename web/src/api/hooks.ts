@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from './client'
 import type { AnalyteList, AppConfig, OrganismOption, Run, WorkspaceSummary } from './types'
+import { MAX_LIST_IDS, MAX_RANKED_IDS } from '../lib/updown'
 
 export function useConfig() {
   return useQuery({
@@ -8,6 +9,12 @@ export function useConfig() {
     queryFn: () => api<AppConfig>('/config', { workspace: null }),
     staleTime: Infinity,
   })
+}
+
+/** Most IDs a list may hold (plain lists / ranked lists), as the server is configured. */
+export function useListLimits() {
+  const { data } = useConfig()
+  return { maxIds: data?.limits.maxIdsPerList ?? MAX_LIST_IDS, maxRankedIds: data?.limits.maxRankedIds ?? MAX_RANKED_IDS }
 }
 
 /** Workspace summary; polls every 2 s while any run is queued or running. */

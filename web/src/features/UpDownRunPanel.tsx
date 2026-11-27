@@ -1,11 +1,12 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { useConfig, useStartRuns, useWorkspace } from '../api/hooks'
+import { useConfig, useCreateList, useListLimits, useStartRuns, useWorkspace } from '../api/hooks'
 import type { AnalyteList, Run } from '../api/types'
 import { ErrorNote, Field, Modal, Note } from '../components/ui'
 import { ToolLogo } from '../components/ToolLogo'
+import { splitByScore } from '../lib/updown'
 
 const GO = [
   { id: 'GO:BP', label: 'Biological process (BP)' },
@@ -19,7 +20,7 @@ const PATHWAYS = [
 ]
 const DEFAULT_TOOLS = ['gprofiler', 'enrichr', 'clusterprofiler']
 
-/** The up- and down-regulated lists of one volcano pair. */
+/** The up- and down-regulated lists of one pair (saved from a volcano plot, or split from a ranked list). */
 export function pairLists(lists: AnalyteList[], pairId: string) {
   const of = (d: 'up' | 'down') => lists.find((l) => l.meta?.pairId === pairId && l.meta?.direction === d)
   return { up: of('up'), down: of('down') }
@@ -50,13 +51,15 @@ export function UpDownRunPanel({ ws, lists, pairId, onClose }: { ws: string; lis
   const supported = (key: string) => support.data?.tools.find((t) => t.key === key)?.supported ?? true
   // Tools that offer over-representation on at least one of the chosen annotation sources.
   const goTools = (config?.tools ?? []).filter((t) => t.paradigms.includes('ORA') && t.datasources.some((d) => GO.some((g) => g.id === d)))
-  const picked = tools.filter((k) => goTools.some((t) => t.key === k) && supported(k))
-  const cutoffs = (up?.meta?.cutoffs ?? {}) as { log2fc?: number; pvalue?: number }
+  // A tool with a list-size limit (PANTHER) needs both lists within it: the figure shows the two together.
+  const tooLong = (key: string) => { const m = goTools.find((t) => t.key === key)?.maxIds; return !!m && !!up && !!down && (up.size > m || down.size > m) }
+  const picked = tools.filter((k) => goTools.some((t) => t.key === k) && supported(k) && !tooLong(k))
+  const cutoffs = (up?.meta?.cutoffs ?? {}) as { log2fc?: number; pvalue?: number; score?: number; top?: number }
 
   if (!up || !down) {
     return (
       <Modal title="GO enrichment of up- and down-regulated genes" onClose={onClose}>
-        <ErrorNote error="The up or down list of this pair was deleted. Save both again from the volcano plot." />
+        <ErrorNote error="The up or down list of this pair was deleted. Save both again from the volcano plot, or split the ranked list again under New run." />
       </Modal>
     )
   }
@@ -77,7 +80,8 @@ export function UpDownRunPanel({ ws, lists, pairId, onClose }: { ws: string; lis
     <div className={`updown-card updown-${d}`}>
       <span className={`dir-badge dir-${d}`}>{d === 'up' ? '▲ up' : '▼ down'}</span>
       <strong>{l.name}</strong>
-      <span className="muted small">{l.size.toLocaleString()} genes{cutoffs.log2fc != null ? ` · log2FC ${d === 'up' ? '>' : '<'} ${d === 'up' ? '' : '−'}${cutoffs.log2fc}, p < ${cutoffs.pvalue}` : ''}</span>
+      <span className="muted small">{l.size.toLocaleString()} genes{cutoffs.log2fc != null ? ` · log2FC ${d === 'up' ? '>' : '<'} ${d === 'up' ? '' : '−'}${cutoffs.log2fc}, p < ${cutoffs.pvalue}`
+        : cutoffs.score != null ? ` · score ${d === 'up' ? '>' : '<'} ${d === 'up' ? '' : '−'}${cutoffs.score}` : ''}</span>
     </div>
   )
 
@@ -138,11 +142,11 @@ export function UpDownRunPanel({ ws, lists, pairId, onClose }: { ws: string; lis
           <h3>2 · Tools <span className="muted small">(tick several to compare them)</span></h3>
           <div className="chip-grid">
             {goTools.map((t) => {
-              const ok = supported(t.key), on = tools.includes(t.key)
+              const long = tooLong(t.key), ok = supported(t.key) && !long, on = tools.includes(t.key) && ok
               return (
                 <button key={t.key} type="button" className={`tool-chip${on ? ' on' : ''}`} disabled={!ok} aria-pressed={on}
                   style={{ ['--chip-color' as string]: t.color }} onClick={() => toggle(tools, setTools, t.key)}>
-                  <ToolLogo tool={t.key} size={18} />{t.name}{!ok && <span className="small"> (not for this organism)</span>}
+                  <ToolLogo tool={t.key} size={18} />{t.name}{long ? <span className="small"> (lists up to {t.maxIds!.toLocaleString()} IDs)</span> : !ok && <span className="small"> (not for this organism)</span>}
                 </button>
               )
             })}
@@ -166,5 +170,80 @@ export function UpDownRunPanel({ ws, lists, pairId, onClose }: { ws: string; lis
         <ErrorNote error={start.error} />
       </div>
     </Modal>
+  )
+}
+
+/**
+ * Up & down from a ranked list (IDs with signed scores, such as log2 fold changes): positive
+ * scores form the up list and negative ones the down list, saved as a linked pair like the
+ * volcano's, so the up & down GO step and the combined figure work the same way.
+ */
+export function SplitUpDown({ list, lists, onPair }: { list: AnalyteList; lists: AnalyteList[]; onPair: (pairId: string) => void }) {
+  const create = useCreateList()
+  const full = useQuery({
+    queryKey: ['list-scores', list.id],
+    queryFn: () => api<AnalyteList & { ids: string[]; scores?: number[] }>(`/lists/${encodeURIComponent(list.id)}`),
+  })
+  const { maxIds } = useListLimits()
+  const [minAbs, setMinAbs] = useState(0)
+  const [maxPer, setMaxPer] = useState<number | null>(null)   // null: as many as a list holds
+  const [busy, setBusy] = useState(false)
+  const split = useMemo(() => (full.data?.scores ? splitByScore(full.data.ids, full.data.scores.map(Number), minAbs, Math.min(maxPer ?? maxIds, maxIds)) : null), [full.data, minAbs, maxPer, maxIds])
+  // Pairs made earlier: split from this list, or (a volcano's ranked list) saved with it.
+  const existing = [...new Set(lists.filter((l) => l.meta?.direction && l.meta?.pairId &&
+      (l.meta.sourceListId === list.id || (list.meta?.pairId && l.meta.pairId === list.meta.pairId))).map((l) => String(l.meta.pairId)))]
+    .filter((pid) => ['up', 'down'].every((d) => lists.some((l) => l.meta?.pairId === pid && l.meta?.direction === d)))
+
+  const save = async () => {
+    if (!split) return
+    setBusy(true)
+    try {
+      const pairId = `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
+      const cutoffs = { score: minAbs, top: Math.min(maxPer ?? maxIds, maxIds) }
+      const mk = (dir: 'up' | 'down', ids: string[]) => create.mutateAsync({ name: `${list.name} ${dir}`, ids, organismTaxId: list.organismTaxId, idFormat: list.idFormat,
+        uniqueName: true, meta: { method: 'ranked-split', direction: dir, pairId, cutoffs, sourceListId: list.id } })
+      await mk('up', split.up)
+      await mk('down', split.down)
+      onPair(pairId)
+    } catch { /* shown below */ } finally { setBusy(false) }
+  }
+
+  const capped = split && (split.upTotal > split.up.length || split.downTotal > split.down.length)
+  const unsigned = split && (!split.upTotal || !split.downTotal) && minAbs === 0
+  return (
+    <div className="stack-sm">
+      {existing.length > 0 && (
+        <p className="row wrap">
+          <span>Already split:</span>
+          {existing.map((pid) => {
+            const { up, down } = pairLists(lists, pid)
+            return <button key={pid} type="button" className="btn btn-secondary btn-sm" onClick={() => onPair(pid)}>{up?.name} / {down?.name} →</button>
+          })}
+        </p>
+      )}
+      {full.isLoading && <p className="muted small">Reading the scores…</p>}
+      <ErrorNote error={full.error ?? create.error} />
+      {split && (
+        <>
+          <div className="row wrap">
+            <label>Up if score &gt; <input className="input input-sm input-narrow" type="number" min={0} step={0.1} value={minAbs}
+              onChange={(e) => setMinAbs(Math.max(0, Number(e.target.value) || 0))} aria-label="Minimum absolute score" />, down if &lt; −{minAbs}</label>
+            <label>At most <input className="input input-sm input-narrow" type="number" min={1} max={maxIds} step={100} value={maxPer ?? maxIds}
+              onChange={(e) => setMaxPer(Math.min(maxIds, Math.max(1, Math.floor(Number(e.target.value) || maxIds))))} aria-label="Most genes per direction" /> genes each (strongest first)</label>
+          </div>
+          <p>
+            <span className="dir-badge dir-up">▲ up</span> <strong>{split.up.length.toLocaleString()}</strong>{split.upTotal > split.up.length ? ` of ${split.upTotal.toLocaleString()}` : ''} genes ·{' '}
+            <span className="dir-badge dir-down">▼ down</span> <strong>{split.down.length.toLocaleString()}</strong>{split.downTotal > split.down.length ? ` of ${split.downTotal.toLocaleString()}` : ''} genes
+          </p>
+          {capped && <p className="muted small">A list holds at most {maxIds.toLocaleString()} genes; only the strongest are kept. Raise the score cut-off to choose them yourself.</p>}
+          {unsigned && <Note kind="warning">All scores have the same sign. Up &amp; down needs signed scores, such as log2 fold changes or sign(log2FC) × −log10 p.</Note>}
+          <div className="row end">
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy || !split.up.length || !split.down.length} onClick={() => save()}>
+              {busy ? 'Saving…' : 'Save as up & down lists and continue →'}
+            </button>
+          </div>
+        </>
+      )}
+    </div>
   )
 }

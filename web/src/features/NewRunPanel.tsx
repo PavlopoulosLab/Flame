@@ -3,9 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api } from '../api/client'
 import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
-import type { AnalyteList, CustomSource } from '../api/types'
+import type { AnalyteList, CustomSource, ToolConfig } from '../api/types'
 import { BusyBar, ErrorNote, Field, Modal, Note, Segmented } from '../components/ui'
 import { ToolLogo } from '../components/ToolLogo'
+import { SplitUpDown } from './UpDownRunPanel'
 
 const METRIC_HELP: Record<string, string> = {
   gSCS: 'g:SCS — g:Profiler’s own correction, accounts for the GO structure',
@@ -30,7 +31,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const start = useStartRuns()
   const invalidateWs = useInvalidateWorkspace()
   const [loadingExample, setLoadingExample] = useState(false)
-  // Up/down lists saved together from a volcano table are analysed together: ticking one ticks its partner.
+  // Up/down lists saved together (from a volcano table, or split from a ranked list) are analysed together: ticking one ticks its partner.
   const withPartners = (ids: string[]) => {
     const pairs = new Set(lists.filter((l) => ids.includes(l.id) && l.meta?.direction && l.meta?.pairId).map((l) => String(l.meta.pairId)))
     return [...new Set([...ids, ...lists.filter((l) => l.meta?.direction && pairs.has(String(l.meta.pairId))).map((l) => l.id)])]
@@ -46,6 +47,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const mixedOrganisms = new Set(picked.map((l) => l.organismTaxId)).size > 1
   const [progress, setProgress] = useState<string | null>(null)
   const [showGmt, setShowGmt] = useState(false)
+  const [showSplit, setShowSplit] = useState(false)
   const [showSignature, setShowSignature] = useState(false)
   const [tools, setTools] = useState<string[]>(preset === 'celltypes' ? ['enrichr', 'clusterprofiler'] : preset === 'literature' ? ['string', 'enrichr'] : initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
   const shownParadigm = useRef(paradigm)
@@ -78,6 +80,13 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
     enabled: !!list,
   })
   const supported = (key: string) => support.data?.tools.find((t) => t.key === key)?.supported ?? true
+  // Tools with a list-size limit (PANTHER): unavailable when every chosen list is longer; with several
+  // lists, the server leaves them out only for the long ones (and says so).
+  const tooLong = (t: ToolConfig) => !!t.maxIds && picked.length > 0 && picked.every((l) => l.size > t.maxIds!)
+  const longKeys = (config?.tools ?? []).filter(tooLong).map((t) => t.key).join(',')
+  useEffect(() => {
+    if (longKeys) setTools((ts) => ts.filter((k) => !longKeys.split(',').includes(k)))
+  }, [longKeys])
   useEffect(() => {
     // Drop tools that do not support the list's organism.
     if (support.data) setTools((ts) => ts.filter((t) => supported(t)))
@@ -163,13 +172,23 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
               )}
               {picked.length === 0 && <span className="muted small">Tick at least one list.</span>}
               {(() => {
-                const pairId = picked.find((l) => l.meta?.direction && l.meta?.pairId)?.meta.pairId
+                const half = picked.find((l) => l.meta?.direction && l.meta?.pairId)
+                const pairId = half?.meta.pairId
                 return pairId && onUpDown && paradigm === 'ORA' ? (
-                  <Note kind="info">These are the <strong>up- and down-regulated</strong> genes of one volcano plot.{' '}
+                  <Note kind="info">These are the <strong>up- and down-regulated</strong> genes {half?.meta.method === 'ranked-split' ? 'of one list with scores' : 'of one volcano plot'}.{' '}
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => onUpDown(String(pairId))}>Open the up &amp; down GO enrichment step →</button>
                     {' '}runs your chosen tools on both and opens their results together.</Note>
                 ) : null
               })()}
+              {picked.length === 1 && picked[0].ranked && !picked[0].meta?.direction && onUpDown && (
+                <div className="note note-info">
+                  <div className="row between wrap">
+                    <span><strong>Up &amp; down:</strong> this list has scores. Enrich its up-regulated (positive score) and down-regulated (negative score) genes separately and see both in one figure.</span>
+                    {!showSplit && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setShowSplit(true)}>Up &amp; down enrichment…</button>}
+                  </div>
+                  {showSplit && <SplitUpDown key={picked[0].id} list={picked[0]} lists={lists} onPair={onUpDown} />}
+                </div>
+              )}
               {mixedOrganisms && <Note kind="warning">The selected lists are from different organisms. Tool availability below is shown for {list?.organismName.replace(/ \[NCBI.*$/, '')}; a tool that does not support another list's organism is skipped for that list and reported.</Note>}
             </Field>
           )}
@@ -180,21 +199,22 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
             <h3>2 · Which tools</h3>
             <span className="row">
               <button className="btn btn-ghost btn-sm" title="Select every tool that offers this analysis type and supports the list's organism"
-                onClick={() => setTools((config?.tools ?? []).filter((t) => toolOffers(t.key) && supported(t.key)).map((t) => t.key))}>Select all</button>
+                onClick={() => setTools((config?.tools ?? []).filter((t) => toolOffers(t.key) && supported(t.key) && !tooLong(t)).map((t) => t.key))}>Select all</button>
               <button className="btn btn-ghost btn-sm" onClick={() => setTools([])}>Clear</button>
             </span>
           </div>
           <div className="chip-grid">
             {(config?.tools ?? []).map((t) => {
               if (!toolOffers(t.key)) return null
-              const ok = supported(t.key)
+              const long = tooLong(t)
+              const ok = supported(t.key) && !long
               const on = tools.includes(t.key)
               return (
                 <button key={t.key} type="button" className={`tool-chip${on ? ' on' : ''}`} disabled={!ok} aria-pressed={on}
-                  title={ok ? `${t.name}: ${t.organismCount.toLocaleString()} organisms` : `${t.name} does not support this organism`}
+                  title={long ? `${t.name} takes lists of up to ${t.maxIds!.toLocaleString()} IDs` : ok ? `${t.name}: ${t.organismCount.toLocaleString()} organisms` : `${t.name} does not support this organism`}
                   style={{ ['--chip-color' as string]: t.color }}
                   onClick={() => setTools((s) => (on ? s.filter((x) => x !== t.key) : [...s, t.key]))}>
-                  <ToolLogo tool={t.key} size={18} />{t.name}{!ok && <span className="small"> (not for this organism)</span>}
+                  <ToolLogo tool={t.key} size={18} />{t.name}{long ? <span className="small"> (lists up to {t.maxIds!.toLocaleString()} IDs)</span> : !ok && <span className="small"> (not for this organism)</span>}
                 </button>
               )
             })}

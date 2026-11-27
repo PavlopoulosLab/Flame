@@ -21,8 +21,12 @@ if (!identical(Sys.getenv("FLAME_RUNTIME_ONLY"), "1"))
   flame_all_packages <- c(flame_all_packages, "testthat", "httptest2", "callr")
 
 # Bioconductor packages (clusterProfiler ORA/GSEA, PROGENy pathway activity; msigdbr itself is on CRAN)
-# (org.Hs.eg.db: human gene names in the TCGA gene lists)
-flame_bioc_packages <- c("clusterProfiler", "fgsea", "progeny", "org.Hs.eg.db")
+# org.*.db: current GO annotations for clusterProfiler's enrichGO / gseGO (one per organism, see
+# CP_ORGDB in R/enrich-annotations-clusterprofiler.R); org.Hs.eg.db also names the TCGA genes.
+flame_orgdb_packages <- c("org.Hs.eg.db", "org.Mm.eg.db", "org.Rn.eg.db", "org.Dr.eg.db", "org.Dm.eg.db",
+                          "org.Ce.eg.db", "org.Sc.sgd.db", "org.Bt.eg.db", "org.Cf.eg.db", "org.Gg.eg.db",
+                          "org.Ss.eg.db", "org.Mmu.eg.db", "org.Pt.eg.db")
+flame_bioc_packages <- c("clusterProfiler", "fgsea", "progeny", "GO.db", flame_orgdb_packages)
 flame_all_packages <- c(flame_all_packages, "msigdbr")
 
 ncpus <- max(1L, parallel::detectCores() - 1L)

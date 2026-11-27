@@ -120,10 +120,10 @@ EnrichmentStrategy <- R6::R6Class("EnrichmentStrategy",
     #' @param df Data frame with Source and Term_ID columns
     #' @return Modified data frame
     mapKEGGIds = function(df) {
-      if (length(df$Source[which(df$Source == "KEGG")]) > 0) {
-        df[df$Source == "KEGG", ]$Term_ID <-
-          paste0("map", gsub("[^0-9.-]", "", df[df$Source == "KEGG", ]$Term_ID))
-      }
+      # Pathway numbers become organism-neutral map IDs; terms without one (a name the
+      # database no longer has) keep their ID.
+      rows <- which(df$Source == "KEGG" & grepl("[0-9]{5}", df$Term_ID))
+      if (length(rows)) df$Term_ID[rows] <- paste0("map", gsub("[^0-9.-]", "", df$Term_ID[rows]))
       return(df)
     },
 

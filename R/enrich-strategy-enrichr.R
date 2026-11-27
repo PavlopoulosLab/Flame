@@ -150,7 +150,7 @@ EnrichRORAStrategy <- R6::R6Class("EnrichRORAStrategy",
       WBBT = list(dbPattern = "^WBBT$", separator = "\\(WBbt:", idPrefix = "WBbt:", trimSuffix = TRUE),
       ORPHA = list(dbPattern = "^ORPHA$", separator = " ORPHA:", idPrefix = "ORPHA:", trimSuffix = FALSE),
       MGI_MOUSE = list(dbPattern = "^MGI$", separator = " \\(MP:", idPrefix = "MP:", trimSuffix = TRUE),
-      MGI_OX = list(dbPattern = "^MGI$", parseMode = "fixed", termStart = 12, idStart = 0, idEnd = 10),
+      MGI_OX = list(dbPattern = "^MGI$", separator = " MP:", idPrefix = "MP:", trimSuffix = FALSE),
       HP = list(dbPattern = "^HP$", separator = " \\(HP:", idPrefix = "HP:", trimSuffix = TRUE)
     ),
 
@@ -271,6 +271,7 @@ EnrichRORAStrategy <- R6::R6Class("EnrichRORAStrategy",
       result <- private$splitEnrichrTermIds(enrichrResult, shortName)
       enrichrResult$Term <- result$terms
       enrichrResult$TermId <- result$ids
+      enrichrResult <- private$lookupMissingIds(enrichrResult, shortName)
 
       # Select and rename columns to standard format
       enrichrResult <- enrichrResult[, c(
@@ -381,6 +382,31 @@ EnrichRORAStrategy <- R6::R6Class("EnrichRORAStrategy",
       }
 
       return(list(terms = terms, ids = ids, rows = patternHits))
+    },
+
+    # Current KEGG and Reactome libraries (KEGG_2026, Reactome_Pathways_2024, ...) name their terms
+    # without database IDs: look the names up in KEGG's and Reactome's own pathway lists, so the
+    # terms get real IDs (comparisons, links) and the database's spelling of the name.
+    lookupMissingIds = function(enrichrResult, shortName) {
+      taxid <- ORGANISMS$taxid[which(ORGANISMS$short_name == shortName)][1]
+      fix <- function(db, table, prefixOk) {
+        rows <- which(enrichrResult$database == db & !grepl(prefixOk, enrichrResult$TermId))
+        if (!length(rows)) return()
+        hit <- if (is.null(table)) list(ids = rep(NA_character_, length(rows)), names = enrichrResult$Term[rows])
+               else lookup_term_ids(enrichrResult$Term[rows], table)
+        ok <- !is.na(hit$ids)
+        enrichrResult$TermId[rows[ok]] <<- hit$ids[ok]
+        enrichrResult$Term[rows[ok]] <<- hit$names[ok]
+        # Names the database no longer has (or Enrichr abbreviated): keep the name as the ID.
+        enrichrResult$TermId[rows[!ok]] <<- paste0(db, ":", enrichrResult$Term[rows[!ok]])
+      }
+      code <- if (!is.na(taxid)) CP_KEGG_CODE[as.character(taxid)] else NA
+      if (any(enrichrResult$database == "KEGG") && !is.na(code))
+        fix("KEGG", tryCatch(kegg_pathway_names(code), error = function(e) NULL), "[0-9]{5}")
+      species <- if (!is.na(taxid)) MSIGDB_SPECIES[as.character(taxid)] else NA
+      if (any(enrichrResult$database == "REAC") && !is.na(species))
+        fix("REAC", tryCatch(reactome_pathway_names(unname(species)), error = function(e) NULL), "^R-[A-Z]{3}-")
+      enrichrResult
     },
 
     splitEnrichrTermIds = function(enrichrResult, organismShortName) {

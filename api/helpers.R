@@ -6,7 +6,8 @@
 
 FLAME_LIMITS <- list(
   maxLists        = as.integer(Sys.getenv("FLAME_MAX_LISTS", "10")),
-  maxIdsPerList   = 3000L,
+  maxIdsPerList   = MAX_LIST_IDS,           # FLAME_MAX_IDS
+  maxRankedIds    = MAX_RANKED_IDS,         # FLAME_MAX_RANKED_IDS
   maxRuns         = as.integer(Sys.getenv("FLAME_MAX_RUNS", "60")),
   maxActiveJobs   = as.integer(Sys.getenv("FLAME_MAX_ACTIVE_JOBS", "20")),   # queued + running, per workspace
   maxTextBytes    = 1024L * 1024L,          # 1 MB pasted/uploaded text
@@ -68,7 +69,9 @@ clean_ids <- function(ids) {
   ids <- ids[!duplicated(tolower(ids))]
   if (length(ids) == 0) api_abort(400, "No valid IDs were found.")
   if (length(ids) > FLAME_LIMITS$maxIdsPerList)
-    api_abort(400, sprintf("A list can contain at most %d IDs (got %d).", FLAME_LIMITS$maxIdsPerList, length(ids)))
+    api_abort(400, sprintf("A list can contain at most %s IDs (got %s). Lists with scores (ranked lists) can hold up to %s.",
+                           format(FLAME_LIMITS$maxIdsPerList, big.mark = ","), format(length(ids), big.mark = ","),
+                           format(FLAME_LIMITS$maxRankedIds, big.mark = ",")))
   ids
 }
 
@@ -247,7 +250,8 @@ create_list <- function(ws, name, ids, taxid = 9606L, analyte = "GENE",
     keep <- !duplicated(tolower(ids))
     ids <- ids[keep]; scores <- scores[keep]
     if (length(ids) < 15) api_abort(400, "A ranked list needs at least 15 IDs with numeric scores.")
-    if (length(ids) > 30000) api_abort(400, "A ranked list can contain at most 30,000 IDs.")
+    if (length(ids) > FLAME_LIMITS$maxRankedIds)
+      api_abort(400, sprintf("A ranked list can contain at most %s IDs (got %s).", format(FLAME_LIMITS$maxRankedIds, big.mark = ","), format(length(ids), big.mark = ",")))
   } else {
     ids <- clean_ids(ids)
   }
