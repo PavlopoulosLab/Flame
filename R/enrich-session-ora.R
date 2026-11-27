@@ -678,6 +678,10 @@ ORAEnrichmentSession <- R6::R6Class(
       # Rummagene terms with the PubMed Central id of the paper.
       df <- private$attachLiteratureLinks(df)
 
+      # MSigDB-only collections: the set's page on the MSigDB website (term ID = set name)
+      for (src in MSIGDB_CARD_SOURCES)
+        df <- private$attachLinksToDF(df, src, "https://www.gsea-msigdb.org/gsea/msigdb/human/geneset/", urlSuffix = ".html")
+
       # KEGG (special handling)
       df <- private$attachKEGGLinksToDF(df)
 

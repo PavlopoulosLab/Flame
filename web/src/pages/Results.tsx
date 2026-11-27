@@ -3,12 +3,13 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api, getWorkspaceId, saveText } from '../api/client'
 import { useConfig, useWorkspace } from '../api/hooks'
-import type { ReduceMethod, ResultFilters, RunDetails, Term, ViewData } from '../api/types'
+import type { ReduceMethod, ResultFilters, Run, RunDetails, Term, ViewData } from '../api/types'
 import type { NetworkHandle, PlotHandle } from '../components/charts'
 import { CopyButton, ErrorNote, Field, LinkMenu, Modal, Note, OpenExternalButton, Segmented, Spinner } from '../components/ui'
 import { geneLinks } from '../lib/links'
 import { ToolLogo } from '../components/ToolLogo'
 import { ThemesView } from '../features/themes/Themes'
+import { GseaPlots } from '../features/results/GseaPlot'
 import { Arena3DIcon, NormaIcon } from '../components/ExternalIcons'
 import { UndoRedoButtons } from '../components/Undo'
 import { useHistory } from '../lib/history'
@@ -41,6 +42,7 @@ const VIEW_HELP: Record<string, string> = {
   'network-tt': 'Terms connected when they share genes (edge = similarity %).',
   'network-gg': 'Genes connected when they share terms.',
   table: 'All terms with full statistics. Click a row to select it; click a header to sort.',
+  'gsea-plot': 'The classic GSEA figure for each term: the running enrichment score walks down the ranking, rising at each gene of the set and falling otherwise; its peak is the enrichment score (ES). The barcode marks where the set\'s genes sit, and the bottom panel shows the ranking scores. Genes before the peak (after it for a negative ES) are the leading edge.',
   themes: 'Overlapping terms grouped into functional themes by the genes they share; the word cloud summarises all terms (bigger = more significant). Click words or themes to select their terms.',
   sankey: 'Flows from your genes (left) through the terms they belong to (middle) to annotation sources (right). Wide flows = genes shared by many terms.',
   chord: 'Each arc is a term; ribbons join terms that share genes (ribbon width = number of shared genes). Click an arc or ribbon to select.',
@@ -50,6 +52,7 @@ const VIEW_HELP: Record<string, string> = {
 
 // Extra views built in the browser from existing data (server view in `from`).
 const EXTRA_TABS = [
+  { tabId: 'gsea-plot', label: 'GSEA enrichment plot', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'plotly', from: 'table' },
   { tabId: 'themes', label: 'Themes & word cloud', icon: '', defaultVisible: true, hasArena3D: false, tabType: 'custom', from: 'table' },
   { tabId: 'sankey', label: 'Sankey (genes → terms)', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'plotly', from: 'heatmap-tg' },
   { tabId: 'chord', label: 'Chord (term overlap)', icon: '', defaultVisible: false, hasArena3D: false, tabType: 'svg', from: 'heatmap-tt' },
@@ -136,7 +139,8 @@ function ResultsPageBody() {
   const { data: config } = useConfig()
   const { data: summary } = useWorkspace(ws)
   const run = summary?.runs.find((r) => r.id === runId)
-  const tabs = [...(config?.resultTabs ?? []), ...EXTRA_TABS]
+  // The enrichment plot exists only for GSEA runs.
+  const tabs = [...(config?.resultTabs ?? []), ...EXTRA_TABS].filter((t) => t.tabId !== 'gsea-plot' || run?.paradigm === 'GSEA')
   const [visible, setVisible] = useState<string[]>(() => {
     try {
       const saved = sessionStorage.getItem('flame-visible-tabs-v4')
@@ -147,7 +151,9 @@ function ResultsPageBody() {
   // Results open on the table unless the URL names another view.
   const view = tab && tabs.some((t) => t.tabId === tab) ? tab : 'table'
   // The table tab always comes first.
-  const tabOrder = visible.includes('table') ? ['table', ...visible.filter((v) => v !== 'table')] : visible
+  // GSEA runs: the enrichment plot comes right after the table, before the dot plot.
+  const lead = ['table', ...(run?.paradigm === 'GSEA' ? ['gsea-plot'] : [])].filter((v) => visible.includes(v))
+  const tabOrder = [...lead, ...visible.filter((v) => !lead.includes(v))]
   usePaletteKey(view)
   const palMode = usePaletteMode()
   useEffect(() => {
@@ -171,11 +177,13 @@ function ResultsPageBody() {
   useEffect(() => {
     if (run?.paradigm === 'GSEA') {
       setSettings((st) => ({ ...st, xAxis: 'nes', barMetric: 'nes' }))
+      setVisible((v) => (v.includes('gsea-plot') ? v : [...v, 'gsea-plot']))
       setColumns((c) => (c.includes('nes') ? c : [...c.slice(0, 4), 'nes', ...c.slice(4)]))
     }
   }, [run?.paradigm])
   const isGseaRun = run?.paradigm === 'GSEA'
-  const sortKey = SORT_GROUP[view] ?? view
+  // GSEA: the table keeps its own ranking (most significant first) while the dot plot ranks by |NES|.
+  const sortKey = (isGseaRun && view === 'table' ? undefined : SORT_GROUP[view]) ?? view
   const sortBy = sortByView[sortKey] ?? (sortKey === 'dotplot' && isGseaRun ? 'NES' : DEFAULT_SORT[sortKey]) ?? '-log10Pvalue'
   const setSortBy = (v: string) => setSortByView((m) => ({ ...m, [sortKey]: v }))
   const [showDetails, setShowDetails] = useState(false)
@@ -208,6 +216,37 @@ function ResultsPageBody() {
     queryFn: () => api<ViewData>(`/runs/${encodeURIComponent(runId)}/view`, { body: { view: 'table', top: 'all' } }),
     enabled: run?.status === 'complete',
   })
+  // Up/down pair: this run's list was saved with a partner list (the other direction) from one volcano table.
+  // The partner run is the latest finished run of the same tool and annotation sources on that list.
+  const pair = useMemo(() => {
+    if (!summary || !run || run.paradigm !== 'ORA') return null
+    const own = summary.lists.find((l) => l.id === run.listId)
+    const dir = own?.meta?.direction as 'up' | 'down' | undefined
+    if (!own || !dir || !own.meta.pairId) return null
+    const other = summary.lists.find((l) => l.id !== own.id && l.meta?.pairId === own.meta.pairId && l.meta?.direction && l.meta.direction !== dir)
+    if (!other) return null
+    const key = (r: Run) => JSON.stringify([r.toolKey, r.paradigm, [...[r.params.datasources].flat()].sort(), (r.params as unknown as Record<string, unknown>).customSourceId ?? null])
+    const partnerRun = [...summary.runs].reverse().find((r) => r.listId === other.id && r.status === 'complete' && key(r) === key(run))
+    return { dir, other, partnerRun, pending: !partnerRun && summary.runs.some((r) => r.listId === other.id && key(r) === key(run)) }
+  }, [summary, run])
+  const [dirMode, setDirMode] = useState<'off' | 'combined' | 'panels'>('combined')
+  const directional = !!pair?.partnerRun && dirMode !== 'off' && (view === 'dotplot' || view === 'barchart')
+  const partnerId = pair?.partnerRun?.id ?? ''
+  const partnerQ = useQuery({
+    queryKey: ['view', ws, partnerId, view, debouncedFilters, top, sortBy, null],
+    queryFn: () => api<ViewData>(`/runs/${encodeURIComponent(partnerId)}/view`, { body: { view, filters: debouncedFilters, top, sortBy, settings: viewSettings } }),
+    enabled: directional,
+    placeholderData: keepPreviousData,
+  })
+  // Every filtered term of both runs, to find the terms enriched in both lists.
+  const fullOf = (id: string) => ({
+    queryKey: ['view-full', ws, id, debouncedFilters],
+    queryFn: () => api<ViewData>(`/runs/${encodeURIComponent(id)}/view`, { body: { view: 'table', filters: debouncedFilters, top: 'all' } }),
+    enabled: directional && dirMode === 'combined',
+    placeholderData: keepPreviousData,
+  })
+  const ownFull = useQuery(fullOf(runId))
+  const partnerFull = useQuery(fullOf(partnerId))
   const termIndex = useMemo(() => new Map((all.data?.terms ?? []).map((t) => [t.id, t])), [all.data])
   const sources = all.data?.availableSources ?? []
   // Terms per annotation source, for the source tabs (GO:BP, GO:CC, KEGG…).
@@ -244,7 +283,7 @@ function ResultsPageBody() {
   const baseName = slug(`${run.title}_${run.listName}`)
   // Sources drawn as separate plots: those shown by the filters that have terms.
   const splitList = (filters.sources ?? sources).filter((s) => (sourceCounts.get(s) ?? 0) > 0)
-  const canSplit = SPLITTABLE.has(view) && splitList.length > 1
+  const canSplit = SPLITTABLE.has(view) && splitList.length > 1 && !directional
   const splitOn = splitSources && canSplit
   // Split networks: one handle per panel; the toolbar's handle forwards to all of them.
   const panelNetRef = (src: string) => {
@@ -279,7 +318,7 @@ function ResultsPageBody() {
                 {view !== 'table' && <PaletteSelect />}
                 <UndoRedoButtons h={history} />
                 <ExportMenu items={[
-                  ...(view !== 'table' && view !== 'themes' && !splitOn ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
+                  ...(view !== 'table' && view !== 'themes' && view !== 'gsea-plot' && !splitOn ? [{ label: 'Image (PNG, SVG, PDF, JPEG, WebP)…', run: () => {
                     const name = `${baseName}_${view}`
                     if (isNetwork) networkRef.current?.exportImage(name)
                     else if (isSvg) { const src = svgSource(svgRef.current, name); if (src) openImageExport(src) }
@@ -485,7 +524,8 @@ function ResultsPageBody() {
                 {view === 'barchart' && <>
                   <label>Bars <select className="input input-sm" value={settings.barMetric ?? 'log10p'} onChange={(e) => setSettings({ ...settings, barMetric: e.target.value as 'log10p' | 'coverage' })}>
                     <option value="log10p">Significance</option><option value="coverage">Coverage</option>{isGsea && <option value="nes">NES</option>}</select></label>
-                  <label>Colours <select className="input input-sm" aria-label="Bar colours" value={settings.barColors ?? 'source'} onChange={(e) => setSettings({ ...settings, barColors: e.target.value as ViewSettings['barColors'] })}>
+                  <label>Colours <select className="input input-sm" aria-label="Bar colours" value={settings.barColors ?? (directional && dirMode === 'combined' ? 'direction' : 'source')} onChange={(e) => setSettings({ ...settings, barColors: e.target.value as ViewSettings['barColors'] })}>
+                    {directional && dirMode === 'combined' && <option value="direction">By direction (up / down)</option>}
                     <option value="source">By source</option>
                     <optgroup label="By significance">{['OrRd', 'Viridis', 'Cividis', 'Magma'].map((c) => <option key={c} value={c}>{c}</option>)}</optgroup>
                     <option value="single">One colour</option></select></label>
@@ -515,13 +555,17 @@ function ResultsPageBody() {
                     onChange={(e) => setSettings({ ...settings, minShared: Number(e.target.value) })} /></label>
                 )}
                 {view === 'table' && <ColumnPicker columns={columns} setColumns={setColumns} />}
+                {pair?.partnerRun && (view === 'dotplot' || view === 'barchart') && (
+                  <Segmented label="Up & down" value={dirMode} onChange={(v) => setDirMode(v as typeof dirMode)}
+                    options={[{ value: 'combined', label: 'One figure' }, { value: 'panels', label: 'Two panels' }, { value: 'off', label: `This list only (${pair.dir})` }]} />
+                )}
                 {canSplit && <Segmented label="Sources" value={splitSources ? 'split' : 'together'} onChange={(v) => setSplitSources(v === 'split')}
                   options={[{ value: 'together', label: 'Together' }, { value: 'split', label: 'One plot per source' }]} />}
               </div>
               <p className="muted small view-help">{VIEW_HELP[view]}{isGsea ? ' For GSEA, positive NES = genes of the set sit at the top of your ranking; negative = at the bottom. "Genes found" are the leading-edge genes.' : ''}</p>
               <ErrorNote error={q.error} />
               {q.isLoading && <Spinner />}
-              {q.data && q.data.shownCount === 0 && <Note kind="warning">No terms match the current filters.</Note>}
+              {q.data && q.data.shownCount === 0 && !directional && <Note kind="warning">No terms match the current filters.</Note>}
               {splitOn && q.data && q.data.shownCount > 0 && (
                 <div className="stack">
                   <p className="muted small">One standalone plot per annotation source, each with its own top {top === 'all' ? 'terms' : top} by the chosen ranking.</p>
@@ -533,7 +577,55 @@ function ResultsPageBody() {
                   ))}
                 </div>
               )}
-              {!splitOn && q.data && q.data.shownCount > 0 && (() => {
+              {pair && !pair.partnerRun && (view === 'dotplot' || view === 'barchart') && (
+                <Note kind="info">This list is the <strong>{pair.dir}-regulated</strong> half of a pair. {pair.pending
+                  ? <>The run on <em>{pair.other.name}</em> is still going; the up &amp; down plots appear when it finishes.</>
+                  : <>Run the same tool and annotation sources on <em>{pair.other.name}</em> to plot up- and down-regulated terms together.{' '}
+                    <Link className="btn btn-secondary btn-sm" to={`/w/${ws}?updown=${encodeURIComponent(String(summary.lists.find((l) => l.id === run.listId)?.meta.pairId ?? ''))}`}>Open the up &amp; down GO enrichment step →</Link></>}</Note>
+              )}
+              {directional && q.data && (() => {
+                if (partnerQ.error) return <ErrorNote error={partnerQ.error} />
+                if (!partnerQ.data) return <Spinner label="Loading the other direction" />
+                const byDir = { [pair!.dir]: { data: q.data, name: run.listName }, [pair!.dir === 'up' ? 'down' : 'up']: { data: partnerQ.data, name: pair!.other.name } } as Record<'up' | 'down', { data: ViewData; name: string }>
+                const View = view === 'dotplot' ? DotplotView : BarchartView
+                const props = { config, settings, selected: shownSelection, onSelect, networkRef, networkStyle: netStyle.style }
+                const cut = (pair!.other.meta?.cutoffs ?? {}) as { log2fc?: number; pvalue?: number }
+                const cutText = cut.log2fc != null && cut.pvalue != null ? ` (|log2FC| > ${cut.log2fc}, p < ${cut.pvalue})` : ''
+                if (dirMode === 'panels') return (
+                  <div className="stack">
+                    {(['up', 'down'] as const).map((d) => (
+                      <section key={d} className="chart-card source-plot">
+                        <p className="muted small"><span className={`dir-badge dir-${d}`}>{d === 'up' ? '▲ up' : '▼ down'}</span> {byDir[d].name}: {byDir[d].data.shownCount
+                          ? (byDir[d].data.shownCount === byDir[d].data.filteredCount ? `all ${byDir[d].data.filteredCount}` : `top ${byDir[d].data.shownCount} of ${byDir[d].data.filteredCount}`) + ' terms'
+                          : 'no terms match the current filters'}{d === 'up' ? cutText : ''}</p>
+                        {byDir[d].data.shownCount > 0 && <View {...props} data={byDir[d].data} plotRef={d === pair!.dir ? plotRef : { current: null }}
+                          title={`${d === 'up' ? 'Up' : 'Down'}-regulated · ${byDir[d].name}`} exportName={`${baseName}_${view}_${d}`} />}
+                      </section>
+                    ))}
+                  </div>
+                )
+                // One figure: the top terms of each list; a term enriched in both lists (significant in the
+                // other list's results too) moves to the shared section, drawn for both directions.
+                if (!ownFull.data || !partnerFull.data) return <Spinner label="Finding terms enriched in both lists" />
+                const full = { [pair!.dir]: ownFull.data, [pair!.dir === 'up' ? 'down' : 'up']: partnerFull.data } as Record<'up' | 'down', ViewData>
+                const fullIdx = { up: new Map(full.up.terms.map((t) => [t.id, t])), down: new Map(full.down.terms.map((t) => [t.id, t])) }
+                const topIds = new Set([...byDir.up.data.terms, ...byDir.down.data.terms].map((t) => t.id))
+                const shared = [...topIds].filter((id) => fullIdx.up.has(id) && fullIdx.down.has(id))
+                const sharedSet = new Set(shared)
+                const only = (d: 'up' | 'down') => byDir[d].data.terms.filter((t) => !sharedSet.has(t.id)).map((t) => ({ ...t, direction: d, section: d }))
+                const merged: ViewData = { ...q.data,
+                  terms: [...only('up'), ...only('down'),
+                    ...shared.flatMap((id) => (['up', 'down'] as const).map((d) => ({ ...fullIdx[d].get(id)!, direction: d, section: 'shared' as const })))],
+                  shownCount: byDir.up.data.shownCount + byDir.down.data.shownCount,
+                  availableSources: [...new Set([...byDir.up.data.availableSources, ...byDir.down.data.availableSources])] }
+                if (!merged.terms.length) return <Note kind="warning">No terms match the current filters in either direction.</Note>
+                return <>
+                  <p className="muted small">The top {top === 'all' ? 'terms' : top} of each list by the chosen ranking{cutText}: terms of the <strong>up-regulated</strong> genes ({byDir.up.name}) at the top, to the right;
+                    {shared.length > 0 ? ` ${plural(shared.length, 'term')} enriched in both lists in the middle, on both sides;` : ''} terms of the <strong>down-regulated</strong> genes ({byDir.down.name}) at the bottom, to the left.</p>
+                  <View {...props} data={merged} plotRef={plotRef} exportName={`${baseName}_${view}_up-down`} />
+                </>
+              })()}
+              {!splitOn && !directional && q.data && q.data.shownCount > 0 && (() => {
                 const props = { data: q.data, config, settings, selected: shownSelection, onSelect, plotRef, networkRef, networkStyle: netStyle.style, exportName: `${baseName}_${view}` }
                 switch (view) {
                   case 'dotplot': return <DotplotView {...props} />
@@ -544,6 +636,7 @@ function ResultsPageBody() {
                   case 'chord': return <ChordView {...props} svgRef={svgRef} />
                   case 'hive': return <HiveView {...props} svgRef={svgRef} />
                   case 'circos': return <CircosView {...props} svgRef={svgRef} />
+                  case 'gsea-plot': return <GseaPlots runId={runId} terms={q.data.terms} selected={selected} exportName={baseName} />
                   case 'themes': return <ThemesView path={`/runs/${encodeURIComponent(runId)}/themes`} body={{ filters: debouncedFilters }} baseName={baseName}
                     terms={all.data?.terms ?? []} onSelect={onSelect} colorOf={sourceColor} />
                   default: return view.startsWith('heatmap') ? <HeatmapView {...props} /> : <NetworkView {...props} />

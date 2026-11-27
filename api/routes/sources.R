@@ -12,15 +12,26 @@ function(req, res) {
   })
 }
 
-#* Upload a GMT file. Body: { name, text }
+#* Upload a GMT file, or one signature. Body: { name, text } (GMT) or { name, genes } (one gene set:
+#* IDs one per line or separated by commas, tabs or spaces)
 #* @post /
 #* @serializer flamejson
 function(req, res) {
   api_handle(res, {
     ws <- require_workspace(req)
     b <- body_of(req)
-    text <- paste(as.character(unlist(b$text %||% "")), collapse = "\n")
-    sets <- tryCatch(parse_gmt(text, FLAME_LIMITS$maxGmtTerms), error = function(e) api_abort(400, conditionMessage(e)))
+    sets <- if (!is.null(b$genes)) {
+      genesText <- paste(as.character(unlist(b$genes)), collapse = "\n")
+      check_text_size(genesText)
+      ids <- parse_id_text(genesText)$ids
+      if (length(ids) < 5) api_abort(400, "A signature needs at least 5 genes.")
+      if (length(ids) > 5000) api_abort(400, "A signature can have at most 5,000 genes.")
+      name <- clean_name(b$name %||% "My signature", "signature name")
+      list(list(id = gsub("[^A-Za-z0-9_.:-]+", "_", name), name = name, genes = ids))
+    } else {
+      text <- paste(as.character(unlist(b$text %||% "")), collapse = "\n")
+      tryCatch(parse_gmt(text, FLAME_LIMITS$maxGmtTerms), error = function(e) api_abort(400, conditionMessage(e)))
+    }
     res$status <- 201
     save_source(ws, b$name %||% "Custom source", sets)
   })

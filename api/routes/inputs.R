@@ -27,7 +27,7 @@ function(res, kind) {
 #* @serializer contentType list(type="text/plain; charset=utf-8")
 function(res, kind) {
   files <- c(upload = "flame_example_genes.txt", snps = "flame_example_snps.txt",
-             textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv",
+             textmining = "flame_example_text.txt", volcano = "flame_example_volcano.tsv", volcano_airway = "flame_example_volcano_airway.tsv",
              reduction = "flame_example_umap.tsv", ranked = "flame_example_ranked.tsv", gmt = "flame_example_hallmark.gmt", expression = "flame_example_expression.tsv", mirna = "flame_example_mirnas.txt", metabolites = "flame_example_metabolites.txt",
              survival = "flame_example_survival_expression.tsv", survival_clinical = "flame_example_survival_clinical.tsv",
              bench_qpcr = "flame_example_bench_qpcr.tsv", bench_western = "flame_example_bench_western.tsv", bench_facs = "flame_example_bench_facs.tsv", bench_column = "flame_example_bench_column.tsv",

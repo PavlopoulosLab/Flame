@@ -31,6 +31,14 @@
     tools = tools,
     datasourceCategories = categories,
     defaultDatasources = as.list(DATASOURCES_DEFAULT_SELECTED),
+    gseaDefaultDatasources = as.list(GSEA_DEFAULT_DATASOURCES),
+    msigdbCollections = local({
+      counts <- msigdb_set_counts()
+      lapply(MSIGDB_COLLECTIONS, function(cl) list(
+        code = cl$code, name = cl$name, text = cl$text,
+        sources = lapply(names(cl$sources), function(id) list(id = id, label = cl$sources[[id]],
+                                                               sets = if (is.na(counts[id])) NULL else counts[[id]]))))
+    }),
     datasourceColors = as.list(DATASOURCE_COLORS),
     linkProviders = as.list(DATASOURCE_LINK_PROVIDERS),
     geneNodeColor = GENE_NODE_COLOR,

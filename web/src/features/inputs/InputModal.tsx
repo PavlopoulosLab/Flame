@@ -27,7 +27,7 @@ interface Props {
   lists: AnalyteList[]
   onClose: () => void
   /** opts.enrich: the user asked to go straight to an enrichment run with the new list. */
-  onCreated: (list: AnalyteList, opts?: { enrich?: boolean }) => void
+  onCreated: (list: AnalyteList, opts?: { enrich?: boolean; updown?: boolean }) => void
   /** Pre-filled table (e.g. a two-group comparison handed to the volcano selector). */
   initialText?: string
   initialFileName?: string
@@ -175,7 +175,10 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const [parsed, setParsed] = useState<{ ids: string[]; scores?: number[]; unique: number; duplicates: number; invalid: number; invalidExamples: string[] } | null>(null)
   const [err, setErr] = useState<unknown>(null)
-  const ex = useExample('upload', example, (t) => setText(t))
+  const ex = useExample('upload', example, (t) => { setRanked(false); setSkip(false); setText(t) })
+  // The whole ranking of an experiment (every expressed gene with its score): GSEA needs all genes, not a sample.
+  const rankedEx = useExample('ranked', false, (t) => { setRanked(true); setSkip(true); setText(t) })
+  const [exampleKind, setExampleKind] = useState<'upload' | 'ranked'>('upload')
   useEffect(() => {
     if (!text.trim()) {
       setParsed(null)
@@ -197,7 +200,11 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
     <Modal title={title} onClose={onClose} size="lg" subtitle="One ID per line, or separated by commas, tabs or semicolons.">
       <div className="row between">
         <span className="muted small">Gene symbols, Ensembl, Entrez, UniProt and 15 other formats are accepted.</span>
-        <button className="btn btn-ghost btn-sm" onClick={ex.load} disabled={ex.loading}>Load example</button>
+        <span className="row">
+          <button className="btn btn-ghost btn-sm" onClick={() => { setExampleKind('upload'); ex.load() }} disabled={ex.loading}>Load example</button>
+          <button className="btn btn-ghost btn-sm" title="All 12,426 expressed genes of a differential-expression experiment with their scores: input for GSEA"
+            onClick={() => { setExampleKind('ranked'); rankedEx.load() }} disabled={rankedEx.loading}>Load ranked example (GSEA)</button>
+        </span>
       </div>
       <textarea className="input mono" rows={10} value={text} onChange={(e) => setText(e.target.value)} placeholder={'TP53\nBRCA1\nEGFR'} aria-label="IDs" />
       <FileDrop accept=".txt,.csv,.tsv" onText={(t) => setText(t)} />
@@ -214,7 +221,7 @@ function UploadPaste({ example, onClose, onCreated, title }: P) {
           {parsed.invalid ? ` · ${parsed.invalid} skipped (e.g. ${[parsed.invalidExamples ?? []].flat().slice(0, 3).join(', ')})` : ''}
         </Note>
       )}
-      <ExampleSource text={ex.source} loading={ex.loading} />
+      <ExampleSource text={exampleKind === 'ranked' ? rankedEx.source : ex.source} loading={ex.loading || rankedEx.loading} />
         <ErrorNote error={err} />
       <SaveList ids={parsed?.ids ?? []} scores={ranked ? parsed?.scores : undefined} defaultName={ranked ? 'My ranked genes' : 'My genes'} organism={organism} setOrganism={setOrganism}
         idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: 'upload' }} onCreated={onCreated} />
@@ -405,6 +412,51 @@ function highlight(text: string, names: string[]) {
 
 // ---- Volcano / 2D reduction ---------------------------------------------------
 
+/** The first rows of a CSV/TSV table as it was read, with the columns picked for each role highlighted. */
+function TablePreview({ text, total, highlight, rows = 6 }: { text: string; total: number; highlight: Record<string, string>; rows?: number }) {
+  const parsed = useMemo(() => {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() && !l.startsWith('#')).slice(0, rows + 1)
+    if (!lines.length) return null
+    const first = lines[0]
+    const delim = first.includes('\t') ? '\t' : (first.split(';').length > first.split(',').length ? ';' : ',')
+    const split = (l: string) => {
+      const out: string[] = []
+      let cur = '', q = false
+      for (const ch of l) {
+        if (ch === '"') q = !q
+        else if (ch === delim && !q) { out.push(cur); cur = '' }
+        else cur += ch
+      }
+      out.push(cur)
+      return out.map((c) => c.trim())
+    }
+    const [head, ...body] = lines.map(split)
+    return { head, body }
+  }, [text, rows])
+  if (!parsed) return null
+  const roleOf = new Map(Object.entries(highlight).filter(([, c]) => c).map(([role, c]) => [c, role]))
+  const ROLE: Record<string, string> = { id: 'gene', logfc: 'log2FC', pvalue: 'p-value', x: 'x', y: 'y', color: 'colour', size: 'size' }
+  return (
+    <div className="table-preview">
+      <div className="table-preview-scroll">
+        <table className="table table-compact">
+          <thead>
+            <tr>{parsed.head.map((h, i) => (
+              <th key={i} className={roleOf.has(h) ? 'col-picked' : undefined}>{h}{roleOf.has(h) && <span className="col-role">{ROLE[roleOf.get(h)!] ?? roleOf.get(h)}</span>}</th>
+            ))}</tr>
+          </thead>
+          <tbody>
+            {parsed.body.map((r, i) => (
+              <tr key={i}>{parsed.head.map((h, j) => <td key={j} className={`mono${roleOf.has(h) ? ' col-picked' : ''}`}>{r[j] ?? ''}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted small">First {Math.min(parsed.body.length, total)} of {total.toLocaleString()} rows. Highlighted: the columns used below.</p>
+    </div>
+  )
+}
+
 interface Prepared { rowCount: number; columns: { all: string[]; numeric: string[] }; defaults: Record<string, string> }
 interface VolcanoPoint { pointId: string; id: string; logfc: number; pvalue: number; negLog10p: number; status: 'up' | 'down' | 'ns' }
 interface ReductionPoint { pointId: string; id: string; x: number; y: number; color?: string | number; size?: number }
@@ -437,7 +489,11 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
   const [idFormat, setIdFormat] = useState('USERINPUT')
   const [err, setErr] = useState<unknown>(null)
   const [busy, setBusy] = useState(false)
-  const ex = useExample(kind, example, (t, f) => { setText(t); setFileName(f ?? '') })
+  // Volcano: two examples. The default (liver tumour vs normal) has distinct up- and down-regulated
+  // biology for the up & down GO analysis; the dexamethasone one matches the other examples.
+  const [exKind, setExKind] = useState<'main' | 'airway'>('main')
+  const ex = useExample(kind, example, (t, f) => { setText(t); setFileName(f ?? ''); setExKind('main') })
+  const exAirway = useExample('volcano_airway', false, (t, f) => { setText(t); setFileName(f ?? ''); setExKind('airway') })
   const pm = usePaletteMode()
   const rc = roleColors(pm)
 
@@ -542,7 +598,8 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
           <div className="row between">
             <span className="muted small">Step 1 · Provide the table</span>
             <span className="row">
-              <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); ex.load() }}>Load example</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); ex.load() }}>{isVolcano ? 'Load example: liver tumour vs normal' : 'Load example'}</button>
+              {isVolcano && <button className="btn btn-ghost btn-sm" onClick={() => { setReplacing(false); exAirway.load() }}>Example: dexamethasone (airway)</button>}
               {prep && <button className="btn btn-ghost btn-sm" onClick={() => setReplacing(false)}>Keep current table</button>}
             </span>
           </div>
@@ -553,11 +610,12 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
           </details>
         </>
       )}
-      <ExampleSource text={ex.source} loading={ex.loading} />
+      <ExampleSource text={exKind === 'airway' ? exAirway.source : ex.source} loading={ex.loading || exAirway.loading} />
         <ErrorNote error={err} />
       {prep && (
         <>
           <p className="muted small">Step 2 · Check the columns ({prep.rowCount.toLocaleString()} rows detected)</p>
+          <TablePreview text={text} total={prep.rowCount} highlight={mapping} />
           <div className="grid-fields">
             {roles.map((r) => (
               <Field key={r.key} label={r.label}>
@@ -631,6 +689,7 @@ function TableInput({ kind, example, onClose, onCreated, title, initialText, ini
           <h3 className="save-heading">Save the selected genes as a list</h3>
           <SaveList ids={selectedIds.slice(0, 3000)} defaultName={isVolcano ? 'Volcano selection' : 'Cluster selection'} organism={organism}
             setOrganism={setOrganism} idFormat={idFormat} setIdFormat={setIdFormat} meta={{ method: kind }} onCreated={onCreated} />
+          {isVolcano && <UpDownFromVolcano points={points.points as VolcanoPoint[]} p={p} lfc={lfc} organism={organism} idFormat={idFormat} onCreated={onCreated} />}
           {isVolcano && <RankedFromVolcano points={points.points as VolcanoPoint[]} organism={organism} idFormat={idFormat} onCreated={onCreated} />}
         </>
       )}
@@ -696,6 +755,64 @@ function SelectedGenes({ points, isVolcano, colorLabel, onRemove, onClear }: {
           </div>
         )}
     </section>
+  )
+}
+
+/** Up- and down-regulated genes (current cut-offs) as two linked lists, analysed separately and
+ *  plotted together (mirrored or side by side) in the results; optionally the whole table as a ranked list too. */
+function UpDownFromVolcano({ points, p, lfc, organism, idFormat, onCreated }: {
+  points: VolcanoPoint[]; p: number; lfc: number; organism: number; idFormat: string; onCreated: (l: AnalyteList, opts?: { enrich?: boolean; updown?: boolean }) => void
+}) {
+  const create = useCreateList()
+  const fmtP = (v: number) => (v >= 0.001 ? String(Number(v.toPrecision(3))) : v.toExponential(1))
+  const [name, setName] = useState('Volcano')
+  const [withRanked, setWithRanked] = useState(true)
+  const [busy, setBusy] = useState(false)
+  // One row per gene (its most significant one), then up / down by the cut-offs; most significant first.
+  const { up, down, ranked } = useMemo(() => {
+    const best = new Map<string, VolcanoPoint>()
+    points.forEach((x) => { const prev = best.get(x.id); if (!prev || x.pvalue < prev.pvalue) best.set(x.id, x) })
+    const rows = [...best.values()].sort((a, b) => a.pvalue - b.pvalue)
+    return {
+      up: rows.filter((x) => x.pvalue < p && x.logfc > lfc).map((x) => x.id),
+      down: rows.filter((x) => x.pvalue < p && x.logfc < -lfc).map((x) => x.id),
+      ranked: rows.map((x) => ({ id: x.id, score: Math.sign(x.logfc) * x.negLog10p })),
+    }
+  }, [points, p, lfc])
+  const tooMany = up.length > 3000 || down.length > 3000
+  const save = async (updown: boolean) => {
+    setBusy(true)
+    try {
+      const pairId = `p${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
+      const cutoffs = { log2fc: lfc, pvalue: p }
+      const base = name.trim() || 'Volcano'
+      const mk = (dir: 'up' | 'down', ids: string[]) => create.mutateAsync({ name: `${base} ${dir}`, ids, organismTaxId: organism, idFormat,
+        uniqueName: true, meta: { method: 'volcano', direction: dir, pairId, cutoffs } })
+      const upList = await mk('up', up)
+      await mk('down', down)
+      if (withRanked) await create.mutateAsync({ name: `${base} ranked (GSEA)`, ids: ranked.map((r) => r.id), scores: ranked.map((r) => r.score), organismTaxId: organism, idFormat,
+        uniqueName: true, meta: { method: 'volcano-ranked', pairId, cutoffs } })
+      onCreated(upList, { updown })
+    } catch { /* shown below */ } finally { setBusy(false) }
+  }
+  const disabled = busy || !up.length || !down.length || tooMany
+  return (
+    <div className="note note-info">
+      <strong>Analyse up- and down-regulated genes separately?</strong> Save them as two linked lists with the current cut-offs
+      (p &lt; {fmtP(p)}, |log2FC| &gt; {lfc}): <strong>{up.length.toLocaleString()} up</strong> and <strong>{down.length.toLocaleString()} down</strong>.
+      Next comes the <strong>GO enrichment of both lists</strong> with the tools you choose; the results show the top terms of each direction in one figure.
+      <div className="row wrap">
+        <label>Name <input className="input input-sm" value={name} maxLength={60} onChange={(e) => setName(e.target.value)} /></label>
+        <label className="check"><input type="checkbox" checked={withRanked} onChange={(e) => setWithRanked(e.target.checked)} /> Also save the whole table as a ranked list (GSEA)</label>
+      </div>
+      {(!up.length || !down.length) && <p className="muted small">Both directions need at least one gene at these cut-offs.</p>}
+      {tooMany && <p className="muted small">A list holds at most 3,000 IDs; tighten the cut-offs.</p>}
+      <div className="row end">
+        <button className="btn btn-secondary btn-sm" disabled={disabled} onClick={() => save(false)}>{busy ? 'Saving…' : 'Save up & down lists'}</button>
+        <button className="btn btn-primary btn-sm" disabled={disabled} onClick={() => save(true)}>Save and continue to GO enrichment →</button>
+      </div>
+      <ErrorNote error={create.error} />
+    </div>
   )
 }
 

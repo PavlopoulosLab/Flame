@@ -407,3 +407,19 @@ h1 { letter-spacing: -0.01em; }
 .fetch-table th[aria-label="Select"], .fetch-table th:has(> input[type=checkbox]), .fetch-table td:first-child:has(> input[type=checkbox]) { width: 1%; white-space: nowrap; }
 .fetch-table td > .btn-ghost.btn-sm { padding: 0; }
 .gene-table .table tr > :nth-child(2) { width: 1%; white-space: nowrap; text-align: right; }
+
+/* Up / down lists of a volcano pair */
+.dir-badge { display: inline-block; font-size: 0.75em; font-weight: 600; padding: 0 5px; border-radius: 4px; border: 1px solid currentColor; line-height: 1.5; }
+.dir-up { color: #dc2626; }
+.dir-down { color: #2563eb; }
+.updown-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.updown-card { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border: 1px solid var(--border-color); border-radius: 8px; border-left-width: 4px; }
+.updown-card.updown-up { border-left-color: #dc2626; }
+.updown-card.updown-down { border-left-color: #2563eb; }
+.updown-card .dir-badge { align-self: flex-start; }
+/* First rows of an uploaded table (volcano / 2D selector) */
+.table-preview-scroll { overflow-x: auto; max-width: 100%; border: 1px solid var(--border-color); border-radius: 6px; }
+.table-preview .table { margin: 0; font-size: 12px; white-space: nowrap; }
+.table-preview th, .table-preview td { padding: 3px 8px; }
+.table-preview .col-picked { background: color-mix(in srgb, var(--accent-color) 12%, transparent); }
+.table-preview .col-role { display: inline-block; margin-left: 6px; font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--accent-color); }
