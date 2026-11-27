@@ -10,6 +10,7 @@ import { useUndoToast } from '../components/Undo'
 import { MethodGrid, type InputKind } from '../features/inputs/MethodPicker'
 import { InputModal } from '../features/inputs/InputModal'
 import { NewRunPanel } from '../features/NewRunPanel'
+import { UpDownRunPanel } from '../features/UpDownRunPanel'
 import { QuickActionModal, type QuickAction } from '../features/utilities/QuickActions'
 import { formatNum, plural } from '../lib/format'
 import { JobsWindow, ProgressBar, type JobProgress } from '../components/Progress'
@@ -25,6 +26,7 @@ type Dialog =
   | { type: 'quick'; action: QuickAction; listId?: string }
   | { type: 'newRun'; listId?: string; listIds?: string[]; preset?: 'celltypes' | 'literature' }
   | { type: 'session'; tab?: SessionTab }
+  | { type: 'updown'; pairId: string }
   | null
 
 export default function WorkspacePage() {
@@ -101,7 +103,7 @@ export default function WorkspacePage() {
       case 'gsea': {
         const list = await rankedList()
         await startRuns({ listId: list.id, paradigm: 'GSEA', tools: ['clusterprofiler'], datasources: ['HALLMARK', 'KEGG', 'REAC', 'GO:BP'] })
-        setExampleNote('GSEA example: about 6,000 genes from a differential-expression table, ranked by sign(log2FC) × −log10 p, are tested against MSigDB Hallmark, KEGG, Reactome and GO with clusterProfiler/fgsea. Positive NES = up-regulated sets, negative = down-regulated.')
+        setExampleNote('GSEA example: all 12,426 expressed genes of a differential-expression experiment (airway, dexamethasone), ranked by sign(log2FC) × −log10 p, are tested against MSigDB Hallmark, KEGG, Reactome and GO with clusterProfiler/fgsea. Positive NES = up-regulated sets, negative = down-regulated.')
         break
       }
       case 'compare-tools': {
@@ -209,6 +211,15 @@ export default function WorkspacePage() {
     }
     invalidate()
   }, [invalidate, navigate, ws, setParams])
+
+  // ?updown=<pairId>: open the up/down GO step (linked from a run's results).
+  useEffect(() => {
+    const pairId = params.get('updown')
+    if (!pairId || !data) return
+    setParams({}, { replace: true })
+    setSection('enrich')
+    setDialog({ type: 'updown', pairId })
+  }, [params, data, setParams]) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     const kind = params.get('example')
@@ -393,6 +404,7 @@ export default function WorkspacePage() {
           initialText={dialog.text} initialFileName={dialog.fileName} initialView={dialog.view} initialListIds={dialog.listIds}
           onOpenVolcano={(text, fileName) => setDialog({ type: 'input', kind: 'volcano', text, fileName })}
           onCreated={(list, opts) => {
+            if (opts?.updown && list.meta?.pairId) { setSection('enrich'); setDialog({ type: 'updown', pairId: String(list.meta.pairId) }); return }
             if (opts?.enrich) { setSection('enrich'); setDialog({ type: 'newRun', listId: list.id }); return }
             setDialog(null); setSection('input'); setSavedList(list)
           }} />
@@ -401,8 +413,10 @@ export default function WorkspacePage() {
         <QuickActionModal action={dialog.action} lists={lists} initialListId={dialog.listId} onClose={() => setDialog(null)} />
       )}
       {dialog?.type === 'newRun' && (
-        <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} initialListIds={dialog.listIds} preset={dialog.preset} onClose={() => setDialog(null)} />
+        <NewRunPanel lists={lists} sources={data?.sources ?? []} initialListId={dialog.listId} initialListIds={dialog.listIds} preset={dialog.preset} onClose={() => setDialog(null)}
+          onUpDown={(pairId) => setDialog({ type: 'updown', pairId })} />
       )}
+      {dialog?.type === 'updown' && <UpDownRunPanel ws={ws} lists={lists} pairId={dialog.pairId} onClose={() => setDialog(null)} />}
       <JobsWindow runs={runs} ws={ws} />
       {dialog?.type === 'session' && <SessionModal ws={ws} summary={data} status={sessionStatus.data} initialTab={dialog.tab} onClose={() => { setDialog(null); sessionStatus.refetch() }} />}
     </div>

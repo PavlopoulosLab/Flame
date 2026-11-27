@@ -212,6 +212,8 @@ body.modal-open { overflow: hidden; }
 .table .truncate { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .th-btn { color: inherit; font-weight: inherit; padding: 0; }
 .genes-cell { min-width: 220px; max-width: 420px; }
+/* Long IDs (MSigDB set names such as KEGG_MEDICUS_…) wrap instead of pushing the other columns out of view. */
+.id-cell { min-width: 120px; max-width: 220px; overflow-wrap: anywhere; }
 .source-tag { border-left: 3px solid; padding-left: 6px; white-space: nowrap; }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.78rem; }
 .legend i { display: inline-block; width: 18px; height: 3px; margin-right: 6px; vertical-align: middle; }

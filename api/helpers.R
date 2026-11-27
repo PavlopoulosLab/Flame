@@ -284,7 +284,7 @@ run_row_to_obj <- function(r) {
     id = r$id, tool = r$tool, toolKey = getWorkspaceToolKeyById(r$tool) %||% tolower(r$tool),
     displayNumber = r$display, paradigm = r$paradigm,
     title = paste0(r$tool, if (identical(r$paradigm, "GSEA")) " GSEA" else "", " (", r$display, ")"),
-    listName = r$list_name, backgroundList = if (is.na(r$bg_list_name)) NULL else r$bg_list_name,
+    listId = r$list_id, listName = r$list_name, backgroundList = if (is.na(r$bg_list_name)) NULL else r$bg_list_name,
     organismTaxId = r$taxid,
     organismName = if (nrow(org) > 0) as.character(org$print_name[1]) else as.character(r$taxid),
     params = .run_params(r$params_json),

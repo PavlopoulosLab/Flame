@@ -31,7 +31,12 @@ function(req, res) {
     }
     meta <- b$meta %||% list()
     if (!is.list(meta)) meta <- list()
-    meta <- meta[intersect(names(meta), c("source", "sourceLists", "mode", "derivedFrom", "method"))]
+    meta <- meta[intersect(names(meta), c("source", "sourceLists", "mode", "derivedFrom", "method", "direction", "pairId", "cutoffs"))]
+    # Up/down lists from one volcano table share a pairId, so their runs can be plotted together.
+    if (!is.null(meta$direction) && !identical(as.character(meta$direction)[1], "up") && !identical(as.character(meta$direction)[1], "down")) meta$direction <- NULL
+    if (!is.null(meta$pairId)) meta$pairId <- substr(gsub("[^A-Za-z0-9_-]", "", as.character(meta$pairId)[1]), 1, 40)
+    if (!is.null(meta$cutoffs)) meta$cutoffs <- list(log2fc = suppressWarnings(as.numeric(meta$cutoffs$log2fc)[1]),
+                                                     pvalue = suppressWarnings(as.numeric(meta$cutoffs$pvalue)[1]))
     res$status <- 201
     create_list(ws, b$name, ids, b$organismTaxId %||% 9606L, b$analyteType %||% "GENE",
                 b$idFormat %||% "USERINPUT", meta, uniquify = isTRUE(b$uniqueName), scores = scores)

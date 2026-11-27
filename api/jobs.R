@@ -44,7 +44,8 @@ submit_run <- function(ws, runId, job) {
   pf <- .progress_file(paste(ws, runId))
   unlink(pf)
   m <- if (identical(job$kind, "gsea")) {
-    mirai::mirai({ options(flame.progress_file = pf); execute_gsea_run(lst, params) }, lst = job$lst, params = job$params, pf = pf)
+    mirai::mirai({ options(flame.progress_file = pf); execute_gsea_run(lst, params, customSets) },
+                 lst = job$lst, params = job$params, customSets = job$sets, pf = pf)
   } else if (identical(job$kind, "gmt")) {
     mirai::mirai(
       { options(flame.progress_file = pf); execute_gmt_run(lst, sets, sourceName, threshold, correction, bgIds) },

@@ -240,7 +240,7 @@ flameComputeUpsetCombinations <- function(namedSets, mode = UpsetMode$INTERSECTI
 # ---- Example data -----------------------------------------------------------
 
 #' Example inputs used by every "Load example" button and the guided demo
-EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna", "metabolites", "survival", "bench_qpcr", "bench_western", "bench_facs", "bench_column",
+EXAMPLE_KINDS <- c("upload", "snps", "textmining", "volcano", "volcano_airway", "reduction", "ranked", "de_lists", "gmt", "expression", "mirna", "metabolites", "survival", "bench_qpcr", "bench_western", "bench_facs", "bench_column",
                    "bench_viability", "bench_elisa", "bench_luciferase", "bench_qpcr_fold")
 
 #' TRUE for recognisable gene names; FALSE for uncharacterised ORFs and
@@ -256,6 +256,7 @@ named_gene <- function(x) {
 # Published datasets behind the examples (built by data-raw/build_examples.R).
 EXAMPLE_SOURCES <- list(
   airway = "Airway smooth-muscle cells from 4 donors, untreated vs dexamethasone (Himes et al. 2014, PLoS One 9:e99625; GEO GSE52778; Bioconductor 'airway'). Differential expression: limma-voom, paired by donor.",
+  lihc_de = "TCGA liver hepatocellular carcinoma: 371 primary tumours vs 50 adjacent normal liver samples (Cancer Genome Atlas Research Network 2017, Cell 169:1327; STAR counts from the GDC via the UCSC Xena hub). Differential expression: edgeR TMM + limma-voom, unpaired; padj = Benjamini-Hochberg. Up- and down-regulated genes point to different biology (cell division up; immune and liver functions down), which suits analysing the two directions separately.",
   pbmc = "Genes of 2,638 peripheral blood mononuclear cells (10x Genomics PBMC 3k; Zheng et al. 2017, Nat Commun 8:14049; CC BY 4.0), embedded by their expression across cells (metacells, PCA, UMAP). Colour = the cell type where each gene is specifically expressed.",
   gwas = "Lead associations for Alzheimer's disease from Bellenguez et al. 2022, Nat Genet 54:412-436 (GWAS Catalog GCST90027158; GRCh38).",
   metabolites = "Metabolites raised in metastatic prostate cancer and validated in the study (Sreekumar et al. 2009, Nature 457:910-914): sarcosine, uracil, kynurenine, glycerol 3-phosphate, leucine and proline.",
@@ -328,7 +329,18 @@ example_input <- function(kind = EXAMPLE_KINDS) {
            clinical = rd("tcga_lihc_clinical.tsv"), clinicalFileName = "flame_example_survival_clinical.tsv",
            source = EXAMPLE_SOURCES$lihc)
     },
+    # Tumour vs normal liver (TCGA LIHC): up- and down-regulated genes have clearly different
+    # functions, so the up & down GO analysis shows distinct terms. Built from the shipped
+    # tumour-vs-normal table (data-raw/build_tcga_tumor_normal.R).
     volcano = {
+      g <- .tcga_tn()$cancers$LIHC$genes
+      if (is.null(g)) stop("The TCGA tumour-vs-normal table is missing (run data-raw/build_tcga_tumor_normal.R).")
+      g <- g[named_gene(g$gene) & !is.na(g$q) & !duplicated(g$gene), , drop = FALSE]
+      g <- g[order(g$q), , drop = FALSE]
+      de <- data.frame(gene = g$gene, log2FC = round(g$log2FC, 4), padj = signif(pmax(g$q, 1e-300), 4), stringsAsFactors = FALSE)
+      list(text = .table_text(de), fileName = "flame_example_tcga_liver_tumour_vs_normal.tsv", source = EXAMPLE_SOURCES$lihc_de)
+    },
+    volcano_airway = {
       de <- airway()
       list(text = .table_text(de[, c("gene", "log2FC", "pvalue", "padj")]), fileName = "flame_example_airway_dex.tsv", source = EXAMPLE_SOURCES$airway)
     },

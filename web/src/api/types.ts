@@ -44,6 +44,9 @@ export interface AppConfig {
   tools: ToolConfig[]
   datasourceCategories: { category: string; sources: { label: string; id: string }[] }[]
   defaultDatasources: string[]
+  /** GSEA gene sets: MSigDB as its website organises it (H, C1–C9), with set counts. */
+  gseaDefaultDatasources: string[]
+  msigdbCollections: { code: string; name: string; text: string; sources: { id: string; label: string; sets?: number }[] }[]
   datasourceColors: Record<string, string>
   linkProviders: Record<string, string>
   geneNodeColor: string
@@ -90,6 +93,7 @@ export interface Run {
   displayNumber: number
   paradigm: string
   title: string
+  listId: string
   listName: string
   backgroundList: string | null
   organismTaxId: number
@@ -141,6 +145,10 @@ export interface Term {
   /** With redundancy reduction: how many terms this one stands for (itself included) and the merged ones as "name (ID) | …". */
   represents?: number
   merged?: string
+  /** Client-side only: the term comes from the up- or down-regulated list of a volcano pair (mirrored plots). */
+  direction?: 'up' | 'down'
+  /** Client-side only: section of the up & down figure (a shared term is listed once per direction). */
+  section?: 'up' | 'down' | 'shared'
 }
 
 export interface NetworkNode {
@@ -310,4 +318,13 @@ export interface ComparisonFilters {
   pvalueMax?: number | null
   termSizeMin?: number | null
   termSizeMax?: number | null
+}
+
+/** One term of a GSEA enrichment plot: running enrichment score, hits and leading edge. */
+export interface GseaPlotTerm {
+  id: string; name: string; source: string; nes: number; es: number; padj: number; setSize: number
+  x: number[]; y: number[]; hits: number[]; hitGenes: string[]; peak: number; leadingEdge: string[]
+}
+export interface GseaPlotData {
+  n: number; scoreType: string; metric: { x: number[]; y: number[] }; zeroCross: number | null; terms: GseaPlotTerm[]
 }

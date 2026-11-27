@@ -90,7 +90,20 @@ function(req, res) {
       created[[length(created) + 1]] <- runId
     }
 
-    if (paradigm == ParadigmId$GSEA) sourceIds <- character(0)   # custom GMT sources: ORA only
+    # Custom gene sets with a ranked list: GSEA (clusterProfiler/fgsea) on the user's own signatures.
+    if (paradigm == ParadigmId$GSEA) {
+      for (sid in sourceIds) {
+        src <- get_source_sets(ws, sid)
+        cfg <- perTool[["custom"]] %||% list()
+        corr <- as.character(cfg$correction %||% "BH"); if (!corr %in% c("BH", "bonferroni", "none")) corr <- "BH"
+        params <- list(geneListName = lstRow$name, datasources = src$name, threshold = 1, namespace = "ENTREZGENE_ACC",
+                       metric = corr, backgroundMode = "genome", customSourceId = sid, paradigm = ParadigmId$GSEA)
+        runId <- insert_run("custom-gsea", paste0("Custom: ", src$name), params, NULL, ParadigmId$GSEA)
+        submit_run(ws, runId, list(kind = "gsea", lst = lst, params = params, sets = src$sets))
+        created[[length(created) + 1]] <- runId
+      }
+      sourceIds <- character(0)
+    }
     for (sid in sourceIds) {
       src <- get_source_sets(ws, sid)
       cfg <- perTool[["custom"]] %||% list()
@@ -157,6 +170,42 @@ function(req, res, id) {
       noHitAnalytes = as.list(out$noHitAnalytes %||% character(0)),
       significantTerms = out$resultCount %||% 0L
     ))
+  })
+}
+
+#* GSEA enrichment plot data for up to 12 terms of a GSEA run. Body: { terms: [termId, ...] }
+#* Returns the ranking (thinned for the ranked-score panel) and, per term, the running
+#* enrichment score curve, hit positions, peak and leading edge.
+#* @post /<id>/gsea-plot
+#* @serializer flamejson
+function(req, res, id) {
+  api_handle(res, {
+    ws <- require_workspace(req)
+    r <- get_run_row(ws, id)
+    if (!identical(r$paradigm, "GSEA")) api_abort(400, "Enrichment plots are for GSEA runs.")
+    out <- run_output(ws, id)
+    rk <- out$gseaRanking
+    if (is.null(rk)) api_abort(409, "This GSEA run was made before Flame kept the ranking. Run it again to draw enrichment plots.")
+    terms <- utils::head(unique(as.character(unlist(body_of(req)$terms))), 12)
+    if (!length(terms)) api_abort(400, "Choose at least one term.")
+    resRows <- out$results
+    n <- length(rk$scores)
+    keep <- unique(round(seq(1, n, length.out = min(n, 1500))))
+    zero <- which(diff(sign(rk$scores)) != 0)[1]
+    list(
+      n = n, scoreType = rk$scoreType,
+      metric = list(x = keep, y = round(rk$scores[keep], 4)),
+      zeroCross = if (is.na(zero)) NULL else zero,
+      terms = Filter(Negate(is.null), lapply(terms, function(t) {
+        row <- resRows[resRows$Term_ID == t, , drop = FALSE]
+        set <- rk$sets[[t]]
+        if (!nrow(row) || !length(set)) return(NULL)
+        rs <- gsea_running_score(rk$scores, rk$genes %in% set)
+        list(id = t, name = row$Function[1], source = row$Source[1], nes = row$NES[1], es = rs$es,
+             padj = row$`P-value`[1], setSize = length(set), x = rs$x, y = rs$y, hits = rs$hits, peak = rs$peak,
+             hitGenes = as.list(rk$symbols[rs$hits]),
+             leadingEdge = as.list(rk$symbols[rs$leadingEdge]))
+      })))
   })
 }
 

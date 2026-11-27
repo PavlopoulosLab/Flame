@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { API_BASE, api } from '../api/client'
 import { useConfig, useInvalidateWorkspace, useStartRuns } from '../api/hooks'
 import type { AnalyteList, CustomSource } from '../api/types'
@@ -22,14 +22,19 @@ const METRIC_HELP: Record<string, string> = {
 
 interface ToolSettings { correction?: string; threshold?: number; backgroundListId?: string }
 
-export function NewRunPanel({ lists, sources, initialListId, initialListIds, onClose, preset }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; /** Several lists ticked in the lists panel: the same analysis is started on each. */ initialListIds?: string[]; onClose: () => void; preset?: 'celltypes' | 'literature' }) {
+export function NewRunPanel({ lists, sources, initialListId, initialListIds, onClose, preset, onUpDown }: { lists: AnalyteList[]; sources: CustomSource[]; initialListId?: string; /** Several lists ticked in the lists panel: the same analysis is started on each. */ initialListIds?: string[]; onClose: () => void; preset?: 'celltypes' | 'literature'; /** Open the up/down GO step for a volcano pair. */ onUpDown?: (pairId: string) => void }) {
   const { data: config } = useConfig()
   const cellTypeSources = config?.datasourceCategories.find((c) => c.category === 'Cell types')?.sources.map((s) => s.id) ?? []
   const literatureSources = config?.datasourceCategories.find((c) => c.category === 'Literature')?.sources.map((s) => s.id) ?? []
   const start = useStartRuns()
   const invalidateWs = useInvalidateWorkspace()
   const [loadingExample, setLoadingExample] = useState(false)
-  const startIds = (initialListIds?.length ? initialListIds : initialListId ? [initialListId] : []).filter((id) => lists.some((l) => l.id === id))
+  // Up/down lists saved together from a volcano table are analysed together: ticking one ticks its partner.
+  const withPartners = (ids: string[]) => {
+    const pairs = new Set(lists.filter((l) => ids.includes(l.id) && l.meta?.direction && l.meta?.pairId).map((l) => String(l.meta.pairId)))
+    return [...new Set([...ids, ...lists.filter((l) => l.meta?.direction && pairs.has(String(l.meta.pairId))).map((l) => l.id)])]
+  }
+  const startIds = withPartners((initialListIds?.length ? initialListIds : initialListId ? [initialListId] : []).filter((id) => lists.some((l) => l.id === id)))
   const initial = lists.find((l) => l.id === startIds[0])
   const [paradigm, setParadigm] = useState<'ORA' | 'GSEA'>(initial?.ranked ? 'GSEA' : 'ORA')
   const usableLists = paradigm === 'GSEA' ? lists.filter((l) => l.ranked) : lists
@@ -40,14 +45,18 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const mixedOrganisms = new Set(picked.map((l) => l.organismTaxId)).size > 1
   const [progress, setProgress] = useState<string | null>(null)
   const [showGmt, setShowGmt] = useState(false)
+  const [showSignature, setShowSignature] = useState(false)
   const [tools, setTools] = useState<string[]>(preset === 'celltypes' ? ['enrichr', 'clusterprofiler'] : preset === 'literature' ? ['string', 'enrichr'] : initial?.ranked ? ['clusterprofiler'] : ['gprofiler'])
+  const shownParadigm = useRef(paradigm)
   const toolOffers = (key: string) => (config?.tools.find((t) => t.key === key)?.paradigms ?? ['ORA']).includes(paradigm)
   useEffect(() => {
     setTools((ts) => {
       const kept = ts.filter(toolOffers)
       return kept.length ? kept : paradigm === 'GSEA' ? ['clusterprofiler'] : ['gprofiler']
     })
-    if (paradigm === 'GSEA') setCustomIds([])
+    // GSEA picks from MSigDB; switching paradigm starts from that paradigm's usual gene sets.
+    if (config && shownParadigm.current !== paradigm) setDatasources(paradigm === 'GSEA' ? config.gseaDefaultDatasources : config.defaultDatasources)
+    if (config) shownParadigm.current = paradigm
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paradigm, config])
   const [customIds, setCustomIds] = useState<string[]>([])
@@ -58,7 +67,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
   const [result, setResult] = useState<{ created: string[]; reused: string[]; skipped: { tool: string; reason: string }[] } | null>(null)
 
   useEffect(() => {
-    if (config && !datasources.length) setDatasources(preset === 'celltypes' ? cellTypeSources : preset === 'literature' ? literatureSources : config.defaultDatasources)
+    if (config && !datasources.length) setDatasources(preset === 'celltypes' ? cellTypeSources : preset === 'literature' ? literatureSources : paradigm === 'GSEA' ? config.gseaDefaultDatasources : config.defaultDatasources)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config, datasources.length])
 
@@ -133,15 +142,15 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
                   await invalidateWs()
                   setListIds([l.id])
                 } finally { setLoadingExample(false) }
-              }}>{loadingExample ? 'Loading…' : 'Load an example ranked list (6,000 genes from a differential-expression table)'}</button>
+              }}>{loadingExample ? 'Loading…' : 'Load an example ranked list (all 12,426 genes of a differential-expression experiment)'}</button>
             </div>
           ) : (
             <Field label={picked.length > 1 ? `Lists (${picked.length} selected — the same analysis runs on each)` : 'Lists (tick several to run the same analysis on each)'}>
               <div className="run-lists">
                 {usableLists.map((l) => (
                   <label key={l.id} className="check">
-                    <input type="checkbox" checked={listIds.includes(l.id)} onChange={() => setListIds((cur) => (cur.includes(l.id) ? cur.filter((x) => x !== l.id) : [...cur, l.id]))} />
-                    <span>{l.name} <span className="muted small">— {l.size} IDs{l.ranked ? ', ranked' : ''}, {l.organismName.replace(/ \[NCBI.*$/, '')}</span></span>
+                    <input type="checkbox" checked={listIds.includes(l.id)} onChange={() => setListIds((cur) => (cur.includes(l.id) ? cur.filter((x) => x !== l.id) : withPartners([...cur, l.id])))} />
+                    <span>{l.name} {l.meta?.direction === 'up' ? <span className="dir-badge dir-up" title="Up-regulated genes (paired with a down list)">▲ up</span> : l.meta?.direction === 'down' ? <span className="dir-badge dir-down" title="Down-regulated genes (paired with an up list)">▼ down</span> : null} <span className="muted small">— {l.size} IDs{l.ranked ? ', ranked' : ''}, {l.organismName.replace(/ \[NCBI.*$/, '')}</span></span>
                   </label>
                 ))}
               </div>
@@ -152,6 +161,14 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
                 </span>
               )}
               {picked.length === 0 && <span className="muted small">Tick at least one list.</span>}
+              {(() => {
+                const pairId = picked.find((l) => l.meta?.direction && l.meta?.pairId)?.meta.pairId
+                return pairId && onUpDown && paradigm === 'ORA' ? (
+                  <Note kind="info">These are the <strong>up- and down-regulated</strong> genes of one volcano plot.{' '}
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => onUpDown(String(pairId))}>Open the up &amp; down GO enrichment step →</button>
+                    {' '}runs your chosen tools on both and opens their results together.</Note>
+                ) : null
+              })()}
               {mixedOrganisms && <Note kind="warning">The selected lists are from different organisms. Tool availability below is shown for {list?.organismName.replace(/ \[NCBI.*$/, '')}; a tool that does not support another list's organism is skipped for that list and reported.</Note>}
             </Field>
           )}
@@ -181,14 +198,19 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
               )
             })}
           </div>
-          {paradigm === 'ORA' && (
+          {(
             <div className="own-sets">
               <div className="row between wrap">
-                <span className="field-label">Your own pathway sets <span className="muted small">optional</span></span>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowGmt(true)} title="Upload a collection of gene sets as a GMT file">+ Upload GMT</button>
+                <span className="field-label">{paradigm === 'GSEA' ? 'Your own signatures' : 'Your own pathway sets'} <span className="muted small">optional</span></span>
+                <span className="row">
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowSignature(true)} title="Paste the genes of one signature (e.g. from a paper or your own experiment)">+ Paste a signature</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowGmt(true)} title="Upload a collection of gene sets as a GMT file">+ Upload GMT</button>
+                </span>
               </div>
               {sources.length === 0
-                ? <p className="muted small">Besides the tools above, you can test your list against your own collection of gene sets (pathways or signatures) uploaded as a GMT file. Flame tests them itself, as a separate run.</p>
+                ? <p className="muted small">{paradigm === 'GSEA'
+                  ? 'Test your ranking against your own signature: paste its genes (from a paper, another experiment or a cell type) or upload several as a GMT file. Flame runs GSEA on them as a separate run, always reports them (significant or not) and draws their enrichment plot.'
+                  : 'Besides the tools above, you can test your list against your own gene sets (pathways or signatures): paste one signature or upload a collection as a GMT file. Flame tests them itself, as a separate run.'}</p>
                 : (
                   <div className="chip-grid">
                     {sources.map((s) => {
@@ -215,7 +237,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
             <h3>3 · Where to look</h3>
             <span className="row">
               <button className="btn btn-ghost btn-sm" onClick={() => setDatasources([...supportedSources])}>Select all</button>
-              <button className="btn btn-ghost btn-sm" onClick={() => setDatasources(config?.defaultDatasources ?? [])}>Defaults</button>
+              <button className="btn btn-ghost btn-sm" onClick={() => setDatasources((paradigm === 'GSEA' ? config?.gseaDefaultDatasources : config?.defaultDatasources) ?? [])}>Defaults</button>
               {cellTypeSources.length > 0 && <button className="btn btn-ghost btn-sm" title="PanglaoDB, CellMarker, Azimuth, Tabula Sapiens and MSigDB C8 marker sets (Enrichr and clusterProfiler)"
                 onClick={() => { setParadigm('ORA'); setTools((t) => [...new Set([...t, 'enrichr', 'clusterprofiler'])]); setDatasources(cellTypeSources) }}>Cell types</button>}
               {literatureSources.length > 0 && <button className="btn btn-ghost btn-sm" title="PubMed (STRING), GeneSigDB and Rummagene (Enrichr): published gene sets"
@@ -223,6 +245,28 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
               <button className="btn btn-ghost btn-sm" onClick={() => setDatasources([])}>Clear</button>
             </span>
           </div>
+          {paradigm === 'GSEA' ? (
+            <div className="source-groups">
+              <p className="muted small">Gene sets from the Molecular Signatures Database (MSigDB), grouped by its collections. Hallmark is the usual first choice; large collections (CGP, GO, ImmuneSigDB) take longer and need stronger evidence after multiple-testing correction.</p>
+              {(config?.msigdbCollections ?? []).map((cl) => {
+                const n = cl.sources.filter((s) => chosenSources.includes(s.id)).length
+                return (
+                  <details key={cl.code} open={n > 0 || cl.code === 'H'}>
+                    <summary><strong>{cl.code}</strong> {cl.name} <span className="muted small">({n}/{cl.sources.length}) · {cl.text}</span></summary>
+                    <div className="source-list">
+                      {cl.sources.map((s) => (
+                        <label key={s.id} className={`check${supportedSources.has(s.id) ? '' : ' muted'}`}>
+                          <input type="checkbox" disabled={!supportedSources.has(s.id)} checked={chosenSources.includes(s.id)}
+                            onChange={() => setDatasources((d) => (d.includes(s.id) ? d.filter((x) => x !== s.id) : [...d, s.id]))} />
+                          {s.label}{s.sets != null && <span className="muted small"> · {s.sets.toLocaleString()} sets</span>}
+                        </label>
+                      ))}
+                    </div>
+                  </details>
+                )
+              })}
+            </div>
+          ) : (
           <div className="source-groups">
             {(config?.datasourceCategories ?? []).map((cat) => {
               const avail = cat.sources.filter((s) => supportedSources.has(s.id))
@@ -247,6 +291,7 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
               )
             })}
           </div>
+          )}
         </section>
 
         <section>
@@ -289,7 +334,8 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
         </section>
         <ErrorNote error={start.error} />
         {progress && <BusyBar label={progress} expect={6} />}
-        {showGmt && <GmtModal onClose={() => setShowGmt(false)} />}
+        {showGmt && <GmtModal onClose={() => setShowGmt(false)} onCreated={(id) => setCustomIds((c) => [...c, id])} />}
+        {showSignature && <SignatureModal onClose={() => setShowSignature(false)} onCreated={(id) => setCustomIds((c) => [...c, id])} />}
         {result && (
           <Note kind={result.skipped.length ? 'warning' : 'success'}>
             {result.created.length > 0 && `Started ${result.created.length} run(s). `}
@@ -303,7 +349,35 @@ export function NewRunPanel({ lists, sources, initialListId, initialListIds, onC
 }
 
 /** Upload a collection of gene sets (GMT) to test lists against; opened from the New run panel. */
-function GmtModal({ onClose }: { onClose: () => void }) {
+/** One signature: a name and its genes, pasted or from a file. Saved as a custom source with one gene set. */
+function SignatureModal({ onClose, onCreated }: { onClose: () => void; onCreated: (sourceId: string) => void }) {
+  const [name, setName] = useState('My signature')
+  const [genes, setGenes] = useState('')
+  const [err, setErr] = useState<unknown>(null)
+  const invalidate = useInvalidateWorkspace()
+  const n = useMemo(() => new Set(genes.split(/[\s,;]+/).map((g) => g.trim().toUpperCase()).filter(Boolean)).size, [genes])
+  return (
+    <Modal title="Your own signature" onClose={onClose} palette={false}
+      subtitle="A set of genes you want to test, e.g. a published signature, the up-regulated genes of another experiment or the markers of a cell type."
+      footer={<>
+        <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
+        <button className="btn btn-primary" disabled={n < 5 || !name.trim()} onClick={() =>
+          api<{ id: string }>('/sources', { body: { name: name.trim(), genes } }).then((s) => { invalidate(); onCreated(s.id); onClose() }).catch(setErr)}>
+          Add signature ({n} gene{n === 1 ? '' : 's'})</button>
+      </>}>
+      <label className="field"><span className="field-label">Name</span>
+        <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} /></label>
+      <label className="field"><span className="field-label">Genes <span className="muted small">one per line, or separated by commas or spaces; at least 5</span></span>
+        <textarea className="input mono" rows={8} value={genes} onChange={(e) => setGenes(e.target.value)} placeholder={'FKBP5\nTSC22D3\nPER1\nKLF15\nZBTB16'} aria-label="Signature genes" /></label>
+      <label className="field"><span className="field-label">…or a file</span>
+        <input type="file" accept=".txt,.csv,.tsv" onChange={(e) => e.target.files?.[0]?.text().then(setGenes)} /></label>
+      <p className="muted small">Use the same kind of IDs as your lists (gene symbols work for most). With a ranked list, GSEA asks whether these genes sit at the top or the bottom of your ranking; open the run's <em>GSEA enrichment plot</em> to see it. With a plain list, Flame tests the overlap (ORA).</p>
+      <ErrorNote error={err} />
+    </Modal>
+  )
+}
+
+function GmtModal({ onClose, onCreated }: { onClose: () => void; onCreated?: (sourceId: string) => void }) {
   const [name, setName] = useState('My gene sets')
   const [text, setText] = useState('')
   const [err, setErr] = useState<unknown>(null)
@@ -315,17 +389,21 @@ function GmtModal({ onClose }: { onClose: () => void }) {
       footer={<>
         <button className="btn btn-ghost" onClick={onClose}>Cancel</button>
         <button className="btn btn-primary" disabled={!sets} onClick={() =>
-          api('/sources', { body: { name, text } }).then(() => { invalidate(); onClose() }).catch(setErr)}>Add collection ({sets} gene sets)</button>
+          api<{ id: string }>('/sources', { body: { name, text } }).then((s) => { invalidate(); onCreated?.(s.id); onClose() }).catch(setErr)}>Add collection ({sets} gene sets)</button>
       </>}>
       <Note kind="info">
-        <strong>Use this for</strong> your own pathways, published signatures or a collection Flame does not offer (e.g. MSigDB Hallmark). <strong>Not for a background:</strong> to restrict the statistical universe, add those genes as a normal list and choose it under <em>Background</em> in a run's per-tool settings. <strong>Works with</strong> over-representation (ORA) runs; ranked-list GSEA runs use the built-in MSigDB collections and cannot use an uploaded file.
+        <strong>Use this for</strong> your own pathways, published signatures or a collection Flame does not offer (e.g. MSigDB Hallmark). <strong>Not for a background:</strong> to restrict the statistical universe, add those genes as a normal list and choose it under <em>Background</em> in a run's per-tool settings. <strong>Works with</strong> over-representation (ORA) and, for ranked lists, GSEA runs.
       </Note>
       <p className="small">Format: each line is <code>set ID ⇥ description ⇥ gene ⇥ gene …</code> (tab-separated, no header). The gene IDs must be of the same type as the IDs in your lists. <a href={`${API_BASE}/inputs/examples/gmt/file`}>Download an example file</a> (MSigDB Hallmark).</p>
       <label className="field"><span className="field-label">Name of the collection</span>
         <input className="input" value={name} maxLength={80} onChange={(e) => setName(e.target.value)} /></label>
+      <div className="row end">
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => api<{ text: string }>('/inputs/examples/gmt').then((ex) => { setText(ex.text); setName('MSigDB Hallmark (example)') }).catch(setErr)}>
+          Load example (MSigDB Hallmark, 50 sets)</button>
+      </div>
       <label className="field"><span className="field-label">GMT file</span>
         <input type="file" accept=".gmt,.txt,.tsv" onChange={(e) => e.target.files?.[0]?.text().then(setText)} /></label>
-      <textarea className="input mono" rows={8} value={text} onChange={(e) => setText(e.target.value)} placeholder={'HALLMARK_APOPTOSIS\tApoptosis\tCASP3\tCASP8\tBAX\t…'} aria-label="GMT content" />
+      <textarea className="input mono" rows={9} wrap="off" value={text} onChange={(e) => setText(e.target.value)} placeholder={'HALLMARK_APOPTOSIS\tapoptosis\tCASP3\tCASP8\tBAX\tBCL2L11\tFAS\t…\nHALLMARK_HYPOXIA\thypoxia\tVEGFA\tSLC2A1\tPGK1\tLDHA\tADM\t…\nHALLMARK_GLYCOLYSIS\tglycolysis\tHK2\tPFKP\tALDOA\tENO1\tPKM\tLDHA\t…\nHALLMARK_P53_PATHWAY\tp53 pathway\tCDKN1A\tMDM2\tBAX\tGADD45A\tSESN1\t…\nHALLMARK_TNFA_SIGNALING_VIA_NFKB\tTNF-alpha signaling via NF-kB\tNFKBIA\tTNFAIP3\tJUN\tFOS\tIL6\t…\nHALLMARK_INTERFERON_GAMMA_RESPONSE\tinterferon gamma response\tSTAT1\tIRF1\tCXCL10\tIDO1\t…\nHALLMARK_MYC_TARGETS_V1\tMYC targets v1\tNPM1\tCDK4\tLDHA\tHSPD1\tEIF4A1\t…'} aria-label="GMT content" />
       <ErrorNote error={err} />
     </Modal>
   )

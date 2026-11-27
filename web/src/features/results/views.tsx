@@ -6,7 +6,7 @@ import type { NetworkStyle } from '../../lib/networkStyle'
 import { ChordDiagram, CircosBundle, HivePlot } from '../../components/viz'
 import { formatNum, formatP, isHttpUrl, splitGenes } from '../../lib/format'
 import { GeneList } from '../../components/ui'
-import { categoricalColor, reverseScale, sequentialScale, usePaletteMode } from '../../lib/palette'
+import { categoricalColor, reverseScale, roleColors, sequentialScale, usePaletteMode } from '../../lib/palette'
 
 /** Source colours: configured colours, or Okabe–Ito in colour-blind safe mode. */
 export function useSourceColor(config: AppConfig, sources: string[]) {
@@ -23,7 +23,7 @@ export interface ViewSettings {
   heatScale?: string
   barMetric?: 'log10p' | 'coverage' | 'nes'
   /** Bar colours: by source (default), by significance with a colour scale, or one colour (barColor). */
-  barColors?: 'source' | 'OrRd' | 'Viridis' | 'Cividis' | 'Magma' | 'single'
+  barColors?: 'source' | 'direction' | 'OrRd' | 'Viridis' | 'Cividis' | 'Magma' | 'single'
   barColor?: string
   orientation?: 'terms-rows' | 'genes-rows'
   layout?: string
@@ -52,14 +52,65 @@ const label = (t: Term, s: ViewSettings, max = 55) => {
 }
 
 /** Per-term axis labels, unique within a chart: Plotly merges equal category labels into one row
- *  (e.g. two long names that truncate alike), which breaks the ordering. Repeats get invisible suffixes. */
+ *  (e.g. two long names that truncate alike), which breaks the ordering. Repeats get invisible suffixes.
+ *  A term listed twice (up and down in a mirrored plot) keeps one row. */
 const axisLabels = (terms: Term[], s: ViewSettings) => {
   const seen = new Map<string, number>()
-  return new Map(terms.map((t) => {
+  const out = new Map<string, string>()
+  terms.forEach((t) => {
+    if (out.has(t.id)) return
     const base = label(t, s), n = seen.get(base) ?? 0
     seen.set(base, n + 1)
-    return [t.id, base + '\u200b'.repeat(n)] as const
-  }))
+    out.set(t.id, base + '\u200b'.repeat(n))
+  })
+  return out
+}
+/** Rows of a chart in drawing order (bottom first), one per term. */
+const rowOrder = (terms: Term[], labels: Map<string, string>) => [...new Set(terms.map((t) => labels.get(t.id)!))]
+
+/** Up & down figure: up-regulated values to the right, down-regulated always to the left. */
+const dirSign = (t: Term) => (t.direction === 'down' ? -1 : 1)
+const DIR_LABEL = { up: 'Up-regulated genes', down: 'Down-regulated genes' }
+/** Axis ticks for a mirrored axis, labelled with absolute values (|−3| shown as 3). */
+const absTicks = (max: number) => {
+  const raw = max / 4, mag = 10 ** Math.floor(Math.log10(raw)), step = [1, 2, 5, 10].map((k) => k * mag).find((k) => k >= raw) ?? raw
+  const vals: number[] = []
+  for (let v = -Math.floor(max / step) * step; v <= max + 1e-9; v += step) vals.push(Number(v.toPrecision(10)))
+  return { tickvals: vals, ticktext: vals.map((v) => String(Number(Math.abs(v).toPrecision(4)))) }
+}
+
+/** Up & down figure, top-down: up-regulated terms (strongest first), terms enriched in both lists,
+ *  then down-regulated terms (strongest last, at the bottom). */
+function sortSections(terms: Term[], v: (t: Term) => number) {
+  const best = new Map<string, number>()
+  terms.forEach((t) => best.set(t.id, Math.max(best.get(t.id) ?? 0, Math.abs(v(t)))))
+  const of = (sec: Term['section']) => terms.filter((t) => t.section === sec)
+  return [
+    ...of('up').sort((a, b) => best.get(b.id)! - best.get(a.id)!),
+    ...of('shared').sort((a, b) => best.get(b.id)! - best.get(a.id)! || (a.direction === 'up' ? -1 : 1)),
+    ...of('down').sort((a, b) => best.get(a.id)! - best.get(b.id)!),
+  ]
+}
+
+/**
+ * Layout of the up & down figure: rows in the given top-down order (returned bottom first, as
+ * Plotly draws them), faint lines between the up, shared and down groups, and an axis centred
+ * on zero labelled with absolute values (down to the left, up to the right).
+ */
+function upDownLayout(terms: Term[], labels: Map<string, string>, values: number[], axisTitle: string) {
+  const top: string[] = [], groupOf = new Map<string, Term['section']>()
+  terms.forEach((t) => { const l = labels.get(t.id)!; if (!groupOf.has(l)) { top.push(l); groupOf.set(l, t.section) } })
+  const rows = [...top].reverse()
+  // A line between two neighbouring rows of different groups (category i sits at y = i).
+  const shapes = rows.slice(1).flatMap((l, i) => (groupOf.get(l) !== groupOf.get(rows[i])
+    ? [{ name: `group-${i}`, type: 'line' as const, xref: 'paper' as const, x0: 0, x1: 1, y0: i + 0.5, y1: i + 0.5, layer: 'below' as const,
+        line: { color: 'rgba(128,128,128,0.5)', width: 1, dash: 'dot' as const } }]
+    : []))
+  const max = Math.max(...values.map(Math.abs), 1e-9) * 1.08
+  return {
+    rows, shapes,
+    xaxis: { title: { text: `${axisTitle}  (down-regulated ← 0 → up-regulated)` }, range: [-max, max], zeroline: true, zerolinewidth: 1.5, ...absTicks(max) },
+  }
 }
 
 function bySource(terms: Term[]) {
@@ -69,7 +120,7 @@ function bySource(terms: Term[]) {
 }
 
 const hover = (t: Term) =>
-  `<b>${escapeForPlotly(t.name)}</b><br>${escapeForPlotly(t.id)} · ${escapeForPlotly(t.source)}<br>p = ${formatP(t.pvalue)}<br>Genes: ${t.intersection} of ${t.termSize}${t.nes != null ? `<br>NES = ${t.nes.toFixed(2)}` : ''}${(t.represents ?? 1) > 1 ? `<br>Represents ${t.represents! - 1} similar term${t.represents === 2 ? '' : 's'}` : ''}`
+  `${t.direction ? `<i>${DIR_LABEL[t.direction]}</i><br>` : ''}<b>${escapeForPlotly(t.name)}</b><br>${escapeForPlotly(t.id)} · ${escapeForPlotly(t.source)}<br>p = ${formatP(t.pvalue)}<br>Genes: ${t.intersection} of ${t.termSize}${t.nes != null ? `<br>NES = ${t.nes.toFixed(2)}` : ''}${(t.represents ?? 1) > 1 ? `<br>Represents ${t.represents! - 1} similar term${t.represents === 2 ? '' : 's'}` : ''}`
 
 // Plotly hovertext accepts a small HTML subset; escape data so names render as text.
 function escapeForPlotly(s: string) {
@@ -109,8 +160,12 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef, expor
   const choice = settings.palette ?? 'OrRd'
   const dotScale = significanceScale(choice, cb)
   const xKey = settings.xAxis ?? 'geneRatio'
+  const upDown = data.terms.some((t) => t.section)
+  const xOf = (t: Term) => dirSign(t) * (t[xKey] ?? 0)
   // Rows follow the x axis (largest at the top); Plotly draws the first category at the bottom.
-  const terms = [...data.terms].sort((a, b) => (a[xKey] ?? 0) - (b[xKey] ?? 0))
+  // Up & down figure: the caller's order (sections, top-down).
+  const terms = upDown ? sortSections(data.terms, xOf) : [...data.terms].sort((a, b) => xOf(a) - xOf(b))
+  const yLabel = axisLabels(terms, settings)
   const xLabel = { geneRatio: 'Gene ratio', foldEnrichment: 'Fold enrichment', coverage: 'Term coverage (%)', nes: 'Normalized enrichment score (NES)' }[xKey]
   // Dot area is proportional to the number of genes; the largest dot just fits its row, so
   // neighbours never overlap.
@@ -118,42 +173,46 @@ export function DotplotView({ data, settings, selected, onSelect, plotRef, expor
   const kMin = Math.min(...counts), kMax = Math.max(...counts, 1)
   const sizeOf = (k: number) => Math.max(DOT_MIN, DOT_MAX * Math.sqrt(k / kMax))
   // Colour bar on top right, size legend below it; both sized in px of the plotting area.
-  const height = Math.max(360, ROW * terms.length + 110)
+  const ud = upDown ? upDownLayout(terms, yLabel, terms.map(xOf), xLabel) : null
+  const rows = ud ? ud.rows : rowOrder(terms, yLabel)
+  const height = Math.max(360, ROW * rows.length + 110)
   const area = height - 60
   const cbLen = Math.min(220, area * 0.5) / area
   const legendY = 1 - cbLen - 40 / area
   // A few reference sizes for the "Genes" legend.
   const legendCounts = [...new Set(kMax === kMin ? [kMin] : [kMin, Math.round((kMin + kMax) / 2), kMax])]
-  const yLabel = axisLabels(terms, settings)
   const plot = useMemo(() => [{
     type: 'scatter' as const, mode: 'markers' as const, showlegend: false,
-    x: terms.map((t) => t[xKey] ?? 0), y: terms.map((t) => yLabel.get(t.id)!), customdata: terms.map((t) => t.id),
+    x: terms.map(xOf), y: terms.map((t) => yLabel.get(t.id)!), customdata: terms.map((t) => t.id),
     text: terms.map(hover), hoverinfo: 'text' as const,
     marker: {
-      size: counts.map(sizeOf), color: terms.map((t) => t.log10p),
+      size: counts.map(sizeOf), symbol: upDown ? terms.map((t) => (t.direction === 'down' ? 'diamond' : 'circle')) : 'circle', color: terms.map((t) => t.log10p),
       colorscale: dotScale as never,
       reversescale: typeof dotScale === 'string' && reverseScale(dotScale),
       showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12, len: cbLen, y: 1, yanchor: 'top' as const },
       line: selLine(terms.map((t) => t.id), selected, { color: 'rgba(255,255,255,0.9)', width: 1 }),
       opacity: selOpacity(terms.map((t) => t.id), selected),
     },
-  }], [terms, yLabel, xKey, selected, cb])
+  }], [terms, yLabel, xKey, selected, cb]) // eslint-disable-line react-hooks/exhaustive-deps
   if (xKey === 'foldEnrichment' && data.terms.every((t) => t.foldEnrichment == null)) {
     return <p className="muted">Fold enrichment needs the background size, which this tool does not report. Choose another x-axis.</p>
   }
-  return <Plot title={title} exportName={exportName} data={plot} height={height} handleRef={plotRef} onSelect={onSelect}
+  return <Plot title={title} exportName={exportName} data={plot as never} height={height} handleRef={plotRef} onSelect={onSelect}
     layout={{
-      margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: xLabel } },
-      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) },
+      margin: { l: 320, r: 20, t: 10, b: 50 },
+      xaxis: ud ? ud.xaxis : { title: { text: xLabel } },
+      yaxis: { automargin: true, categoryorder: 'array', categoryarray: rows },
       // Size legend under the colour bar, drawn as pixel-sized circles (Plotly's legend caps marker sizes).
       showlegend: false,
-      shapes: legendCounts.map((k, i) => {
+      shapes: [...(ud ? ud.shapes : []), ...legendCounts.map((k, i) => {
         const d = sizeOf(k), y = legendY - (28 + i * (DOT_MAX + 8) + DOT_MAX / 2) / area
         return { name: `legend-size-${i}`, type: 'circle' as const, xref: 'paper' as const, yref: 'paper' as const, xsizemode: 'pixel' as const, ysizemode: 'pixel' as const,
           xanchor: 1.03, yanchor: y, x0: DOT_MAX / 2 - d / 2, x1: DOT_MAX / 2 + d / 2, y0: -d / 2, y1: d / 2,
           fillcolor: 'rgba(128,128,128,0.45)', line: { color: 'rgba(128,128,128,0.9)', width: 1 } }
-      }),
+      })] as never,
       annotations: ([
+        ...(upDown ? [{ name: 'dir-legend', xref: 'paper' as const, yref: 'paper' as const, x: 1.03, y: legendY - (40 + legendCounts.length * (DOT_MAX + 8)) / area, xanchor: 'left' as const, yanchor: 'top' as const,
+          text: '● up<br>◆ down', align: 'left' as const, showarrow: false, font: { size: 11 } }] : []),
         { name: 'legend-title', xref: 'paper' as const, yref: 'paper' as const, x: 1.03, y: legendY, xanchor: 'left' as const, yanchor: 'top' as const, text: 'Genes', showarrow: false },
         ...legendCounts.map((k, i) => ({ name: `legend-label-${i}`, xref: 'paper' as const, yref: 'paper' as const, x: 1.03, xshift: DOT_MAX + 8, xanchor: 'left' as const,
           y: legendY - (28 + i * (DOT_MAX + 8) + DOT_MAX / 2) / area, yanchor: 'middle' as const, text: String(k), showarrow: false, font: { size: 11 } })),
@@ -165,11 +224,17 @@ export function BarchartView({ data, config, settings, selected, onSelect, plotR
   const cb = usePaletteMode()
   const colorOf = useSourceColor(config, data.availableSources)
   const metric = settings.barMetric ?? 'log10p'
-  const colors = settings.barColors ?? 'source'
-  const value = (t: Term) => (metric === 'log10p' ? t.log10p : metric === 'nes' ? t.nes ?? 0 : t.coverage)
+  const upDown = data.terms.some((t) => t.section)
+  // The up & down figure is coloured by direction unless another colouring is chosen.
+  const colors = settings.barColors ?? (upDown ? 'direction' : 'source')
+  const value = (t: Term) => dirSign(t) * (metric === 'log10p' ? t.log10p : metric === 'nes' ? t.nes ?? 0 : t.coverage)
   // Bars follow their length (longest at the top); Plotly draws the first category at the bottom.
-  const terms = [...data.terms].sort((a, b) => value(a) - value(b))
+  // Up & down figure: the caller's order (sections, top-down).
+  const terms = upDown ? sortSections(data.terms, value) : [...data.terms].sort((a, b) => value(a) - value(b))
   const yLabel = axisLabels(terms, settings)
+  const metricLabel = metric === 'log10p' ? '−log10 p-value' : metric === 'nes' ? 'NES (positive = top of ranking)' : 'Term coverage (%)'
+  const ud = upDown ? upDownLayout(terms, yLabel, terms.map(value), metricLabel) : null
+  const rows = ud ? ud.rows : rowOrder(terms, yLabel)
   const anySel = terms.some((t) => selected.has(t.id))
   const plot = useMemo(() => {
     const bar = (ts: Term[], name: string, marker: Record<string, unknown>) => ({
@@ -178,16 +243,22 @@ export function BarchartView({ data, config, settings, selected, onSelect, plotR
       customdata: ts.map((t) => t.id), text: ts.map(hover), hoverinfo: 'text' as const, textposition: 'none' as const,
       marker: { ...marker, line: selLine(ts.map((t) => t.id), selected), opacity: selOpacity(ts.map((t) => t.id), selected, 1, anySel) },
     })
-    if (colors === 'source') return [...bySource(terms)].map(([src, ts]) => bar(ts, src, { color: colorOf(src) }))
+    if (colors === 'direction' && upDown) {
+      const rc = roleColors(cb)
+      return [...(['up', 'down'] as const).map((d) => ({ ...bar(terms.filter((t) => t.direction === d), DIR_LABEL[d], { color: d === 'up' ? rc.up : rc.down }), showlegend: true }))]
+    }
+    if (colors === 'source' || colors === 'direction') return [...[...bySource(terms)].map(([src, ts]) => bar(ts, src, { color: colorOf(src) }))]
     if (colors === 'single') return [bar(terms, 'Terms', { color: settings.barColor || defaultBarColor(cb) })]
     // Shaded by significance (−log10 p), whatever the bar length shows, with a colour bar as in the dot plot.
     const scale = significanceScale(colors, cb)
     return [bar(terms, 'Terms', { color: terms.map((t) => t.log10p), colorscale: scale, reversescale: typeof scale === 'string' && reverseScale(scale),
       showscale: true, colorbar: { title: { text: '−log10 p' }, thickness: 12, len: Math.min(1, 260 / Math.max(360, 24 * terms.length + 80)), y: 1, yanchor: 'top' } })]
   }, [terms, yLabel, metric, config, selected, colors, settings.barColor, cb]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <Plot title={title} exportName={exportName} data={plot as never} height={Math.max(360, 24 * terms.length + 80)} handleRef={plotRef} onSelect={onSelect}
-    layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 }, xaxis: { title: { text: metric === 'log10p' ? '−log10 p-value' : metric === 'nes' ? 'NES (positive = top of ranking)' : 'Term coverage (%)' } },
-      yaxis: { automargin: true, categoryorder: 'array', categoryarray: terms.map((t) => yLabel.get(t.id)!) }, legend: { orientation: 'h', y: -0.15 }, showlegend: new Set(terms.map((t) => t.source)).size > 1 }} />
+  return <Plot title={title} exportName={exportName} data={plot as never} height={Math.max(360, 24 * rows.length + 80)} handleRef={plotRef} onSelect={onSelect}
+    layout={{ barmode: 'relative', margin: { l: 320, r: 20, t: 10, b: 50 },
+      xaxis: ud ? ud.xaxis : { title: { text: metricLabel } }, shapes: (ud?.shapes ?? []) as never,
+      yaxis: { automargin: true, categoryorder: 'array', categoryarray: rows }, legend: { orientation: 'h', y: -0.15 },
+      showlegend: (colors === 'direction' && upDown) || ((colors === 'source' || colors === 'direction') && new Set(terms.map((t) => t.source)).size > 1) }} />
 }
 
 export function ScatterView({ data, config, selected, onSelect, plotRef, exportName, title }: ViewProps) {
@@ -349,7 +420,7 @@ export function TableView({ data, config, selected, onSelect, columns, runId }: 
             <tr key={t.id} className={selected.has(t.id) ? 'selected' : ''} onClick={() => onSelect([t.id], true)}>
               <td><input type="checkbox" checked={selected.has(t.id)} readOnly aria-label={`Select ${t.name}`} /></td>
               {cols.map((c) => (
-                <td key={c.key} className={c.key === 'genes' ? 'genes-cell' : c.numeric ? 'num' : ''}>
+                <td key={c.key} className={c.key === 'genes' ? 'genes-cell' : c.key === 'id' ? 'id-cell' : c.numeric ? 'num' : ''}>
                   {c.key === 'source' ? <span className="source-tag" style={{ borderColor: colorOf(t.source) }}>{t.source}</span>
                     : c.key === 'id' && runId && isKeggTerm(t) ? <KeggMapLink runId={runId} term={t} />
                     : c.key === 'id' && isHttpUrl(t.link) ? <a href={t.link} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>{t.id}</a>
@@ -499,7 +570,8 @@ export function CircosView({ data, config, settings, selected, onSelect, svgRef,
 }
 
 /** KEGG pathway terms (any tool's ID format: KEGG:04110, hsa04110, map04110). */
-export const isKeggTerm = (t: Term) => /KEGG/i.test(t.source) || /^(KEGG:|path:)?(map|hsa|mmu|rno|dre|dme|cel|sce|[a-z]{3,4})\d{5}$/.test(t.id)
+// KEGG MEDICUS sets (MSigDB) are KEGG networks, not pathway maps: no map link.
+export const isKeggTerm = (t: Term) => (/KEGG/i.test(t.source) && !/MEDICUS/i.test(t.source)) || /^(KEGG:|path:)?(map|hsa|mmu|rno|dre|dme|cel|sce|[a-z]{3,4})\d{5}$/.test(t.id)
 
 /**
  * Link that opens the KEGG pathway map with the run's genes highlighted in red

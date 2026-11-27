@@ -763,14 +763,20 @@ TOOLS[[ToolId$CLUSTERPROFILER]] <- list(
   name = "clusterProfiler",
   paradigms = c(ParadigmId$ORA, ParadigmId$GSEA),
   datasources = c("GO:BP", "GO:MF", "GO:CC", "KEGG", "REAC", "WP", "HP", "TF", "MIRNA",
-                  "HALLMARK", "BIOCARTA", "PID", "CELLTYPE", "IMMUNESIGDB", "ONCOGENIC"),
+                  "HALLMARK", "BIOCARTA", "PID", "CELLTYPE", "IMMUNESIGDB", "ONCOGENIC",
+                  "POSITIONAL", "CGP", "CP", "KEGG_MEDICUS", "MIR_LEGACY", "TFT_LEGACY",
+                  "3CA", "CGN", "CM", "VAX", "CPS"),
   # FLAME source -> msigdbr collection / subcollection
   datasourceCodes = list(
     "GO:BP" = c("C5", "GO:BP"), "GO:MF" = c("C5", "GO:MF"), "GO:CC" = c("C5", "GO:CC"),
     "KEGG" = c("C2", "CP:KEGG_LEGACY"), "REAC" = c("C2", "CP:REACTOME"), "WP" = c("C2", "CP:WIKIPATHWAYS"),
     "HP" = c("C5", "HPO"), "TF" = c("C3", "TFT:GTRD"), "MIRNA" = c("C3", "MIR:MIRDB"),
     "HALLMARK" = c("H", ""), "BIOCARTA" = c("C2", "CP:BIOCARTA"), "PID" = c("C2", "CP:PID"),
-    "CELLTYPE" = c("C8", ""), "IMMUNESIGDB" = c("C7", "IMMUNESIGDB"), "ONCOGENIC" = c("C6", "")
+    "CELLTYPE" = c("C8", ""), "IMMUNESIGDB" = c("C7", "IMMUNESIGDB"), "ONCOGENIC" = c("C6", ""),
+    "POSITIONAL" = c("C1", ""), "CGP" = c("C2", "CGP"), "CP" = c("C2", "CP"),
+    "KEGG_MEDICUS" = c("C2", "CP:KEGG_MEDICUS"), "MIR_LEGACY" = c("C3", "MIR:MIR_LEGACY"),
+    "TFT_LEGACY" = c("C3", "TFT:TFT_LEGACY"), "3CA" = c("C4", "3CA"), "CGN" = c("C4", "CGN"),
+    "CM" = c("C4", "CM"), "VAX" = c("C7", "VAX"), "CPS" = c("C9", "")
   ),
   namespaces = list("Entrez Gene Accession" = "ENTREZGENE_ACC"),
   defaultNamespace = "ENTREZGENE_ACC",
@@ -1028,11 +1034,63 @@ DATASOURCES_PRINT <- list(
     "Tabula Sapiens" = "TABULA", "MSigDB cell type signatures (C8)" = "CELLTYPE"
   ),
   'MSigDB collections' = list(
-    "Hallmark gene sets" = "HALLMARK", "BioCarta pathways" = "BIOCARTA",
-    "PID pathways" = "PID",
-    "Immunologic signatures (C7)" = "IMMUNESIGDB", "Oncogenic signatures (C6)" = "ONCOGENIC"
+    "Hallmark gene sets (H)" = "HALLMARK", "Positional gene sets (C1)" = "POSITIONAL",
+    "Chemical and genetic perturbations (C2 CGP)" = "CGP", "Canonical pathways, other (C2 CP)" = "CP",
+    "BioCarta pathways" = "BIOCARTA", "KEGG MEDICUS pathways (C2)" = "KEGG_MEDICUS", "PID pathways" = "PID",
+    "miRNA targets, legacy (C3)" = "MIR_LEGACY", "TF targets, legacy (C3)" = "TFT_LEGACY",
+    "Curated Cancer Cell Atlas (C4 3CA)" = "3CA", "Cancer gene neighborhoods (C4 CGN)" = "CGN",
+    "Cancer modules (C4 CM)" = "CM",
+    "Oncogenic signatures (C6)" = "ONCOGENIC", "Immunologic signatures (C7 ImmuneSigDB)" = "IMMUNESIGDB",
+    "Vaccine response (C7 VAX)" = "VAX", "Computational perturbation signatures (C9)" = "CPS"
   )
 )
+
+# MSigDB as the Molecular Signatures Database organises it (collections H, C1-C9), for the GSEA
+# gene-set picker. `sources` are FLAME source IDs, all served by clusterProfiler via msigdbr;
+# `codes` are the msigdbr collection/subcollection for the set counts.
+MSIGDB_COLLECTIONS <- list(
+  list(code = "H", name = "Hallmark", text = "Well-defined biological states and processes; the usual first choice.",
+       sources = c(HALLMARK = "Hallmark gene sets")),
+  list(code = "C1", name = "Positional", text = "Genes of each human chromosome cytogenetic band.",
+       sources = c(POSITIONAL = "Chromosome bands")),
+  list(code = "C2", name = "Curated", text = "Pathway databases and published expression signatures.",
+       sources = c(CGP = "Chemical and genetic perturbations (CGP)", REAC = "Reactome", WP = "WikiPathways",
+                   KEGG_MEDICUS = "KEGG MEDICUS (current KEGG)", KEGG = "KEGG legacy (2011)",
+                   BIOCARTA = "BioCarta", PID = "PID", CP = "Other canonical pathways")),
+  list(code = "C3", name = "Regulatory targets", text = "Targets of transcription factors and microRNAs.",
+       sources = c(TF = "TF targets, GTRD", TFT_LEGACY = "TF targets, legacy motifs", MIRNA = "miRNA targets, miRDB",
+                   MIR_LEGACY = "miRNA targets, legacy motifs")),
+  list(code = "C4", name = "Computational", text = "Cancer-oriented sets from microarray and single-cell data.",
+       sources = c(`3CA` = "Curated Cancer Cell Atlas (3CA)", CGN = "Cancer gene neighborhoods", CM = "Cancer modules")),
+  list(code = "C5", name = "Ontology", text = "Gene Ontology and Human Phenotype Ontology terms.",
+       sources = c(`GO:BP` = "GO biological process", `GO:MF` = "GO molecular function", `GO:CC` = "GO cellular component",
+                   HP = "Human Phenotype Ontology")),
+  list(code = "C6", name = "Oncogenic signatures", text = "Pathways often dysregulated in cancer.",
+       sources = c(ONCOGENIC = "Oncogenic signatures")),
+  list(code = "C7", name = "Immunologic signatures", text = "Immune cell states and perturbations.",
+       sources = c(IMMUNESIGDB = "ImmuneSigDB", VAX = "Vaccine response (HIPC)")),
+  list(code = "C8", name = "Cell type signatures", text = "Marker genes of cell types from single-cell studies.",
+       sources = c(CELLTYPE = "Cell type signatures")),
+  list(code = "C9", name = "Computational perturbations", text = "Signatures from perturbation screens.",
+       sources = c(CPS = "Computational perturbation signatures"))
+)
+# Sources whose term IDs are MSigDB set names (linked to the MSigDB set page).
+MSIGDB_CARD_SOURCES <- c("HALLMARK", "BIOCARTA", "PID", "CELLTYPE", "IMMUNESIGDB", "ONCOGENIC", "POSITIONAL",
+                         "CGP", "CP", "KEGG_MEDICUS", "MIR_LEGACY", "TFT_LEGACY", "3CA", "CGN", "CM", "VAX", "CPS")
+GSEA_DEFAULT_DATASOURCES <- c("HALLMARK", "GO:BP", "REAC", "KEGG_MEDICUS")
+
+#' Number of gene sets per FLAME MSigDB source (human release; NA when msigdbr cannot say).
+msigdb_set_counts <- function() {
+  codes <- TOOLS[[ToolId$CLUSTERPROFILER]]$datasourceCodes
+  cols <- tryCatch(as.data.frame(msigdbr::msigdbr_collections(db_species = "HS")), error = function(e) NULL)
+  vapply(names(codes), function(src) {
+    if (is.null(cols)) return(NA_integer_)
+    cs <- codes[[src]]
+    sub <- ifelse(is.na(cols$gs_subcollection), "", cols$gs_subcollection)
+    n <- cols$num_genesets[cols$gs_collection == cs[1] & sub == cs[2]]
+    if (length(n)) as.integer(n[1]) else NA_integer_
+  }, integer(1))
+}
 
 DATASOURCES_DEFAULT_SELECTED <- c("GO:MF", "GO:CC", "GO:BP", "KEGG")
 
@@ -1072,6 +1130,9 @@ DATASOURCE_COLORS <- c(
   "PUBMED" = "#cc9f9f", "GENE" = GENE_NODE_COLOR,
   "HALLMARK" = "#e6550d", "BIOCARTA" = "#31a354", "PID" = "#756bb1",
   "CELLTYPE" = "#de2d26", "IMMUNESIGDB" = "#3182bd", "ONCOGENIC" = "#636363",
+  "POSITIONAL" = "#8c6d31", "CGP" = "#e7298a", "CP" = "#1b9e77", "KEGG_MEDICUS" = "#b5367a",
+  "MIR_LEGACY" = "#66c2a5", "TFT_LEGACY" = "#8da0cb", "3CA" = "#d95f02", "CGN" = "#7570b3",
+  "CM" = "#a6761d", "VAX" = "#6baed6", "CPS" = "#525252",
   "PANGLAO" = "#0f766e", "CELLMARKER" = "#14b8a6", "AZIMUTH" = "#a16207", "TABULA" = "#be185d",
   "GENESIGDB" = "#9f7aea", "RUMMAGENE" = "#b45309"
 )
