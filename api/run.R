@@ -87,7 +87,7 @@ if (dir.exists(dist)) {
 # Refuse request bodies above the largest allowed upload, and bodies without a length
 # (chunked), before httpuv reads them into memory; the guard filter in plumber.R then
 # applies the per-route limits.
-options(plumber.maxRequestSize = max(FLAME_LIMITS$maxSessionBytes, EXPRESSION_MAX_BYTES + 1024^2))
+options(plumber.maxRequestSize = max(FLAME_LIMITS$maxSessionBytes, EXPRESSION_MAX_BYTES + 1024^2, TABLE_INPUT_MAX_BYTES + 1024^2))
 
 message("Flame listening on http://", host, ":", port)
 plumber::pr_run(pr, host = host, port = port, docs = TRUE, quiet = TRUE)

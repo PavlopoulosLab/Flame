@@ -7,6 +7,9 @@
 # =============================================================================
 
 MAX_INPUT_BYTES <- 1024L * 1024L
+# Volcano / 2D tables: full differential-expression results (every gene, several columns)
+# are several MB, so these tables get their own, larger limit.
+TABLE_INPUT_MAX_BYTES <- as.numeric(Sys.getenv("FLAME_MAX_TABLE_MB", "20")) * 1024^2
 
 # ---- Upload / paste ---------------------------------------------------------
 
@@ -116,7 +119,7 @@ reduction_default_mapping <- function(df) {
 #' Prepare step: parse, validate, and suggest a column mapping
 prepare_table_input <- function(text, fileName = "", kind = c("volcano", "reduction")) {
   kind <- match.arg(kind)
-  df <- parse_delimited_table(text, fileName)
+  df <- parse_delimited_table(text, fileName, maxBytes = TABLE_INPUT_MAX_BYTES)
   .require_numeric_cols(df, if (kind == "volcano") "A volcano plot" else "A 2D plot")
   list(rowCount = nrow(df), columns = table_columns(df),
        defaults = if (kind == "volcano") volcano_default_mapping(df) else reduction_default_mapping(df),
@@ -135,7 +138,7 @@ prepare_table_input <- function(text, fileName = "", kind = c("volcano", "reduct
 
 #' Volcano points: one per valid row, with significance class
 volcano_points <- function(text, fileName = "", mapping, pThreshold = 0.05, lfcThreshold = 1) {
-  df <- parse_delimited_table(text, fileName)
+  df <- parse_delimited_table(text, fileName, maxBytes = TABLE_INPUT_MAX_BYTES)
   .check_col(df, mapping$id, "ID"); .check_col(df, mapping$logfc, "log2FC", TRUE)
   .check_col(df, mapping$pvalue, "p-value", TRUE)
   if (length(unique(c(mapping$id, mapping$logfc, mapping$pvalue))) < 3) stop("ID, log2FC and p-value columns must be different.")
@@ -163,7 +166,7 @@ volcano_points <- function(text, fileName = "", mapping, pThreshold = 0.05, lfcT
 
 #' 2D reduction points (optional colour and size channels)
 reduction_points <- function(text, fileName = "", mapping) {
-  df <- parse_delimited_table(text, fileName)
+  df <- parse_delimited_table(text, fileName, maxBytes = TABLE_INPUT_MAX_BYTES)
   .check_col(df, mapping$id, "ID"); .check_col(df, mapping$x, "X", TRUE); .check_col(df, mapping$y, "Y", TRUE)
   if (identical(mapping$x, mapping$y)) stop("X and Y columns must be different.")
   if (nzchar(mapping$color %||% "")) .check_col(df, mapping$color, "colour")

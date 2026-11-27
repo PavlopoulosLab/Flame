@@ -7,6 +7,9 @@
   text
 }
 
+# Volcano / 2D tables: checked against TABLE_INPUT_MAX_BYTES by the parser instead of the 1 MB text limit.
+.table_text_arg <- function(b) paste(as.character(unlist(b$text %||% "")), collapse = "\n")
+
 .as_records <- function(df) {
   if (is.null(df) || nrow(df) == 0) return(list())
   lapply(seq_len(nrow(df)), function(i) as.list(df[i, , drop = FALSE]))
@@ -128,7 +131,7 @@ function(req, res) {
   api_handle(res, {
     b <- body_of(req)
     kind <- if (identical(b$kind, "reduction")) "reduction" else "volcano"
-    tryCatch(prepare_table_input(.text_arg(b), as.character(b$fileName %||% ""), kind),
+    tryCatch(prepare_table_input(.table_text_arg(b), as.character(b$fileName %||% ""), kind),
              error = function(e) api_abort(400, conditionMessage(e)))
   })
 }
@@ -139,7 +142,7 @@ function(req, res) {
 function(req, res) {
   api_handle(res, {
     b <- body_of(req)
-    tryCatch(volcano_points(.text_arg(b), as.character(b$fileName %||% ""), b$mapping %||% list(),
+    tryCatch(volcano_points(.table_text_arg(b), as.character(b$fileName %||% ""), b$mapping %||% list(),
                             b$pThreshold %||% 0.05, b$lfcThreshold %||% 1),
              error = function(e) api_abort(400, conditionMessage(e)))
   })
@@ -151,7 +154,7 @@ function(req, res) {
 function(req, res) {
   api_handle(res, {
     b <- body_of(req)
-    tryCatch(reduction_points(.text_arg(b), as.character(b$fileName %||% ""), b$mapping %||% list()),
+    tryCatch(reduction_points(.table_text_arg(b), as.character(b$fileName %||% ""), b$mapping %||% list()),
              error = function(e) api_abort(400, conditionMessage(e)))
   })
 }

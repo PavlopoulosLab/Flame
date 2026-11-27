@@ -87,6 +87,20 @@ test_that("volcano and reduction tables are parsed with sensible defaults", {
   expect_error(volcano_points(txt, "x.tsv", list(id = "gene", logfc = "logFC", pvalue = "logFC")), "different")
 })
 
+test_that("volcano tables of a whole genome (well over 1 MB) are accepted", {
+  n <- 60000
+  set.seed(1)
+  big <- paste0("gene\tbaseMean\tlog2FoldChange\tlfcSE\tstat\tpvalue\tpadj\n",
+                paste(sprintf("ENSG%011d\t%.4f\t%.6f\t%.6f\t%.6f\t%.6e\t%.6e", seq_len(n), runif(n, 0, 5000),
+                              rnorm(n), runif(n), rnorm(n), runif(n), runif(n)), collapse = "\n"))
+  expect_gt(nchar(big, type = "bytes"), 4 * 1024^2)
+  prep <- prepare_table_input(big, "deseq2.tsv", "volcano")
+  expect_equal(prep$rowCount, n)
+  pts <- volcano_points(big, "deseq2.tsv", prep$defaults, 0.05, 1)
+  expect_equal(pts$plotted, n)
+  expect_error(prepare_table_input(strrep("a", TABLE_INPUT_MAX_BYTES + 1), "x.tsv"), "MB limit")
+})
+
 test_that("custom GMT sources: parsing and hypergeometric ORA", {
   sets <- parse_gmt("S1\tset one\tA\tB\tC\tD\nS2\tset two\tX\tY\tZ\nbad line\n")
   expect_length(sets, 2)
