@@ -27,7 +27,8 @@ test_that("every MSigDB collection is offered for GSEA and maps to an msigdbr su
   expect_true(all(ids %in% names(DATASOURCE_COLORS)))
   counts <- msigdb_set_counts()
   expect_equal(counts[["HALLMARK"]], 50L)
-  expect_true(all(!is.na(counts)))
+  # KEGG is downloaded from KEGG itself (current pathways), so MSigDB has no count for it.
+  expect_true(all(!is.na(counts[setdiff(names(counts), "KEGG")])))
 })
 
 test_that("custom signatures are matched to the ranking by input ID or symbol", {

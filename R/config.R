@@ -506,26 +506,26 @@ TOOLS[[ToolId$ENRICHR]] <- list(
 
   organismDatasourceCodes = list(
     hsapiens = list(
-      "GO:MF" = "GO_Molecular_Function_2021",
-      "GO:CC" = "GO_Cellular_Component_2021",
-      "GO:BP" = "GO_Biological_Process_2021",
-      "KEGG" = "KEGG_2016",
-      "REAC" = "Reactome_2022",
-      "WP" = "WikiPathway_2021_Human",
+      "GO:MF" = "GO_Molecular_Function_2026",
+      "GO:CC" = "GO_Cellular_Component_2026",
+      "GO:BP" = "GO_Biological_Process_2026",
+      "KEGG" = "KEGG_2026",
+      "REAC" = "Reactome_Pathways_2024",
+      "WP" = "WikiPathways_2024_Human",
       "PANTHER Pathways" = "Panther_2016",
       "HP" = "Human_Phenotype_Ontology",
       "PANGLAO" = "PanglaoDB_Augmented_2021",
       "CELLMARKER" = "CellMarker_2024",
-      "AZIMUTH" = "Azimuth_Cell_Types_2021",
+      "AZIMUTH" = "Azimuth_2023",
       "TABULA" = "Tabula_Sapiens",
       "GENESIGDB" = "GeneSigDB",
       "RUMMAGENE" = "Rummagene_signatures"
     ),
     mmusculus = list(
-      "GO:MF" = "GO_Molecular_Function_2021",
-      "GO:CC" = "GO_Cellular_Component_2021",
-      "GO:BP" = "GO_Biological_Process_2021",
-      "WP" = "WikiPathways_2019_Mouse",
+      "GO:MF" = "GO_Molecular_Function_2026",
+      "GO:CC" = "GO_Cellular_Component_2026",
+      "GO:BP" = "GO_Biological_Process_2026",
+      "WP" = "WikiPathways_2024_Mouse",
       "MGI" = "KOMP2_Mouse_Phenotypes_2022"
     ),
     dmelanogaster = list(
@@ -545,7 +545,7 @@ TOOLS[[ToolId$ENRICHR]] <- list(
       "GO:CC" = "GO_Cellular_Component_2018",
       "GO:BP" = "GO_Biological_Process_2018",
       "WP" = "WikiPathways_2018",
-      "KEGG" = "KEGG_2018"
+      "KEGG" = "KEGG_2019"
     ),
     celegans = list(
       "GO:MF" = "GO_Molecular_Function_2018",
@@ -564,7 +564,7 @@ TOOLS[[ToolId$ENRICHR]] <- list(
       "WP" = "WikiPathway_2021_Human",
       "ORPHA" = "Orphanet_Augmented_2021",
       "HP" = "Human_Phenotype_Ontology",
-      "MGI" = "MGI_Mammalian_Phenotype_Level_4_2019"
+      "MGI" = "MGI_Mammalian_Phenotype_Level_4_2021"
     )
   ),
 
@@ -757,7 +757,8 @@ TOOL_ORGANISMS <- tryCatch(
 )
 
 # -----------------------------------------------------------------------------
-# clusterProfiler (MSigDB gene sets via msigdbr; ORA with enricher(), GSEA with GSEA())
+# clusterProfiler: GO via enrichGO/gseGO (OrgDb), KEGG via enrichKEGG/gseKEGG (current KEGG),
+# all other sources from MSigDB via msigdbr (enricher/GSEA); see enrich-annotations-clusterprofiler.R
 # -----------------------------------------------------------------------------
 TOOLS[[ToolId$CLUSTERPROFILER]] <- list(
   name = "clusterProfiler",
@@ -766,10 +767,11 @@ TOOLS[[ToolId$CLUSTERPROFILER]] <- list(
                   "HALLMARK", "BIOCARTA", "PID", "CELLTYPE", "IMMUNESIGDB", "ONCOGENIC",
                   "POSITIONAL", "CGP", "CP", "KEGG_MEDICUS", "MIR_LEGACY", "TFT_LEGACY",
                   "3CA", "CGN", "CM", "VAX", "CPS"),
-  # FLAME source -> msigdbr collection / subcollection
+  # FLAME source -> msigdbr collection / subcollection (KEGG is not MSigDB's frozen
+  # KEGG_LEGACY: it is downloaded from KEGG itself, see kegg_gson())
   datasourceCodes = list(
     "GO:BP" = c("C5", "GO:BP"), "GO:MF" = c("C5", "GO:MF"), "GO:CC" = c("C5", "GO:CC"),
-    "KEGG" = c("C2", "CP:KEGG_LEGACY"), "REAC" = c("C2", "CP:REACTOME"), "WP" = c("C2", "CP:WIKIPATHWAYS"),
+    "KEGG" = c("KEGG", ""), "REAC" = c("C2", "CP:REACTOME"), "WP" = c("C2", "CP:WIKIPATHWAYS"),
     "HP" = c("C5", "HPO"), "TF" = c("C3", "TFT:GTRD"), "MIRNA" = c("C3", "MIR:MIRDB"),
     "HALLMARK" = c("H", ""), "BIOCARTA" = c("C2", "CP:BIOCARTA"), "PID" = c("C2", "CP:PID"),
     "CELLTYPE" = c("C8", ""), "IMMUNESIGDB" = c("C7", "IMMUNESIGDB"), "ONCOGENIC" = c("C6", ""),
@@ -1055,7 +1057,7 @@ MSIGDB_COLLECTIONS <- list(
        sources = c(POSITIONAL = "Chromosome bands")),
   list(code = "C2", name = "Curated", text = "Pathway databases and published expression signatures.",
        sources = c(CGP = "Chemical and genetic perturbations (CGP)", REAC = "Reactome", WP = "WikiPathways",
-                   KEGG_MEDICUS = "KEGG MEDICUS (current KEGG)", KEGG = "KEGG legacy (2011)",
+                   KEGG = "KEGG pathways (current, from KEGG)", KEGG_MEDICUS = "KEGG MEDICUS",
                    BIOCARTA = "BioCarta", PID = "PID", CP = "Other canonical pathways")),
   list(code = "C3", name = "Regulatory targets", text = "Targets of transcription factors and microRNAs.",
        sources = c(TF = "TF targets, GTRD", TFT_LEGACY = "TF targets, legacy motifs", MIRNA = "miRNA targets, miRDB",
@@ -1077,7 +1079,7 @@ MSIGDB_COLLECTIONS <- list(
 # Sources whose term IDs are MSigDB set names (linked to the MSigDB set page).
 MSIGDB_CARD_SOURCES <- c("HALLMARK", "BIOCARTA", "PID", "CELLTYPE", "IMMUNESIGDB", "ONCOGENIC", "POSITIONAL",
                          "CGP", "CP", "KEGG_MEDICUS", "MIR_LEGACY", "TFT_LEGACY", "3CA", "CGN", "CM", "VAX", "CPS")
-GSEA_DEFAULT_DATASOURCES <- c("HALLMARK", "GO:BP", "REAC", "KEGG_MEDICUS")
+GSEA_DEFAULT_DATASOURCES <- c("HALLMARK", "GO:BP", "REAC", "KEGG")
 
 #' Number of gene sets per FLAME MSigDB source (human release; NA when msigdbr cannot say).
 msigdb_set_counts <- function() {
