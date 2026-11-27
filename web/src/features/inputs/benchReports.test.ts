@@ -1,6 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate'
 import { describe, expect, it } from 'vitest'
-import { delimited, htmlReport, jsonReport, markdownReport, pdfReport, pdfSafe, resultTables, textReport, textTable, xlsxBytes, zipTables, type ExportResult } from './benchExport'
+import { delimited, htmlReport, jsonReport, markdownReport, pdfReport, pdfSafe, resultTables, textReport, textTable, xlsxBytes, zipTables, type ExportResult } from './benchReports'
 
 const res: ExportResult = {
   groups: ['Control', 'Dex'], control: 'Control', logScale: true, across: 'holm',

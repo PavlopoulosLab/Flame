@@ -1,7 +1,7 @@
 import Plotly from 'plotly.js-dist-min'
 import { useMemo, useState } from 'react'
 import { Field } from '../../components/ui'
-import { delimited, download, fmtCell, htmlReport, jsonReport, markdownReport, pdfReport, resultTables, textReport, textTable, xlsxBytes, zipTables, type ExportResult } from './benchExport'
+import { delimited, download, fmtCell, htmlReport, jsonReport, markdownReport, pdfReport, resultTables, textReport, textTable, xlsxBytes, zipTables, type ExportResult } from './benchReports'
 
 type Format = 'xlsx' | 'csv' | 'tsv' | 'txt' | 'md' | 'html' | 'pdf' | 'json'
 const FORMATS: { id: Format; label: string; title: string }[] = [
