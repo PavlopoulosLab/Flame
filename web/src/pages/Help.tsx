@@ -273,13 +273,14 @@ const TOPICS: Topic[] = [
           <li><strong>GSEA enrichment plot</strong> (GSEA runs) — the classic running-score figure per term; see <Link to="/help/gsea">Ranked lists (GSEA)</Link>.</li>
         </ul>
         <h3>Up- and down-regulated genes together</h3>
-        <p>When a run's list is the up- or down-regulated half of a pair saved from a volcano plot (<em>Save and continue to GO enrichment</em>; the lists carry ▲ up / ▼ down badges), and the other half has a finished run of the same tool and annotation sources, the dot plot and bar chart get an <strong>Up &amp; down</strong> switch:</p>
+        <p>When a run's list is the up- or down-regulated half of a pair saved from a volcano plot (<em>Save and continue to GO enrichment</em>) or split from a list with scores (see below; the lists carry ▲ up / ▼ down badges), and the other half has a finished run of the same tool and annotation sources, the dot plot and bar chart get an <strong>Up &amp; down</strong> switch:</p>
         <ul>
           <li><strong>One figure</strong> — the top terms of each list by the chosen ranking. Terms of the up-regulated genes are at the top with their values to the right; terms significant in both lists are in the middle, drawn on both sides (down to the left, up to the right); terms of the down-regulated genes are at the bottom, always to the left. Faint lines separate the three groups; the axis is centred on zero and labelled with positive values on both sides. Bars are coloured by direction (or by source or significance); in the dot plot up terms are circles and down terms diamonds.</li>
           <li><strong>Two panels</strong> — the two lists as two separate figures, each with its own image export.</li>
           <li><strong>This list only</strong> — the usual single-list view.</li>
         </ul>
         <p>If the other half has no finished run yet, a note links to the up &amp; down GO enrichment step, which runs the chosen tools on both lists at once.</p>
+        <p><strong>From a list with scores.</strong> You do not need a volcano plot: upload <em>IDs with scores</em> (e.g. log2 fold changes) in Paste or upload, then open <strong>New run</strong> with that list and press <strong>Up &amp; down enrichment…</strong>. Genes with a score above the cut-off (default 0) form the up list and those below its negative the down list, strongest first and at most 3,000 each; they are saved as a linked ▲ up / ▼ down pair and the up &amp; down step opens.</p>
         <h3>Network layouts and style</h3>
         <p>The <em>Layout</em> menu offers two kinds of layout. <strong>Static</strong> layouts (force-directed, Kamada–Kawai, GraphOpt, MDS, tree, star, circle, grid) are computed once on the server; drag nodes to adjust them. <strong>Interactive</strong> layouts run in your browser with vis-network: three physics solvers (Barnes–Hut, Force Atlas 2, repulsion), hierarchical repulsion, and a <em>hierarchical (layered)</em> layout that puts the most connected nodes first.</p>
         <p><em>Network style</em> sets, without re-running anything:</p>
